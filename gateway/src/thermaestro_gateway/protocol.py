@@ -99,6 +99,11 @@ class ErrorCode(IntEnum):
     UNKNOWN_REQUEST = 13
 
 
+class BusState(IntEnum):
+    SILENT = 0
+    ACTIVE = 1
+
+
 class Subscription(IntFlag):
     FRAMES_ALL = 1 << 0
     FRAMES_OWN = 1 << 1

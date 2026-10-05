@@ -38,9 +38,15 @@ def checksum(data: bytes) -> int:
     return CHECKSUM_STANDING_IN_FOR_START if x == START_TELEGRAM else x
 
 
+def reply_frame(command: int, data: bytes) -> bytes:
+    """`C0 CMD LEN DATA CHK`: an accessory's reply, e.g. a configured constant."""
+    head = bytes((START_REPLY, command, len(data))) + data
+    return head + bytes((checksum(head),))
+
+
 def read_request(register: int) -> bytes:
     _check_register(register)
-    return _reply(READ_TOKEN, register.to_bytes(2, "little"))
+    return reply_frame(READ_TOKEN, register.to_bytes(2, "little"))
 
 
 def write_request(register: int, value: int) -> bytes:
@@ -48,7 +54,7 @@ def write_request(register: int, value: int) -> bytes:
     _check_register(register)
     if not 0 <= value <= 0xFFFF_FFFF:
         raise ValueError(f"value {value} is out of range for a register write")
-    return _reply(WRITE_TOKEN, register.to_bytes(2, "little") + value.to_bytes(4, "little"))
+    return reply_frame(WRITE_TOKEN, register.to_bytes(2, "little") + value.to_bytes(4, "little"))
 
 
 def validate_reply(frame: bytes) -> None:
@@ -128,11 +134,6 @@ def split_exchange(datagram: bytes) -> Exchange:
     if len(rest) > 1:
         raise FrameError(f"{len(rest)} unexpected bytes after the exchange")
     return Exchange(telegram=datagram[:length], reply=reply, trailer=rest)
-
-
-def _reply(command: int, data: bytes) -> bytes:
-    head = bytes((START_REPLY, command, len(data))) + data
-    return head + bytes((checksum(head),))
 
 
 def _check_register(register: int) -> None:
