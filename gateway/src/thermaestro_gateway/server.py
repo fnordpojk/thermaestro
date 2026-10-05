@@ -53,10 +53,14 @@ class _Port(asyncio.DatagramProtocol):
         self.gateway = gateway
         self.name = name
         self.transport: asyncio.DatagramTransport | None = None
+        self.closed = asyncio.Event()
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         if isinstance(transport, asyncio.DatagramTransport):
             self.transport = transport
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        self.closed.set()
 
     def datagram_received(self, data: bytes, addr: Address) -> None:
         self.gateway.datagram(self.name, data, addr)
@@ -92,6 +96,7 @@ class Gateway:
         self._udp: dict[str, _Port] = {}
         self._targets: dict[Address, int | None] = dict.fromkeys(config.static_targets)
         self._serial: serial.Serial | None = None
+        self._ticker: asyncio.Task[None] | None = None
         self._stopping = asyncio.Event()
 
     async def run(self) -> None:
@@ -127,16 +132,25 @@ class Gateway:
         self._stopping.set()
 
     async def close(self) -> None:
-        self._ticker.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await self._ticker
-        self._send_control(self.control.shutdown(now_us()))
-        if self._serial is not None:
-            asyncio.get_running_loop().remove_reader(self._serial.fileno())
-            self._serial.close()
-        for port in self._udp.values():
-            if port.transport is not None:
-                port.transport.close()
+        """Stop, and return once the ports are free again; closing twice is harmless."""
+        ticker, self._ticker = self._ticker, None
+        if ticker is not None:
+            ticker.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await ticker
+            self._send_control(self.control.shutdown(now_us()))
+        port, self._serial = self._serial, None
+        if port is not None:
+            asyncio.get_running_loop().remove_reader(port.fileno())
+            port.close()
+        udp, self._udp = self._udp, {}
+        for endpoint in udp.values():
+            if endpoint.transport is not None:
+                endpoint.transport.close()
+        # A datagram transport closes its socket on the next pass of the loop.
+        for endpoint in udp.values():
+            if endpoint.transport is not None:
+                await endpoint.closed.wait()
 
     # --- in ------------------------------------------------------------------------------
 

@@ -10,6 +10,11 @@ classifiers = [
     "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3.13",
 ]
+dependencies = [
+    # The frame and protocol codec. Pinned to this release: both sides of the
+    # protocol registry must match.
+    "thermaestro-gateway==0.0.0",
+]
 
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"
@@ -20,6 +25,9 @@ build-backend = "uv_build"
 
 [tool.uv.workspace]
 members = ["gateway"]
+
+[tool.uv.sources]
+thermaestro-gateway = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -52,6 +60,11 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # assert is how pytest tests check things.
 "**/tests/**" = ["S101"]
+# A request's timeout becomes its ttl at the gateway and a cancel when it runs out, so
+# a write given up on never reaches the pump; cancelling the call from outside can't.
+"src/thermaestro/nibe/transport/*" = ["ASYNC109"]
+# "A byte within this time" is what the simulated pump waits for.
+"gateway/tests/simpump.py" = ["ASYNC109"]
 
 [tool.mypy]
 strict = true

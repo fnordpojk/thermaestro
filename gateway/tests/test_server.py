@@ -1,49 +1,16 @@
 """The whole gateway, with a simulated pump on a pseudo-terminal and UDP clients on localhost."""
 
 import asyncio
-import os
-import tty
 from collections.abc import AsyncIterator
 
 import pytest
+from simpump import TIMEOUT_S
+from simpump import PtyEnd as Pump
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
 from thermaestro_gateway.server import Config, Gateway
 
 READ_TOKEN = bytes.fromhex("5c0020690049")
-TIMEOUT_S = 2.0
-
-
-class Pump:
-    """The pump's end of a pseudo-terminal; the gateway opens the other end."""
-
-    def __init__(self) -> None:
-        self.master, self._slave = os.openpty()
-        tty.setraw(self.master)
-        self.path = os.ttyname(self._slave)
-        self._received = bytearray()
-        self._arrived = asyncio.Event()
-        asyncio.get_running_loop().add_reader(self.master, self._readable)
-
-    def _readable(self) -> None:
-        self._received += os.read(self.master, 1024)
-        self._arrived.set()
-
-    def send(self, data: bytes) -> None:
-        os.write(self.master, data)
-
-    async def expect(self, n: int) -> bytes:
-        async with asyncio.timeout(TIMEOUT_S):
-            while len(self._received) < n:
-                self._arrived.clear()
-                await self._arrived.wait()
-        data, self._received = bytes(self._received[:n]), self._received[n:]
-        return data
-
-    def close(self) -> None:
-        asyncio.get_running_loop().remove_reader(self.master)
-        os.close(self.master)
-        os.close(self._slave)
 
 
 class Client(asyncio.DatagramProtocol):
