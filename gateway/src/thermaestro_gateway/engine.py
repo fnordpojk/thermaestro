@@ -8,8 +8,10 @@ collect in an outbox.
   requests behave as on esphome-nibe: a full queue drops its oldest entry. Protocol
   requests are refused when the queue is full, and a protocol request a plain one pushes
   out is reported as EVICTED.
-- Reads are paired with the pump's 0x6A answers by register; every client waiting for
-  that register gets the answer.
+- Reads are paired with the pump's 0x6A answers first in, first out per register: the
+  read requests the pump took, from every client and plain ones included, wait in the
+  order it took them, and an answer belongs to the oldest. A read-back after a write
+  thus never gets the answer to a request taken before the write.
 - Writes are paired with 0x6C answers by order. A protocol write isn't sent while another
   write is awaiting its 0x6C. If a 0x6C arrives while more than one write is in flight
   (a plain client's writes can overlap), the pairing is reported as AMBIGUOUS.
@@ -84,7 +86,8 @@ class Engine:
         self._constants = {
             key: nibe.reply_frame(key[1], data) for key, data in (constants or {}).items()
         }
-        self._reads: list[Queued] = []
+        self._reads: dict[int, deque[Queued]] = {}
+        """Per register, the reads the pump took, oldest first."""
         self._writes: deque[Queued] = deque()
         self._outbox: list[Outgoing] = []
 
@@ -145,12 +148,12 @@ class Engine:
 
     def forget(self, client: object) -> None:
         """A client's session ended: its queued requests never reach the pump, and nothing
-        more is reported to it. Writes already in flight stay, for the pairing of others."""
+        more is reported to it. Reads and writes already taken keep their places, for the
+        pairing of others."""
         for queue in self._queues.values():
             for entry in [e for e in queue if e.client == client]:
                 queue.remove(entry)
-        self._reads = [r for r in self._reads if r.client != client]
-        for entry in self._writes:
+        for entry in self._taken():
             if entry.client == client:
                 entry.client = None
 
@@ -197,17 +200,24 @@ class Engine:
             if stage is not p.Stage.PUMP_NAK:
                 if entry.is_write:
                     self._writes.append(entry)
-                elif entry.is_read and entry.client is not None and entry.expect_answer:
-                    self._reads.append(entry)
+                elif entry.is_read:
+                    self._reads.setdefault(entry.register, deque()).append(entry)
         telegram = exchange.telegram
         if telegram is None or telegram.address != nibe.MODBUS40:
             return
         raw = exchange.data[: nibe.telegram_length(exchange.data)]
         if telegram.command == nibe.READ_ANSWER and len(telegram.payload) >= 2:
             register = int.from_bytes(telegram.payload[:2], "little")
-            for read in [r for r in self._reads if r.register == register]:
-                self._reads.remove(read)
-                self._answer(read, p.AnswerStatus.OK, raw, now)
+            waiting = self._reads.get(register)
+            # One that should have been answered by now lost its answer; this one isn't it.
+            while waiting and self._overdue(waiting[0], now):
+                self._timeout(waiting.popleft(), now)
+            if waiting:
+                read = waiting.popleft()
+                if read.client is not None and read.expect_answer:
+                    self._answer(read, p.AnswerStatus.OK, raw, now)
+            if not waiting:
+                self._reads.pop(register, None)
         elif telegram.command == nibe.WRITE_ANSWER and self._writes:
             ambiguous = len(self._writes) > 1
             written = self._writes.popleft()
@@ -226,13 +236,15 @@ class Engine:
                 queue.remove(entry)
                 if entry.client is not None:
                     self._drop_fate(entry.client, entry.request_id, p.DropReason.EXPIRED, now_us)
-        for read in [r for r in self._reads if self._overdue(r, now_us)]:
-            self._reads.remove(read)
-            self._timeout(read, now_us)
+        for register, waiting in list(self._reads.items()):
+            for read in [r for r in waiting if self._overdue(r, now_us)]:
+                waiting.remove(read)
+                self._timeout(read, now_us)
+            if not waiting:
+                del self._reads[register]
         for written in [w for w in self._writes if self._overdue(w, now_us)]:
             self._writes.remove(written)
-            if written.client is not None and written.expect_answer:
-                self._timeout(written, now_us)
+            self._timeout(written, now_us)
 
     # --- out -----------------------------------------------------------------------------
 
@@ -309,5 +321,12 @@ class Engine:
             )
 
     def _timeout(self, entry: Queued, now_us: int) -> None:
-        self.stats.answer_timeouts += 1
-        self._answer(entry, p.AnswerStatus.TIMEOUT, b"", now_us)
+        """No answer came in time; only a protocol client that asked for one hears of it."""
+        if entry.client is not None and entry.expect_answer:
+            self.stats.answer_timeouts += 1
+            self._answer(entry, p.AnswerStatus.TIMEOUT, b"", now_us)
+
+    def _taken(self) -> Iterable[Queued]:
+        for waiting in self._reads.values():
+            yield from waiting
+        yield from self._writes

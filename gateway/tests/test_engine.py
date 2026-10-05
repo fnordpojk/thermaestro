@@ -232,7 +232,7 @@ def test_forgetting_a_client_removes_its_requests_silently() -> None:
 # --- answers -----------------------------------------------------------------------------
 
 
-def test_a_read_answer_goes_to_every_client_reading_that_register() -> None:
+def test_read_answers_pair_first_in_first_out_per_register() -> None:
     e = engine()
     e.submit("a", read(1), 0)
     e.submit("b", read(7), 0)
@@ -242,9 +242,82 @@ def test_a_read_answer_goes_to_every_client_reading_that_register() -> None:
     e.take_outbox()
     data_exchange(e, read_answer(47134, 45), 1_000_000)
     out = e.take_outbox()
-    assert sorted(answers(out)) == [("a", 1, p.AnswerStatus.OK), ("b", 7, p.AnswerStatus.OK)]
+    assert answers(out) == [("a", 1, p.AnswerStatus.OK)]
     answer = next(o.message for o in out if isinstance(o.message, p.Answer))
     assert answer.frame == read_answer(47134, 45)
+    data_exchange(e, read_answer(47134, 46), 1_001_000)
+    assert answers(e.take_outbox()) == [("b", 7, p.AnswerStatus.OK)]
+
+
+def test_a_read_back_doesnt_get_the_answer_to_a_plain_read_taken_before_it() -> None:
+    # A plain client's read taken before a write is answered after the write;
+    # that answer belongs to the plain read, not to the read-back taken later.
+    e = engine()
+    assert e.submit_plain(nibe.MODBUS40, nibe.READ_TOKEN, nibe.read_request(47387), 0)
+    token_exchange(e, READ_TOKEN, 1_000)
+    e.submit("a", read(1, register=47387), 2_000)
+    token_exchange(e, READ_TOKEN, 3_000)
+    e.take_outbox()
+    data_exchange(e, read_answer(47387, 1), 1_000_000)
+    assert answers(e.take_outbox()) == []
+    data_exchange(e, read_answer(47387, 0), 1_003_000)
+    assert answers(e.take_outbox()) == [("a", 1, p.AnswerStatus.OK)]
+
+
+def test_a_nakked_read_waits_for_no_answer() -> None:
+    e = engine()
+    e.submit("a", read(1), 0)
+    e.submit("b", read(2), 0)
+    e.take_outbox()
+    token_exchange(e, READ_TOKEN, 1_000, trailer=nibe.NAK)
+    token_exchange(e, READ_TOKEN, 2_000)
+    e.take_outbox()
+    data_exchange(e, read_answer(47134, 45), 1_000_000)
+    assert answers(e.take_outbox()) == [("b", 2, p.AnswerStatus.OK)]
+
+
+def test_a_read_that_timed_out_leaves_the_list() -> None:
+    e = engine()
+    e.submit("a", read(1, answer_timeout_ms=1000), 0)
+    e.take_outbox()
+    token_exchange(e, READ_TOKEN, 0)
+    e.tick(1_100_000)
+    assert answers(e.take_outbox()) == [("a", 1, p.AnswerStatus.TIMEOUT)]
+    e.submit("b", read(2), 1_200_000)
+    token_exchange(e, READ_TOKEN, 1_300_000)
+    e.take_outbox()
+    data_exchange(e, read_answer(47134, 45), 2_300_000)
+    assert answers(e.take_outbox()) == [("b", 2, p.AnswerStatus.OK)]
+
+
+def test_an_overdue_read_times_out_when_an_answer_comes_before_the_tick() -> None:
+    e = engine()
+    e.submit("a", read(1, answer_timeout_ms=1000), 0)
+    e.submit("b", read(2), 0)
+    e.take_outbox()
+    token_exchange(e, READ_TOKEN, 0)
+    token_exchange(e, READ_TOKEN, 500_000)
+    e.take_outbox()
+    data_exchange(e, read_answer(47134, 45), 1_500_000)
+    assert answers(e.take_outbox()) == [
+        ("a", 1, p.AnswerStatus.TIMEOUT),
+        ("b", 2, p.AnswerStatus.OK),
+    ]
+
+
+def test_a_forgotten_clients_read_keeps_its_place() -> None:
+    e = engine()
+    e.submit("a", read(1), 0)
+    e.submit("b", read(2), 0)
+    e.take_outbox()
+    token_exchange(e, READ_TOKEN, 1_000)
+    token_exchange(e, READ_TOKEN, 2_000)
+    e.take_outbox()
+    e.forget("a")
+    data_exchange(e, read_answer(47134, 45), 1_000_000)
+    assert answers(e.take_outbox()) == []
+    data_exchange(e, read_answer(47134, 46), 1_001_000)
+    assert answers(e.take_outbox()) == [("b", 2, p.AnswerStatus.OK)]
 
 
 def test_an_answer_for_another_register_isnt_paired() -> None:
