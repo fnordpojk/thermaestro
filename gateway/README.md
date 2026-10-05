@@ -4,4 +4,4 @@ The gateway between a heat pump's serial bus and Thermaestro, for a Linux machin
 
 Version 0.0.0 on PyPI is a placeholder that keeps the package name. The project lives at https://github.com/fnordpojk/thermaestro.
 
-Licence: AGPL-3.0-or-later.
+License: AGPL-3.0-or-later.

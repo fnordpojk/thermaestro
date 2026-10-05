@@ -56,11 +56,12 @@ select = [
 [tool.mypy]
 strict = true
 python_version = "3.13"
-mypy_path = ["src", "gateway/src"]
-files = ["src", "gateway/src", "tests"]
+mypy_path = ["src", "gateway/src", "gateway/tests"]
+files = ["src", "gateway/src", "tests", "gateway/tests", "scripts"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "gateway/tests"]
+pythonpath = ["gateway/tests"]
 # Two test folders share module names, so tests aren't imported as packages.
 addopts = ["--import-mode=importlib"]
 asyncio_mode = "auto"

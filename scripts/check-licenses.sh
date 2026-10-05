@@ -1,9 +1,9 @@
 #!/bin/bash
-# Fail if a runtime dependency has a licence outside the project's policy:
+# Fail if a runtime dependency has a license outside the project's policy:
 # permissive, LGPL, MPL-2.0 and GPLv3/AGPLv3 are allowed; GPLv2-only and EPL are not.
 # Run it in an environment synced without dev dependencies:
-#   uv sync --locked --no-dev --all-packages && scripts/check-licences.sh
-# A licence string that matches nothing here fails the check and needs a person to look.
+#   uv sync --locked --no-dev --all-packages && scripts/check-licenses.sh
+# A license string that matches nothing here fails the check and needs a person to look.
 set -euo pipefail
 
 allowed=(

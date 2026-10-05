@@ -1,0 +1,155 @@
+{
+  "note": "Nibe MODBUS40 bus framing; see docs/gateway-protocol.md \u00a72. Hex strings are bytes as on the wire.",
+  "checksum": [
+    {
+      "name": "read request 47134",
+      "bytes": "c069021eb8",
+      "checksum": 13
+    },
+    {
+      "name": "XOR is 0x5C, so 0xC5 is sent",
+      "bytes": "c069026b9c",
+      "checksum": 197
+    },
+    {
+      "name": "read token telegram",
+      "bytes": "00206900",
+      "checksum": 73
+    }
+  ],
+  "replies": [
+    {
+      "name": "read 47134",
+      "register": 47134,
+      "hex": "c069021eb80d"
+    },
+    {
+      "name": "read 40043 (checksum 0xC5)",
+      "register": 40043,
+      "hex": "c069026b9cc5"
+    },
+    {
+      "name": "write 47387 = 1",
+      "register": 47387,
+      "value": 1,
+      "hex": "c06b061bb9010000000e"
+    }
+  ],
+  "invalid_replies": [
+    {
+      "name": "wrong start byte",
+      "hex": "c169021eb80d"
+    },
+    {
+      "name": "bad checksum",
+      "hex": "c069021eb80e"
+    },
+    {
+      "name": "XOR 0x5C sent as 0x5C",
+      "hex": "c069026b9c5c"
+    },
+    {
+      "name": "LEN says 3, two data bytes",
+      "hex": "c069031eb80d"
+    },
+    {
+      "name": "too short",
+      "hex": "c069"
+    }
+  ],
+  "telegrams": [
+    {
+      "name": "read token to MODBUS40",
+      "hex": "5c0020690049",
+      "address": 32,
+      "command": 105,
+      "payload": ""
+    },
+    {
+      "name": "write token to MODBUS40",
+      "hex": "5c00206b004b",
+      "address": 32,
+      "command": 107,
+      "payload": ""
+    },
+    {
+      "name": "read answer 47134 = 45 (next register 0)",
+      "hex": "5c00206a061eb82d000000c7",
+      "address": 32,
+      "command": 106,
+      "payload": "1eb82d000000"
+    },
+    {
+      "name": "read answer with a doubled 0x5C in the data",
+      "hex": "5c00206a071eb85c5c000000eb",
+      "address": 32,
+      "command": 106,
+      "payload": "1eb85c000000"
+    },
+    {
+      "name": "write result: accepted",
+      "hex": "5c00206c01014c",
+      "address": 32,
+      "command": 108,
+      "payload": "01"
+    },
+    {
+      "name": "RMU40 S1 write token",
+      "hex": "5c0019600079",
+      "address": 25,
+      "command": 96,
+      "payload": ""
+    }
+  ],
+  "invalid_telegrams": [
+    {
+      "name": "bad checksum",
+      "hex": "5c0020690048"
+    },
+    {
+      "name": "wrong start byte",
+      "hex": "5d0020690049"
+    },
+    {
+      "name": "truncated",
+      "hex": "5c00206a061eb82d00"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "read token answered with a request, pump ACKs",
+      "hex": "5c0020690049c069021eb80d06",
+      "telegram": "5c0020690049",
+      "reply": "c069021eb80d",
+      "trailer": "06"
+    },
+    {
+      "name": "read token, queue empty, gateway ACKs",
+      "hex": "5c002069004906",
+      "telegram": "5c0020690049",
+      "reply": "",
+      "trailer": "06"
+    },
+    {
+      "name": "write token answered with a write, pump NAKs",
+      "hex": "5c00206b004bc06b061bb9010000000e15",
+      "telegram": "5c00206b004b",
+      "reply": "c06b061bb9010000000e",
+      "trailer": "15"
+    },
+    {
+      "name": "data telegram, gateway ACKs",
+      "hex": "5c00206a061eb82d000000c706",
+      "telegram": "5c00206a061eb82d000000c7",
+      "reply": "",
+      "trailer": "06"
+    },
+    {
+      "name": "reply with no ACK seen (next start byte came)",
+      "hex": "5c0020690049c069021eb80d",
+      "telegram": "5c0020690049",
+      "reply": "c069021eb80d",
+      "trailer": ""
+    }
+  ]
+}

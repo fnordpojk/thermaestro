@@ -1,0 +1,547 @@
+{
+  "note": "The Thermaestro gateway protocol, registry revision 1; see docs/gateway-protocol.md \u00a73 to \u00a77 and \u00a711. Hex strings are whole datagrams. Options keep their full tag, critical bit included.",
+  "messages": [
+    {
+      "name": "HELLO with name, subscription, lease and health interval",
+      "hex": "5447000101002500010000000000000000000000000001000b00746865726d61657374726f0300040005000000040002007800050002000a00",
+      "message": {
+        "type": "HELLO",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 1,
+        "gw_time_us": 0,
+        "core": {
+          "ver_min": 0,
+          "ver_max": 0
+        },
+        "options": [
+          {
+            "tag": 1,
+            "value": "746865726d61657374726f"
+          },
+          {
+            "tag": 3,
+            "value": "05000000"
+          },
+          {
+            "tag": 4,
+            "value": "7800"
+          },
+          {
+            "tag": 5,
+            "value": "0a00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HELLO insisting on authentication (critical CLIENT_NONCE)",
+      "hex": "5447000101001600020000000000000000000000000002801000101112131415161718191a1b1c1d1e1f",
+      "message": {
+        "type": "HELLO",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 2,
+        "gw_time_us": 0,
+        "core": {
+          "ver_min": 0,
+          "ver_max": 0
+        },
+        "options": [
+          {
+            "tag": 32770,
+            "value": "101112131415161718191a1b1c1d1e1f"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HELLO with an unknown option that isn't critical",
+      "hex": "54470001010008000300000000000000000000000000420002000102",
+      "message": {
+        "type": "HELLO",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 3,
+        "gw_time_us": 0,
+        "core": {
+          "ver_min": 0,
+          "ver_max": 0
+        },
+        "options": [
+          {
+            "tag": 66,
+            "value": "0102"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KEEPALIVE",
+      "hex": "5447000102000000070000000000000000000000",
+      "message": {
+        "type": "KEEPALIVE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 7,
+        "gw_time_us": 0,
+        "core": {},
+        "options": []
+      }
+    },
+    {
+      "name": "BYE",
+      "hex": "5447000103000000080000000000000000000000",
+      "message": {
+        "type": "BYE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 8,
+        "gw_time_us": 0,
+        "core": {},
+        "options": []
+      }
+    },
+    {
+      "name": "SUBSCRIBE to own frames only",
+      "hex": "54470001040008000900000000000000000000000300040002000000",
+      "message": {
+        "type": "SUBSCRIBE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 9,
+        "gw_time_us": 0,
+        "core": {},
+        "options": [
+          {
+            "tag": 3,
+            "value": "02000000"
+          }
+        ]
+      }
+    },
+    {
+      "name": "REQUEST: read 47134, expect an answer, ttl 10 s",
+      "hex": "5447000110000f002a0000000000000000000000200069021027000006c069021eb80d",
+      "message": {
+        "type": "REQUEST",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 42,
+        "gw_time_us": 0,
+        "core": {
+          "address": 32,
+          "token": 105,
+          "flags": 2,
+          "ttl_ms": 10000,
+          "answer_timeout_ms": 0,
+          "frame": "c069021eb80d"
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "REQUEST: write 47387 = 1, priority and expect an answer",
+      "hex": "54470001100013002b000000000000000000000020006b038813b80b0ac06b061bb9010000000e",
+      "message": {
+        "type": "REQUEST",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 43,
+        "gw_time_us": 0,
+        "core": {
+          "address": 32,
+          "token": 107,
+          "flags": 3,
+          "ttl_ms": 5000,
+          "answer_timeout_ms": 3000,
+          "frame": "c06b061bb9010000000e"
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "CANCEL request 42",
+      "hex": "54470001110000002a0000000000000000000000",
+      "message": {
+        "type": "CANCEL",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 42,
+        "gw_time_us": 0,
+        "core": {},
+        "options": []
+      }
+    },
+    {
+      "name": "WELCOME from the Python gateway",
+      "hex": "54470001810074000100000015cd5b0700000000000100010400efbeadde050104003f00000002011500746865726d61657374726f2d67772d707974686f6e03010500302e302e300601010003070101000408010200881309010400204e00000a0104000f2710270b01020020000b01020019000300040005000000040002007800050002000a00",
+      "message": {
+        "type": "WELCOME",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 1,
+        "gw_time_us": 123456789,
+        "core": {
+          "ver_major": 0,
+          "ver_minor": 1
+        },
+        "options": [
+          {
+            "tag": 256,
+            "value": "efbeadde"
+          },
+          {
+            "tag": 261,
+            "value": "3f000000"
+          },
+          {
+            "tag": 258,
+            "value": "746865726d61657374726f2d67772d707974686f6e"
+          },
+          {
+            "tag": 259,
+            "value": "302e302e30"
+          },
+          {
+            "tag": 262,
+            "value": "03"
+          },
+          {
+            "tag": 263,
+            "value": "04"
+          },
+          {
+            "tag": 264,
+            "value": "8813"
+          },
+          {
+            "tag": 265,
+            "value": "204e0000"
+          },
+          {
+            "tag": 266,
+            "value": "0f271027"
+          },
+          {
+            "tag": 267,
+            "value": "2000"
+          },
+          {
+            "tag": 267,
+            "value": "1900"
+          },
+          {
+            "tag": 3,
+            "value": "05000000"
+          },
+          {
+            "tag": 4,
+            "value": "7800"
+          },
+          {
+            "tag": 5,
+            "value": "0a00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FATE: queued, one request ahead",
+      "hex": "5447000190000c002a00000040420f00000000000100010040420f0000000000",
+      "message": {
+        "type": "FATE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 42,
+        "gw_time_us": 1000000,
+        "core": {
+          "stage": 1,
+          "detail": 1,
+          "stage_time_us": 1000000
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "FATE: dropped, queue full",
+      "hex": "5447000190000c002c00000034440f00000000000600040034440f0000000000",
+      "message": {
+        "type": "FATE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 44,
+        "gw_time_us": 1000500,
+        "core": {
+          "stage": 6,
+          "detail": 4,
+          "stage_time_us": 1000500
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "FATE: pump ACKed the request",
+      "hex": "5447000190000c002a00000080841e00000000000300000080841e0000000000",
+      "message": {
+        "type": "FATE",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 42,
+        "gw_time_us": 2000000,
+        "core": {
+          "stage": 3,
+          "detail": 0,
+          "stage_time_us": 2000000
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "ANSWER: OK with the pump's 0x6A telegram",
+      "hex": "5447000191000e002a000000c0c62d0000000000010c5c00206a061eb82d000000c7",
+      "message": {
+        "type": "ANSWER",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 42,
+        "gw_time_us": 3000000,
+        "core": {
+          "status": 1,
+          "frame": "5c00206a061eb82d000000c7"
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "ANSWER: timeout",
+      "hex": "54470001910002002d00000000127a00000000000200",
+      "message": {
+        "type": "ANSWER",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 45,
+        "gw_time_us": 8000000,
+        "core": {
+          "status": 2,
+          "frame": ""
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "FRAME: our read token answered with this client's request",
+      "hex": "54470001a000250011000000e4841e000000000001032a00000080841e0000000000f8701e00000000000d005c0020690049c069021eb80d06",
+      "message": {
+        "type": "FRAME",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 17,
+        "gw_time_us": 2000100,
+        "core": {
+          "kind": 1,
+          "origin": 3,
+          "request_id": 42,
+          "t_complete_us": 2000000,
+          "t_reply_us": 1995000,
+          "data": "5c0020690049c069021eb80d06"
+        },
+        "options": []
+      }
+    },
+    {
+      "name": "HEALTH with counters and repeatable structured values",
+      "hex": "54470001b00046000300000000a493d60000000000010400efbeadde04010400100e0000010301000104030400e80300000c0306000400020000000c030600050001000000100304000c000000150304002000690118030100c3",
+      "message": {
+        "type": "HEALTH",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 3,
+        "gw_time_us": 3600000000,
+        "core": {},
+        "options": [
+          {
+            "tag": 256,
+            "value": "efbeadde"
+          },
+          {
+            "tag": 260,
+            "value": "100e0000"
+          },
+          {
+            "tag": 769,
+            "value": "01"
+          },
+          {
+            "tag": 772,
+            "value": "e8030000"
+          },
+          {
+            "tag": 780,
+            "value": "040002000000"
+          },
+          {
+            "tag": 780,
+            "value": "050001000000"
+          },
+          {
+            "tag": 784,
+            "value": "0c000000"
+          },
+          {
+            "tag": 789,
+            "value": "20006901"
+          },
+          {
+            "tag": 792,
+            "value": "c3"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ERROR: unsupported option",
+      "hex": "54470001e0002300050000000a00000000000000050000020200018801021700756e6b6e6f776e20637269746963616c206f7074696f6e",
+      "message": {
+        "type": "ERROR",
+        "ver_major": 0,
+        "ver_minor": 1,
+        "flags": 0,
+        "id": 5,
+        "gw_time_us": 10,
+        "core": {
+          "code": 5
+        },
+        "options": [
+          {
+            "tag": 512,
+            "value": "0188"
+          },
+          {
+            "tag": 513,
+            "value": "756e6b6e6f776e20637269746963616c206f7074696f6e"
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "bad magic",
+      "hex": "54580001010008000100000000000000000000000000040002007800",
+      "error": "bad_magic"
+    },
+    {
+      "name": "header cut short",
+      "hex": "544700010100080001000000",
+      "error": "malformed"
+    },
+    {
+      "name": "body_len longer than the datagram",
+      "hex": "54470001010009000100000000000000000000000000040002007800",
+      "error": "malformed"
+    },
+    {
+      "name": "unknown message type",
+      "hex": "5447000155000000010000000000000000000000",
+      "error": "unknown_type"
+    },
+    {
+      "name": "another major version",
+      "hex": "54470701010008000100000000000000000000000000040002007800",
+      "error": "bad_version"
+    },
+    {
+      "name": "HELLO core cut short",
+      "hex": "544700010100010001000000000000000000000000",
+      "error": "malformed"
+    },
+    {
+      "name": "option length runs past the body",
+      "hex": "5447000101000600010000000000000000000000000004000900",
+      "error": "malformed"
+    },
+    {
+      "name": "non-repeatable option twice",
+      "hex": "5447000101000e000100000000000000000000000000040002007800040002003c00",
+      "error": "malformed"
+    },
+    {
+      "name": "known option with the wrong length",
+      "hex": "5447000101000a0001000000000000000000000000000400040078000000",
+      "error": "malformed"
+    },
+    {
+      "name": "unknown critical option",
+      "hex": "5447000101000600010000000000000000000000000042800000",
+      "error": "unsupported_option",
+      "tag": 32834
+    },
+    {
+      "name": "client name longer than 32 bytes",
+      "hex": "5447000101002700010000000000000000000000000001002100787878787878787878787878787878787878787878787878787878787878787878",
+      "error": "malformed"
+    },
+    {
+      "name": "client name not UTF-8",
+      "hex": "5447000101000800010000000000000000000000000001000200fffe",
+      "error": "malformed"
+    },
+    {
+      "name": "REQUEST frame_len runs past the body",
+      "hex": "5447000110000f00010000000000000000000000200069020000000009c069021eb80d",
+      "error": "malformed"
+    },
+    {
+      "name": "authenticated flag without a trailer",
+      "hex": "54470001018008000100000000000000000000000000040002007800",
+      "error": "malformed"
+    }
+  ],
+  "auth": {
+    "psk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "client_nonce": "101112131415161718191a1b1c1d1e1f",
+    "gateway_nonce": "202122232425262728292a2b2c2d2e2f",
+    "boot_id": 3735928559,
+    "session_key": "d6832a5efa86c0e5dc110d2bd38155cb27f4e48b70e17e318be6c7a4cbdc78c5",
+    "signed": [
+      {
+        "name": "HELLO signed with the PSK",
+        "key": "psk",
+        "seq": 1,
+        "hex": "5447000101801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f010000000fd491087ec027e7b03703d2dd94c25b"
+      },
+      {
+        "name": "WELCOME signed with the session key",
+        "key": "session_key",
+        "seq": 1,
+        "hex": "544700018180260001000000f401000000000000000100010400efbeadde050104007f00000001011000202122232425262728292a2b2c2d2e2f01000000eb83a052f284aa74b3332f2694412abf"
+      }
+    ],
+    "bad": [
+      {
+        "name": "HELLO with one bit of the MAC flipped",
+        "key": "psk",
+        "hex": "5447000101801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f010000000fd491087ec027e7b03703d2dd94c25a",
+        "error": "auth_failed"
+      }
+    ]
+  }
+}
