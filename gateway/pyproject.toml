@@ -10,6 +10,9 @@ classifiers = [
     "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3.13",
 ]
+dependencies = [
+    "pyserial>=3.5",
+]
 
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"

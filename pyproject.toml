@@ -20,3 +20,49 @@ build-backend = "uv_build"
 
 [tool.uv.workspace]
 members = ["gateway"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.10",
+    "types-pyserial>=3.5.0.20260712",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "SIM",          # simplify
+    "RUF",          # ruff's own
+    "ASYNC",        # blocking calls in async code
+    "BLE",          # blind except
+    "S",            # bandit
+    "T20",          # stray print
+    "PT",           # pytest style
+]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is how pytest tests check things.
+"**/tests/**" = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+mypy_path = ["src", "gateway/src"]
+files = ["src", "gateway/src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Two test folders share module names, so tests aren't imported as packages.
+addopts = ["--import-mode=importlib"]
+asyncio_mode = "auto"
+xfail_strict = true
+filterwarnings = ["error"]
