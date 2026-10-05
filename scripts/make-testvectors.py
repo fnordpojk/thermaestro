@@ -337,7 +337,7 @@ def gw_vectors() -> dict[str, Any]:
             [
                 (0x0100, struct.pack("<I", 0xDEADBEEF)),
                 (0x0105, struct.pack("<I", 0b111111)),
-                (0x0102, b"thermaestro-gw-python"),
+                (0x0102, b"thermaestro-gateway"),
                 (0x0103, b"0.0.0"),
                 (0x0106, struct.pack("<B", 3)),
                 (0x0107, struct.pack("<B", 4)),

@@ -1,5 +1,7 @@
 # The Thermaestro gateway protocol (`thermaestro-gw`), version 0
 
+`thermaestro-gw` is the protocol's id. `thermaestro-gateway` is a program that implements it: the Python gateway in this repository (§14).
+
 **Status: draft.** The major version is 0 until the protocol is stable; version 1 will be the first stable one, and an incompatible change on purpose. Features are added as options (§5), so most growth needs no version change.
 
 ## 1. What it is for
@@ -159,7 +161,7 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0005` | `HEALTH_INTERVAL_S` | u16 | HELLO; WELCOME | HEALTH period |
 | `0x0100` | `BOOT_ID` | u32 | WELCOME, HEALTH | random per gateway boot |
 | `0x0101` | `GATEWAY_NONCE` | 16 bytes | WELCOME | §11 |
-| `0x0102` | `IMPL` | str | WELCOME | e.g. `esphome-nibe`, `thermaestro-gw-python` |
+| `0x0102` | `IMPL` | str | WELCOME | e.g. `esphome-nibe`, `thermaestro-gateway` |
 | `0x0103` | `IMPL_VERSION` | str | WELCOME | |
 | `0x0104` | `UPTIME_S` | u32 | WELCOME, HEALTH | |
 | `0x0105` | `FEATURES` | u32 | WELCOME | bit 0 fate, 1 answer pairing, 2 frames, 3 health, 4 priority, 5 ttl, 6 auth (a key is configured and required) |

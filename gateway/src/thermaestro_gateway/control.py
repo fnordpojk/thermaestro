@@ -23,7 +23,7 @@ from thermaestro_gateway.engine import Engine, Outgoing, Queued
 Address = tuple[str, int]
 Datagram = tuple[Address, bytes]
 
-IMPL = "thermaestro-gw-python"
+IMPL = "thermaestro-gateway"
 LEASE_S = (10, 120, 600)  # minimum, default, maximum
 HEALTH_INTERVAL_S = (1, 10, 3600)
 SILENT_AFTER_US = 5_000_000

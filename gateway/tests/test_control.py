@@ -57,7 +57,7 @@ def test_hello_gets_a_welcome() -> None:
     assert (welcome.id, welcome.gw_time_us) == (5, 1000)
     assert opt(welcome, p.Tag.BOOT_ID).as_int() == 0xDEADBEEF
     assert opt(welcome, p.Tag.LEASE_S).as_int() == 60
-    assert opt(welcome, p.Tag.IMPL).as_text() == "thermaestro-gw-python"
+    assert opt(welcome, p.Tag.IMPL).as_text() == "thermaestro-gateway"
     assert opt(welcome, p.Tag.PLAIN_PORTS).unpack() == (9999, 10000)
     assert [o.as_int() for o in p.find_all(welcome.options, p.Tag.ACK_ADDRESS)] == [0x0020]
     features = p.Feature(opt(welcome, p.Tag.FEATURES).as_int())
