@@ -14,6 +14,9 @@ dependencies = [
     "pyserial>=3.5",
 ]
 
+[project.scripts]
+thermaestro-gateway = "thermaestro_gateway.__main__:main"
+
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"
 

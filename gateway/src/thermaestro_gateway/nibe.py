@@ -22,6 +22,10 @@ READ_TOKEN = 0x69
 READ_ANSWER = 0x6A
 WRITE_TOKEN = 0x6B
 WRITE_ANSWER = 0x6C
+ACCESSORY_TOKEN = 0xEE
+"""The pump asks which accessory answers; esphome-nibe's examples reply with a constant."""
+MODBUS40_ACCESSORY_REPLY = bytes((0x0A, 0x00, 0x01))
+"""The data four of esphome-nibe's six examples send (the other two end in 0x02)."""
 
 TELEGRAM_OVERHEAD = 6  # 5C, two address bytes, CMD, LEN, CHK
 REPLY_OVERHEAD = 4  # C0, CMD, LEN, CHK

@@ -286,6 +286,11 @@ class Control:
         }
         return out + self._flush(now_us)
 
+    def shutdown(self, now_us: int) -> list[Datagram]:
+        """The gateway is stopping: report the queued requests as dropped."""
+        self.engine.shutdown(now_us)
+        return self._flush(now_us)
+
     def note_loop_gap(self, gap_ms: int) -> None:
         for session in self._sessions.values():
             session.loop_gap_max_ms = max(session.loop_gap_max_ms, gap_ms)

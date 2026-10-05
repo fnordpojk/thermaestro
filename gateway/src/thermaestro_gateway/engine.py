@@ -154,6 +154,14 @@ class Engine:
             if entry.client == client:
                 entry.client = None
 
+    def shutdown(self, now_us: int) -> None:
+        """Drop every queued request, telling protocol clients why."""
+        for queue in self._queues.values():
+            for entry in queue:
+                if entry.client is not None:
+                    self._drop_fate(entry.client, entry.request_id, p.DropReason.SHUTDOWN, now_us)
+            queue.clear()
+
     # --- the bus -------------------------------------------------------------------------
 
     def reply_for(self, address: int, command: int, now_us: int) -> Reply | None:
