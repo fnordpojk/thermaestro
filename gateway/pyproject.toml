@@ -1,0 +1,19 @@
+[project]
+name = "thermaestro-gateway"
+version = "0.0.0"
+description = "Thermaestro's gateway between a heat pump's serial bus and UDP (placeholder release, not usable yet)"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/fnordpojk/thermaestro"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13"]
+build-backend = "uv_build"
