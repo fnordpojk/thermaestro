@@ -4,8 +4,8 @@ The gateway reports each request's fate (QUEUED, SENT, the pump's ACK or NAK, DR
 with a reason) and pairs the pump's answer with it, so nothing here is inferred. Event
 times come from the gateway's clock and are mapped onto local time (spec §9).
 
-- One of this client's requests at a time waits in each of the gateway's queues: they
-  hold three, shared with plain clients, and a full one refuses a protocol request.
+- One of this client's requests at a time waits in each of the gateway's queues: each
+  has one entry for protocol requests, beside the plain clients' (spec §8).
 - A request carries a ttl to its caller's deadline, so a write the caller gave up on
   never reaches the pump. At the deadline a queued request is cancelled as well.
 - A session ends with a gateway restart (a new boot_id, or `no_session`), or when no

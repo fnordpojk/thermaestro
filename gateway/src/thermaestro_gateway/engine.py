@@ -4,10 +4,11 @@ The gateway's bookkeeping, with no I/O: requests go in, the bus asks for a reply
 token, completed exchanges come back, and the fates and answers owed to protocol clients
 collect in an outbox.
 
-- One queue per (address, token), shared by plain NibeGW and protocol requests. Plain
-  requests behave as on esphome-nibe: a full queue drops its oldest entry. Protocol
-  requests are refused when the queue is full, and a protocol request a plain one pushes
-  out is reported as EVICTED.
+- One queue per (address, token), shared by plain NibeGW and protocol requests and sent
+  in the order they arrived. Plain requests behave as on esphome-nibe: at most three, and
+  a new one drops the oldest plain entry. On top of those, one entry is reserved for
+  protocol requests, which are refused when it is taken. Neither kind pushes the other
+  out, so a busy plain client doesn't keep protocol requests waiting for a slot.
 - Reads are paired with the pump's 0x6A answers first in, first out per register: the
   read requests the pump took, from every client and plain ones included, wait in the
   order it took them, and an answer belongs to the oldest. A read-back after a write
@@ -26,6 +27,9 @@ from thermaestro_gateway import protocol as p
 from thermaestro_gateway.bus import Exchange, Reply
 
 DEFAULT_QUEUE_CAP = 3
+"""Plain requests per queue."""
+DEFAULT_PROTOCOL_SLOTS = 1
+"""Entries per queue reserved for protocol requests, on top of the plain ones."""
 DEFAULT_ANSWER_TIMEOUT_US = 5_000_000
 
 Key = tuple[int, int]
@@ -76,10 +80,12 @@ class Engine:
         keys: Iterable[Key],
         *,
         queue_cap: int = DEFAULT_QUEUE_CAP,
+        protocol_slots: int = DEFAULT_PROTOCOL_SLOTS,
         constants: Mapping[Key, bytes] | None = None,
         default_answer_timeout_us: int = DEFAULT_ANSWER_TIMEOUT_US,
     ) -> None:
         self.queue_cap = queue_cap
+        self.protocol_slots = protocol_slots
         self.default_answer_timeout_us = default_answer_timeout_us
         self.stats = EngineStats()
         self._queues: dict[Key, deque[Queued]] = {k: deque() for k in keys}
@@ -96,8 +102,10 @@ class Engine:
     def submit(self, client: object, request: p.Request, now_us: int) -> None:
         key = (request.address, request.token)
         reason = self._invalid(request.frame, key)
-        if reason is None and len(self._queues[key]) >= self.queue_cap:
-            reason = p.DropReason.QUEUE_FULL
+        if reason is None:
+            taken = sum(1 for e in self._queues[key] if e.client is not None)
+            if taken >= self.protocol_slots:
+                reason = p.DropReason.QUEUE_FULL
         if reason is not None:
             self._drop_fate(client, request.id, reason, now_us)
             return
@@ -129,11 +137,9 @@ class Engine:
         if self._invalid(frame, key) is not None:
             return False
         queue = self._queues[key]
-        if len(queue) >= self.queue_cap:
-            oldest = queue.popleft()
-            if oldest.client is not None:
-                self.stats.evictions += 1
-                self._drop_fate(oldest.client, oldest.request_id, p.DropReason.EVICTED, now_us)
+        waiting = [e for e in queue if e.client is None]
+        if len(waiting) >= self.queue_cap:
+            queue.remove(waiting[0])
         queue.append(Queued(frame=frame, key=key, answer_timeout_us=self.default_answer_timeout_us))
         return True
 

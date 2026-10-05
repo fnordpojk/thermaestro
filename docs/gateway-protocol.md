@@ -51,7 +51,7 @@ A plain NibeGW gateway takes requests on one UDP port per (address, token), by c
 |---|---|---|---|
 | 0 | 2 | `magic` | `0x54 0x47` ("TG") |
 | 2 | 1 | `ver_major` | incompatible changes; 0 for this version |
-| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 1 here |
+| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 2 here |
 | 4 | 1 | `type` | message type (§6) |
 | 5 | 1 | `flags` | bit 7: authenticated (§11); the others are 0 |
 | 6 | 2 | `body_len` | bytes after the header, not counting the authentication trailer |
@@ -113,14 +113,16 @@ A message body is a **fixed core**, the few fields that message type always has 
 
 | type | name | fixed core | options |
 |---|---|---|---|
-| `0x81` | WELCOME | `ver_major` u8, `ver_minor` u8: the gateway's | `BOOT_ID`, `FEATURES`, `GATEWAY_NONCE` (with a key), `IMPL`, `IMPL_VERSION`, `UPTIME_S`, `QUEUE_CAP`, `MAX_CLIENTS`, `ANSWER_TIMEOUT_MS`, `TIMESTAMP_LAG_MAX_US`, `PLAIN_PORTS`, `ACK_ADDRESS` (repeated), and the granted `SUBSCRIBE`, `LEASE_S`, `HEALTH_INTERVAL_S` |
+| `0x81` | WELCOME | `ver_major` u8, `ver_minor` u8: the gateway's | `BOOT_ID`, `FEATURES`, `GATEWAY_NONCE` (with a key), `IMPL`, `IMPL_VERSION`, `UPTIME_S`, `QUEUE_CAP`, `PROTOCOL_SLOTS`, `MAX_CLIENTS`, `ANSWER_TIMEOUT_MS`, `TIMESTAMP_LAG_MAX_US`, `PLAIN_PORTS`, `ACK_ADDRESS` (repeated), and the granted `SUBSCRIBE`, `LEASE_S`, `HEALTH_INTERVAL_S` |
 | `0x90` | FATE | `stage` u8, reserved u8 (0), `detail` u16, `stage_time_us` u64 | none yet |
 | `0x91` | ANSWER | `status` u8, `frame_len` u8, `frame`: the pump's `0x6A`/`0x6C` telegram exactly as received (empty on TIMEOUT) | none yet |
 | `0xA0` | FRAME | `kind` u8, `origin` u8, `request_id` u32 (0 unless this client's request), `t_complete_us` u64, `t_reply_us` u64 (0 if the gateway sent no reply), `data_len` u16, `data`: the exchange's bytes exactly as a plain NibeGW datagram carries them | none yet |
 | `0xB0` | HEALTH | none | the values of §10, one option each |
 | `0xE0` | ERROR | `code` u16 | `ERR_TAG` (the offending option), `ERR_DETAIL`. The header `id` echoes the offending message's |
 
-## 7. Registry, revision 1
+## 7. Registry, revision 2
+
+Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8).
 
 ### 7.1 FATE `stage` (u8)
 
@@ -130,7 +132,7 @@ A message body is a **fixed core**, the few fields that message type always has 
 
 ### 7.2 Drop reasons (u16)
 
-1 `INVALID_FRAME` (not a valid `C0` frame), 2 `TOKEN_MISMATCH` (the frame's command isn't the token), 3 `UNKNOWN_KEY` (no queue for that address and token), 4 `QUEUE_FULL`, 5 `EXPIRED` (the ttl passed before the token came), 6 `CANCELLED`, 7 `EVICTED` (a plain request pushed it out), 8 `UNSUPPORTED_OPTION`, 9 `SHUTDOWN`.
+1 `INVALID_FRAME` (not a valid `C0` frame), 2 `TOKEN_MISMATCH` (the frame's command isn't the token), 3 `UNKNOWN_KEY` (no queue for that address and token), 4 `QUEUE_FULL`, 5 `EXPIRED` (the ttl passed before the token came), 6 `CANCELLED`, 7 `EVICTED` (a plain request pushed it out; not sent since revision 2, where plain requests can't), 8 `UNSUPPORTED_OPTION`, 9 `SHUTDOWN`.
 
 ### 7.3 ANSWER `status` (u8)
 
@@ -165,12 +167,13 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0103` | `IMPL_VERSION` | str | WELCOME | |
 | `0x0104` | `UPTIME_S` | u32 | WELCOME, HEALTH | |
 | `0x0105` | `FEATURES` | u32 | WELCOME | bit 0 fate, 1 answer pairing, 2 frames, 3 health, 4 priority, 5 ttl, 6 auth (a key is configured and required) |
-| `0x0106` | `QUEUE_CAP` | u8 | WELCOME | per (address, token) |
+| `0x0106` | `QUEUE_CAP` | u8 | WELCOME | plain requests per (address, token) |
 | `0x0107` | `MAX_CLIENTS` | u8 | WELCOME | |
 | `0x0108` | `ANSWER_TIMEOUT_MS` | u16 | WELCOME | the default |
 | `0x0109` | `TIMESTAMP_LAG_MAX_US` | u32 | WELCOME | §9 |
 | `0x010A` | `PLAIN_PORTS` | u16 read, u16 write | WELCOME | 0 where a plain port is off |
 | `0x010B` | `ACK_ADDRESS` | u16, R | WELCOME | the addresses the gateway answers for |
+| `0x010C` | `PROTOCOL_SLOTS` | u8 | WELCOME | entries per (address, token) reserved for protocol requests, on top of `QUEUE_CAP` (revision 2) |
 | `0x0200` | `ERR_TAG` | u16 | ERROR | the option that caused it |
 | `0x0201` | `ERR_DETAIL` | str | ERROR | human-readable |
 | `0x0301`–`0x0319` | HEALTH values | §10 | HEALTH | |
@@ -184,7 +187,7 @@ FATE and ANSWER carry the request's id. FRAME and HEALTH carry a sequence number
 
 ### 7.9 Defaults
 
-Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, a queue of 3 per (address, token), datagrams of at most 512 bytes.
+Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request per (address, token), datagrams of at most 512 bytes.
 
 ## 8. A request's life, and pairing answers
 
@@ -194,7 +197,6 @@ REQUEST ─► validate ─► DROPPED(INVALID_FRAME | TOKEN_MISMATCH | UNKNOWN_
              ▼
           QUEUED ──(ttl passed when its token comes)──► DROPPED(EXPIRED)
              │   ──(CANCEL)───────────────────────────► DROPPED(CANCELLED)
-             │   ──(a plain request pushes it out)────► DROPPED(EVICTED)
              ▼
            SENT (on the pump's token)
              │
@@ -205,9 +207,10 @@ REQUEST ─► validate ─► DROPPED(INVALID_FRAME | TOKEN_MISMATCH | UNKNOWN_
 
 **Queues.**
 
-- One queue per (address, token), **shared with plain requests**.
-- **Plain requests behave as in plain NibeGW**: a full queue drops its oldest entry. If that entry was a protocol request, its owner gets `DROPPED(EVICTED)`.
-- **A protocol request doesn't evict.** On a full queue it is refused with `QUEUE_FULL`, and the client decides whether to try again.
+- One queue per (address, token), **shared with plain requests**, and sent in the order the requests arrived.
+- **Plain requests behave as in plain NibeGW**: at most `QUEUE_CAP` (3) of them, and a new one drops the oldest plain entry.
+- **On top of those, `PROTOCOL_SLOTS` (1) entries are reserved for protocol requests.** When they are taken, a protocol request is refused with `QUEUE_FULL`, and the client decides whether to try again.
+- **Neither kind pushes the other out**, so a plain client that keeps its entries full doesn't keep protocol requests out, and a queue holds at most `QUEUE_CAP` + `PROTOCOL_SLOTS`.
 - `PRIORITY` puts a request at the front of its queue.
 - **The ttl is checked when a token arrives** (and periodically): an expired request is dropped and the next one is tried, so a write that arrives after its client gave up never reaches the pump.
 - When the gateway stops, every queued protocol request gets `DROPPED(SHUTDOWN)`.
@@ -256,7 +259,7 @@ HEALTH goes to sessions subscribed to it every health interval, and at once when
 | `0x030A` | `TOKENS_WITH_REPLY` | u32 |
 | `0x030B` | `TOKENS_ACK_ONLY` | u32 |
 | `0x030C` | `DROPS` | R: u16 reason, u32 count (6 bytes); only reasons that occurred |
-| `0x030D` | `EVICTIONS` | u32 |
+| `0x030D` | `EVICTIONS` | u32: 0 since revision 2 |
 | `0x030E` | `AMBIGUOUS_ANSWERS` | u32 |
 | `0x030F` | `ANSWER_TIMEOUTS` | u32 |
 | `0x0310` | `LOOP_GAP_MAX_MS` | u32, interval: the longest gap between passes of the gateway's loop, the best available sign of a late reply |

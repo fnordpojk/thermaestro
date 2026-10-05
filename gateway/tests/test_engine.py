@@ -10,8 +10,12 @@ WRITE_TOKEN = bytes.fromhex("5c00206b004b")
 ACCESSORY_TOKEN = bytes.fromhex("5c0020ee00ce")
 
 
-def engine(constants: dict[tuple[int, int], bytes] | None = None) -> Engine:
-    return Engine(keys={READ_KEY, WRITE_KEY}, constants=constants)
+def engine(
+    constants: dict[tuple[int, int], bytes] | None = None, protocol_slots: int = 3
+) -> Engine:
+    """Three protocol slots, so these tests can queue several protocol requests per key;
+    the gateway reserves one by default (tested below)."""
+    return Engine(keys={READ_KEY, WRITE_KEY}, constants=constants, protocol_slots=protocol_slots)
 
 
 def read(
@@ -132,32 +136,55 @@ def test_invalid_requests_are_dropped_with_a_reason() -> None:
     ]
 
 
-def test_a_full_queue_refuses_protocol_requests() -> None:
-    e = engine()
-    for i in range(4):
-        e.submit("a", read(i + 1, register=40000 + i), 0)
-    assert fates(e.take_outbox())[-1] == ("a", 4, p.Stage.DROPPED, p.DropReason.QUEUE_FULL)
+def plain(e: Engine, register: int) -> None:
+    assert e.submit_plain(nibe.MODBUS40, nibe.READ_TOKEN, nibe.read_request(register), 0)
+
+
+def sent_order(e: Engine) -> list[int]:
+    order = []
+    while (reply := e.reply_for(nibe.MODBUS40, nibe.READ_TOKEN, 1)) is not None:
+        order.append(int.from_bytes(reply.frame[3:5], "little"))
+    return order
+
+
+def test_one_slot_is_reserved_for_protocol_requests() -> None:
+    e = Engine(keys={READ_KEY, WRITE_KEY})
+    e.submit("a", read(1), 0)
+    e.submit("b", read(2, register=40004), 0)
+    assert fates(e.take_outbox()) == [
+        ("a", 1, p.Stage.QUEUED, 0),
+        ("b", 2, p.Stage.DROPPED, p.DropReason.QUEUE_FULL),
+    ]
     assert e.stats.drops[p.DropReason.QUEUE_FULL] == 1
 
 
-def test_a_plain_request_evicts_the_oldest_even_a_protocol_one() -> None:
-    e = engine()
-    for i in range(3):
-        e.submit("a", read(i + 1, register=40000 + i), 0)
-    e.take_outbox()
-    assert e.submit_plain(nibe.MODBUS40, nibe.READ_TOKEN, nibe.read_request(40010), 0)
-    assert fates(e.take_outbox()) == [("a", 1, p.Stage.DROPPED, p.DropReason.EVICTED)]
-    assert e.stats.evictions == 1
+def test_a_protocol_request_gets_in_when_plain_requests_fill_theirs() -> None:
+    e = Engine(keys={READ_KEY, WRITE_KEY})
+    for register in (40001, 40002, 40003):
+        plain(e, register)
+    e.submit("a", read(1), 0)
+    assert fates(e.take_outbox()) == [("a", 1, p.Stage.QUEUED, 3)]
+    assert e.depths()[READ_KEY] == 4
+
+
+def test_plain_requests_push_out_only_plain_ones() -> None:
+    e = Engine(keys={READ_KEY, WRITE_KEY})
+    plain(e, 40001)
+    e.submit("a", read(1), 0)
+    for register in (40002, 40003, 40004):
+        plain(e, register)
+    assert fates(e.take_outbox()) == [("a", 1, p.Stage.QUEUED, 1)]
+    assert e.stats.evictions == 0
+    # The oldest plain request went; the rest go in the order they arrived.
+    assert sent_order(e) == [47134, 40002, 40003, 40004]
 
 
 def test_priority_goes_to_the_front() -> None:
-    e = engine()
-    e.submit("a", read(1), 0)
+    e = Engine(keys={READ_KEY, WRITE_KEY})
+    plain(e, 40001)
     e.submit("a", read(2, register=40004, flags=p.RequestFlag.PRIORITY), 0)
-    e.take_outbox()
-    reply = e.reply_for(nibe.MODBUS40, nibe.READ_TOKEN, 1)
-    assert reply is not None
-    assert reply.frame == nibe.read_request(40004)
+    assert fates(e.take_outbox()) == [("a", 2, p.Stage.QUEUED, 0)]
+    assert sent_order(e) == [40004, 40001]
 
 
 # --- on the bus --------------------------------------------------------------------------

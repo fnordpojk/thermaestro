@@ -176,7 +176,7 @@ def nibe_vectors() -> dict[str, Any]:
 # --- The Thermaestro gateway protocol (docs/gateway-protocol.md) ---------------------------------
 
 VER_MAJOR = 0
-VER_MINOR = 1
+VER_MINOR = 2
 CRITICAL = 0x8000
 
 HELLO, KEEPALIVE, BYE, SUBSCRIBE, REQUEST, CANCEL = 0x01, 0x02, 0x03, 0x04, 0x10, 0x11
@@ -332,14 +332,15 @@ def gw_vectors() -> dict[str, Any]:
         described(
             "WELCOME from the Python gateway",
             WELCOME,
-            {"ver_major": 0, "ver_minor": 1},
-            struct.pack("<BB", 0, 1),
+            {"ver_major": 0, "ver_minor": VER_MINOR},
+            struct.pack("<BB", 0, VER_MINOR),
             [
                 (0x0100, struct.pack("<I", 0xDEADBEEF)),
                 (0x0105, struct.pack("<I", 0b111111)),
                 (0x0102, b"thermaestro-gateway"),
                 (0x0103, b"0.0.0"),
                 (0x0106, struct.pack("<B", 3)),
+                (0x010C, struct.pack("<B", 1)),
                 (0x0107, struct.pack("<B", 4)),
                 (0x0108, struct.pack("<H", 5000)),
                 (0x0109, struct.pack("<I", 20000)),
@@ -549,7 +550,7 @@ def gw_vectors() -> dict[str, Any]:
     )
     signed_welcome = signed(
         WELCOME,
-        struct.pack("<BB", 0, 1),
+        struct.pack("<BB", 0, VER_MINOR),
         [
             (0x0100, struct.pack("<I", boot_id)),
             (0x0105, struct.pack("<I", 0b1111111)),
@@ -589,7 +590,7 @@ def gw_vectors() -> dict[str, Any]:
 
     return {
         "note": (
-            "The Thermaestro gateway protocol, registry revision 1; see "
+            "The Thermaestro gateway protocol, registry revision 2; see "
             "docs/gateway-protocol.md §3 to §7 and §11. Hex strings are whole "
             "datagrams. Options keep their full tag, critical bit included."
         ),

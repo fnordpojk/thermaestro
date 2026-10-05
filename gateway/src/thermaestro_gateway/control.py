@@ -223,6 +223,7 @@ class Control:
             p.Option.text(p.Tag.IMPL_VERSION, version("thermaestro-gateway")),
             p.Option.u32(p.Tag.UPTIME_S, self._uptime_s(now_us)),
             p.Option.u8(p.Tag.QUEUE_CAP, self.engine.queue_cap),
+            p.Option.u8(p.Tag.PROTOCOL_SLOTS, self.engine.protocol_slots),
             p.Option.u8(p.Tag.MAX_CLIENTS, s.max_clients),
             p.Option.u16(p.Tag.ANSWER_TIMEOUT_MS, s.answer_timeout_ms),
             p.Option.u32(p.Tag.TIMESTAMP_LAG_MAX_US, s.timestamp_lag_max_us),
