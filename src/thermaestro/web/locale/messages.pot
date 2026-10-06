@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-06 23:22+0200\n"
+"POT-Creation-Date: 2026-10-06 23:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,6 +78,9 @@ msgstr ""
 msgid ""
 "Changes to users, groups, secrets and plugins need your password within "
 "the last 15 minutes."
+msgstr ""
+
+msgid "Choose…"
 msgstr ""
 
 msgid "Confirm"
@@ -450,6 +453,9 @@ msgid "on"
 msgstr ""
 
 msgid "out_of_range"
+msgstr ""
+
+msgid "preselected from this browser"
 msgstr ""
 
 msgid "read the audit log"

@@ -25,8 +25,17 @@
     <input name="latitude" inputmode="decimal" required value="{{ location.latitude if location else '' }}"></label>
   <label>{{ _("Longitude") }}
     <input name="longitude" inputmode="decimal" required value="{{ location.longitude if location else '' }}"></label>
-  <label>{{ _("Time zone") }}
-    <input name="timezone" required placeholder="Europe/Stockholm" value="{{ location.timezone if location else '' }}"></label>
+  {% set chosen = location.timezone if location else "" %}
+  <label>{{ _("Time zone") }}{% if not chosen %} <small>{{ _("preselected from this browser") }}</small>{% endif %}
+    <select name="timezone" required{% if not chosen %} data-detect-zone{% endif %}>
+      <option value=""{% if not chosen %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for region, places in zones.items() %}
+      <optgroup label="{{ region }}">
+        {% for name, label in places %}<option value="{{ name }}"{% if name == chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+      <optgroup label="UTC"><option value="UTC"{% if chosen == "UTC" %} selected{% endif %}>UTC</option></optgroup>
+    </select></label>
   {% if can("settings.write") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
 </form>
 </section>

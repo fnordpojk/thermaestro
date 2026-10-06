@@ -1,6 +1,8 @@
 """The HTML pages. Each form posts to an endpoint that calls the same operation as its
 API counterpart, then redirects (or shows the page again with what went wrong)."""
 
+import zoneinfo
+from functools import cache
 from typing import Annotated, Any
 from urllib.parse import quote
 
@@ -240,6 +242,31 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
 
 # --- settings ----------------------------------------------------------------------------
 
+REGIONS = (
+    "Europe",
+    "Africa",
+    "America",
+    "Antarctica",
+    "Arctic",
+    "Asia",
+    "Atlantic",
+    "Australia",
+    "Indian",
+    "Pacific",
+)
+
+
+@cache
+def time_zones() -> dict[str, list[tuple[str, str]]]:
+    """The time zones to choose from, by region, as (name, label): the system's IANA
+    zones, without the old aliases (`EST`, `Etc/GMT+1`, `US/Eastern`)."""
+    grouped: dict[str, list[tuple[str, str]]] = {r: [] for r in REGIONS}
+    for name in zoneinfo.available_timezones():
+        region, _, place = name.partition("/")
+        if region in grouped and place:
+            grouped[region].append((name, place.replace("_", " ").replace("/", " / ")))
+    return {r: sorted(z, key=lambda zone: zone[1]) for r, z in grouped.items() if z}
+
 
 async def _settings(
     request: Request, who: Caller, status_code: int = 200, **extra: Any
@@ -257,6 +284,7 @@ async def _settings(
         who,
         status_code=status_code,
         location=location,
+        zones=time_zones(),
         pumps=pumps,
         models=models,
         secrets=await s.secret_names(who),

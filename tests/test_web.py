@@ -658,3 +658,34 @@ async def test_a_reloaded_part_sends_the_whole_page_to_the_login(site: Site) -> 
     assert answer.status_code == 401
     assert answer.headers["hx-redirect"] == "/login"
     assert answer.text == ""
+
+
+async def test_the_time_zone_is_picked_from_a_list(site: Site) -> None:
+    async with admin(site) as client:
+        page = (await client.get("/settings")).text
+        assert '<option value="Europe/Stockholm">Stockholm</option>' in page
+        assert '<optgroup label="Europe">' in page
+        assert "data-detect-zone" in page  # none chosen yet: the browser's is preselected
+        assert 'value="US/Eastern"' not in page  # old aliases left out
+        assert 'value="Etc/GMT+1"' not in page
+        saved = await form(
+            client,
+            "/settings",
+            "/settings/location",
+            latitude="52.52",
+            longitude="13.40",
+            timezone="Europe/Berlin",
+        )
+        assert saved.status_code == 303
+        page = (await client.get("/settings")).text
+        assert '<option value="Europe/Berlin" selected>Berlin</option>' in page
+        assert "data-detect-zone" not in page
+        refused = await form(
+            client,
+            "/settings",
+            "/settings/location",
+            latitude="52.52",
+            longitude="13.40",
+            timezone="Mars/Olympus_Mons",
+        )
+        assert refused.status_code == 400

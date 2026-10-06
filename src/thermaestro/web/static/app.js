@@ -2,6 +2,26 @@
 // and htmx. Loaded as a file, never inline, so the page's CSP can forbid inline code.
 "use strict";
 
+// A time zone not chosen yet: preselect the browser's own, if the list has it.
+(function () {
+  const select = document.querySelector("select[data-detect-zone]");
+  if (!select) {
+    return;
+  }
+  let zone = "";
+  try {
+    zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch (e) {
+    return;
+  }
+  for (const option of select.options) {
+    if (option.value === zone) {
+      option.selected = true;
+      return;
+    }
+  }
+})();
+
 (function () {
   const chart = document.getElementById("chart");
   if (!chart || typeof uPlot === "undefined") {
