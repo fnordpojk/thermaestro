@@ -9,6 +9,13 @@ file that upgrades keep. A missing file means every default.
 
     [paths]
     state = "/var/lib/thermaestro"
+
+    [history]
+    raw_days = 14
+    aggregate_days = 400
+
+    [plugins]
+    socket = "/run/thermaestro/plugins.sock"
 """
 
 import tomllib
@@ -37,9 +44,24 @@ class Paths(_Model):
     """Instead of the state directory systemd or the container gives."""
 
 
+class History(_Model):
+    """How long values are kept. Samples as they came for `raw_days`, then 15-minute
+    aggregates (min, mean, max, last) for `aggregate_days`."""
+
+    raw_days: Annotated[int, Field(ge=1)] = 14
+    aggregate_days: Annotated[int, Field(ge=1)] = 400
+
+
+class Plugins(_Model):
+    socket: Path | None = None
+    """Where out-of-process plugins connect; None: in-process plugins only."""
+
+
 class Startup(_Model):
     web: Web = Web()
     paths: Paths = Paths()
+    history: History = History()
+    plugins: Plugins = Plugins()
 
     def layout(self, layout: Layout) -> Layout:
         if self.paths.state is None:

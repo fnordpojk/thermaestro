@@ -13,7 +13,7 @@ import contextlib
 import logging
 import os
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
@@ -37,6 +37,29 @@ MIGRATIONS: tuple[str, ...] = (
         updated TEXT NOT NULL,
         PRIMARY KEY (kind, id)
     ) STRICT;
+    """,
+    # 2: value history: samples as they came, and 15-minute aggregates kept longer
+    """
+    CREATE TABLE history (
+        instance TEXT NOT NULL,
+        point TEXT NOT NULL,
+        t REAL NOT NULL,
+        value REAL,
+        text TEXT,
+        quality TEXT NOT NULL,
+        PRIMARY KEY (instance, point, t)
+    ) STRICT, WITHOUT ROWID;
+    CREATE TABLE history_15m (
+        instance TEXT NOT NULL,
+        point TEXT NOT NULL,
+        slot REAL NOT NULL,
+        min REAL NOT NULL,
+        mean REAL NOT NULL,
+        max REAL NOT NULL,
+        last REAL NOT NULL,
+        n INTEGER NOT NULL,
+        PRIMARY KEY (instance, point, slot)
+    ) STRICT, WITHOUT ROWID;
     """,
 )
 VERSION = len(MIGRATIONS)
@@ -73,6 +96,13 @@ class Transaction:
             "DELETE FROM settings WHERE kind = ? AND id = ?", (model.kind, id)
         )
         return cursor.rowcount > 0
+
+    def execute(self, sql: str, params: Sequence[object] = ()) -> sqlite3.Cursor:
+        """Plain SQL, for the tables that aren't settings (history, and later state)."""
+        return self._db.execute(sql, params)
+
+    def executemany(self, sql: str, rows: Iterable[Sequence[object]]) -> sqlite3.Cursor:
+        return self._db.executemany(sql, rows)
 
 
 class Database:

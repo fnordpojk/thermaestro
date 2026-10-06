@@ -71,6 +71,8 @@ class Link:
         self._task: asyncio.Task[None] | None = None
         self.bad_lines: list[BadLine] = []
         """Lines from the plugin that weren't messages."""
+        self.done = asyncio.Event()
+        """Set when the connection has ended."""
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._receive())
@@ -201,6 +203,7 @@ class Link:
         finally:
             for replies in self._waiting.values():
                 replies.put_nowait(_END)
+            self.done.set()
 
 
 class Subscription:

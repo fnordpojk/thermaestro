@@ -18,6 +18,9 @@ dependencies = [
     "thermaestro-gateway==0.0.0",
 ]
 
+[project.scripts]
+thermaestro = "thermaestro.cli:main"
+
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"
 
@@ -63,9 +66,9 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # assert is how pytest tests check things; seeded random numbers make repeatable faults;
-# tests look at small local files (a socket's mode, a connection file) directly, and
-# use invented passwords.
-"**/tests/**" = ["S101", "S311", "ASYNC240", "S105", "S106"]
+# tests look at small local files (a socket's mode, a connection file) directly, use
+# invented passwords, and poll for what another task or process does, with a deadline.
+"**/tests/**" = ["S101", "S311", "ASYNC240", "S105", "S106", "ASYNC109", "ASYNC110"]
 # A timeout here is the wait for each answer: an act's fates come one at a time, each
 # with its own wait, which a timeout around the whole call can't express.
 "src/thermaestro/cap/client.py" = ["ASYNC109"]
