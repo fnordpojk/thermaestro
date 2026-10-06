@@ -177,6 +177,7 @@ def test_standard_levers(kind: str, name: str, lever_kind: str) -> None:
 def test_names_outside_the_vocabulary() -> None:
     assert vocabulary.point("unit", "flow.temp") is None
     assert vocabulary.lever("climate_system", "block") is None  # only on its own area's node
+    assert vocabulary.lever("climate_system", "room.temp.input") is None  # feeds end `_input`
     assert vocabulary.is_vendor("x.nibe.47134", "nibe")
     assert not vocabulary.is_vendor("x.nibe.47134", "ctc")
     assert vocabulary.LEVERS["alarm.reset"].user_only

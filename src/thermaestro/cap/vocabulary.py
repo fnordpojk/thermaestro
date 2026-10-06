@@ -130,7 +130,7 @@ LEVERS: dict[str, LeverName] = {
     "alarm.reset": _l("trigger", user_only=True),
 }
 
-_FEED = re.compile(r"^[a-z_.]+[._]input$")
+_FEED = re.compile(r"^[a-z_.]+_input$")
 """A value the device lacks or should use instead: `room.temp_input`, `outdoor.temp_input`,
 `ventilation.airflow_input`."""
 
