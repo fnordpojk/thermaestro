@@ -1,0 +1,40 @@
+{% macro value_cell(p) %}
+{% set quality = _(p.quality) ~ (": " ~ p.why if p.why else "") %}
+<td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
+  {%- if p.value is none -%}–
+  {%- elif p.value is sameas true or p.value is sameas false -%}{{ _("yes") if p.value else _("no") }}
+  {%- elif p.value is number -%}{{ p.value | num }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
+  {%- else -%}{{ p.value }}{%- endif -%}
+  <span class="hidden"> ({{ quality }})</span>
+</td>
+{% endmacro %}
+{% if site.rooms or site.outdoor %}
+<section class="site">
+  <div class="cards">
+  {% if site.outdoor %}
+  <div class="card">
+    <h2>{{ _("Outdoors") }}</h2>
+    <table class="values">
+    {% for p in site.outdoor %}
+      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+    {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% for room in site.rooms %}
+  <div class="card">
+    <h2>{{ room.name }}</h2>
+    {% if room.points %}
+    <table class="values">
+    {% for p in room.points %}
+      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+    {% endfor %}
+    </table>
+    {% else %}
+    <p class="hint">{{ _("No sensors in this room yet.") }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}

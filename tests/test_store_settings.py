@@ -74,7 +74,7 @@ async def test_an_import_draft_fills_the_settings_in_one_transaction(tmp_path: P
         )
         t.put(Mqtt(host="192.0.2.20", username="nibepi", password="mqtt.password"))
         for id, topic in (("living", "home/living/temperature"), ("hall", "home/hall/temperature")):
-            t.put(Sensor(name=id, source="mqtt", topic=topic, climate_systems=("hp1/cs1",)), id)
+            t.put(Sensor(name=id, source="mqtt", topic=topic, room="living"), id)
         t.put(Location(latitude=52.52, longitude=13.40, timezone="Europe/Berlin"))
         t.put(
             PriceLayer(
@@ -92,7 +92,7 @@ async def test_an_import_draft_fills_the_settings_in_one_transaction(tmp_path: P
     async with await Database.open(tmp_path / "t.db") as db:
         await db.run(apply)
         sensors = await db.all(Sensor)
-        assert [s.climate_systems for s in sensors.values()] == [("hp1/cs1",), ("hp1/cs1",)]
+        assert [s.room for s in sensors.values()] == ["living", "living"]
         pump = await db.get(Plugin, "pump")
         assert pump is not None
         assert (pump.typed(NibeGateway).read_port, pump.typed(NibeGateway).write_port) == (

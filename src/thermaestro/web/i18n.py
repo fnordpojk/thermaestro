@@ -129,6 +129,11 @@ SHOWN_BY_VALUE = (
     mark("restarting"),
     mark("waiting"),
     mark("stopped"),
+    # the MQTT client
+    mark("off"),
+    mark("connecting"),
+    mark("connected"),
+    mark("failed"),
     # transport health
     mark("down"),
     mark("contended"),

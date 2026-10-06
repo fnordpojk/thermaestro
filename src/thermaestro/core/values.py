@@ -9,7 +9,7 @@ Old samples are folded into 15-minute aggregates, which are kept far longer.
 import asyncio
 import logging
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from ..cap.model import Envelope, Point
@@ -57,6 +57,8 @@ class Values:
         self._kept: dict[Key, Sample] = {}
         self._pending: list[tuple[Key, Sample]] = []
         self._plausibility = Plausibility()
+        self.listeners: list[Callable[[str, Envelope], None]] = []
+        """Told of every value as it is kept, after the plausibility check."""
 
     def add(self, instance: str, envelope: Envelope, point: Point | None = None) -> None:
         """Keep a value, after the core's own plausibility check (`point`, where known,
@@ -64,6 +66,8 @@ class Values:
         envelope = self._plausibility.check(instance, envelope, point)
         key = Key(instance, envelope.point)
         self.latest[key] = envelope
+        for listener in self.listeners:
+            listener(instance, envelope)
         new = sample(envelope)
         kept = self._kept.get(key)
         if kept is not None:

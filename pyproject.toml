@@ -26,12 +26,15 @@ dependencies = [
     # Password hashing, and the certificate a new installation makes for HTTPS.
     "argon2-cffi>=25.1.0",
     "cryptography>=50.0.2",
+    "aiomqtt>=2",
+    "aiohttp>=3.12",
 ]
 
 [project.scripts]
 thermaestro = "thermaestro.cli:main"
 
 [project.entry-points."thermaestro.plugins"]
+homeassistant = "thermaestro.homeassistant.plugin:create"
 nibe = "thermaestro.nibe.plugin:create"
 
 [project.urls]
@@ -49,6 +52,7 @@ thermaestro-gateway = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "amqtt>=0.12.1",
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mypy>=2.4.0",

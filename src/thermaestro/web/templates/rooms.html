@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Rooms") }}{% endblock %}
+{% block main %}
+<h1>{{ _("Rooms") }}</h1>
+<p>{{ _("Each room has its own sensors, and a comfort band of its own later. A room's temperature is the mean of its sensors, or its reference sensor alone.") }} <a href="/sensors">{{ _("Sensors") }}</a></p>
+
+{% macro room_form(rid, room) %}
+<form method="post" action="{{ '/rooms/' ~ (rid | urlencode) if rid else '/rooms' }}" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64" value="{{ room.name if room else '' }}"></label>
+  <label>{{ _("Climate system") }}
+    <select name="climate_system">
+      <option value="">–</option>
+      {% for ref, label in systems %}<option value="{{ ref }}"{% if room and room.climate_system == ref %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Its own control") }}
+    <select name="own_device">
+      {% for kind in ("unknown", "none", "simple_thermostat", "smart_thermostat", "radiator_valves", "zone_controller") %}
+      <option value="{{ kind }}"{% if (room.own_device if room else "unknown") == kind %} selected{% endif %}>{{ kind | own_device }}</option>
+      {% endfor %}
+    </select></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endmacro %}
+
+{% for rid, room in rooms.items() %}
+<section class="room">
+  <h2>{{ room.name }}</h2>
+  {% set mine = [] %}
+  {% for sid, s in sensors.items() if s.room == rid %}{% set _ = mine.append(s.name ~ (" (" ~ _("reference") ~ ")" if s.reference else "")) %}{% endfor %}
+  <p>{{ _("Sensors:") }} {{ mine | join(", ") if mine else _("none yet") }}</p>
+  {% if room.own_device == "simple_thermostat" %}
+  <p class="notice">{{ _("A simple thermostat cuts the room off at its own setting. Where Thermaestro steers the room, turn the thermostat up to its highest setting, so it doesn't stop the room before Thermaestro's band is reached.") }}</p>
+  {% endif %}
+  <details>
+    <summary>{{ _("Change") }}</summary>
+    {{ room_form(rid, room) }}
+    <form method="post" action="/rooms/{{ rid | urlencode }}/delete">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="danger">{{ _("Remove") }}</button>
+    </form>
+  </details>
+</section>
+{% else %}
+<p class="notice">{{ _("No rooms yet.") }}</p>
+{% endfor %}
+
+<section>
+<h2>{{ _("Add a room") }}</h2>
+{{ room_form(none, none) }}
+</section>
+{% endblock %}

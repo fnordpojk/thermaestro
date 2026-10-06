@@ -49,6 +49,8 @@ def _environment() -> jinja2.Environment:
     env.filters["unit"] = i18n.unit
     env.filters["value_label"] = labels.value
     env.globals["quality_color"] = labels.quality_color
+    env.filters["quantity"] = labels.quantity
+    env.filters["own_device"] = labels.own_device
     return env
 
 
@@ -217,28 +219,34 @@ async def language(code: str, next: str = "/") -> Response:
 
 @router.get("/")
 async def status_page(request: Request, who: Logged) -> Response:
-    instances = services(request).status(who)
-    return render(request, "status.html", who, instances=instances)
+    s = services(request)
+    return render(request, "status.html", who, instances=s.status(who), site=s.site(who))
 
 
 @router.get("/status/values")
 async def status_values(request: Request, who: Logged) -> Response:
     """The values table alone, which the status page reloads every few seconds."""
-    instances = services(request).status(who)
-    return render(request, "values.html", who, instances=instances)
+    s = services(request)
+    return render(request, "values.html", who, instances=s.status(who), site=s.site(who))
 
 
 @router.get("/points/{instance}/{point:path}")
 async def point_page(request: Request, who: Logged, instance: str, point: str) -> Response:
     who.principal.require("points.read")
+    s = services(request)
     source = f"/api/v1/history/{quote(instance, safe='')}/{quote(point, safe='/')}"
+    node = point.rpartition("/")[0] or None
     return render(
         request,
         "point.html",
         who,
         instance=instance,
         point=point,
-        label=services(request).point_label(who, instance, point),
+        label=s.point_label(who, instance, point),
+        built_in=s.built_in_label(instance, point),
+        node=node,
+        node_built_in=s.node_label(who, instance, node, built_in=True) if node else "",
+        names=await s.names(who),
         source=source,
         decimal=i18n.decimal_symbol(),
         zone=i18n.zone_name(),

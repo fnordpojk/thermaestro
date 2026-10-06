@@ -18,7 +18,9 @@ from ..files import private_directory
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .host import PluginHost
+from .mqtt import MqttInput
 from .plugins import Factory, discover
+from .sensors import SensorHub
 from .values import Values
 
 log = logging.getLogger(__name__)
@@ -40,6 +42,8 @@ class Core:
     audit: AuditLog
     values: Values
     host: PluginHost
+    sensors: SensorHub
+    mqtt: MqttInput
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -68,7 +72,9 @@ async def run(
             audit=audit,
             factories=factories if factories is not None else discover(),
         )
-        core = Core(layout, startup, db, secrets, audit, values, host)
+        sensors = SensorHub(db, values)
+        mqtt = MqttInput(db, secrets, sensors)
+        core = Core(layout, startup, db, secrets, audit, values, host, sensors, mqtt)
         await _serve(core, stop, flush_s)
     finally:
         await db.close()
@@ -80,6 +86,11 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
         loop.add_signal_handler(sig, stop.set)
     await core.audit.record("core", "core.start")
     history = core.startup.history
+    await core.sensors.load()
+    sensor_tasks = [
+        asyncio.create_task(core.mqtt.run()),
+        asyncio.create_task(_tick(core.sensors)),
+    ]
     writer = asyncio.create_task(
         core.values.run(
             flush_s=flush_s,
@@ -111,12 +122,22 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
             server.close()
             server.close_clients()
             await server.wait_closed()
+        for task in sensor_tasks:
+            task.cancel()
+        await asyncio.gather(*sensor_tasks, return_exceptions=True)
         writer.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await writer
         await core.audit.record("core", "core.stop")
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
+
+
+async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:
+    """Mark sensors that have gone quiet as stale."""
+    while True:
+        await asyncio.sleep(every_s)
+        sensors.tick()
 
 
 async def _plugin_socket(core: Core) -> asyncio.Server | None:

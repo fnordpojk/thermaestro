@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 00:03+0200\n"
+"POT-Creation-Date: 2026-10-07 01:30+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,13 @@ msgid ""
 msgstr ""
 
 msgid ""
+"A simple thermostat cuts the room off at its own setting. Where "
+"Thermaestro steers the room, turn the thermostat up to its highest "
+"setting, so it doesn't stop the room before Thermaestro's band is "
+"reached."
+msgstr ""
+
+msgid ""
 "A token lets a script or the command line use the API. It carries only "
 "the rights you give it, never more than yours."
 msgstr ""
@@ -55,10 +62,19 @@ msgstr ""
 msgid "API tokens"
 msgstr ""
 
+msgid "Absolute humidity"
+msgstr ""
+
 msgid "Add"
 msgstr ""
 
+msgid "Add a room"
+msgstr ""
+
 msgid "Add a user"
+msgstr ""
+
+msgid "Add an MQTT sensor"
 msgstr ""
 
 msgid "Add the pump's connection in the settings."
@@ -67,13 +83,28 @@ msgstr ""
 msgid "Addition"
 msgstr ""
 
+msgid "Address"
+msgstr ""
+
+msgid "Air pressure"
+msgstr ""
+
 msgid "Airflow"
 msgstr ""
 
 msgid "Alarm"
 msgstr ""
 
+msgid "Area"
+msgstr ""
+
 msgid "Audit log"
+msgstr ""
+
+msgid "Back to the sensors"
+msgstr ""
+
+msgid "Back to the status"
 msgstr ""
 
 msgid "Brine circuit"
@@ -86,6 +117,12 @@ msgid "Brine out"
 msgstr ""
 
 msgid "Browser"
+msgstr ""
+
+msgid "CO₂"
+msgstr ""
+
+msgid "Calibration"
 msgstr ""
 
 msgid "Change"
@@ -107,6 +144,13 @@ msgstr ""
 msgid "Charging temperature"
 msgstr ""
 
+#, python-format
+msgid "Choose entities from %(url)s"
+msgstr ""
+
+msgid "Choose from Home Assistant"
+msgstr ""
+
 msgid "Choose…"
 msgstr ""
 
@@ -114,6 +158,9 @@ msgid "Circulation pump"
 msgstr ""
 
 msgid "Circulation pump speed"
+msgstr ""
+
+msgid "Climate system"
 msgstr ""
 
 #, python-format
@@ -162,13 +209,25 @@ msgstr ""
 msgid "Details"
 msgstr ""
 
+msgid "Dew point"
+msgstr ""
+
 msgid "Diagnostics"
 msgstr ""
 
 msgid "Diverter valve"
 msgstr ""
 
+msgid "Door open"
+msgstr ""
+
 msgid "Download"
+msgstr ""
+
+msgid ""
+"Each room has its own sensors, and a comfort band of its own later. A "
+"room's temperature is the mean of its sensors, or its reference sensor "
+"alone."
 msgstr ""
 
 msgid "Electrical power"
@@ -177,12 +236,18 @@ msgstr ""
 msgid "Electricity used"
 msgstr ""
 
+msgid "Energy"
+msgstr ""
+
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, "
 "and `thermaestro setup-code` prints it. It works once, for 60 minutes."
 msgstr ""
 
 msgid "Enter your password again"
+msgstr ""
+
+msgid "Entity"
 msgstr ""
 
 msgid "Exhaust air temperature"
@@ -195,6 +260,9 @@ msgid "Fan speed"
 msgstr ""
 
 msgid "First administrator"
+msgstr ""
+
+msgid "Flow"
 msgstr ""
 
 msgid ""
@@ -223,16 +291,34 @@ msgstr ""
 msgid "Health"
 msgstr ""
 
+msgid "Heat demand"
+msgstr ""
+
 msgid "Heat produced"
 msgstr ""
 
+msgid "Heating"
+msgstr ""
+
+msgid "Home Assistant offers nothing Thermaestro can use."
+msgstr ""
+
 msgid "Hot water"
+msgstr ""
+
+msgid "Humidity"
 msgstr ""
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr ""
 
 msgid "Instance"
+msgstr ""
+
+msgid "Its own control"
+msgstr ""
+
+msgid "JSON field"
 msgstr ""
 
 msgid "Key (pre-shared)"
@@ -256,6 +342,9 @@ msgstr ""
 msgid "Latitude"
 msgstr ""
 
+msgid "Light"
+msgstr ""
+
 msgid "Local port"
 msgstr ""
 
@@ -268,7 +357,16 @@ msgstr ""
 msgid "Log out"
 msgstr ""
 
+msgid "Long-lived access token"
+msgstr ""
+
 msgid "Longitude"
+msgstr ""
+
+msgid "MQTT broker"
+msgstr ""
+
+msgid "Measures"
 msgstr ""
 
 msgid "Middle temperature"
@@ -280,7 +378,13 @@ msgstr ""
 msgid "More"
 msgstr ""
 
+msgid "Motion"
+msgstr ""
+
 msgid "Name"
+msgstr ""
+
+msgid "Names"
 msgstr ""
 
 msgid "New group"
@@ -303,7 +407,19 @@ msgstr ""
 msgid "No plugin instances."
 msgstr ""
 
+msgid "No rooms yet."
+msgstr ""
+
+msgid "No sensors in this room yet."
+msgstr ""
+
+msgid "No sensors yet."
+msgstr ""
+
 msgid "No values in this period."
+msgstr ""
+
+msgid "Not done"
 msgstr ""
 
 msgid "Nothing is connected yet."
@@ -315,18 +431,41 @@ msgstr ""
 msgid "Observed"
 msgstr ""
 
+msgid "Occupied"
+msgstr ""
+
 msgid ""
 "Only values of good quality are drawn; gaps are times the value wasn't "
 "valid."
 msgstr ""
 
+msgid "Open"
+msgstr ""
+
 msgid "Outcome"
+msgstr ""
+
+msgid "Outdoor references"
 msgstr ""
 
 msgid "Outdoor temperature"
 msgstr ""
 
+msgid "Outdoors"
+msgstr ""
+
+msgid "PM10"
+msgstr ""
+
+msgid "PM2.5"
+msgstr ""
+
 msgid "Password"
+msgstr ""
+
+msgid ""
+"Pick what Thermaestro should read. Each picked value becomes a sensor; a "
+"room is suggested from the entity's area where a room has the same name."
 msgstr ""
 
 msgid "Plugins"
@@ -339,6 +478,9 @@ msgid "Point at a value to see why."
 msgstr ""
 
 msgid "Pool"
+msgstr ""
+
+msgid "Port"
 msgstr ""
 
 msgid "Power"
@@ -354,6 +496,9 @@ msgid "Protocol"
 msgstr ""
 
 msgid "Read port"
+msgstr ""
+
+msgid "Read the picked ones"
 msgstr ""
 
 msgid "Region"
@@ -383,13 +528,36 @@ msgstr ""
 msgid "Room temperature"
 msgstr ""
 
+msgid "Rooms"
+msgstr ""
+
 msgid "Save"
+msgstr ""
+
+msgid "Save and choose entities"
 msgstr ""
 
 msgid "Save and connect"
 msgstr ""
 
+msgid "Sensor"
+msgstr ""
+
+msgid "Sensors"
+msgstr ""
+
+msgid ""
+"Sensors from outside the pump: an MQTT topic, or an entity in Home "
+"Assistant. Each one is placed in a room, outdoors, or elsewhere."
+msgstr ""
+
+msgid "Sensors:"
+msgstr ""
+
 msgid "Set password and log out everywhere"
+msgstr ""
+
+msgid "Setpoint"
 msgstr ""
 
 msgid "Settings"
@@ -401,7 +569,13 @@ msgstr ""
 msgid "Since"
 msgstr ""
 
+msgid "Someone home"
+msgstr ""
+
 msgid "Speed"
+msgstr ""
+
+msgid "Stale after (minutes)"
 msgstr ""
 
 msgid "Stale:"
@@ -410,10 +584,19 @@ msgstr ""
 msgid "State"
 msgstr ""
 
+msgid "State:"
+msgstr ""
+
 msgid "Status"
 msgstr ""
 
+msgid "Sunlight"
+msgstr ""
+
 msgid "Supply temperature"
+msgstr ""
+
+msgid "Temperature"
 msgstr ""
 
 msgid "The form had expired, or came from another site. Please try again."
@@ -437,12 +620,21 @@ msgid "Thermaestro gateway (with a key)"
 msgstr ""
 
 msgid ""
+"Thermaestro reads the entities you choose, through Home Assistant's "
+"WebSocket API. Make a long-lived access token in Home Assistant (your "
+"profile, Security) and enter it here; it is kept in the secrets file."
+msgstr ""
+
+msgid ""
 "This installation's certificate is its own, not from an authority, so the"
 " browser warns about it. Compare its SHA-256 fingerprint with the one the"
 " browser shows:"
 msgstr ""
 
 msgid "This plugin offers no points."
+msgstr ""
+
+msgid "This value"
 msgstr ""
 
 msgid "Time range"
@@ -457,6 +649,9 @@ msgstr ""
 msgid "Top temperature"
 msgstr ""
 
+msgid "Topic"
+msgstr ""
+
 msgid "User"
 msgstr ""
 
@@ -464,6 +659,9 @@ msgid "User name"
 msgstr ""
 
 msgid "Users"
+msgstr ""
+
+msgid "VOC"
 msgstr ""
 
 msgid "Value"
@@ -475,7 +673,16 @@ msgstr ""
 msgid "Waiting for the plugin to describe its device…"
 msgstr ""
 
+msgid "Water"
+msgstr ""
+
+msgid "Water leak"
+msgstr ""
+
 msgid "What"
+msgstr ""
+
+msgid "What it belongs to"
 msgstr ""
 
 msgid "What the rights allow"
@@ -484,10 +691,22 @@ msgstr ""
 msgid "When"
 msgstr ""
 
+msgid "Where"
+msgstr ""
+
 msgid "Where you're logged in"
 msgstr ""
 
+msgid ""
+"Which outdoor sensor counts for each quantity: forecasts are checked "
+"against it, and the house model learns from it. Without one for "
+"temperature, the pump's own outdoor sensor is used."
+msgstr ""
+
 msgid "Who"
+msgstr ""
+
+msgid "Window open"
 msgstr ""
 
 msgid "Write port"
@@ -499,19 +718,36 @@ msgstr ""
 msgid "Your new token"
 msgstr ""
 
+msgid ""
+"Your own names replace the built-in ones for everyone; leave a field "
+"empty for the built-in name."
+msgstr ""
+
 msgid "a password can have at most 256 characters"
 msgstr ""
 
 msgid "a password needs at least 15 characters"
 msgstr ""
 
+msgid "a simple on/off thermostat"
+msgstr ""
+
+msgid "a thermostat with an interface"
+msgstr ""
+
 msgid "a user name is 1 to 64 letters, digits or . _ @ -"
+msgstr ""
+
+msgid "a zoning controller"
 msgstr ""
 
 msgid "add, change and remove plugin instances"
 msgstr ""
 
 msgid "add, change and remove users and their rights"
+msgstr ""
+
+msgid "added to each value"
 msgstr ""
 
 msgid "addition"
@@ -550,6 +786,12 @@ msgstr ""
 msgid "compressor"
 msgstr ""
 
+msgid "connected"
+msgstr ""
+
+msgid "connecting"
+msgstr ""
+
 msgid "contended"
 msgstr ""
 
@@ -568,7 +810,16 @@ msgstr ""
 msgid "e.g. backup script"
 msgstr ""
 
+msgid "elsewhere"
+msgstr ""
+
+msgid "empty: 60"
+msgstr ""
+
 msgid "empty: as the pump reports it"
+msgstr ""
+
+msgid "empty: the payload is the number"
 msgstr ""
 
 msgid "enter or replace secrets (never read them back)"
@@ -581,6 +832,9 @@ msgid "entered; leave empty to keep it"
 msgstr ""
 
 msgid "everything, including rights added later"
+msgstr ""
+
+msgid "failed"
 msgstr ""
 
 msgid "gives the formats"
@@ -601,16 +855,43 @@ msgstr ""
 msgid "implausible"
 msgstr ""
 
+msgid "in a room"
+msgstr ""
+
 msgid "last heard"
+msgstr ""
+
+msgid "no"
+msgstr ""
+
+msgid "no room"
+msgstr ""
+
+msgid "no room yet"
 msgstr ""
 
 msgid "no usable value"
 msgstr ""
 
+msgid "no value yet"
+msgstr ""
+
 msgid "no_flow"
 msgstr ""
 
+msgid "none"
+msgstr ""
+
+msgid "none yet"
+msgstr ""
+
+msgid "not said yet"
+msgstr ""
+
 msgid "not_connected"
+msgstr ""
+
+msgid "nothing of its own"
 msgstr ""
 
 msgid "off"
@@ -622,6 +903,9 @@ msgstr ""
 msgid "out_of_range"
 msgstr ""
 
+msgid "outdoors"
+msgstr ""
+
 msgid "point (4.5)"
 msgstr ""
 
@@ -631,7 +915,19 @@ msgstr ""
 msgid "preselected from this browser"
 msgstr ""
 
+msgid "radiator valves with an interface"
+msgstr ""
+
+msgid "read already"
+msgstr ""
+
+msgid "read now"
+msgstr ""
+
 msgid "read the audit log"
+msgstr ""
+
+msgid "reference"
 msgstr ""
 
 msgid "restarting"
@@ -668,6 +964,12 @@ msgid "that would leave no user who can manage users"
 msgstr ""
 
 msgid "the password you entered isn't right"
+msgstr ""
+
+msgid "the pump's own"
+msgstr ""
+
+msgid "the room's reference"
 msgstr ""
 
 msgid "the setup code isn't right, or has expired"
@@ -707,5 +1009,8 @@ msgid "waiting"
 msgstr ""
 
 msgid "wrong user name or password"
+msgstr ""
+
+msgid "yes"
 msgstr ""
 

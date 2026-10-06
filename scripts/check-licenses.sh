@@ -11,6 +11,8 @@ allowed=(
     "LGPL" "Lesser General Public License"
     "GPL-3.0" "GPLv3" "AGPL"
     "MPL-2.0" "Mozilla Public License 2.0"
+    # paho-mqtt (under aiomqtt) is "EPL-2.0 OR BSD-3-Clause": used under the BSD-3-Clause
+    # option, its Eclipse Distribution License; the "BSD" entry above lets it through.
 )
 
 IFS=';'

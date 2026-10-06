@@ -93,7 +93,20 @@ class NibeGateway(BaseModel):
         return self
 
 
-PLUGIN_SETTINGS: dict[str, type[BaseModel]] = {"nibe": NibeGateway}
+class HomeAssistant(BaseModel):
+    """A Home Assistant: the settings of a `homeassistant` plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    url: Annotated[str, StringConstraints(pattern=r"^https?://[^\s/]+(:\d+)?/?$")]
+    """Where it answers, such as http://homeassistant.local:8123."""
+    token: SecretName
+    """A long-lived access token made in Home Assistant, in the secrets file."""
+    entities: tuple[Annotated[str, StringConstraints(pattern=r"^[a-z_]+\.[a-z0-9_]+$")], ...] = ()
+    """The entities to read; nothing else is."""
+
+
+PLUGIN_SETTINGS: dict[str, type[BaseModel]] = {"nibe": NibeGateway, "homeassistant": HomeAssistant}
 """The settings model of each plugin that has one, checked whenever settings load."""
 
 
@@ -125,23 +138,40 @@ class Plugin(Setting):
         return model.model_validate(self.settings)
 
 
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+
+PointRef = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,64}:[A-Za-z0-9_.{}=,#/-]+$")
+]
+"""A point of a plugin instance, `<instance>:<path>`, such as `pump:hp1/outdoor.temp` or
+`ha:sensor.bedroom_temperature`."""
+
+
 class Sensor(Setting):
-    """A sensor from outside the pump: an MQTT topic, or a point another plugin offers."""
+    """A sensor from outside the pump's own logic: an MQTT topic, or a point a plugin
+    offers (a Home Assistant entity, or the pump's outdoor sensor used as a reference)."""
 
     kind = "sensor"
 
-    name: str
+    name: Name
     source: Literal["mqtt", "point"]
     topic: str | None = None
-    point: str | None = None
-    quantity: str = "temperature"
-    """Its Home Assistant device class."""
+    json_key: str | None = None
+    """For a topic carrying JSON: the field with the value, dotted for a nested one
+    (`temperature`, `state.temperature`). None: the payload is the number itself."""
+    point: PointRef | None = None
+    quantity: Annotated[str, StringConstraints(pattern=r"^[a-z0-9_.]{1,64}$")] = "temperature"
+    """Its Home Assistant device class, or a room point (`heat_demand`, `setpoint`)."""
+    placement: Literal["room", "outdoor", "other"] = "room"
+    room: Id | None = None
+    reference: bool = False
+    """The room's reference for its quantity: used alone instead of the mean of the
+    room's sensors (a sensor above a radiator isn't representative; one on an inner wall
+    is)."""
     freshness_s: Annotated[float, Field(gt=0)] | None = None
     """How old a value may get before it's stale; None for Thermaestro's default. A
     room sensor is never 'never stale', since a stale one restores the pump's settings."""
     calibration_offset: float = 0.0
-    climate_systems: tuple[str, ...] = ()
-    """The climate systems it is a room sensor of; several sensors may serve one."""
 
     @model_validator(mode="after")
     def _names_its_source(self) -> Self:
@@ -149,7 +179,51 @@ class Sensor(Setting):
             raise ValueError("an MQTT sensor names its topic")
         if self.source == "point" and not self.point:
             raise ValueError("a sensor from another plugin names its point")
+        if self.placement != "room" and (self.room or self.reference):
+            raise ValueError("only a room sensor belongs to a room")
         return self
+
+
+class Room(Setting):
+    """A room of a climate system, with its own sensors, and maybe a thermostat or valves
+    of its own."""
+
+    kind = "room"
+
+    name: Name
+    climate_system: PointRef | None = None
+    """The climate system's node, `<instance>:<path>`, such as `pump:hp1/cs1`."""
+    own_device: Literal[
+        "unknown",
+        "none",
+        "simple_thermostat",
+        "smart_thermostat",
+        "radiator_valves",
+        "zone_controller",
+    ] = "unknown"
+    """What controls the room besides the pump: a simple on/off thermostat (no interface),
+    a smart one or valves with an interface, a zoning controller, or nothing."""
+
+
+class Outdoor(Setting):
+    """Which sensor is the outdoor reference for each quantity. One per installation;
+    without one for temperature, the pump's own outdoor sensor is it."""
+
+    kind = "outdoor"
+
+    references: dict[Annotated[str, StringConstraints(pattern=r"^[a-z0-9_.]{1,64}$")], Id] = Field(
+        default_factory=dict
+    )
+    """Quantity to sensor id."""
+
+
+class Names(Setting):
+    """The household's own names for points and nodes, in its own language, replacing the
+    built-in ones for everyone. One per installation."""
+
+    kind = "names"
+
+    names: dict[PointRef, Name] = Field(default_factory=dict)
 
 
 class PriceLayer(Setting):
@@ -185,5 +259,5 @@ class Vat(Setting):
 
 
 SETTINGS: dict[str, type[Setting]] = {
-    m.kind: m for m in (Location, Mqtt, Plugin, Sensor, PriceLayer, Vat)
+    m.kind: m for m in (Location, Mqtt, Plugin, Sensor, Room, Outdoor, Names, PriceLayer, Vat)
 }

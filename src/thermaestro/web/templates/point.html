@@ -15,4 +15,26 @@
      data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
      data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
 <p class="hint">{{ _("Only values of good quality are drawn; gaps are times the value wasn't valid.") }}</p>
+{% if can("settings.write") and instance != "site" %}
+<section>
+<h2>{{ _("Names") }}</h2>
+<p class="hint">{{ _("Your own names replace the built-in ones for everyone; leave a field empty for the built-in name.") }}</p>
+<form method="post" action="/names" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="ref" value="{{ instance }}:{{ point }}">
+  <input type="hidden" name="next" value="{{ path }}">
+  <label>{{ _("This value") }} <input name="name" maxlength="64" value="{{ names.get(instance ~ ':' ~ point, '') }}" placeholder="{{ built_in }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% if node %}
+<form method="post" action="/names" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="ref" value="{{ instance }}:{{ node }}">
+  <input type="hidden" name="next" value="{{ path }}">
+  <label>{{ _("What it belongs to") }} <input name="name" maxlength="64" value="{{ names.get(instance ~ ':' ~ node, '') }}" placeholder="{{ node_built_in }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
 {% endblock %}

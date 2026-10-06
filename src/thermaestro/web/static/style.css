@@ -102,6 +102,10 @@ td.value { white-space: nowrap; cursor: help; }
 .quality-grey { color: var(--muted); }
 .quality-grey::before { background: var(--muted); }
 .legend span { margin-right: 0.9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--panel); }
+.card h2 { font-size: 1.05rem; margin: 0.25rem 0; }
+.card table { margin: 0; }
 dl.rights { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
 dl.rights dd { margin: 0; }
 .hidden {

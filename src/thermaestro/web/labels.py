@@ -111,6 +111,54 @@ def value(text: str) -> str:
     return i18n._(VALUES[text]) if text in VALUES else text
 
 
+QUANTITIES = {
+    "temperature": mark("Temperature"),
+    "humidity": mark("Humidity"),
+    "absolute_humidity": mark("Absolute humidity"),
+    "dew_point": mark("Dew point"),
+    "carbon_dioxide": mark("CO\N{SUBSCRIPT TWO}"),
+    "volatile_organic_compounds": mark("VOC"),
+    "volatile_organic_compounds_parts": mark("VOC"),
+    "pm25": mark("PM2.5"),
+    "pm10": mark("PM10"),
+    "atmospheric_pressure": mark("Air pressure"),
+    "illuminance": mark("Light"),
+    "irradiance": mark("Sunlight"),
+    "power": mark("Power"),
+    "energy": mark("Energy"),
+    "volume_flow_rate": mark("Flow"),
+    "water": mark("Water"),
+    "heat_demand": mark("Heat demand"),
+    "setpoint": mark("Setpoint"),
+    "zone.open": mark("Heating"),
+    "window.open": mark("Window open"),
+    "window": mark("Window open"),
+    "door": mark("Door open"),
+    "opening": mark("Open"),
+    "presence": mark("Someone home"),
+    "occupancy": mark("Occupied"),
+    "motion": mark("Motion"),
+    "moisture": mark("Water leak"),
+}
+
+OWN_DEVICES = {
+    "unknown": mark("not said yet"),
+    "none": mark("nothing of its own"),
+    "simple_thermostat": mark("a simple on/off thermostat"),
+    "smart_thermostat": mark("a thermostat with an interface"),
+    "radiator_valves": mark("radiator valves with an interface"),
+    "zone_controller": mark("a zoning controller"),
+}
+
+
+def quantity(name: str) -> str:
+    return i18n._(QUANTITIES[name]) if name in QUANTITIES else name
+
+
+def own_device(kind: str) -> str:
+    return i18n._(OWN_DEVICES[kind]) if kind in OWN_DEVICES else kind
+
+
 QUALITY_COLORS = {
     "good": "green",
     "stale": "yellow",

@@ -32,10 +32,13 @@ from ..auth.permissions import PERMISSIONS
 from ..cap.messages import Described
 from ..core.audit import AuditLog
 from ..core.host import PluginHost
+from ..core.mqtt import MqttInput
+from ..core.sensors import SITE, SensorHub
 from ..core.values import Key, Values, sample
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
-from . import labels
+from . import i18n, labels
+from .sensor_operations import SensorOperations
 
 HISTORY_MAX_S = 31 * 86_400.0
 """The longest stretch of samples one request returns."""
@@ -60,7 +63,7 @@ class Caller:
 
 
 @dataclass
-class Services:
+class Services(SensorOperations):
     accounts: Accounts
     db: Database
     values: Values
@@ -72,6 +75,8 @@ class Services:
     """The self-signed certificate's SHA-256, shown so a user can compare it."""
     zone: tzinfo = field(default=UTC)
     """The house's time zone, from the location; every time is shown in it."""
+    sensors: SensorHub | None = None
+    mqtt: MqttInput | None = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)
@@ -97,7 +102,7 @@ class Services:
                 points.append(
                     {
                         "path": point.path,
-                        "label": _label(described, point.path),
+                        "label": self._label(id, described, point.path),
                         "unit": point.unit,
                         "value": None if envelope is None else envelope.value,
                         "quality": "unknown" if envelope is None else envelope.quality,
@@ -122,7 +127,102 @@ class Services:
     def point_label(self, caller: Caller, instance: str, path: str) -> str:
         caller.principal.require("points.read")
         found = self.host.instances.get(instance) if self.host else None
+        return self._label(instance, found.described if found else None, path)
+
+    def built_in_label(self, instance: str, path: str) -> str:
+        found = self.host.instances.get(instance) if self.host else None
         return _label(found.described if found else None, path)
+
+    def node_label(
+        self, caller: Caller, instance: str, node: str, *, built_in: bool = False
+    ) -> str:
+        """A node's name: the household's, else the built-in one."""
+        caller.principal.require("points.read")
+        names = self.sensors.names if self.sensors and not built_in else {}
+        if f"{instance}:{node}" in names:
+            return names[f"{instance}:{node}"]
+        found = self.host.instances.get(instance) if self.host else None
+        described = found.described if found else None
+        nodes = {n.path: n for n in described.nodes} if described else {}
+        n = nodes.get(node)
+        return labels.node(n.kind if n else None, node, n.label if n else None) or node
+
+    def _label(self, instance: str, described: Described | None, path: str) -> str:
+        if instance == SITE:
+            return self._site_label(path)
+        names = self.sensors.names if self.sensors else {}
+        own = names.get(f"{instance}:{path}")
+        if own:
+            return own
+        where = path.rpartition("/")[0]
+        node_name = names.get(f"{instance}:{where}")
+        built_in = _label(described, path)
+        if node_name:
+            return f"{node_name} \N{MIDDLE DOT} {built_in.rpartition(' · ')[2]}"
+        return built_in
+
+    def _site_label(self, path: str) -> str:
+        node, _, quantity = path.rpartition("/")
+        if node == "outdoor":
+            place = i18n._("Outdoors")
+        else:
+            room = self.sensors.rooms.get(node.removeprefix("room.")) if self.sensors else None
+            place = room.name if room else node
+        return f"{place} \N{MIDDLE DOT} {labels.quantity(quantity)}"
+
+    def site(self, caller: Caller) -> dict[str, Any]:
+        """Rooms and the outdoors, as the core derives them from the sensors."""
+        caller.principal.require("points.read")
+        hub = self.sensors
+        if hub is None:
+            return {"rooms": [], "outdoor": []}
+        rooms = []
+        for room_id, room in sorted(hub.rooms.items(), key=lambda r: r[1].name.lower()):
+            node = f"room.{room_id}"
+            rooms.append(
+                {
+                    "id": room_id,
+                    "name": room.name,
+                    "own_device": room.own_device,
+                    "points": self._site_points(node),
+                }
+            )
+        return {"rooms": rooms, "outdoor": self._site_points("outdoor")}
+
+    def _site_points(self, node: str) -> list[dict[str, Any]]:
+        out = []
+        for key, envelope in sorted(self.values.latest.items(), key=lambda kv: kv[0].point):
+            if key.instance != SITE or key.point.rpartition("/")[0] != node:
+                continue
+            quantity = key.point.rpartition("/")[2]
+            out.append(
+                {
+                    "path": key.point,
+                    "label": labels.quantity(quantity),
+                    "unit": envelope.unit,
+                    "value": envelope.value,
+                    "quality": envelope.quality,
+                    "why": envelope.why,
+                    "t": sample(envelope).t,
+                }
+            )
+        return out
+
+    def sensor_readings(self, caller: Caller) -> dict[str, dict[str, Any]]:
+        """Each sensor's latest value, for the sensors page."""
+        caller.principal.require("points.read")
+        out: dict[str, dict[str, Any]] = {}
+        if self.sensors is None:
+            return out
+        for id, reading in self.sensors.readings():
+            if reading is not None:
+                out[id] = {
+                    "value": reading.value,
+                    "quality": reading.quality,
+                    "why": reading.why,
+                    "t": reading.t,
+                }
+        return out
 
     async def history(
         self, caller: Caller, instance: str, point: str, start: float, end: float

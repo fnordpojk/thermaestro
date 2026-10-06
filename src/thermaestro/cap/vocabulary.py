@@ -81,6 +81,11 @@ POINTS: dict[str, PointName] = {
     "airflow": _p("m3/h", "ventilation"),
     "fan.speed": _p("%", "ventilation"),
     "exhaust.temp": _p("degC", "ventilation"),
+    # what a room's own thermostat or valves report
+    "heat_demand": _p("%", ROOM),
+    "zone.open": _p(None, ROOM),
+    "setpoint": _p("degC", ROOM),
+    "window.open": _p(None, ROOM),
 }
 
 QUANTITIES: dict[str, str] = {

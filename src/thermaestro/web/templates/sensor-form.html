@@ -1,0 +1,33 @@
+<form method="post" action="{{ '/sensors/' ~ (form_id | urlencode) if form_id else '/sensors' }}" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="source" value="{{ s.source if s else 'mqtt' }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64" value="{{ s.name if s else '' }}"></label>
+  {% if not s or s.source == "mqtt" %}
+  <label>{{ _("Topic") }} <input name="topic" required placeholder="zigbee2mqtt/bedroom" value="{{ s.topic if s else '' }}"></label>
+  <label>{{ _("JSON field") }} <small>{{ _("empty: the payload is the number") }}</small>
+    <input name="json_key" placeholder="temperature" value="{{ s.json_key or '' if s else '' }}"></label>
+  {% else %}
+  <input type="hidden" name="point" value="{{ s.point }}">
+  {% endif %}
+  <label>{{ _("Measures") }}
+    <select name="quantity">
+      {% for q in quantities %}<option value="{{ q }}"{% if (s.quantity if s else "temperature") == q %} selected{% endif %}>{{ q | quantity }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Where") }}
+    <select name="placement">
+      <option value="room"{% if not s or s.placement == "room" %} selected{% endif %}>{{ _("in a room") }}</option>
+      <option value="outdoor"{% if s and s.placement == "outdoor" %} selected{% endif %}>{{ _("outdoors") }}</option>
+      <option value="other"{% if s and s.placement == "other" %} selected{% endif %}>{{ _("elsewhere") }}</option>
+    </select></label>
+  <label>{{ _("Room") }}
+    <select name="room">
+      <option value="">–</option>
+      {% for rid, room in rooms.items() %}<option value="{{ rid }}"{% if s and s.room == rid %} selected{% endif %}>{{ room.name }}</option>{% endfor %}
+    </select></label>
+  <label class="check"><input type="checkbox" name="reference" value="1"{% if s and s.reference %} checked{% endif %}> {{ _("the room's reference") }}</label>
+  <label>{{ _("Calibration") }} <small>{{ _("added to each value") }}</small>
+    <input name="calibration_offset" inputmode="decimal" value="{{ s.calibration_offset if s else 0 }}"></label>
+  <label>{{ _("Stale after (minutes)") }} <small>{{ _("empty: 60") }}</small>
+    <input name="freshness_min" inputmode="numeric" value="{{ (s.freshness_s / 60) | round | int if s and s.freshness_s else '' }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>

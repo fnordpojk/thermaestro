@@ -16,7 +16,9 @@
   {% if who %}
   <nav>
     {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Status") }}</a>{% endif %}
-    {% if can("settings.read") %}<a href="/settings"{% if path == "/settings" %} aria-current="page"{% endif %}>{{ _("Settings") }}</a>
+    {% if can("settings.read") %}<a href="/rooms"{% if path == "/rooms" %} aria-current="page"{% endif %}>{{ _("Rooms") }}</a>
+    <a href="/sensors"{% if path.startswith("/sensors") %} aria-current="page"{% endif %}>{{ _("Sensors") }}</a>
+    <a href="/settings"{% if path == "/settings" %} aria-current="page"{% endif %}>{{ _("Settings") }}</a>
     <a href="/diagnostics"{% if path == "/diagnostics" %} aria-current="page"{% endif %}>{{ _("Diagnostics") }}</a>{% endif %}
     {% if can("users.manage") %}<a href="/users"{% if path == "/users" %} aria-current="page"{% endif %}>{{ _("Users") }}</a>{% endif %}
     {% if can("audit.read") %}<a href="/audit"{% if path == "/audit" %} aria-current="page"{% endif %}>{{ _("Audit log") }}</a>{% endif %}
