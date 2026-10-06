@@ -194,6 +194,15 @@ class NibePlugin:
         return await self._connect(config, **settings)
 
     async def _identify(self) -> None:
+        # Read first: a plain NibeGW gateway forwards the bus (and with it the product
+        # information) only to clients that have sent it something. These registers are the
+        # same on every bus-family model: 43001 u16, 44331 u8, 48852 u8.
+        version = await self._read_word(profile.FIRMWARE[0])
+        release = await self._read_word(profile.FIRMWARE[1])
+        if version is not None:
+            self.firmware = f"{version}R{release & 0xFF}" if release is not None else str(version)
+        swap = await self._read_word(profile.WORD_SWAP)
+        self.high_word_first = None if swap is None else swap & 0xFF == 0
         name = self.gateway.model
         if name is None:
             product = await asyncio.wait_for(asyncio.shield(self._product), self._identify_timeout)
@@ -201,13 +210,6 @@ class NibePlugin:
             if name is None:
                 raise NotIdentified(f"no register map for the product {product!r}; set the model")
         self.model = self.maps.model(name)
-        version, release = [await self._read_value(r) for r in profile.FIRMWARE]
-        if version is not None:
-            self.firmware = (
-                f"{int(version)}R{int(release)}" if release is not None else str(version)
-            )
-        swap = await self._read_value(profile.WORD_SWAP)
-        self.high_word_first = None if swap is None else swap == 0
         systems = [1]
         for system in profile.detectable(self.model):
             if system.accessory is None or await self._read_value(system.accessory) != 1:
@@ -256,6 +258,10 @@ class NibePlugin:
             if size is not None and size.bits <= 16:
                 self._store(following, (second, 0))  # the answer carries the next one too
         return first, second
+
+    async def _read_word(self, register: int) -> int | None:
+        words_ = await self._read(register)
+        return None if words_ is None else words_[0]
 
     async def _read_value(self, register: int) -> float | int | None:
         words_ = await self._read(register)
