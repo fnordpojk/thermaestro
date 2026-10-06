@@ -207,7 +207,14 @@ EnumMap = dict[str, int | str]
 
 class Point(Model):
     path: Path
+    label: str | None = None
+    """A name for people where the path's standard name doesn't give one: a device
+    register's own title, for a point under `x.<plugin>`."""
     unit: str | None = None
+    wraps_at: Annotated[float, Field(gt=0)] | None = None
+    """For a counter: the value at which it starts over from 0, from the size of the
+    device's register. A drop of more than half of it is a wrap, not a counter running
+    backwards."""
     resolution: Knowledge[float] = Knowledge[float]()
     range: Knowledge[Range] = Knowledge[Range]()
     enum: Knowledge[EnumMap] = Knowledge[EnumMap]()

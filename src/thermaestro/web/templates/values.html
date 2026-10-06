@@ -9,20 +9,28 @@
   <p class="error">{{ _("Last error:") }} {{ instance.last_error }}</p>
   {% endif %}
   {% if instance.points %}
+  <p class="legend hint">
+    <span class="quality-green">{{ _("good") }}</span>
+    <span class="quality-yellow">{{ _("uncertain") }}</span>
+    <span class="quality-red">{{ _("implausible") }}</span>
+    <span class="quality-grey">{{ _("no usable value") }}</span>
+    · {{ _("Point at a value to see why.") }}
+  </p>
   <table class="values">
-    <thead><tr><th>{{ _("Point") }}</th><th class="num">{{ _("Value") }}</th><th>{{ _("Quality") }}</th><th>{{ _("Observed") }}</th></tr></thead>
+    <thead><tr><th>{{ _("Point") }}</th><th class="num">{{ _("Value") }}</th><th class="when">{{ _("Observed") }}</th></tr></thead>
     <tbody>
     {% for p in instance.points %}
-      <tr class="quality-{{ p.quality }}">
-        <td><a href="/points/{{ instance.id | urlencode }}/{{ p.path }}">{{ p.path }}</a></td>
-        <td class="num">
+      {% set quality = _(p.quality) ~ (": " ~ p.why if p.why else "") %}
+      <tr>
+        <td><a href="/points/{{ instance.id | urlencode }}/{{ p.path }}" title="{{ p.path }}">{{ p.label }}</a></td>
+        <td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
           {%- if p.value is none -%}–
           {%- elif p.value is sameas true or p.value is sameas false -%}{{ _("on") if p.value else _("off") }}
           {%- elif p.value is number -%}{{ p.value | num }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
-          {%- else -%}{{ p.value }}{%- endif -%}
+          {%- else -%}{{ p.value | value_label }}{%- endif -%}
+          <span class="hidden"> ({{ quality }})</span>
         </td>
-        <td>{% if p.quality == "good" %}{{ _("good") }}{% else %}{{ _(p.quality) }}{% if p.why %}: {{ p.why }}{% endif %}{% endif %}</td>
-        <td>{{ p.t | when }}</td>
+        <td class="when">{{ p.t | when }}</td>
       </tr>
     {% endfor %}
     </tbody>

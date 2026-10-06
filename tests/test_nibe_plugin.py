@@ -66,6 +66,7 @@ PUMP = {
 def stocked(pump: SimPump) -> SimPump:
     pump.registers.update(PUMP)
     pump.registers32[42437] = 12_345  # heat meter, hot water: 1234.5 kWh
+    pump.registers32[42439] = 0xFFFF_FFFF  # a heat meter the pump doesn't keep
     pump.info_interval_s = 0.2
     return pump
 
@@ -166,6 +167,11 @@ async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) ->
         "the pump reports no sensor",
     )
     assert value(plugin, "heat.produced{purpose=dhw,by=total}") == (1234.5, "good", None)
+    assert value(plugin, "heat.produced{purpose=heating,by=total}") == (
+        None,
+        "unknown",
+        "the pump gives no value",
+    )
     assert value(plugin, "cs1/x.nibe.47011") == (-4, "good", None)
     assert plugin.envelope("hp1/outdoor.temp").unit == "degC"
 
@@ -315,3 +321,12 @@ def test_log_set() -> None:
     with pytest.raises(ValueError, match="1 to 20"):
         logset.render(model, list(range(40004, 40030)), day=date(2026, 10, 6))
     assert all(r in model for r in profile.LOG_SET)
+
+
+async def test_points_carry_labels_and_counter_sizes(plugin: NibePlugin) -> None:
+    points = {p.path: p for p in plugin.describe().points}
+    assert points["hp1/x.nibe.47375"].label == "Stop Temperature Heating"
+    assert points["hp1/outdoor.temp"].label is None  # the standard name says it
+    meter = points["hp1/heat.produced{purpose=dhw,by=total}"]
+    assert meter.wraps_at == (1 << 32) / 10
+    assert points["hp1/outdoor.temp"].wraps_at is None

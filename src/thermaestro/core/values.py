@@ -12,8 +12,9 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from ..cap.model import Envelope
+from ..cap.model import Envelope, Point
 from ..store import Database, Transaction
+from .plausible import Plausibility
 
 log = logging.getLogger(__name__)
 
@@ -55,8 +56,12 @@ class Values:
         self.latest: dict[Key, Envelope] = {}
         self._kept: dict[Key, Sample] = {}
         self._pending: list[tuple[Key, Sample]] = []
+        self._plausibility = Plausibility()
 
-    def add(self, instance: str, envelope: Envelope) -> None:
+    def add(self, instance: str, envelope: Envelope, point: Point | None = None) -> None:
+        """Keep a value, after the core's own plausibility check (`point`, where known,
+        says how its counter wraps)."""
+        envelope = self._plausibility.check(instance, envelope, point)
         key = Key(instance, envelope.point)
         self.latest[key] = envelope
         new = sample(envelope)

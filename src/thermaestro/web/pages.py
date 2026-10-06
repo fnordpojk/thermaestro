@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..auth import PERMISSIONS, AccountError, LoginFailed
-from . import i18n
+from . import i18n, labels
 from .app import action, anonymous, caller, identify, local_path, services
 from .operations import Caller, NeedsConfirmation
 from .security import (
@@ -47,6 +47,8 @@ def _environment() -> jinja2.Environment:
     env.filters["num"] = i18n.number
     env.filters["when"] = i18n.when
     env.filters["unit"] = i18n.unit
+    env.filters["value_label"] = labels.value
+    env.globals["quality_color"] = labels.quality_color
     return env
 
 
@@ -236,6 +238,7 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
         who,
         instance=instance,
         point=point,
+        label=services(request).point_label(who, instance, point),
         source=source,
         decimal=i18n.decimal_symbol(),
         zone=i18n.zone_name(),
@@ -290,7 +293,6 @@ async def _settings(
         zones=time_zones(),
         pumps=pumps,
         models=models,
-        secrets=await s.secret_names(who),
         fingerprint=s.fingerprint,
         **extra,
     )

@@ -2012,6 +2012,18 @@
           "title": "Path",
           "type": "string"
         },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
         "unit": {
           "anyOf": [
             {
@@ -2023,6 +2035,19 @@
           ],
           "default": null,
           "title": "Unit"
+        },
+        "wraps_at": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wraps At"
         },
         "resolution": {
           "$ref": "#/$defs/KnowledgeFloat",

@@ -29,11 +29,13 @@ from ..auth import (
     User,
 )
 from ..auth.permissions import PERMISSIONS
+from ..cap.messages import Described
 from ..core.audit import AuditLog
 from ..core.host import PluginHost
 from ..core.values import Key, Values, sample
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
+from . import labels
 
 HISTORY_MAX_S = 31 * 86_400.0
 """The longest stretch of samples one request returns."""
@@ -95,6 +97,7 @@ class Services:
                 points.append(
                     {
                         "path": point.path,
+                        "label": _label(described, point.path),
                         "unit": point.unit,
                         "value": None if envelope is None else envelope.value,
                         "quality": "unknown" if envelope is None else envelope.quality,
@@ -115,6 +118,11 @@ class Services:
                 }
             )
         return out
+
+    def point_label(self, caller: Caller, instance: str, path: str) -> str:
+        caller.principal.require("points.read")
+        found = self.host.instances.get(instance) if self.host else None
+        return _label(found.described if found else None, path)
 
     async def history(
         self, caller: Caller, instance: str, point: str, start: float, end: float
@@ -304,6 +312,19 @@ class Services:
         caller.principal.require("audit.read")
         limit = max(1, min(limit, 2000))
         return _tail(self.audit.path, limit)
+
+
+def _label(described: Described | None, path: str) -> str:
+    """A point's name for people, with the node it sits on: "Climate system 1 · Supply
+    temperature"."""
+    where, _, own = path.rpartition("/")
+    nodes = {n.path: n for n in described.nodes} if described else {}
+    points = {p.path: p for p in described.points} if described else {}
+    node = nodes.get(where)
+    point = points.get(path)
+    place = labels.node(node.kind if node else None, where, node.label if node else None)
+    name = labels.point(own, point.label if point else None)
+    return f"{place} \N{MIDDLE DOT} {name}" if place else name
 
 
 def rights() -> dict[str, str]:

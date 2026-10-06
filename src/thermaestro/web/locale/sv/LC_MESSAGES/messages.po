@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 23:44+0200\n"
-"PO-Revision-Date: 2026-10-06 23:44+0200\n"
+"POT-Creation-Date: 2026-10-07 00:03+0200\n"
+"PO-Revision-Date: 2026-10-07 00:03+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -68,8 +68,26 @@ msgstr "Lägg till en användare"
 msgid "Add the pump's connection in the settings."
 msgstr "Lägg till pumpens anslutning i inställningarna."
 
+msgid "Addition"
+msgstr "Tillsats"
+
+msgid "Airflow"
+msgstr "Luftflöde"
+
+msgid "Alarm"
+msgstr "Larm"
+
 msgid "Audit log"
 msgstr "Granskningslogg"
+
+msgid "Brine circuit"
+msgstr "Köldbärarkrets"
+
+msgid "Brine in"
+msgstr "Köldbärare in"
+
+msgid "Brine out"
+msgstr "Köldbärare ut"
 
 msgid "Browser"
 msgstr "Webbläsare"
@@ -92,11 +110,27 @@ msgstr ""
 "Ändringar av användare, grupper, hemligheter och tillägg kräver ditt lösenord inom de"
 " senaste 15 minuterna."
 
+msgid "Charging temperature"
+msgstr "Laddningstemperatur"
+
 msgid "Choose…"
 msgstr "Välj…"
 
+msgid "Circulation pump"
+msgstr "Cirkulationspump"
+
+msgid "Circulation pump speed"
+msgstr "Cirkulationspumpens hastighet"
+
+#, python-format
+msgid "Climate system %(n)s"
+msgstr "Klimatsystem %(n)s"
+
 msgid "Clock"
 msgstr "Klocka"
+
+msgid "Compressor"
+msgstr "Kompressor"
 
 msgid "Confirm"
 msgstr "Bekräfta"
@@ -125,14 +159,29 @@ msgstr "Giltig antal dagar"
 msgid "Decimal sign"
 msgstr "Decimaltecken"
 
+msgid "Degree minutes"
+msgstr "Gradminuter"
+
+msgid "Demand"
+msgstr "Behov"
+
 msgid "Details"
 msgstr "Detaljer"
 
 msgid "Diagnostics"
 msgstr "Diagnostik"
 
+msgid "Diverter valve"
+msgstr "Växelventil"
+
 msgid "Download"
 msgstr "Ladda ner"
+
+msgid "Electrical power"
+msgstr "Elektrisk effekt"
+
+msgid "Electricity used"
+msgstr "Använd el"
 
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, and "
@@ -144,8 +193,14 @@ msgstr ""
 msgid "Enter your password again"
 msgstr "Ange ditt lösenord igen"
 
+msgid "Exhaust air temperature"
+msgstr "Frånluftstemperatur"
+
 msgid "Expires"
 msgstr "Upphör"
+
+msgid "Fan speed"
+msgstr "Fläkthastighet"
 
 msgid "First administrator"
 msgstr "Första administratören"
@@ -173,6 +228,12 @@ msgstr "HTTPS är avstängt."
 
 msgid "Health"
 msgstr "Hälsa"
+
+msgid "Heat produced"
+msgstr "Producerad värme"
+
+msgid "Hot water"
+msgstr "Varmvatten"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
@@ -216,6 +277,9 @@ msgstr "Logga ut"
 msgid "Longitude"
 msgstr "Longitud"
 
+msgid "Middle temperature"
+msgstr "Mittemperatur"
+
 msgid "Model"
 msgstr "Modell"
 
@@ -250,9 +314,6 @@ msgstr "Inga tilläggsinstanser."
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
 
-msgid "None yet."
-msgstr "Inga än."
-
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
 
@@ -268,6 +329,9 @@ msgstr "Bara värden av god kvalitet ritas; luckorna är tider då värdet inte 
 msgid "Outcome"
 msgstr "Utfall"
 
+msgid "Outdoor temperature"
+msgstr "Utetemperatur"
+
 msgid "Password"
 msgstr "Lösenord"
 
@@ -277,11 +341,23 @@ msgstr "Tillägg"
 msgid "Point"
 msgstr "Punkt"
 
+msgid "Point at a value to see why."
+msgstr "Peka på ett värde för att se varför."
+
+msgid "Pool"
+msgstr "Pool"
+
+msgid "Power"
+msgstr "Effekt"
+
+msgid "Power from the grid"
+msgstr "Effekt från nätet"
+
+msgid "Power to the grid"
+msgstr "Effekt till nätet"
+
 msgid "Protocol"
 msgstr "Protokoll"
-
-msgid "Quality"
-msgstr "Kvalitet"
 
 msgid "Read port"
 msgstr "Läsport"
@@ -298,27 +374,26 @@ msgstr "Ta bort den här användaren"
 msgid "Restarts"
 msgstr "Omstarter"
 
+msgid "Return temperature"
+msgstr "Returtemperatur"
+
 msgid "Revoke"
 msgstr "Återkalla"
 
 msgid "Rights"
 msgstr "Rättigheter"
 
+msgid "Room"
+msgstr "Rum"
+
+msgid "Room temperature"
+msgstr "Rumstemperatur"
+
 msgid "Save"
 msgstr "Spara"
 
 msgid "Save and connect"
 msgstr "Spara och anslut"
-
-msgid "Secrets"
-msgstr "Hemligheter"
-
-msgid ""
-"Secrets are kept in a separate file only Thermaestro can read, and never shown after "
-"they're entered."
-msgstr ""
-"Hemligheter sparas i en separat fil som bara Thermaestro kan läsa, och visas aldrig "
-"efter att de har angetts."
 
 msgid "Set password and log out everywhere"
 msgstr "Sätt lösenord och logga ut överallt"
@@ -332,6 +407,9 @@ msgstr "Installationskod"
 msgid "Since"
 msgstr "Sedan"
 
+msgid "Speed"
+msgstr "Hastighet"
+
 msgid "Stale:"
 msgstr "Inaktuella:"
 
@@ -340,6 +418,9 @@ msgstr "Tillstånd"
 
 msgid "Status"
 msgstr "Status"
+
+msgid "Supply temperature"
+msgstr "Framledningstemperatur"
 
 msgid "The form had expired, or came from another site. Please try again."
 msgstr "Formuläret hade gått ut, eller kom från en annan webbplats. Försök igen."
@@ -383,6 +464,9 @@ msgstr "Tidszon"
 msgid "Times are in the house's time zone."
 msgstr "Tider anges i husets tidszon."
 
+msgid "Top temperature"
+msgstr "Topptemperatur"
+
 msgid "User"
 msgstr "Användare"
 
@@ -395,11 +479,17 @@ msgstr "Användare"
 msgid "Value"
 msgstr "Värde"
 
+msgid "Ventilation"
+msgstr "Ventilation"
+
 msgid "Waiting for the plugin to describe its device…"
 msgstr "Väntar på att tillägget ska beskriva sin enhet…"
 
 msgid "What"
 msgstr "Vad"
+
+msgid "What the rights allow"
+msgstr "Vad rättigheterna tillåter"
 
 msgid "When"
 msgstr "När"
@@ -434,6 +524,9 @@ msgstr "lägga till, ändra och ta bort tilläggsinstanser"
 msgid "add, change and remove users and their rights"
 msgstr "lägga till, ändra och ta bort användare och deras rättigheter"
 
+msgid "addition"
+msgstr "tillsats"
+
 msgid "all"
 msgstr "alla"
 
@@ -464,8 +557,14 @@ msgstr "ändra installationens inställningar"
 msgid "comma (4,5)"
 msgstr "komma (4,5)"
 
+msgid "compressor"
+msgstr "kompressor"
+
 msgid "contended"
 msgstr "upptagen"
+
+msgid "cooling"
+msgstr "kyla"
 
 msgid "create and revoke one's own API tokens"
 msgstr "skapa och återkalla sina egna API-tokens"
@@ -491,14 +590,32 @@ msgstr "ange ditt lösenord igen för att göra den här ändringen"
 msgid "entered; leave empty to keep it"
 msgstr "angiven; lämna tomt för att behålla den"
 
+msgid "everything, including rights added later"
+msgstr "allt, även rättigheter som läggs till senare"
+
 msgid "gives the formats"
 msgstr "ger formaten"
 
 msgid "good"
 msgstr "god"
 
+msgid "heating"
+msgstr "värme"
+
+msgid "hot water"
+msgstr "varmvatten"
+
+msgid "idle"
+msgstr "vila"
+
+msgid "implausible"
+msgstr "orimligt"
+
 msgid "last heard"
 msgstr "senast hörd"
+
+msgid "no usable value"
+msgstr "inget användbart värde"
 
 msgid "no_flow"
 msgstr "inget flöde"
@@ -518,6 +635,9 @@ msgstr "utanför intervallet"
 msgid "point (4.5)"
 msgstr "punkt (4.5)"
 
+msgid "pool"
+msgstr "pool"
+
 msgid "preselected from this browser"
 msgstr "förvald från den här webbläsaren"
 
@@ -526,6 +646,9 @@ msgstr "läsa granskningsloggen"
 
 msgid "restarting"
 msgstr "startar om"
+
+msgid "running"
+msgstr "går"
 
 msgid "see devices, values and their history"
 msgstr "se enheter, värden och deras historik"
@@ -541,6 +664,9 @@ msgstr "startar"
 
 msgid "stopped"
 msgstr "stoppad"
+
+msgid "stopping"
+msgstr "stannar"
 
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
@@ -571,8 +697,17 @@ msgstr "den här"
 msgid "too many attempts; wait a few minutes"
 msgstr "för många försök; vänta några minuter"
 
+msgid "total"
+msgstr "totalt"
+
+msgid "transfer"
+msgstr "överföring"
+
 msgid "transitional"
 msgstr "övergående"
+
+msgid "uncertain"
+msgstr "osäkert"
 
 msgid "unknown"
 msgstr "okänt"

@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 23:44+0200\n"
-"PO-Revision-Date: 2026-10-06 23:44+0200\n"
+"POT-Creation-Date: 2026-10-07 00:03+0200\n"
+"PO-Revision-Date: 2026-10-07 00:03+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -69,8 +69,26 @@ msgstr "Benutzer hinzufügen"
 msgid "Add the pump's connection in the settings."
 msgstr "Fügen Sie die Verbindung zur Pumpe in den Einstellungen hinzu."
 
+msgid "Addition"
+msgstr "Zusatzheizung"
+
+msgid "Airflow"
+msgstr "Luftstrom"
+
+msgid "Alarm"
+msgstr "Alarm"
+
 msgid "Audit log"
 msgstr "Prüfprotokoll"
+
+msgid "Brine circuit"
+msgstr "Solekreis"
+
+msgid "Brine in"
+msgstr "Sole ein"
+
+msgid "Brine out"
+msgstr "Sole aus"
 
 msgid "Browser"
 msgstr "Browser"
@@ -93,11 +111,27 @@ msgstr ""
 "Änderungen an Benutzern, Gruppen, Geheimnissen und Plugins erfordern Ihr Passwort "
 "innerhalb der letzten 15 Minuten."
 
+msgid "Charging temperature"
+msgstr "Ladetemperatur"
+
 msgid "Choose…"
 msgstr "Auswählen…"
 
+msgid "Circulation pump"
+msgstr "Umwälzpumpe"
+
+msgid "Circulation pump speed"
+msgstr "Drehzahl der Umwälzpumpe"
+
+#, python-format
+msgid "Climate system %(n)s"
+msgstr "Heizkreis %(n)s"
+
 msgid "Clock"
 msgstr "Uhrzeit"
+
+msgid "Compressor"
+msgstr "Verdichter"
 
 msgid "Confirm"
 msgstr "Bestätigen"
@@ -126,14 +160,29 @@ msgstr "Gültigkeit in Tagen"
 msgid "Decimal sign"
 msgstr "Dezimalzeichen"
 
+msgid "Degree minutes"
+msgstr "Gradminuten"
+
+msgid "Demand"
+msgstr "Bedarf"
+
 msgid "Details"
 msgstr "Details"
 
 msgid "Diagnostics"
 msgstr "Diagnose"
 
+msgid "Diverter valve"
+msgstr "Umschaltventil"
+
 msgid "Download"
 msgstr "Herunterladen"
+
+msgid "Electrical power"
+msgstr "Elektrische Leistung"
+
+msgid "Electricity used"
+msgstr "Verbrauchter Strom"
 
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, and "
@@ -146,8 +195,14 @@ msgstr ""
 msgid "Enter your password again"
 msgstr "Geben Sie Ihr Passwort erneut ein"
 
+msgid "Exhaust air temperature"
+msgstr "Ablufttemperatur"
+
 msgid "Expires"
 msgstr "Läuft ab"
+
+msgid "Fan speed"
+msgstr "Lüfterdrehzahl"
 
 msgid "First administrator"
 msgstr "Erster Administrator"
@@ -175,6 +230,12 @@ msgstr "HTTPS ist ausgeschaltet."
 
 msgid "Health"
 msgstr "Zustand"
+
+msgid "Heat produced"
+msgstr "Erzeugte Wärme"
+
+msgid "Hot water"
+msgstr "Warmwasser"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
@@ -218,6 +279,9 @@ msgstr "Abmelden"
 msgid "Longitude"
 msgstr "Längengrad"
 
+msgid "Middle temperature"
+msgstr "Mitteltemperatur"
+
 msgid "Model"
 msgstr "Modell"
 
@@ -252,9 +316,6 @@ msgstr "Keine Plugin-Instanzen."
 msgid "No values in this period."
 msgstr "Keine Werte in diesem Zeitraum."
 
-msgid "None yet."
-msgstr "Noch keine."
-
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
 
@@ -272,6 +333,9 @@ msgstr ""
 msgid "Outcome"
 msgstr "Ergebnis"
 
+msgid "Outdoor temperature"
+msgstr "Außentemperatur"
+
 msgid "Password"
 msgstr "Passwort"
 
@@ -281,11 +345,23 @@ msgstr "Plugins"
 msgid "Point"
 msgstr "Messpunkt"
 
+msgid "Point at a value to see why."
+msgstr "Zeigen Sie auf einen Wert, um den Grund zu sehen."
+
+msgid "Pool"
+msgstr "Pool"
+
+msgid "Power"
+msgstr "Leistung"
+
+msgid "Power from the grid"
+msgstr "Leistung aus dem Netz"
+
+msgid "Power to the grid"
+msgstr "Leistung ins Netz"
+
 msgid "Protocol"
 msgstr "Protokoll"
-
-msgid "Quality"
-msgstr "Qualität"
 
 msgid "Read port"
 msgstr "Leseport"
@@ -302,27 +378,26 @@ msgstr "Diesen Benutzer entfernen"
 msgid "Restarts"
 msgstr "Neustarts"
 
+msgid "Return temperature"
+msgstr "Rücklauftemperatur"
+
 msgid "Revoke"
 msgstr "Widerrufen"
 
 msgid "Rights"
 msgstr "Rechte"
 
+msgid "Room"
+msgstr "Raum"
+
+msgid "Room temperature"
+msgstr "Raumtemperatur"
+
 msgid "Save"
 msgstr "Speichern"
 
 msgid "Save and connect"
 msgstr "Speichern und verbinden"
-
-msgid "Secrets"
-msgstr "Geheimnisse"
-
-msgid ""
-"Secrets are kept in a separate file only Thermaestro can read, and never shown after "
-"they're entered."
-msgstr ""
-"Geheimnisse werden in einer separaten Datei gespeichert, die nur Thermaestro lesen "
-"kann, und nach der Eingabe nie wieder angezeigt."
 
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
@@ -336,6 +411,9 @@ msgstr "Einrichtungscode"
 msgid "Since"
 msgstr "Seit"
 
+msgid "Speed"
+msgstr "Drehzahl"
+
 msgid "Stale:"
 msgstr "Veraltet:"
 
@@ -344,6 +422,9 @@ msgstr "Status"
 
 msgid "Status"
 msgstr "Status"
+
+msgid "Supply temperature"
+msgstr "Vorlauftemperatur"
 
 msgid "The form had expired, or came from another site. Please try again."
 msgstr ""
@@ -389,6 +470,9 @@ msgstr "Zeitzone"
 msgid "Times are in the house's time zone."
 msgstr "Zeiten gelten in der Zeitzone des Hauses."
 
+msgid "Top temperature"
+msgstr "Temperatur oben"
+
 msgid "User"
 msgstr "Benutzer"
 
@@ -401,11 +485,17 @@ msgstr "Benutzer"
 msgid "Value"
 msgstr "Wert"
 
+msgid "Ventilation"
+msgstr "Lüftung"
+
 msgid "Waiting for the plugin to describe its device…"
 msgstr "Warten, bis das Plugin sein Gerät beschreibt…"
 
 msgid "What"
 msgstr "Was"
+
+msgid "What the rights allow"
+msgstr "Was die Rechte erlauben"
 
 msgid "When"
 msgstr "Wann"
@@ -440,6 +530,9 @@ msgstr "Plugin-Instanzen hinzufügen, ändern und entfernen"
 msgid "add, change and remove users and their rights"
 msgstr "Benutzer und ihre Rechte hinzufügen, ändern und entfernen"
 
+msgid "addition"
+msgstr "Zusatzheizung"
+
 msgid "all"
 msgstr "alle"
 
@@ -470,8 +563,14 @@ msgstr "die Einstellungen der Installation ändern"
 msgid "comma (4,5)"
 msgstr "Komma (4,5)"
 
+msgid "compressor"
+msgstr "Verdichter"
+
 msgid "contended"
 msgstr "belegt"
+
+msgid "cooling"
+msgstr "Kühlung"
 
 msgid "create and revoke one's own API tokens"
 msgstr "eigene API-Tokens erstellen und widerrufen"
@@ -497,14 +596,32 @@ msgstr "geben Sie Ihr Passwort erneut ein, um diese Änderung vorzunehmen"
 msgid "entered; leave empty to keep it"
 msgstr "eingegeben; leer lassen, um ihn zu behalten"
 
+msgid "everything, including rights added later"
+msgstr "alles, auch später hinzugefügte Rechte"
+
 msgid "gives the formats"
 msgstr "bestimmt die Formate"
 
 msgid "good"
 msgstr "gut"
 
+msgid "heating"
+msgstr "Heizung"
+
+msgid "hot water"
+msgstr "Warmwasser"
+
+msgid "idle"
+msgstr "Ruhe"
+
+msgid "implausible"
+msgstr "unplausibel"
+
 msgid "last heard"
 msgstr "zuletzt gehört"
+
+msgid "no usable value"
+msgstr "kein brauchbarer Wert"
 
 msgid "no_flow"
 msgstr "kein Durchfluss"
@@ -524,6 +641,9 @@ msgstr "außerhalb des Bereichs"
 msgid "point (4.5)"
 msgstr "Punkt (4.5)"
 
+msgid "pool"
+msgstr "Pool"
+
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"
 
@@ -532,6 +652,9 @@ msgstr "das Prüfprotokoll lesen"
 
 msgid "restarting"
 msgstr "startet neu"
+
+msgid "running"
+msgstr "läuft"
 
 msgid "see devices, values and their history"
 msgstr "Geräte, Werte und ihren Verlauf sehen"
@@ -547,6 +670,9 @@ msgstr "startet"
 
 msgid "stopped"
 msgstr "gestoppt"
+
+msgid "stopping"
+msgstr "hält an"
 
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
@@ -577,8 +703,17 @@ msgstr "dieser"
 msgid "too many attempts; wait a few minutes"
 msgstr "zu viele Versuche; warten Sie ein paar Minuten"
 
+msgid "total"
+msgstr "gesamt"
+
+msgid "transfer"
+msgstr "Übertragung"
+
 msgid "transitional"
 msgstr "im Übergang"
+
+msgid "uncertain"
+msgstr "unsicher"
 
 msgid "unknown"
 msgstr "unbekannt"

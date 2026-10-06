@@ -7,11 +7,15 @@ from thermaestro.nibe.maps.model import Register, Size
 
 NOT_CONNECTED = -0x8000
 """What the pump answers for a 16-bit sensor that isn't connected."""
+NO_VALUE = {Size.U32: 0xFFFF_FFFF, Size.S32: -0x8000_0000}
+"""What a 32-bit register holds where the pump keeps no value: all ones, or the lowest
+number (a heat meter the pump doesn't have reads 0xFFFFFFFF)."""
 
 
 class Status(Enum):
     OK = "ok"
     NOT_CONNECTED = "not_connected"
+    NO_VALUE = "no_value"
     OUT_OF_RANGE = "out_of_range"
     """Outside the register's range: kept, but not to be trusted."""
 
@@ -69,6 +73,8 @@ def decode(register: Register, first: int, second: int = 0, *, high_word_first: 
         raw = _signed(raw, size.bits)
     if size is Size.S16 and raw == NOT_CONNECTED:
         return Decoded(None, raw, Status.NOT_CONNECTED)
+    if NO_VALUE.get(size) == raw:
+        return Decoded(None, raw, Status.NO_VALUE)
     value = raw if register.factor == 1 else raw / register.factor
     return Decoded(value, raw, Status.OK if _in_range(register, raw) else Status.OUT_OF_RANGE)
 

@@ -135,3 +135,13 @@ def test_encode_then_decode_round_trips(size: Size, values: tuple[int, ...]) -> 
 def test_encode_refuses(register: Register, value: float, why: str) -> None:
     with pytest.raises(EncodeError, match=why):
         encode(register, value)
+
+
+def test_all_ones_in_a_32_bit_register_is_no_value() -> None:
+    # A heat meter the pump doesn't keep reads 0xFFFFFFFF, not 429,496,729.5 kWh.
+    gone = decode(reg(Size.U32, factor=10), 0xFFFF, 0xFFFF, high_word_first=True)
+    assert (gone.value, gone.status) == (None, Status.NO_VALUE)
+    lowest = decode(reg(Size.S32), 0x8000, 0x0000, high_word_first=True)
+    assert (lowest.value, lowest.status) == (None, Status.NO_VALUE)
+    assert decode(reg(Size.U32), 0xFFFF, 0xFFFE, high_word_first=True).status is Status.OK
+    assert decode(reg(Size.U16), 0xFFFF, 0, high_word_first=True).value == 0xFFFF

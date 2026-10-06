@@ -60,6 +60,8 @@ LOG_SET = 0x68
 READ_TIMEOUT_S = 5.0
 PUSHED_FRESHNESS_S = 30.0
 POLLED_FRESHNESS_S = 900.0
+COUNTERS = ("heat.produced", "elec.used")
+"""Points that only count up, and start over from 0 at their register's size."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,6 +373,8 @@ class NibePlugin:
         value: bool | int | float | str | None = decoded.value
         if decoded.status is Status.NOT_CONNECTED:
             quality, why, value = "not_connected", "the pump reports no sensor", None
+        elif decoded.status is Status.NO_VALUE:
+            quality, why, value = "unknown", "the pump gives no value", None
         elif decoded.status is Status.OUT_OF_RANGE:
             quality, why = "out_of_range", f"outside {register.min}..{register.max}"
         elif definition.enum is not None:
@@ -493,9 +497,14 @@ class NibePlugin:
                 known="documented",
                 basis="Nibe register database",
             )
+        wraps_at = None
+        if definition.path.startswith(COUNTERS) and register.size is not None:
+            wraps_at = (1 << register.size.bits) / register.factor
         return Point(
             path=f"{profile.UNIT}/{definition.path}",
+            label=register.title if ".x.nibe." in f".{definition.path}" else None,
             unit=unit,
+            wraps_at=wraps_at,
             resolution=Knowledge(value=1 / register.factor, known="documented")
             if definition.enum is None
             else Knowledge[float](),

@@ -522,7 +522,12 @@ async def test_status_shows_values_with_their_quality(site: Site) -> None:
         page = (await client.get("/status/values")).text
         status = (await client.get("/api/v1/status")).json()
     assert "4.5 \N{DEGREE SIGN}C" in page
-    assert "sensor not connected" in page
+    assert 'title="not_connected: sensor not connected"' in page  # the why, on the value
+    assert "Outdoor temperature" in page  # names for people
+    assert "Climate system 1 \N{MIDDLE DOT} Supply temperature" in page
+    assert 'title="hp1/cs1/supply.temp"' in page  # the path, for whoever needs it
+    assert "quality-grey" in page
+    assert "quality-green" in page
     [pump] = status
     supply = next(p for p in pump["points"] if p["path"] == "hp1/cs1/supply.temp")
     assert (supply["value"], supply["quality"]) == (None, "not_connected")
@@ -568,7 +573,8 @@ async def test_the_pump_connection_and_its_key(site: Site) -> None:
         )
         assert missing.status_code == 400
     assert key not in page
-    assert "pump.psk" in page
+    assert "entered; leave empty to keep it" in page
+    assert "Secrets" not in page  # nothing to do with them there
     setting = await site.services.db.get(Plugin, "pump")
     assert setting is not None
     assert setting.settings["psk"] == "pump.psk"
@@ -707,7 +713,7 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
         # The browser asks for German; the user's choice wins.
         page = await client.get("/status/values", headers={"accept-language": "de-DE"})
         assert "4,5 \N{DEGREE SIGN}C" in page.text
-        assert "Quality" in page.text  # English
+        assert "Observed" in page.text  # English
         assert re.search(r"\d{4}-\d{2}-\d{2}, \d{2}:\d{2}", page.text)  # ISO, 24 h
         account = (await client.get("/account")).text
         assert '<option value="SE" selected>Sweden</option>' in account
@@ -722,7 +728,7 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
         assert changed.json() == {"language": "sv", "decimal": "point"}
         page = await client.get("/status/values")
         assert "4.5 \N{DEGREE SIGN}C" in page.text
-        assert "Kvalitet" in page.text
+        assert "Uppmätt" in page.text
         refused = await client.put(
             "/api/v1/account/preferences",
             json={"language": "fr"},
@@ -732,3 +738,33 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
         chart = (await client.get("/points/pump/hp1/outdoor.temp")).text
         assert 'data-zone="Europe/Stockholm"' in chart
         assert 'data-locale="sv"' in chart
+
+
+async def test_languages_before_login_and_after(site: Site) -> None:
+    async with site.client() as client:
+        login = (await client.get("/login")).text
+    header = login.split("</header>")[0]
+    assert 'href="/lang/sv?next=/login"' in header  # at the top, where it's seen
+    async with admin(site) as client:
+        status = (await client.get("/")).text
+        account = (await client.get("/account")).text
+    assert "/lang/" not in status
+    assert "<footer" not in status
+    assert 'id="formats"' in account
+
+
+async def test_the_users_page_explains_the_rights(site: Site) -> None:
+    async with admin(site) as client:
+        page = (await client.get("/users")).text
+    assert '<dl class="rights">' in page
+    assert "<code>audit.read</code></dt><dd>read the audit log</dd>" in page
+
+
+async def test_implausible_values_show_red(site: Site) -> None:
+    _with_a_pump(site)
+    envelope = FakePump().envelope("hp1/outdoor.temp").model_copy(update={"value": 900.0})
+    site.services.values.add("pump", envelope)
+    async with admin(site) as client:
+        page = (await client.get("/status/values")).text
+    assert "quality-red" in page
+    assert "implausible: outside -60..150 degC" in page

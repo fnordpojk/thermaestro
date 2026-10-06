@@ -39,14 +39,4 @@
   {% if can("settings.write") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
 </form>
 </section>
-
-<section>
-<h2>{{ _("Secrets") }}</h2>
-<p>{{ _("Secrets are kept in a separate file only Thermaestro can read, and never shown after they're entered.") }}</p>
-{% if secrets %}
-<ul>{% for name in secrets %}<li><code>{{ name }}</code></li>{% endfor %}</ul>
-{% else %}
-<p>{{ _("None yet.") }}</p>
-{% endif %}
-</section>
 {% endblock %}

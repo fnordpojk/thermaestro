@@ -46,8 +46,8 @@ header nav a[aria-current="page"] { text-decoration: underline; text-underline-o
 header .me { display: flex; gap: 0.75rem; align-items: center; }
 header .me form { margin: 0; }
 main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
-footer { padding: 1rem; color: var(--muted); }
-footer .languages { display: flex; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+
+.languages { display: flex; gap: 1rem; list-style: none; margin: 0 0 0 auto; padding: 0; }
 h1 small, h2 small { color: var(--muted); font-weight: 400; font-size: 0.7em; }
 a { color: var(--accent); }
 section { margin: 1.5rem 0; }
@@ -82,9 +82,36 @@ table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
 th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
-tr.quality-stale td, tr.quality-unknown td, tr.quality-not_connected td,
-tr.quality-no_flow td, tr.quality-out_of_range td { color: var(--muted); }
-tr.quality-transitional td:nth-child(3), tr.quality-assumed td:nth-child(3) { color: var(--warn); }
+.when { white-space: nowrap; }
+td.value { white-space: nowrap; cursor: help; }
+.quality-green, .quality-yellow, .quality-red, .quality-grey { white-space: nowrap; }
+.quality-green::before, .quality-yellow::before, .quality-red::before, .quality-grey::before {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.4em;
+  border-radius: 50%;
+  vertical-align: 0.05em;
+}
+.quality-green::before { background: var(--good); }
+.quality-yellow { color: var(--warn); }
+.quality-yellow::before { background: var(--warn); }
+.quality-red { color: var(--bad); }
+.quality-red::before { background: var(--bad); }
+.quality-grey { color: var(--muted); }
+.quality-grey::before { background: var(--muted); }
+.legend span { margin-right: 0.9rem; }
+dl.rights { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+dl.rights dd { margin: 0; }
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 tr.outcome-failed td, tr.outcome-refused td { color: var(--bad); }
 
 .state { font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 3px; border: 1px solid currentColor; vertical-align: middle; }

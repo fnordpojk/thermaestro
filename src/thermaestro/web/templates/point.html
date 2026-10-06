@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ point }}{% endblock %}
+{% block title %}{{ label }}{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/vendor/uPlot.min.css">
 <script src="/static/vendor/uPlot.iife.min.js" defer></script>
 {% endblock %}
 {% block main %}
-<h1>{{ point }} <small>{{ instance }}</small></h1>
+<h1>{{ label }} <small title="{{ point }}">{{ instance }}</small></h1>
 <nav class="ranges" aria-label="{{ _('Time range') }}">
   <button type="button" data-hours="6">{{ _("6 hours") }}</button>
   <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>

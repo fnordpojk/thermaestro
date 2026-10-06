@@ -225,8 +225,9 @@ class PluginHost:
                     update = await subscription.next(timeout=3600.0)
                 except TimeoutError:
                     continue  # no values for an hour; health says why, if anything
+                described = {p.path: p for p in instance.described.points}
                 for envelope in update.values:
-                    self.values.add(instance.id, envelope)
+                    self.values.add(instance.id, envelope, described.get(envelope.point))
 
     def _event(self, instance: Instance, message: Message) -> None:
         if isinstance(message, Health):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-06 23:44+0200\n"
+"POT-Creation-Date: 2026-10-07 00:03+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,7 +64,25 @@ msgstr ""
 msgid "Add the pump's connection in the settings."
 msgstr ""
 
+msgid "Addition"
+msgstr ""
+
+msgid "Airflow"
+msgstr ""
+
+msgid "Alarm"
+msgstr ""
+
 msgid "Audit log"
+msgstr ""
+
+msgid "Brine circuit"
+msgstr ""
+
+msgid "Brine in"
+msgstr ""
+
+msgid "Brine out"
 msgstr ""
 
 msgid "Browser"
@@ -86,10 +104,26 @@ msgid ""
 "the last 15 minutes."
 msgstr ""
 
+msgid "Charging temperature"
+msgstr ""
+
 msgid "Choose…"
 msgstr ""
 
+msgid "Circulation pump"
+msgstr ""
+
+msgid "Circulation pump speed"
+msgstr ""
+
+#, python-format
+msgid "Climate system %(n)s"
+msgstr ""
+
 msgid "Clock"
+msgstr ""
+
+msgid "Compressor"
 msgstr ""
 
 msgid "Confirm"
@@ -119,13 +153,28 @@ msgstr ""
 msgid "Decimal sign"
 msgstr ""
 
+msgid "Degree minutes"
+msgstr ""
+
+msgid "Demand"
+msgstr ""
+
 msgid "Details"
 msgstr ""
 
 msgid "Diagnostics"
 msgstr ""
 
+msgid "Diverter valve"
+msgstr ""
+
 msgid "Download"
+msgstr ""
+
+msgid "Electrical power"
+msgstr ""
+
+msgid "Electricity used"
 msgstr ""
 
 msgid ""
@@ -136,7 +185,13 @@ msgstr ""
 msgid "Enter your password again"
 msgstr ""
 
+msgid "Exhaust air temperature"
+msgstr ""
+
 msgid "Expires"
+msgstr ""
+
+msgid "Fan speed"
 msgstr ""
 
 msgid "First administrator"
@@ -166,6 +221,12 @@ msgid "HTTPS is off."
 msgstr ""
 
 msgid "Health"
+msgstr ""
+
+msgid "Heat produced"
+msgstr ""
+
+msgid "Hot water"
 msgstr ""
 
 msgid "ISO 8601 (2026-10-06)"
@@ -210,6 +271,9 @@ msgstr ""
 msgid "Longitude"
 msgstr ""
 
+msgid "Middle temperature"
+msgstr ""
+
 msgid "Model"
 msgstr ""
 
@@ -242,9 +306,6 @@ msgstr ""
 msgid "No values in this period."
 msgstr ""
 
-msgid "None yet."
-msgstr ""
-
 msgid "Nothing is connected yet."
 msgstr ""
 
@@ -262,6 +323,9 @@ msgstr ""
 msgid "Outcome"
 msgstr ""
 
+msgid "Outdoor temperature"
+msgstr ""
+
 msgid "Password"
 msgstr ""
 
@@ -271,10 +335,22 @@ msgstr ""
 msgid "Point"
 msgstr ""
 
-msgid "Protocol"
+msgid "Point at a value to see why."
 msgstr ""
 
-msgid "Quality"
+msgid "Pool"
+msgstr ""
+
+msgid "Power"
+msgstr ""
+
+msgid "Power from the grid"
+msgstr ""
+
+msgid "Power to the grid"
+msgstr ""
+
+msgid "Protocol"
 msgstr ""
 
 msgid "Read port"
@@ -292,24 +368,25 @@ msgstr ""
 msgid "Restarts"
 msgstr ""
 
+msgid "Return temperature"
+msgstr ""
+
 msgid "Revoke"
 msgstr ""
 
 msgid "Rights"
 msgstr ""
 
+msgid "Room"
+msgstr ""
+
+msgid "Room temperature"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
 msgid "Save and connect"
-msgstr ""
-
-msgid "Secrets"
-msgstr ""
-
-msgid ""
-"Secrets are kept in a separate file only Thermaestro can read, and never "
-"shown after they're entered."
 msgstr ""
 
 msgid "Set password and log out everywhere"
@@ -324,6 +401,9 @@ msgstr ""
 msgid "Since"
 msgstr ""
 
+msgid "Speed"
+msgstr ""
+
 msgid "Stale:"
 msgstr ""
 
@@ -331,6 +411,9 @@ msgid "State"
 msgstr ""
 
 msgid "Status"
+msgstr ""
+
+msgid "Supply temperature"
 msgstr ""
 
 msgid "The form had expired, or came from another site. Please try again."
@@ -371,6 +454,9 @@ msgstr ""
 msgid "Times are in the house's time zone."
 msgstr ""
 
+msgid "Top temperature"
+msgstr ""
+
 msgid "User"
 msgstr ""
 
@@ -383,10 +469,16 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
+msgid "Ventilation"
+msgstr ""
+
 msgid "Waiting for the plugin to describe its device…"
 msgstr ""
 
 msgid "What"
+msgstr ""
+
+msgid "What the rights allow"
 msgstr ""
 
 msgid "When"
@@ -422,6 +514,9 @@ msgstr ""
 msgid "add, change and remove users and their rights"
 msgstr ""
 
+msgid "addition"
+msgstr ""
+
 msgid "all"
 msgstr ""
 
@@ -452,7 +547,13 @@ msgstr ""
 msgid "comma (4,5)"
 msgstr ""
 
+msgid "compressor"
+msgstr ""
+
 msgid "contended"
+msgstr ""
+
+msgid "cooling"
 msgstr ""
 
 msgid "create and revoke one's own API tokens"
@@ -479,13 +580,31 @@ msgstr ""
 msgid "entered; leave empty to keep it"
 msgstr ""
 
+msgid "everything, including rights added later"
+msgstr ""
+
 msgid "gives the formats"
 msgstr ""
 
 msgid "good"
 msgstr ""
 
+msgid "heating"
+msgstr ""
+
+msgid "hot water"
+msgstr ""
+
+msgid "idle"
+msgstr ""
+
+msgid "implausible"
+msgstr ""
+
 msgid "last heard"
+msgstr ""
+
+msgid "no usable value"
 msgstr ""
 
 msgid "no_flow"
@@ -506,6 +625,9 @@ msgstr ""
 msgid "point (4.5)"
 msgstr ""
 
+msgid "pool"
+msgstr ""
+
 msgid "preselected from this browser"
 msgstr ""
 
@@ -513,6 +635,9 @@ msgid "read the audit log"
 msgstr ""
 
 msgid "restarting"
+msgstr ""
+
+msgid "running"
 msgstr ""
 
 msgid "see devices, values and their history"
@@ -528,6 +653,9 @@ msgid "starting"
 msgstr ""
 
 msgid "stopped"
+msgstr ""
+
+msgid "stopping"
 msgstr ""
 
 msgid ""
@@ -557,7 +685,16 @@ msgstr ""
 msgid "too many attempts; wait a few minutes"
 msgstr ""
 
+msgid "total"
+msgstr ""
+
+msgid "transfer"
+msgstr ""
+
 msgid "transitional"
+msgstr ""
+
+msgid "uncertain"
 msgstr ""
 
 msgid "unknown"
