@@ -252,6 +252,25 @@ def test_s_series_cross_check_with_nibepi() -> None:
     assert 31975 not in m.model("S1155")
 
 
+def test_limits_that_cant_belong_to_the_size_are_dropped_and_kept_as_disagreements() -> None:
+    rows = (
+        '"Blocking actions";"";44098;"";u8;1;-999;999;70;R/W;',
+        '"Real air flow";"";48915;"";s16;1;70;400;-32768;R/W;',
+        '"Counter";"";43420;"";u16;1;0;65535;0;R;',
+    )
+    m = table(modbusmanager=[read_modbusmanager(mm("F750", *rows), "f750")])
+    block = m.model("F750").register(44098)
+    assert (block.min, block.max, block.default) == (None, None, 70)
+    assert [(d.field, d.value) for d in block.disagreements] == [("min", "-999"), ("max", "999")]
+    flow = m.model("F750").register(48915)
+    assert (flow.min, flow.max, flow.default) == (70, 400, None)
+    assert [(d.source, d.field, d.value) for d in flow.disagreements] == [
+        ("nibe-db-9696", "default", "-32768")
+    ]
+    counter = m.model("F750").register(43420)
+    assert (counter.default, counter.disagreements) == (0, ())
+
+
 def test_nibepi_duplicates_must_agree_on_type() -> None:
     twice = [NIBEPI[1], dict(NIBEPI[1], titel="other title")]
     assert read_nibepi(json.dumps(twice).encode(), "X")[47260].title == "Fan Mode"

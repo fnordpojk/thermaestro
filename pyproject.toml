@@ -58,8 +58,8 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# assert is how pytest tests check things.
-"**/tests/**" = ["S101"]
+# assert is how pytest tests check things; seeded random numbers make repeatable faults.
+"**/tests/**" = ["S101", "S311"]
 # A request's timeout becomes its ttl at the gateway and a cancel when it runs out, so
 # a write given up on never reaches the pump; cancelling the call from outside can't.
 "src/thermaestro/nibe/transport/*" = ["ASYNC109"]

@@ -19,7 +19,7 @@ import json
 import re
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from typing import Any
 
 FORMAT = 1
@@ -347,6 +347,32 @@ def _apply_extensions(table: _Table, blocks: Iterable[ExtBlock]) -> None:
                 table.source(register, "nibe-lib-ext")
 
 
+def _within_size(d: Definition) -> tuple[Definition, list[tuple[str, int]]]:
+    """Drop limits the register's size can't hold, which exports give as placeholders
+    (-999 to 999 on a u8, the signed range on a u32), and a 16-bit default of -32768, the
+    pump's "no value". What was dropped is returned, to be kept on the register."""
+    if d.size is None:
+        return d, []
+    bits, signed = int(d.size[1:]), d.size[0] == "s"
+    lo, hi = (-(1 << (bits - 1)), (1 << (bits - 1)) - 1) if signed else (0, (1 << bits) - 1)
+
+    def fits(v: int | None) -> bool:
+        return v is None or lo <= v <= hi
+
+    dropped: list[tuple[str, int]] = []
+    lo_kept, hi_kept, default_kept = d.min, d.max, d.default
+    if not (fits(d.min) and fits(d.max)):
+        dropped += [(n, v) for n, v in (("min", d.min), ("max", d.max)) if v is not None]
+        lo_kept = hi_kept = None
+    no_value = d.size == "s16" and d.default == -0x8000
+    if d.default is not None and (not fits(d.default) or no_value):
+        dropped.append(("default", d.default))
+        default_kept = None
+    if not dropped:
+        return d, []
+    return replace(d, min=lo_kept, max=hi_kept, default=default_kept), dropped
+
+
 def _title(defs: Iterable[Definition]) -> Definition:
     """A definition whose title names the register; S-series exports list some as `id:…`."""
     ds = list(defs)
@@ -392,6 +418,16 @@ def build(
         _apply_extensions(table, extensions)
     if official:
         names["nibe-modbus-list"] = SOURCE_NAMES["nibe-modbus-list"]
+
+    cleaned: dict[Definition, Definition] = {}
+    for defs in table.defs.values():
+        for register, d in defs.items():
+            if d not in cleaned:
+                cleaned[d], dropped = _within_size(d)
+                source = next(iter(table.sources.get(register, {})), "unknown")
+                for name, value in dropped:
+                    table.disagree(register, source, name, value)
+            defs[register] = cleaned[d]
 
     per_register: dict[int, dict[str, Definition]] = {}
     for product in sorted(table.defs):
