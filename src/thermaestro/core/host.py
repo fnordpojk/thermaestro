@@ -64,6 +64,7 @@ class PluginHost:
         factories: Mapping[str, Factory],
         backoff_s: tuple[float, float] = (1.0, 60.0),
         timeout_s: float = 10.0,
+        describe_timeout_s: float = 60.0,
     ) -> None:
         self._db = db
         self._secrets = secrets
@@ -72,6 +73,9 @@ class PluginHost:
         self._factories = factories
         self._backoff = backoff_s
         self._timeout = timeout_s
+        self._describe_timeout = describe_timeout_s
+        """A plugin may first have to identify its device: a Nibe pump names its model
+        every 15 s."""
         self.instances: dict[str, Instance] = {}
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -184,7 +188,7 @@ class PluginHost:
     async def _session(self, instance: Instance, link: Link) -> None:
         """Describe, subscribe to every point, and keep the values until the connection
         ends (Closed)."""
-        instance.described = await link.describe(timeout=self._timeout)
+        instance.described = await link.describe(timeout=self._describe_timeout)
         instance.state = State.UP
         await self._audit.record(
             f"plugin:{instance.setting.plugin}",

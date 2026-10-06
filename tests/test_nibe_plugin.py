@@ -1,0 +1,317 @@
+"""The Nibe plugin against the simulated pump, through the Python gateway, as a core
+sees it: identification, detection, values and their quality, and nothing written."""
+
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator, Callable
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import pytest
+from simpump import TEST_PSK, SimPump
+from thermaestro_gateway.server import Gateway
+
+from thermaestro.cap import Link, pair, serve
+from thermaestro.cap.conformance import run
+from thermaestro.core import discover
+from thermaestro.nibe import logset, profile
+from thermaestro.nibe.maps import load
+from thermaestro.nibe.plugin import NibePlugin, NotIdentified, model_for
+from thermaestro.nibe.transport.nibegw import PlainSettings
+from thermaestro.nibe.transport.tgw import TgwSettings
+from thermaestro.store import NibeGateway, SecretStore
+
+FAST_PLAIN = PlainSettings(resend_s=0.5, answer_s=0.5, silent_s=1.0, tick_s=0.05)
+FAST_TGW = TgwSettings(
+    hello_wait_s=0.3,
+    fate_wait_s=0.5,
+    answer_timeout_ms=500,
+    retry_s=0.1,
+    rehello_s=0.2,
+    tick_s=0.05,
+    health_interval_s=1,
+    lease_s=10,
+)
+
+PUMP = {
+    40004: 0xFFC4,  # BT1 -6.0 °C
+    40008: 350,  # BT2 35.0
+    40012: 300,  # BT3 30.0
+    40013: 510,  # BT7 51.0
+    40014: 480,  # BT6 48.0
+    40015: 20,  # BT10 2.0
+    40016: 0x8000,  # BT11: not connected
+    40007: 0x8000,  # S2 supply: not connected
+    40006: 0x8000,
+    40005: 0x8000,
+    43086: 30,  # prio: heating
+    43427: 60,  # compressor running
+    43431: 20,
+    43433: 20,
+    43437: 50,  # supply pump 50 %
+    43439: 40,
+    43084: 0,
+    43005: 0xFF20,  # degree minutes -22.4
+    45001: 0,
+    43001: 9721,
+    44331: 4,
+    48852: 0,  # 32-bit values high word first
+    47011: 0xFFFC,  # offset -4
+    47041: 1,
+}
+
+
+@pytest.fixture
+def stocked(pump: SimPump) -> SimPump:
+    pump.registers.update(PUMP)
+    pump.registers32[42437] = 12_345  # heat meter, hot water: 1234.5 kWh
+    pump.info_interval_s = 0.2
+    return pump
+
+
+def settings(gateway: Gateway, **kw: Any) -> NibeGateway:
+    return NibeGateway(
+        host="127.0.0.1",
+        read_port=gateway.ports["read"],
+        write_port=gateway.ports["write"],
+        **kw,
+    )
+
+
+@pytest.fixture
+async def plugin(stocked: SimPump, gateway: Gateway) -> AsyncIterator[NibePlugin]:
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.5,
+    )
+    async with running_plugin(p) as running:
+        yield running
+
+
+@contextlib.asynccontextmanager
+async def running_plugin(p: NibePlugin) -> AsyncIterator[NibePlugin]:
+    core, plugin_side = pair()
+    served = asyncio.create_task(serve(plugin_side, p))
+    link = Link(core)
+    link.start()
+    try:
+        await link.hello(timeout=5)
+        await link.describe(timeout=15)  # waits for identification
+        yield p
+    finally:
+        await link.close()
+        await plugin_side.close()
+        served.cancel()
+        await asyncio.gather(served, return_exceptions=True)
+
+
+async def until(condition: Callable[[], bool], timeout: float = 10.0) -> None:
+    async with asyncio.timeout(timeout):
+        while not condition():
+            await asyncio.sleep(0.05)
+
+
+def value(p: NibePlugin, point: str) -> tuple[object, str, str | None]:
+    e = p.envelope(f"hp1/{point}")
+    return e.value, e.quality, e.why
+
+
+def all_read(p: NibePlugin) -> bool:
+    _, layout = p._pump()
+    return all(value(p, path)[2] != "not read yet" for path in layout.points)
+
+
+def test_product_names_resolve_to_maps() -> None:
+    maps = load("bus")
+    assert model_for("F1245-6 CU", maps) == "F1245"
+    assert model_for("VVM 320 E", maps) == "VVM320"
+    assert model_for("SMO 40", maps) == "SMO40"
+    assert model_for("Something else", maps) is None
+
+
+async def test_it_identifies_the_pump(plugin: NibePlugin) -> None:
+    assert plugin.model is not None
+    assert plugin.model.name == "F1245"
+    assert plugin.firmware == "9721R4"
+    assert plugin.high_word_first is True
+    described = plugin.describe()
+    unit = described.nodes[0]
+    assert unit.identity is not None
+    assert (unit.identity.model, unit.identity.firmware) == ("F1245", "9721R4")
+    assert {n.path for n in described.nodes} >= {
+        "hp1",
+        "hp1/cs1",
+        "hp1/dhw",
+        "hp1/compressor.ep14",
+        "hp1/brine",
+        "hp1/addition",
+    }
+    assert "hp1/cs2" not in {n.path for n in described.nodes}
+
+
+async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) -> None:
+    await until(lambda: all_read(plugin))
+    assert value(plugin, "outdoor.temp") == (-6.0, "good", None)
+    assert value(plugin, "cs1/supply.temp") == (35.0, "good", None)
+    assert value(plugin, "degree_minutes") == (-22.4, "good", None)
+    assert value(plugin, "demand") == ("heating", "good", None)
+    assert value(plugin, "diverter") == ("heating", "good", None)
+    assert value(plugin, "compressor.ep14/state") == ("running", "good", None)
+    assert value(plugin, "brine/brine.out.temp") == (
+        None,
+        "not_connected",
+        "the pump reports no sensor",
+    )
+    assert value(plugin, "heat.produced{purpose=dhw,by=total}") == (1234.5, "good", None)
+    assert value(plugin, "cs1/x.nibe.47011") == (-4, "good", None)
+    assert plugin.envelope("hp1/outdoor.temp").unit == "degC"
+
+
+async def test_flow_rules(plugin: NibePlugin, stocked: SimPump) -> None:
+    stocked.registers[43437] = 0  # supply pump stopped
+    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "no_flow")
+    assert value(plugin, "cs1/supply.temp")[2] == "pump 43437 = 0"
+    stocked.registers[43437] = 50
+    stocked.registers[43427] = 40  # compressor starting
+    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "transitional")
+    assert value(plugin, "brine/brine.in.temp")[1] == "transitional"
+
+
+async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
+    stocked.registers[43086] = 20  # prio: hot water
+    await until(lambda: value(plugin, "demand")[0] == "dhw")
+    assert value(plugin, "diverter") == ("dhw", "good", None)
+    await until(lambda: value(plugin, "dhw/temp.charge")[1] == "transitional")
+    assert value(plugin, "cs1/supply.temp") == (35.0, "good", "diverter to dhw")
+    stocked.registers[43086] = 10  # idle
+    await until(lambda: value(plugin, "demand")[0] == "idle")
+    assert value(plugin, "diverter")[:2] == (None, "unknown")
+    assert value(plugin, "dhw/temp.charge")[1] == "good"
+
+
+async def test_it_conforms_and_writes_nothing(stocked: SimPump, gateway: Gateway) -> None:
+    p = NibePlugin(
+        settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5
+    )
+    assert await run_conformance(p) == []
+    assert stocked.taken_writes == []
+
+
+async def run_conformance(p: NibePlugin) -> list[object]:
+    core, plugin_side = pair()
+    served = asyncio.create_task(serve(plugin_side, p))
+    try:
+        return list(await run(core, timeout_s=30, quiet_s=0.3))
+    finally:
+        await plugin_side.close()
+        served.cancel()
+        await asyncio.gather(served, return_exceptions=True)
+
+
+async def test_a_second_climate_system_is_detected(stocked: SimPump, gateway: Gateway) -> None:
+    stocked.registers.update({47302: 1, 40007: 250, 47303: 1})  # S3 on, its sensor missing
+    p = NibePlugin(
+        settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5
+    )
+    async with running_plugin(p) as running:
+        nodes = {n.path: n for n in running.describe().nodes}
+        assert "hp1/cs2" in nodes
+        assert "hp1/cs3" not in nodes
+        presence = nodes["hp1/cs2"].presence
+        assert (presence.how, presence.rule) == (
+            "detected",
+            "47302 = 1 and supply sensor 40007 connected",
+        )
+
+
+async def test_registers_the_pump_pushes_arent_polled(stocked: SimPump, gateway: Gateway) -> None:
+    stocked.log_set = [40004, 43086]
+    stocked.log_set_interval_s = 0.1
+    p = NibePlugin(
+        settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5
+    )
+    async with running_plugin(p) as running:
+        await until(lambda: {40004, 43086} <= running.pushed)
+        points = {pt.path: pt for pt in running.describe().points}
+        assert points["hp1/outdoor.temp"].delivery.how == "pushed"
+        assert points["hp1/cs1/supply.temp"].delivery.how == "polled"
+        taken = len(stocked.taken_reads)
+        await asyncio.sleep(1.0)
+        assert 40004 not in stocked.taken_reads[taken:]
+
+
+async def test_a_given_model_needs_no_product_information(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    stocked.info_interval_s = 3600
+    p = NibePlugin(
+        settings(gateway, model="F1245"),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=1,
+    )
+    async with running_plugin(p) as running:
+        assert running.model is not None
+        assert running.model.name == "F1245"
+
+
+async def test_an_unknown_product_is_reported(stocked: SimPump, gateway: Gateway) -> None:
+    stocked.product = "X9999"
+    p = NibePlugin(
+        settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5
+    )
+    core, plugin_side = pair()
+    served = asyncio.create_task(serve(plugin_side, p))
+    try:
+        with pytest.raises(NotIdentified, match="X9999"):
+            await asyncio.wait_for(asyncio.shield(p._identified), 10)
+    finally:
+        await plugin_side.close()
+        await core.close()
+        served.cancel()
+        await asyncio.gather(served, return_exceptions=True)
+
+
+async def test_the_gateway_protocol_with_its_key(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    secrets = SecretStore(tmp_path / "secrets.json")
+    await secrets.set("nibe.psk", TEST_PSK.hex())
+    p = NibePlugin(
+        NibeGateway(
+            host="127.0.0.1",
+            protocol="thermaestro-gw",
+            control_port=gateway_with_psk.ports["control"],
+            read_port=gateway_with_psk.ports["read"],
+            write_port=gateway_with_psk.ports["write"],
+            psk="nibe.psk",
+        ),
+        secrets=secrets,
+        transport_settings={"tgw_settings": FAST_TGW},
+        identify_timeout_s=5,
+    )
+    async with running_plugin(p) as running:
+        transport = running.describe().nodes[0].transport
+        assert transport is not None
+        assert transport.fate == "exact"
+        await until(lambda: value(running, "outdoor.temp")[1] == "good")
+
+
+def test_the_entry_point_is_registered() -> None:
+    assert "nibe" in discover()
+
+
+def test_log_set() -> None:
+    model = load("bus").model("F1245")
+    data = logset.render(model, [40004, 43005], day=date(2026, 10, 6))
+    lines = data.decode("latin-1").split("\r\n")
+    assert lines[0] == "[NIBL;20261006;9696]"
+    assert lines[1] == "Divisors\t\t10\t10"
+    assert lines[2] == "Date\tTime\tBT1 Outdoor Temperature [°C]\tDegree Minutes (16 bit)"
+    assert lines[3:] == ["40004", "43005"]
+    assert not data.endswith(b"\r\n")
+    with pytest.raises(ValueError, match="1 to 20"):
+        logset.render(model, list(range(40004, 40030)), day=date(2026, 10, 6))
+    assert all(r in model for r in profile.LOG_SET)

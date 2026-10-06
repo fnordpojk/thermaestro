@@ -21,6 +21,9 @@ dependencies = [
 [project.scripts]
 thermaestro = "thermaestro.cli:main"
 
+[project.entry-points."thermaestro.plugins"]
+nibe = "thermaestro.nibe.plugin:create"
+
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"
 

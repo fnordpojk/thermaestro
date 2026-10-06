@@ -81,7 +81,10 @@ class NibeGateway(BaseModel):
     """Where Thermaestro listens for the gateway's datagrams; 0 picks a free port. A
     gateway that sends to a fixed port needs it set."""
     psk: SecretName | None = None
-    """The control port's pre-shared key."""
+    """The control port's pre-shared key: 64 hex digits in the secrets file."""
+    model: str | None = None
+    """The pump model as the register map names it (`F1245`). Without it, the model is
+    taken from the product information the pump sends every 15 s."""
 
     @model_validator(mode="after")
     def _protocol_has_key(self) -> Self:

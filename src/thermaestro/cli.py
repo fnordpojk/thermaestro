@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from datetime import date
 from pathlib import Path
 
 from .core import run, verify
@@ -21,7 +22,14 @@ def main(argv: list[str] | None = None) -> int:
     audit_commands = audit.add_subparsers(dest="audit_command", required=True)
     check = audit_commands.add_parser("verify", help="check the audit log's chain")
     check.add_argument("file", nargs="?", type=Path, help="default: the state directory's")
+    logset = commands.add_parser(
+        "nibe-logset", help="write a LOG.SET for a Nibe bus-family pump, to copy to a USB stick"
+    )
+    logset.add_argument("model", help="as the register map names it, e.g. F1245")
+    logset.add_argument("output", type=Path, help="the file to write, e.g. LOG.SET")
     args = parser.parse_args(argv)
+    if args.command == "nibe-logset":
+        return _logset(args.model, args.output)
 
     logging.basicConfig(
         level=args.log_level, format="%(levelname)s %(name)s: %(message)s", stream=sys.stderr
@@ -36,6 +44,21 @@ def main(argv: list[str] | None = None) -> int:
     except StoreError as e:
         sys.stderr.write(f"{e}\n")
         return 2
+
+
+def _logset(model_name: str, output: Path) -> int:
+    from .nibe import logset, profile
+    from .nibe.maps import load
+
+    try:
+        model = load("bus").model(model_name)
+    except KeyError as e:
+        sys.stderr.write(f"{e.args[0]}\n")
+        return 2
+    registers = [r for r in profile.LOG_SET if r in model]
+    output.write_bytes(logset.render(model, registers, day=date.today()))
+    sys.stdout.write(f"wrote {output}: {len(registers)} registers\n")
+    return 0
 
 
 def _verify(path: Path) -> int:

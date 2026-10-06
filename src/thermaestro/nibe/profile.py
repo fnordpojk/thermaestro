@@ -1,0 +1,389 @@
+"""The bus-family pump profile: Nibe registers as the capability interface's points and
+levers, with the rules that say how far each value can be trusted.
+
+The profile names registers; the model's register map says whether the model has them
+and how to decode them. A point whose register the model lacks isn't described.
+"""
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+
+from ..cap.model import (
+    CompetingFeature,
+    Implementation,
+    Knowledge,
+    Lever,
+    Param,
+    Persistence,
+    Quality,
+    Range,
+    Source,
+    Verify,
+    Wear,
+)
+from .maps import ModelMap
+
+UNIT = "hp1"
+
+PRIO = 43086
+COMPRESSOR = 43427
+SUPPLY_PUMP_SPEED = 43437
+BRINE_PUMP_SPEED = 43439
+WORD_SWAP = 48852
+FIRMWARE = (43001, 44331)
+
+PRIO_HOT_WATER = 20
+COMPRESSOR_CHANGING = frozenset({40, 100})
+CHARGE_SETTLE_S = 600.0
+"""How long the charge sensor (BT6) reads low after a charge starts: water from the bottom
+of the tank passes it. Ten minutes for now; the real time is to be learned per tank."""
+
+DEMAND = {
+    10: "idle",
+    20: "dhw",
+    30: "heating",
+    40: "pool",
+    41: "pool",
+    50: "transfer",
+    60: "cooling",
+}
+COMPRESSOR_STATE = {20: "stopped", 40: "starting", 60: "running", 100: "stopping"}
+PUMP_STATE = {10: "off", 15: "starting", 20: "on", 40: "10-day mode", 80: "calibration"}
+
+UNITS = {"°C": "degC"}
+
+
+@dataclass(frozen=True, slots=True)
+class Snapshot:
+    """What the plugin last read, for the rules: decoded values by register, and when a
+    hot-water charge last started (monotonic seconds), if one is running."""
+
+    values: Mapping[int, float | int | None]
+    charge_started: float | None
+    now: float
+
+
+Rule = Callable[[Snapshot], tuple[Quality, str] | None]
+"""A validity rule: a quality and its reason where the value can't be fully trusted, or
+None where the rule has nothing to say."""
+
+
+def no_flow(pump: int) -> Rule:
+    def rule(s: Snapshot) -> tuple[Quality, str] | None:
+        if s.values.get(pump) == 0:
+            return "no_flow", f"pump {pump} = 0"
+        return None
+
+    return rule
+
+
+def compressor_changing(s: Snapshot) -> tuple[Quality, str] | None:
+    state = s.values.get(COMPRESSOR)
+    if state is not None and int(state) in COMPRESSOR_CHANGING:
+        return "transitional", f"compressor {COMPRESSOR_STATE[int(state)]}"
+    return None
+
+
+def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
+    if s.charge_started is not None and s.now - s.charge_started < CHARGE_SETTLE_S:
+        return "transitional", "a hot-water charge started"
+    return None
+
+
+def diverted_to_hot_water(s: Snapshot) -> tuple[Quality, str] | None:
+    if s.values.get(PRIO) == PRIO_HOT_WATER:
+        return "good", "diverter to dhw"  # true, but it describes the charge, not the heating
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class PointDef:
+    path: str
+    """Below the unit: `outdoor.temp`, `cs1/supply.temp`."""
+    register: int
+    enum: Mapping[int, str] | None = None
+    rules: tuple[Rule, ...] = ()
+    validity: tuple[str, ...] = ()
+    """The rules in words, for explanations."""
+    source: Source = "measured"
+    unknown_why: str | None = None
+    """Why a device value outside `enum` gives no value, where that is expected."""
+
+
+@dataclass(frozen=True, slots=True)
+class System:
+    number: int
+    supply: int
+    accessory: int | None
+    """The register that switches the climate system on; None for system 1, always there."""
+    offset: int | None = None
+    room_control: int | None = None
+
+
+SYSTEMS = (
+    System(1, 40008, None, offset=47011, room_control=47394),
+    System(2, 40007, 47302, offset=47010, room_control=47393),
+    System(3, 40006, 47303, offset=47009),
+    System(4, 40005, 47304, offset=47008),
+    System(5, 40162, 48569),
+    System(6, 40161, 48570),
+    System(7, 40160, 48571),
+    System(8, 40159, 48572),
+)
+
+FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED), compressor_changing)
+BRINE_RULES = (no_flow(BRINE_PUMP_SPEED), compressor_changing)
+
+
+def system_points(system: System) -> list[PointDef]:
+    cs = f"cs{system.number}"
+    points = [
+        PointDef(
+            f"{cs}/supply.temp",
+            system.supply,
+            rules=(*FLOW_RULES, diverted_to_hot_water) if system.number == 1 else (),
+            validity=(
+                (
+                    f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+                    f"transitional while compressor {COMPRESSOR} starts or stops",
+                    "during a hot-water charge it describes the charge, not the heating",
+                )
+                if system.number == 1
+                else ()
+            ),
+        )
+    ]
+    if system.offset is not None:
+        points.append(PointDef(f"{cs}/x.nibe.{system.offset}", system.offset))
+    if system.room_control is not None:
+        points.append(PointDef(f"{cs}/x.nibe.{system.room_control}", system.room_control))
+    return points
+
+
+UNIT_POINTS = (
+    PointDef("outdoor.temp", 40004),
+    PointDef("demand", PRIO, enum=DEMAND),
+    PointDef(
+        "diverter",
+        PRIO,
+        enum={20: "dhw", 30: "heating", 60: "heating"},
+        source="calculated",
+        unknown_why="the bus-family pumps don't report the valve; known only while the demand says",
+    ),
+    PointDef("degree_minutes", 43005),
+    PointDef("alarm", 45001),
+    PointDef("heat.produced{purpose=dhw,by=total}", 42437),
+    PointDef("heat.produced{purpose=heating,by=total}", 42439),
+    PointDef("heat.produced{purpose=cooling,by=compressor}", 42441),
+    PointDef("heat.produced{purpose=pool,by=compressor}", 42443),
+    PointDef("heat.produced{purpose=dhw,by=compressor}", 42445),
+    PointDef("heat.produced{purpose=heating,by=compressor}", 42447),
+    PointDef(f"x.nibe.{WORD_SWAP}", WORD_SWAP),
+    PointDef("x.nibe.47375", 47375),  # heating stop
+    PointDef("x.nibe.47134", 47134),  # operating priority, hot water
+    PointDef("x.nibe.47137", 47137),  # operating mode
+    PointDef("x.nibe.47370", 47370),  # addition allowed
+)
+
+CS1_POINTS = (
+    PointDef(
+        "cs1/return.temp",
+        40012,
+        rules=FLOW_RULES,
+        validity=(f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",),
+    ),
+    PointDef("cs1/pump.state", 43431, enum=PUMP_STATE),
+    PointDef("cs1/pump.speed", SUPPLY_PUMP_SPEED),
+)
+
+DHW_POINTS = (
+    PointDef("dhw/temp.top", 40013),
+    PointDef(
+        "dhw/temp.charge",
+        40014,
+        rules=(charge_starting,),
+        validity=("transitional for a while after a charge starts: tank-bottom water passes it",),
+    ),
+    PointDef("dhw/x.nibe.47041", 47041),  # comfort mode
+    *(PointDef(f"dhw/x.nibe.{r}", r) for r in (47043, 47044, 47045, 47047, 47048, 47049)),
+    PointDef("dhw/x.nibe.47046", 47046),  # periodic stop temperature
+    PointDef("dhw/x.nibe.47050", 47050),  # periodic on
+    PointDef("dhw/x.nibe.47051", 47051),  # periodic interval
+    PointDef("dhw/x.nibe.48132", 48132),  # temporary lux
+    PointDef("dhw/x.nibe.47387", 47387),
+)
+
+COMPRESSOR_POINTS = (PointDef("compressor.ep14/state", COMPRESSOR, enum=COMPRESSOR_STATE),)
+
+BRINE_POINTS = (
+    PointDef(
+        "brine/brine.in.temp",
+        40015,
+        rules=BRINE_RULES,
+        validity=(f"no_flow when brine pump {BRINE_PUMP_SPEED} is 0",),
+    ),
+    PointDef(
+        "brine/brine.out.temp",
+        40016,
+        rules=BRINE_RULES,
+        validity=(f"no_flow when brine pump {BRINE_PUMP_SPEED} is 0",),
+    ),
+    PointDef("brine/pump.state", 43433, enum=PUMP_STATE),
+    PointDef("brine/pump.speed", BRINE_PUMP_SPEED),
+)
+
+ADDITION_POINTS = (PointDef("addition/power", 43084),)
+
+LOG_SET = (
+    40004, 40008, 40012, 40013, 40014, 40015, 40016, PRIO, COMPRESSOR, 43431, 43433,
+    SUPPLY_PUMP_SPEED, BRINE_PUMP_SPEED, 43084, 43005,
+)  # fmt: skip
+"""The registers worth having pushed: they change fast and the rules need them."""
+
+
+@dataclass
+class Layout:
+    """What this model and installation have: nodes and points by path."""
+
+    systems: list[int]
+    nodes: dict[str, str] = field(default_factory=dict)
+    """Path below the unit to node kind."""
+    points: dict[str, PointDef] = field(default_factory=dict)
+
+
+def layout(model: ModelMap, systems: list[int]) -> Layout:
+    """The nodes and points a model has, with climate systems `systems` (1 always)."""
+    out = Layout(systems=sorted(set(systems) | {1}))
+    groups: list[tuple[str | None, str, tuple[PointDef, ...]]] = [
+        (None, "unit", UNIT_POINTS),
+        ("dhw", "dhw_tank", DHW_POINTS),
+        ("compressor.ep14", "compressor", COMPRESSOR_POINTS),
+        ("brine", "brine_circuit", BRINE_POINTS),
+        ("addition", "addition", ADDITION_POINTS),
+    ]
+    for number in out.systems:
+        system = SYSTEMS[number - 1]
+        system_defs = system_points(system) + (list(CS1_POINTS) if number == 1 else [])
+        groups.append((f"cs{number}", "climate_system", tuple(system_defs)))
+    for node, kind, defs in groups:
+        present = [p for p in defs if p.register in model]
+        if not present:
+            continue
+        if node is not None:
+            out.nodes[node] = kind
+        for p in present:
+            out.points[p.path] = p
+    return out
+
+
+def detectable(model: ModelMap) -> list[System]:
+    """The climate systems beyond the first that this model can have."""
+    return [s for s in SYSTEMS[1:] if s.accessory in model and s.supply in model]
+
+
+def unit(register_unit: str) -> str | None:
+    return UNITS.get(register_unit, register_unit) or None
+
+
+def levers(model: ModelMap, points: Mapping[str, PointDef]) -> list[Lever]:
+    """The levers this plugin will offer, described in full and read-only for now."""
+    out = []
+    if 47011 in model and "cs1/x.nibe.47011" in points:
+        competing = []
+        if 47394 in model:
+            competing.append(
+                CompetingFeature(
+                    name="the pump's room control (47394)",
+                    can_disable=Knowledge(value=True, known="documented", basis="register 47394"),
+                    how="47394 = 0",
+                )
+            )
+        out.append(
+            Lever(
+                path=f"{UNIT}/cs1/heating.offset",
+                kind="setting",
+                params={
+                    "value": Param(
+                        type="number",
+                        range=Knowledge(
+                            value=Range(min=-10, max=10, step=1),
+                            known="documented",
+                            basis="Nibe register database",
+                        ),
+                    )
+                },
+                works=Knowledge(value=True, known="documented", basis="installer manual"),
+                persistence=Knowledge(value=Persistence(kind="stored"), known="documented"),
+                wear=Knowledge(value=Wear(kind="flash"), known="reported"),
+                verify=Verify(kind="readback", point=f"{UNIT}/cs1/x.nibe.47011"),
+                competing_features=tuple(competing),
+                touches=("x.nibe.47011",),
+            )
+        )
+    if 47041 in model and "dhw/x.nibe.47041" in points:
+        out.append(
+            Lever(
+                path=f"{UNIT}/dhw/mode",
+                kind="setting",
+                params={
+                    "value": Param(
+                        type="enum",
+                        enum=Knowledge(
+                            value={"eco": 0, "normal": 1, "comfort": 2, "smart": 4},
+                            known="documented",
+                            basis="Nibe register database; smart from firmware 8224R1",
+                        ),
+                    )
+                },
+                verify=Verify(kind="readback", point=f"{UNIT}/dhw/x.nibe.47041"),
+                competing_features=(
+                    CompetingFeature(name="the pump's hot-water schedule (menu 2.3)"),
+                ),
+                touches=("x.nibe.47041",),
+            )
+        )
+    if {47041, 47043, 47044, 47045} <= model.ids and "dhw/temp.charge" in points:
+        out.append(
+            Lever(
+                path=f"{UNIT}/dhw/block",
+                kind="hold",
+                implementation=Implementation(
+                    kind="emulated",
+                    how="the current mode's start temperature lowered to 25.0 °C",
+                    side_effects=(
+                        "two setting writes per engage and release",
+                        "a floor: the pump charges when the charge sensor reaches 25.0 °C",
+                    ),
+                ),
+                works=Knowledge(
+                    value=True, known="verified", basis="tested on an F1245, firmware 9721R4"
+                ),
+                persistence=Knowledge(value=Persistence(kind="stored"), known="verified"),
+                verify=Verify(
+                    kind="effect",
+                    point=f"{UNIT}/dhw/temp.charge",
+                    expectation="no charge until the charge sensor reaches 25.0 °C",
+                ),
+                touches=("x.nibe.47043", "x.nibe.47044", "x.nibe.47045"),
+            )
+        )
+    if 48132 in model and "demand" in points:
+        out.append(
+            Lever(
+                path=f"{UNIT}/dhw/boost_once",
+                kind="trigger",
+                works=Knowledge(value=True, known="documented", basis="firmware history, 7740R2"),
+                verify=Verify(kind="effect", point=f"{UNIT}/demand", expectation="demand: dhw"),
+                touches=("x.nibe.48132",),
+            )
+        )
+    if 45171 in model:
+        out.append(
+            Lever(
+                path=f"{UNIT}/alarm.reset",
+                kind="trigger",
+                verify=Verify(kind="none"),
+                touches=("x.nibe.45171",),
+            )
+        )
+    return out
