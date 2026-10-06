@@ -118,6 +118,8 @@ class NibePlugin:
         self.layout: profile.Layout | None = None
         self._samples: dict[int, Sample] = {}
         self.pushed: set[int] = set()
+        self.absent: set[int] = set()
+        """Registers that gave no value, whose points were removed."""
         self._tick = asyncio.Event()
         self._read_lock = asyncio.Lock()
         self._charge_started: float | None = None
@@ -138,7 +140,7 @@ class NibePlugin:
         try:
             await self._identify()
             self._identified.set_result(None)
-            poller = asyncio.create_task(self._poll())
+            poller = asyncio.create_task(self._poll(send))
             while True:
                 await send(self._health())
                 await asyncio.sleep(self._health_interval)
@@ -221,26 +223,8 @@ class NibePlugin:
                 supply = decode(self.model.register(system.supply), *words_, high_word_first=True)
                 if supply.status is not Status.NOT_CONNECTED:
                     systems.append(system.number)
-        layout = profile.layout(self.model, systems)
-        await self._leave_out_absent(self.model, layout)
-        self.layout = layout
+        self.layout = profile.layout(self.model, systems)
         log.info("pump %s, firmware %s, climate systems %s", name, self.firmware, systems)
-
-    async def _leave_out_absent(self, model: ModelMap, layout: profile.Layout) -> None:
-        """A point whose register gives no value (a heat meter this pump doesn't keep)
-        isn't described. Only 32-bit registers have a "no value" marker, so only they are
-        read here; a point that later starts giving values is found at the next start."""
-        for path, definition in list(layout.points.items()):
-            register = model.register(definition.register)
-            if register.size is None or register.size.bits != 32 or self.high_word_first is None:
-                continue
-            words_ = await self._read(definition.register)
-            if words_ is None:
-                continue
-            decoded = decode(register, *words_, high_word_first=self.high_word_first)
-            if decoded.status is Status.NO_VALUE:
-                del layout.points[path]
-                log.info("%s (register %d) gives no value: left out", path, definition.register)
 
     # --- reading ---------------------------------------------------------------------------
 
@@ -308,7 +292,7 @@ class NibePlugin:
             raise NotIdentified("the pump isn't identified yet")
         return self.model, self.layout
 
-    async def _poll(self) -> None:
+    async def _poll(self, send: Send) -> None:
         model, layout = self._pump()
         rule_inputs = (
             profile.PRIO,
@@ -320,12 +304,37 @@ class NibePlugin:
             {p.register for p in layout.points.values()} | {r for r in rule_inputs if r in model}
         )
         while True:
-            polled = [r for r in wanted if r not in self.pushed]
+            polled = [r for r in wanted if r not in self.pushed and r not in self.absent]
             if not polled:
                 await asyncio.sleep(1.0)
             for register in polled:
                 if register not in self.pushed:
                     await self._read(register)
+                    await self._drop_if_absent(register, send)
+
+    async def _drop_if_absent(self, register: int, send: Send) -> None:
+        """A 32-bit point whose register gives no value (a heat meter this pump doesn't
+        keep) is removed from the description and not read again. The pump is described
+        before this is known, so start-up never waits on these reads; a point that later
+        starts giving values is found at the next start."""
+        model, layout = self._pump()
+        definition = model.register(register)
+        sample = self._samples.get(register)
+        if sample is None or definition.size is None or definition.size.bits != 32:
+            return
+        if self.high_word_first is None:
+            return
+        decoded = decode(definition, *sample.words, high_word_first=self.high_word_first)
+        if decoded.status is not Status.NO_VALUE:
+            return
+        gone = [path for path, d in layout.points.items() if d.register == register]
+        for path in gone:
+            del layout.points[path]
+            log.info("%s (register %d) gives no value: left out", path, register)
+        self.absent.add(register)
+        if gone:
+            removed = tuple(f"{profile.UNIT}/{path}" for path in gone)
+            await send(Described(complete=False, removed=removed))
 
     async def _read_points(self, request: Read) -> list[Envelope]:
         if request.after is not None:

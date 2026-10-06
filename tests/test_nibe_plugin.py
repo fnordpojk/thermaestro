@@ -14,6 +14,7 @@ from thermaestro_gateway.server import Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
+from thermaestro.cap.messages import Described
 from thermaestro.core import discover
 from thermaestro.nibe import logset, profile
 from thermaestro.nibe.maps import load
@@ -327,8 +328,35 @@ async def test_points_carry_labels_and_counter_sizes(plugin: NibePlugin) -> None
     assert points["hp1/outdoor.temp"].wraps_at is None
 
 
-async def test_a_meter_the_pump_doesnt_keep_is_left_out(plugin: NibePlugin) -> None:
-    paths = {p.path for p in plugin.describe().points}
-    assert "hp1/heat.produced{purpose=dhw,by=total}" in paths
-    assert "hp1/heat.produced{purpose=heating,by=total}" not in paths  # reads 0xFFFFFFFF
-    assert value(plugin, "heat.produced{purpose=heating,by=total}")[2] == "no such point"
+async def test_a_meter_the_pump_doesnt_keep_is_left_out(stocked: SimPump, gateway: Gateway) -> None:
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.5,
+    )
+    removed: list[str] = []
+
+    def heard(message: object) -> None:
+        if isinstance(message, Described):
+            removed.extend(message.removed)
+
+    meter = "hp1/heat.produced{purpose=heating,by=total}"
+    core, plugin_side = pair()
+    served = asyncio.create_task(serve(plugin_side, p))
+    link = Link(core, on_event=heard)
+    link.start()
+    try:
+        await link.hello(timeout=5)
+        first = await link.describe(timeout=15)
+        assert meter in {pt.path for pt in first.points}  # described at once
+        await until(lambda: meter in removed)
+        assert "hp1/heat.produced{purpose=dhw,by=total}" not in removed
+        again = await link.describe(timeout=5)
+        assert meter not in {pt.path for pt in again.points}
+        assert 42439 in p.absent
+    finally:
+        await link.close()
+        await plugin_side.close()
+        served.cancel()
+        await asyncio.gather(served, return_exceptions=True)
