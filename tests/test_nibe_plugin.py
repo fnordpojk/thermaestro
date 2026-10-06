@@ -167,11 +167,6 @@ async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) ->
         "the pump reports no sensor",
     )
     assert value(plugin, "heat.produced{purpose=dhw,by=total}") == (1234.5, "good", None)
-    assert value(plugin, "heat.produced{purpose=heating,by=total}") == (
-        None,
-        "unknown",
-        "the pump gives no value",
-    )
     assert value(plugin, "cs1/x.nibe.47011") == (-4, "good", None)
     assert plugin.envelope("hp1/outdoor.temp").unit == "degC"
 
@@ -330,3 +325,10 @@ async def test_points_carry_labels_and_counter_sizes(plugin: NibePlugin) -> None
     meter = points["hp1/heat.produced{purpose=dhw,by=total}"]
     assert meter.wraps_at == (1 << 32) / 10
     assert points["hp1/outdoor.temp"].wraps_at is None
+
+
+async def test_a_meter_the_pump_doesnt_keep_is_left_out(plugin: NibePlugin) -> None:
+    paths = {p.path for p in plugin.describe().points}
+    assert "hp1/heat.produced{purpose=dhw,by=total}" in paths
+    assert "hp1/heat.produced{purpose=heating,by=total}" not in paths  # reads 0xFFFFFFFF
+    assert value(plugin, "heat.produced{purpose=heating,by=total}")[2] == "no such point"

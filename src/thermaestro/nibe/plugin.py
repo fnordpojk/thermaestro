@@ -221,8 +221,26 @@ class NibePlugin:
                 supply = decode(self.model.register(system.supply), *words_, high_word_first=True)
                 if supply.status is not Status.NOT_CONNECTED:
                     systems.append(system.number)
-        self.layout = profile.layout(self.model, systems)
+        layout = profile.layout(self.model, systems)
+        await self._leave_out_absent(self.model, layout)
+        self.layout = layout
         log.info("pump %s, firmware %s, climate systems %s", name, self.firmware, systems)
+
+    async def _leave_out_absent(self, model: ModelMap, layout: profile.Layout) -> None:
+        """A point whose register gives no value (a heat meter this pump doesn't keep)
+        isn't described. Only 32-bit registers have a "no value" marker, so only they are
+        read here; a point that later starts giving values is found at the next start."""
+        for path, definition in list(layout.points.items()):
+            register = model.register(definition.register)
+            if register.size is None or register.size.bits != 32 or self.high_word_first is None:
+                continue
+            words_ = await self._read(definition.register)
+            if words_ is None:
+                continue
+            decoded = decode(register, *words_, high_word_first=self.high_word_first)
+            if decoded.status is Status.NO_VALUE:
+                del layout.points[path]
+                log.info("%s (register %d) gives no value: left out", path, definition.register)
 
     # --- reading ---------------------------------------------------------------------------
 
