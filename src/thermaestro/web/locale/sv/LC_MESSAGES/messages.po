@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 23:36+0200\n"
-"PO-Revision-Date: 2026-10-06 23:36+0200\n"
+"POT-Creation-Date: 2026-10-06 23:44+0200\n"
+"PO-Revision-Date: 2026-10-06 23:44+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -18,8 +18,14 @@ msgstr ""
 msgid "0 picks a free one"
 msgstr "0 väljer en ledig"
 
+msgid "12 hours (11:30 PM)"
+msgstr "12 timmar (11:30 PM)"
+
 msgid "24 hours"
 msgstr "24 timmar"
+
+msgid "24 hours (23:30)"
+msgstr "24 timmar (23:30)"
 
 msgid "6 hours"
 msgstr "6 timmar"
@@ -89,6 +95,9 @@ msgstr ""
 msgid "Choose…"
 msgstr "Välj…"
 
+msgid "Clock"
+msgstr "Klocka"
+
 msgid "Confirm"
 msgstr "Bekräfta"
 
@@ -107,8 +116,14 @@ msgstr "Skapa den första med installationskoden."
 msgid "Create token"
 msgstr "Skapa token"
 
+msgid "Dates"
+msgstr "Datum"
+
 msgid "Days it lasts"
 msgstr "Giltig antal dagar"
+
+msgid "Decimal sign"
+msgstr "Decimaltecken"
 
 msgid "Details"
 msgstr "Detaljer"
@@ -159,11 +174,20 @@ msgstr "HTTPS är avstängt."
 msgid "Health"
 msgstr "Hälsa"
 
+msgid "ISO 8601 (2026-10-06)"
+msgstr "ISO 8601 (2026-10-06)"
+
 msgid "Instance"
 msgstr "Instans"
 
 msgid "Key (pre-shared)"
 msgstr "Nyckel (delad i förväg)"
+
+msgid "Language"
+msgstr "Språk"
+
+msgid "Language and formats"
+msgstr "Språk och format"
 
 msgid "Last error:"
 msgstr "Senaste fel:"
@@ -232,6 +256,9 @@ msgstr "Inga än."
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
 
+msgid "Now:"
+msgstr "Nu:"
+
 msgid "Observed"
 msgstr "Uppmätt"
 
@@ -258,6 +285,9 @@ msgstr "Kvalitet"
 
 msgid "Read port"
 msgstr "Läsport"
+
+msgid "Region"
+msgstr "Region"
 
 msgid "Remove"
 msgstr "Ta bort"
@@ -350,6 +380,9 @@ msgstr "Tidsintervall"
 msgid "Time zone"
 msgstr "Tidszon"
 
+msgid "Times are in the house's time zone."
+msgstr "Tider anges i husets tidszon."
+
 msgid "User"
 msgstr "Användare"
 
@@ -404,8 +437,17 @@ msgstr "lägga till, ändra och ta bort användare och deras rättigheter"
 msgid "all"
 msgstr "alla"
 
+msgid "as the browser asks"
+msgstr "som webbläsaren önskar"
+
 msgid "as the pump reports it"
 msgstr "som pumpen anger den"
+
+msgid "as the region writes it"
+msgstr "som regionen skriver den"
+
+msgid "as the region writes them"
+msgstr "som regionen skriver dem"
 
 msgid "assumed"
 msgstr "antaget"
@@ -418,6 +460,9 @@ msgstr "minst 15 tecken; en mening är lätt att komma ihåg"
 
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
+
+msgid "comma (4,5)"
+msgstr "komma (4,5)"
 
 msgid "contended"
 msgstr "upptagen"
@@ -446,6 +491,9 @@ msgstr "ange ditt lösenord igen för att göra den här ändringen"
 msgid "entered; leave empty to keep it"
 msgstr "angiven; lämna tomt för att behålla den"
 
+msgid "gives the formats"
+msgstr "ger formaten"
+
 msgid "good"
 msgstr "god"
 
@@ -466,6 +514,9 @@ msgstr "på"
 
 msgid "out_of_range"
 msgstr "utanför intervallet"
+
+msgid "point (4.5)"
+msgstr "punkt (4.5)"
 
 msgid "preselected from this browser"
 msgstr "förvald från den här webbläsaren"

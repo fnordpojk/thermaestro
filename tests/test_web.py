@@ -689,3 +689,46 @@ async def test_the_time_zone_is_picked_from_a_list(site: Site) -> None:
             timezone="Mars/Olympus_Mons",
         )
         assert refused.status_code == 400
+
+
+async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
+    _with_a_pump(site)
+    async with admin(site) as client:
+        await form(
+            client,
+            "/settings",
+            "/settings/location",
+            latitude="59.33",
+            longitude="18.07",
+            timezone="Europe/Stockholm",
+        )
+        saved = await form(client, "/account", "/account/preferences", language="en", region="SE")
+        assert saved.status_code == 303
+        # The browser asks for German; the user's choice wins.
+        page = await client.get("/status/values", headers={"accept-language": "de-DE"})
+        assert "4,5 \N{DEGREE SIGN}C" in page.text
+        assert "Quality" in page.text  # English
+        assert re.search(r"\d{4}-\d{2}-\d{2}, \d{2}:\d{2}", page.text)  # ISO, 24 h
+        account = (await client.get("/account")).text
+        assert '<option value="SE" selected>Sweden</option>' in account
+        api = await client.get("/api/v1/account/preferences")
+        assert api.json() == {"language": "en", "region": "SE"}
+        token = csrf_of(account)
+        changed = await client.put(
+            "/api/v1/account/preferences",
+            json={"language": "sv", "decimal": "point"},
+            headers={"x-csrf-token": token},
+        )
+        assert changed.json() == {"language": "sv", "decimal": "point"}
+        page = await client.get("/status/values")
+        assert "4.5 \N{DEGREE SIGN}C" in page.text
+        assert "Kvalitet" in page.text
+        refused = await client.put(
+            "/api/v1/account/preferences",
+            json={"language": "fr"},
+            headers={"x-csrf-token": token},
+        )
+        assert refused.status_code == 400
+        chart = (await client.get("/points/pump/hp1/outdoor.temp")).text
+        assert 'data-zone="Europe/Stockholm"' in chart
+        assert 'data-locale="sv"' in chart

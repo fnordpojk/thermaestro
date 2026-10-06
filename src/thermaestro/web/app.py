@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 
-from ..auth import AccountError, Forbidden, Principal
+from ..auth import AccountError, Forbidden, Principal, User
 from . import i18n
 from .operations import Caller, NeedsConfirmation, NotFound, Services
 from .security import (
@@ -73,14 +73,31 @@ async def identify(request: Request) -> Caller | None:
         if scheme.lower() != "bearer":
             return None
         principal = await accounts.principal_for_token(raw.strip())
-        return None if principal is None else Caller(principal, None, source)
+        if principal is None:
+            return None
+        _use_preferences(request, principal.user)
+        return Caller(principal, None, source)
     cookie = request.cookies.get(SESSION_COOKIE)
     if not cookie:
         return None
     session = await accounts.session(cookie)
     if session is None:
         return None
+    _use_preferences(request, session.user)
     return Caller(Principal(session.user), session, source)
+
+
+def _use_preferences(request: Request, user: User) -> None:
+    """The user's own language and formats for the rest of the request. The Language
+    middleware set the browser's, and puts its own back when the request is done."""
+    language, chosen = i18n.resolve(
+        user.preferences,
+        request.cookies.get("lang"),
+        request.headers.get("accept-language"),
+        services(request).zone,
+    )
+    i18n.current.set(language)
+    i18n.formats.set(chosen)
 
 
 async def check_csrf(request: Request, caller: Caller | None) -> None:
@@ -140,28 +157,28 @@ def local_path(target: str | None, default: str = "/") -> str:
 
 
 class Language:
-    """Sets the request's language from the `lang` cookie or Accept-Language."""
+    """Sets the request's language and formats from the browser: the `lang` cookie or
+    Accept-Language. A logged-in user's own choices replace them once known."""
 
     def __init__(self, app: Any) -> None:
         self.app = app
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
-        if scope["type"] in ("http", "websocket"):
-            headers = dict(scope.get("headers", []))
-            cookies = headers.get(b"cookie", b"").decode("latin-1")
-            chosen = None
-            for part in cookies.split(";"):
-                name, _, value = part.strip().partition("=")
-                if name == "lang":
-                    chosen = value
-            language = i18n.choose(chosen, headers.get(b"accept-language", b"").decode("latin-1"))
-            token = i18n.current.set(language)
-            try:
-                await self.app(scope, receive, send)
-            finally:
-                i18n.current.reset(token)
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
             return
-        await self.app(scope, receive, send)
+        headers = dict(scope.get("headers", []))
+        cookies = headers.get(b"cookie", b"").decode("latin-1")
+        chosen = None
+        for part in cookies.split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == "lang":
+                chosen = value
+        accept = headers.get(b"accept-language", b"").decode("latin-1")
+        zone = scope["app"].state.services.zone
+        language, formats = i18n.resolve(None, chosen, accept, zone)
+        with i18n.using(language, formats):
+            await self.app(scope, receive, send)
 
 
 def create_app(services: Services, csrf_key: bytes) -> FastAPI:

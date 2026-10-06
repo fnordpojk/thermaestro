@@ -19,7 +19,7 @@ import secrets
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Collection, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NoReturn
 
 from argon2 import PasswordHasher
@@ -28,6 +28,7 @@ from ..core.audit import AuditLog
 from ..store import Database, Transaction
 from . import passwords
 from .permissions import STEP_UP, allows, known
+from .preferences import Preferences
 from .setup import SetupCode
 
 log = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ class User:
     permissions: frozenset[str]
     """Its own and its groups', together."""
     disabled: bool = False
+    preferences: Preferences = field(default_factory=Preferences)
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,6 +356,16 @@ class Accounts:
 
         await self._db.run(delete)
         await self._audit.record(by, "user.delete", source=source, details={"user": name})
+
+    async def set_preferences(self, user: User, preferences: Preferences) -> None:
+        """One's own language and formats. Not audited: they change nothing but how
+        pages look."""
+        await self._db.run(
+            lambda t: t.execute(
+                "UPDATE users SET preferences = ? WHERE id = ?",
+                (preferences.model_dump_json(exclude_none=True), user.id),
+            )
+        )
 
     async def confirm(self, session: Session, password: str, *, source: str) -> None:
         """The password entered again, for changes that need it (STEP_UP). Wrong ones count
@@ -648,18 +660,22 @@ def _keep_an_admin(t: Transaction, had: bool) -> None:
         raise AccountError("that would leave no user who can manage users")
 
 
-def _rows(t: Transaction, name: str | None) -> list[tuple[int, str, int]]:
+_COLUMNS = "id, name, disabled, preferences"
+Row = tuple[int, str, int, str]
+
+
+def _rows(t: Transaction, name: str | None) -> list[Row]:
     if name is None:
-        return list(t.execute("SELECT id, name, disabled FROM users ORDER BY name"))
-    return list(t.execute("SELECT id, name, disabled FROM users WHERE name = ?", (name,)))
+        return list(t.execute(f"SELECT {_COLUMNS} FROM users ORDER BY name"))  # noqa: S608
+    return list(t.execute(f"SELECT {_COLUMNS} FROM users WHERE name = ?", (name,)))  # noqa: S608
 
 
-def _rows_by_id(t: Transaction, user_id: int) -> list[tuple[int, str, int]]:
-    return list(t.execute("SELECT id, name, disabled FROM users WHERE id = ?", (user_id,)))
+def _rows_by_id(t: Transaction, user_id: int) -> list[Row]:
+    return list(t.execute(f"SELECT {_COLUMNS} FROM users WHERE id = ?", (user_id,)))  # noqa: S608
 
 
-def _user(t: Transaction, row: tuple[int, str, int]) -> User:
-    user_id, name, disabled = row
+def _user(t: Transaction, row: Row) -> User:
+    user_id, name, disabled, preferences = row
     groups = tuple(
         g for (g,) in t.execute("SELECT group_name FROM user_groups WHERE user_id = ?", (user_id,))
     )
@@ -672,7 +688,14 @@ def _user(t: Transaction, row: tuple[int, str, int]) -> User:
             (user_id, user_id),
         )
     }
-    return User(user_id, name, groups, frozenset(granted), bool(disabled))
+    return User(
+        user_id,
+        name,
+        groups,
+        frozenset(granted),
+        bool(disabled),
+        Preferences.model_validate_json(preferences),
+    )
 
 
 def _user_id(t: Transaction, name: str) -> int:

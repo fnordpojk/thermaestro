@@ -85,6 +85,7 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         setup=setup,
         fingerprint=own.fingerprint if own else None,
     )
+    await services.load_zone()
     app = create_app(services, await _csrf_key(core))
 
     listeners: list[tuple[socket.socket, uvicorn.Config]] = []

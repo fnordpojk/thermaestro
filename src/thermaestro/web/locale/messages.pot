@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-06 23:36+0200\n"
+"POT-Creation-Date: 2026-10-06 23:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,13 @@ msgstr ""
 msgid "0 picks a free one"
 msgstr ""
 
+msgid "12 hours (11:30 PM)"
+msgstr ""
+
 msgid "24 hours"
+msgstr ""
+
+msgid "24 hours (23:30)"
 msgstr ""
 
 msgid "6 hours"
@@ -83,6 +89,9 @@ msgstr ""
 msgid "Choose…"
 msgstr ""
 
+msgid "Clock"
+msgstr ""
+
 msgid "Confirm"
 msgstr ""
 
@@ -101,7 +110,13 @@ msgstr ""
 msgid "Create token"
 msgstr ""
 
+msgid "Dates"
+msgstr ""
+
 msgid "Days it lasts"
+msgstr ""
+
+msgid "Decimal sign"
 msgstr ""
 
 msgid "Details"
@@ -153,10 +168,19 @@ msgstr ""
 msgid "Health"
 msgstr ""
 
+msgid "ISO 8601 (2026-10-06)"
+msgstr ""
+
 msgid "Instance"
 msgstr ""
 
 msgid "Key (pre-shared)"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Language and formats"
 msgstr ""
 
 msgid "Last error:"
@@ -224,6 +248,9 @@ msgstr ""
 msgid "Nothing is connected yet."
 msgstr ""
 
+msgid "Now:"
+msgstr ""
+
 msgid "Observed"
 msgstr ""
 
@@ -251,6 +278,9 @@ msgid "Quality"
 msgstr ""
 
 msgid "Read port"
+msgstr ""
+
+msgid "Region"
 msgstr ""
 
 msgid "Remove"
@@ -338,6 +368,9 @@ msgstr ""
 msgid "Time zone"
 msgstr ""
 
+msgid "Times are in the house's time zone."
+msgstr ""
+
 msgid "User"
 msgstr ""
 
@@ -392,7 +425,16 @@ msgstr ""
 msgid "all"
 msgstr ""
 
+msgid "as the browser asks"
+msgstr ""
+
 msgid "as the pump reports it"
+msgstr ""
+
+msgid "as the region writes it"
+msgstr ""
+
+msgid "as the region writes them"
 msgstr ""
 
 msgid "assumed"
@@ -405,6 +447,9 @@ msgid "at least 15 characters; a sentence is easy to remember"
 msgstr ""
 
 msgid "change the installation's settings"
+msgstr ""
+
+msgid "comma (4,5)"
 msgstr ""
 
 msgid "contended"
@@ -434,6 +479,9 @@ msgstr ""
 msgid "entered; leave empty to keep it"
 msgstr ""
 
+msgid "gives the formats"
+msgstr ""
+
 msgid "good"
 msgstr ""
 
@@ -453,6 +501,9 @@ msgid "on"
 msgstr ""
 
 msgid "out_of_range"
+msgstr ""
+
+msgid "point (4.5)"
 msgstr ""
 
 msgid "preselected from this browser"

@@ -8,7 +8,7 @@
   <tbody>
   {% for e in entries %}
   <tr class="outcome-{{ e.outcome }}">
-    <td>{{ e.t }}</td>
+    <td>{{ e.t | when }}</td>
     <td>{{ e.who }}</td>
     <td>{{ e["from"] or "" }}</td>
     <td>{{ e.what }}</td>

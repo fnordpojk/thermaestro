@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 23:36+0200\n"
-"PO-Revision-Date: 2026-10-06 23:36+0200\n"
+"POT-Creation-Date: 2026-10-06 23:44+0200\n"
+"PO-Revision-Date: 2026-10-06 23:44+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -18,8 +18,14 @@ msgstr ""
 msgid "0 picks a free one"
 msgstr "0 wählt einen freien"
 
+msgid "12 hours (11:30 PM)"
+msgstr "12 Stunden (11:30 PM)"
+
 msgid "24 hours"
 msgstr "24 Stunden"
+
+msgid "24 hours (23:30)"
+msgstr "24 Stunden (23:30)"
 
 msgid "6 hours"
 msgstr "6 Stunden"
@@ -90,6 +96,9 @@ msgstr ""
 msgid "Choose…"
 msgstr "Auswählen…"
 
+msgid "Clock"
+msgstr "Uhrzeit"
+
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -108,8 +117,14 @@ msgstr "Legen Sie ihn mit dem Einrichtungscode an."
 msgid "Create token"
 msgstr "Token erstellen"
 
+msgid "Dates"
+msgstr "Datum"
+
 msgid "Days it lasts"
 msgstr "Gültigkeit in Tagen"
+
+msgid "Decimal sign"
+msgstr "Dezimalzeichen"
 
 msgid "Details"
 msgstr "Details"
@@ -161,11 +176,20 @@ msgstr "HTTPS ist ausgeschaltet."
 msgid "Health"
 msgstr "Zustand"
 
+msgid "ISO 8601 (2026-10-06)"
+msgstr "ISO 8601 (2026-10-06)"
+
 msgid "Instance"
 msgstr "Instanz"
 
 msgid "Key (pre-shared)"
 msgstr "Schlüssel (vorab vereinbart)"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "Language and formats"
+msgstr "Sprache und Formate"
 
 msgid "Last error:"
 msgstr "Letzter Fehler:"
@@ -234,6 +258,9 @@ msgstr "Noch keine."
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
 
+msgid "Now:"
+msgstr "Jetzt:"
+
 msgid "Observed"
 msgstr "Gemessen"
 
@@ -262,6 +289,9 @@ msgstr "Qualität"
 
 msgid "Read port"
 msgstr "Leseport"
+
+msgid "Region"
+msgstr "Region"
 
 msgid "Remove"
 msgstr "Entfernen"
@@ -356,6 +386,9 @@ msgstr "Zeitraum"
 msgid "Time zone"
 msgstr "Zeitzone"
 
+msgid "Times are in the house's time zone."
+msgstr "Zeiten gelten in der Zeitzone des Hauses."
+
 msgid "User"
 msgstr "Benutzer"
 
@@ -410,8 +443,17 @@ msgstr "Benutzer und ihre Rechte hinzufügen, ändern und entfernen"
 msgid "all"
 msgstr "alle"
 
+msgid "as the browser asks"
+msgstr "wie vom Browser gewünscht"
+
 msgid "as the pump reports it"
 msgstr "wie die Pumpe es meldet"
+
+msgid "as the region writes it"
+msgstr "wie in der Region üblich"
+
+msgid "as the region writes them"
+msgstr "wie in der Region üblich"
 
 msgid "assumed"
 msgstr "angenommen"
@@ -424,6 +466,9 @@ msgstr "mindestens 15 Zeichen; ein Satz ist leicht zu merken"
 
 msgid "change the installation's settings"
 msgstr "die Einstellungen der Installation ändern"
+
+msgid "comma (4,5)"
+msgstr "Komma (4,5)"
 
 msgid "contended"
 msgstr "belegt"
@@ -452,6 +497,9 @@ msgstr "geben Sie Ihr Passwort erneut ein, um diese Änderung vorzunehmen"
 msgid "entered; leave empty to keep it"
 msgstr "eingegeben; leer lassen, um ihn zu behalten"
 
+msgid "gives the formats"
+msgstr "bestimmt die Formate"
+
 msgid "good"
 msgstr "gut"
 
@@ -472,6 +520,9 @@ msgstr "ein"
 
 msgid "out_of_range"
 msgstr "außerhalb des Bereichs"
+
+msgid "point (4.5)"
+msgstr "Punkt (4.5)"
 
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"

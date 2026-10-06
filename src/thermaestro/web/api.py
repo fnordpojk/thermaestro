@@ -259,6 +259,24 @@ async def rights(who: Logged) -> dict[str, str]:
     return operations.rights()
 
 
+# --- one's own language and formats ----------------------------------------------------
+
+
+@router.get("/account/preferences")
+@action("preferences.read")
+async def preferences(request: Request, who: Logged) -> dict[str, Any]:
+    return services(request).preferences(who).model_dump(exclude_none=True)
+
+
+@router.put("/account/preferences")
+@action("preferences.write")
+async def set_preferences(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """Language (en, sv, de), region (a country code: SE), and overrides: dates (iso),
+    clock (24, 12), decimal (point, comma). A field left out takes the browser's."""
+    chosen = await services(request).set_preferences(who, body)
+    return chosen.model_dump(exclude_none=True)
+
+
 # --- tokens and sessions -----------------------------------------------------------------
 
 

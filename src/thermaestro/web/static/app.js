@@ -40,6 +40,46 @@
     return text.replace(".", decimal);
   }
 
+  // Times as the page writes them: the house's time zone, the user's clock and dates.
+  const zone = chart.dataset.zone || "UTC";
+  const locale = chart.dataset.locale || undefined;
+  const clock = chart.dataset.clock;
+  const timeFormat = new Intl.DateTimeFormat(locale, {
+    timeZone: zone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: clock === "12" ? "h12" : clock === "24" ? "h23" : undefined,
+  });
+  const dateFormat = new Intl.DateTimeFormat(locale, {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  function day(seconds) {
+    const date = new Date(seconds * 1000);
+    if (chart.dataset.dates !== "iso") {
+      return dateFormat.format(date);
+    }
+    const parts = {};
+    for (const part of dateFormat.formatToParts(date)) {
+      parts[part.type] = part.value;
+    }
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+
+  function moment(seconds) {
+    return `${day(seconds)} ${timeFormat.format(new Date(seconds * 1000))}`;
+  }
+
+  function ticks(u, values) {
+    const span = values.length > 1 ? values[values.length - 1] - values[0] : 0;
+    return values.map((v) =>
+      span > 2 * 86400 ? day(v) : timeFormat.format(new Date(v * 1000)),
+    );
+  }
+
   function message(text) {
     if (plot) {
       plot.destroy();
@@ -75,7 +115,7 @@
       width: chart.clientWidth || 800,
       height: 320,
       series: [
-        {},
+        { value: (u, v) => (v === null ? "–" : moment(v)) },
         {
           label: chart.dataset.label || "",
           value: (u, v) => format(v),
@@ -84,7 +124,7 @@
           spanGaps: false,
         },
       ],
-      axes: [{}, { values: (u, ticks) => ticks.map(format) }],
+      axes: [{ values: ticks }, { values: (u, values) => values.map(format) }],
     };
     if (plot) {
       plot.destroy();

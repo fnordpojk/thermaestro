@@ -114,6 +114,11 @@ MIGRATIONS: tuple[str, ...] = (
         ('Household', 'points.read'),
         ('Viewers', 'points.read');
     """,
+    # 4: each user's language and formats
+    """
+    ALTER TABLE users ADD COLUMN preferences TEXT NOT NULL DEFAULT '{}'
+        CHECK (json_valid(preferences));
+    """,
 )
 VERSION = len(MIGRATIONS)
 

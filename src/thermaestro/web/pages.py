@@ -1,6 +1,7 @@
 """The HTML pages. Each form posts to an endpoint that calls the same operation as its
 API counterpart, then redirects (or shows the page again with what went wrong)."""
 
+import time
 import zoneinfo
 from functools import cache
 from typing import Annotated, Any
@@ -237,6 +238,8 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
         point=point,
         source=source,
         decimal=i18n.decimal_symbol(),
+        zone=i18n.zone_name(),
+        formats=i18n.formats.get(),
     )
 
 
@@ -467,11 +470,15 @@ async def _account(request: Request, who: Caller, status_code: int = 200, **extr
     s = services(request)
     tokens = await s.tokens(who) if who.principal.allows("tokens.own") else []
     own_rights = {r: d for r, d in PERMISSIONS.items() if who.principal.allows(r)}
+    language = i18n.current.get()
     return render(
         request,
         "account.html",
         who,
         status_code=status_code,
+        preferences=who.principal.user.preferences,
+        regions=i18n.regions(language),
+        example=f"{i18n.when(time.time())}   {i18n.number(-1234.5)}",
         tokens=tokens,
         sessions=await s.sessions(who),
         current=who.session.id if who.session else None,
@@ -483,6 +490,32 @@ async def _account(request: Request, who: Caller, status_code: int = 200, **extr
 @router.get("/account")
 async def account_page(request: Request, who: Logged) -> Response:
     return await _account(request, who)
+
+
+@router.post("/account/preferences")
+@action("preferences.write")
+async def set_preferences(
+    request: Request,
+    who: Logged,
+    language: Text = "",
+    region: Text = "",
+    dates: Text = "",
+    clock: Text = "",
+    decimal: Text = "",
+) -> Response:
+    fields = {
+        "language": language,
+        "region": region,
+        "dates": dates,
+        "clock": clock,
+        "decimal": decimal,
+    }
+    body = {k: v for k, v in fields.items() if v}
+    try:
+        await services(request).set_preferences(who, body)
+    except AccountError as e:
+        return await _account(request, who, 400, error=_message(e))
+    return back("/account#formats")
 
 
 @router.post("/account/tokens")

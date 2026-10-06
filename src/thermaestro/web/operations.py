@@ -9,16 +9,18 @@ entering the password, so it needs no step-up of its own.
 
 import json
 from collections.abc import Collection
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import dataclass, field
+from datetime import UTC, date, tzinfo
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ValidationError
 
 from ..auth import (
     AccountError,
     Accounts,
+    Preferences,
     Principal,
     Session,
     SessionInfo,
@@ -66,6 +68,12 @@ class Services:
     setup: SetupCode
     fingerprint: str | None = None
     """The self-signed certificate's SHA-256, shown so a user can compare it."""
+    zone: tzinfo = field(default=UTC)
+    """The house's time zone, from the location; every time is shown in it."""
+
+    async def load_zone(self) -> None:
+        location = await self.db.get(Location)
+        self.zone = ZoneInfo(location.timezone) if location else UTC
 
     def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None:
         caller.principal.require(permission)
@@ -127,6 +135,7 @@ class Services:
         self._require(caller, "settings.write")
         location = _validated(Location, body, "location")
         await self.db.put(location)
+        self.zone = ZoneInfo(location.timezone)
         await self.audit.record(
             caller.principal.name,
             "setting.change",
@@ -277,6 +286,16 @@ class Services:
         await self.accounts.end_session_by_id(
             caller.principal, user, session_id, source=caller.source
         )
+
+    # --- one's own language and formats ------------------------------------------------
+
+    def preferences(self, caller: Caller) -> Preferences:
+        return caller.principal.user.preferences
+
+    async def set_preferences(self, caller: Caller, body: dict[str, Any]) -> Preferences:
+        preferences = _validated(Preferences, body, "the language and formats")
+        await self.accounts.set_preferences(caller.principal.user, preferences)
+        return preferences
 
     # --- the audit log -------------------------------------------------------------------
 

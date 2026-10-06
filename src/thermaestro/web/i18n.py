@@ -1,22 +1,31 @@
-"""Languages: one gettext catalog per language, read from its .po file at start, and
-numbers and times formatted by Babel for the request's language.
+"""Languages and formats: one gettext catalog per language, read from its .po file at
+start, and numbers and times formatted by Babel.
 
-Jinja2's gettext functions belong to the whole environment, so the language of the
-request being rendered sits in a context variable.
+The language and the formats are chosen apart: a region, which with the language gives
+CLDR's formats (English and Sweden: 2026-10-06, 23:30, 1 234,5), and optional overrides
+for the date style, the clock and the decimal sign. Times are in the house's time zone.
+
+Jinja2's gettext functions belong to the whole environment, so the language and formats
+of the request being rendered sit in context variables.
 """
 
 import gettext
 import io
+from collections.abc import Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, tzinfo
 from functools import cache
 from importlib import resources
 
-from babel import Locale, negotiate_locale
-from babel.dates import format_datetime
+from babel import Locale, UnknownLocaleError, negotiate_locale
+from babel.dates import format_date, format_datetime, format_time
 from babel.messages.mofile import write_mo
 from babel.messages.pofile import read_po
 from babel.numbers import format_decimal
+
+from ..auth.preferences import Preferences
 
 LANGUAGES = ("en", "sv", "de")
 DEFAULT = "en"
@@ -25,6 +34,87 @@ NOTHING = "\N{EN DASH}"
 NAMES = {"en": "English", "sv": "Svenska", "de": "Deutsch"}
 
 current: ContextVar[str] = ContextVar("language", default=DEFAULT)
+
+
+@dataclass(frozen=True)
+class Formats:
+    locale: Locale
+    dates: str | None = None
+    clock: str | None = None
+    decimal: str | None = None
+    zone: tzinfo = field(default=UTC)
+
+    @property
+    def tag(self) -> str:
+        """The locale as browsers name it, such as en-SE."""
+        return str(self.locale).replace("_", "-")
+
+
+# Formats is frozen, so the default is never changed in place.
+formats: ContextVar[Formats] = ContextVar(
+    "formats",
+    default=Formats(Locale.parse(DEFAULT)),  # noqa: B039
+)
+
+
+def format_locale(language: str, region: str | None) -> Locale:
+    """The language in the region where CLDR has it (en_SE); else the region's main
+    locale, whose short formats are only digits and signs (sv with GB: en_GB's)."""
+    for code in (f"{language}_{region}", f"und_{region}") if region else ():
+        try:
+            return Locale.parse(code)
+        except (UnknownLocaleError, ValueError):
+            continue
+    return Locale.parse(language)
+
+
+@cache
+def regions(language: str) -> list[tuple[str, str]]:
+    """The countries to choose from, as (code, name in the language), by name."""
+    names = Locale.parse(language).territories
+    out = []
+    for code, name in names.items():
+        if len(code) == 2 and code.isalpha():
+            try:
+                Locale.parse(f"und_{code}")
+            except (UnknownLocaleError, ValueError):
+                continue
+            out.append((code, name))
+    return sorted(out, key=lambda pair: pair[1])
+
+
+def browser_region(accept_language: str | None) -> str | None:
+    """The country of the browser's first language, as in en-SE."""
+    first = (accept_language or "").split(",")[0].split(";")[0].strip()
+    parts = first.replace("_", "-").split("-")
+    if len(parts) >= 2 and len(parts[-1]) == 2 and parts[-1].isalpha():
+        return parts[-1].upper()
+    return None
+
+
+def resolve(
+    preferences: Preferences | None,
+    cookie: str | None,
+    accept_language: str | None,
+    zone: tzinfo,
+) -> tuple[str, Formats]:
+    """The language and formats for a request: the user's choices, else the browser's."""
+    p = preferences or Preferences()
+    language = p.language or choose(cookie, accept_language)
+    region = p.region or browser_region(accept_language)
+    locale = format_locale(language, region)
+    return language, Formats(locale, p.dates, p.clock, p.decimal, zone)
+
+
+@contextmanager
+def using(language: str, chosen: Formats) -> Iterator[None]:
+    language_token = current.set(language)
+    formats_token = formats.set(chosen)
+    try:
+        yield
+    finally:
+        formats.reset(formats_token)
+        current.reset(language_token)
 
 
 def mark(message: str) -> str:
@@ -118,15 +208,38 @@ def choose(cookie: str | None, accept_language: str | None) -> str:
 def number(value: float | None, digits: int = 1) -> str:
     if value is None:
         return NOTHING
+    f = formats.get()
     pattern = "#,##0" if digits == 0 else "#,##0." + "0" * digits
-    return format_decimal(value, format=pattern, locale=Locale.parse(current.get()))
+    text = format_decimal(value, format=pattern, locale=f.locale)
+    symbols = f.locale.number_symbols["latn"]
+    decimal, group = symbols["decimal"], symbols["group"]
+    wanted = {"point": ".", "comma": ","}.get(f.decimal or "", decimal)
+    if wanted != decimal:
+        # The grouping sign stays unless it is now the decimal sign's twin.
+        twin = "," if wanted == "." else "\N{NO-BREAK SPACE}"
+        group_now = twin if group in (".", ",") else group
+        text = text.translate({ord(decimal): wanted, ord(group): group_now})
+    return text
 
 
-def when(t: float | None, zone: tzinfo = UTC) -> str:
+def when(t: float | str | None) -> str:
+    """A moment, in the house's time zone: seconds since the epoch, or ISO 8601 text."""
     if t is None:
         return NOTHING
-    moment = datetime.fromtimestamp(t, UTC)
-    return format_datetime(moment, format="short", tzinfo=zone, locale=Locale.parse(current.get()))
+    if isinstance(t, str):
+        try:
+            moment = datetime.fromisoformat(t)
+        except ValueError:
+            return t
+    else:
+        moment = datetime.fromtimestamp(t, UTC)
+    f = formats.get()
+    if not f.dates and not f.clock:
+        return format_datetime(moment, format="short", tzinfo=f.zone, locale=f.locale)
+    local = moment.astimezone(f.zone)
+    date = format_date(local, "yyyy-MM-dd" if f.dates == "iso" else "short", locale=f.locale)
+    clock = {"24": "HH:mm", "12": "h:mm a"}.get(f.clock or "", "short")
+    return f"{date} {format_time(local, clock, locale=f.locale)}"
 
 
 UNITS = {
@@ -142,4 +255,11 @@ def unit(code: str | None) -> str:
 
 
 def decimal_symbol() -> str:
-    return str(Locale.parse(current.get()).number_symbols["latn"]["decimal"])
+    f = formats.get()
+    chosen = {"point": ".", "comma": ","}.get(f.decimal or "")
+    return chosen or str(f.locale.number_symbols["latn"]["decimal"])
+
+
+def zone_name() -> str:
+    zone = formats.get().zone
+    return str(getattr(zone, "key", "UTC"))

@@ -36,11 +36,15 @@
 {% block main %}{% endblock %}
 </main>
 <footer>
+  {% if who %}
+  <a href="/account#formats">{{ _("Language and formats") }}</a>
+  {% else %}
   <ul class="languages">
   {% for code, name in languages.items() %}
     <li>{% if code == lang %}<strong>{{ name }}</strong>{% else %}<a href="/lang/{{ code }}?next={{ path | urlencode }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}</li>
   {% endfor %}
   </ul>
+  {% endif %}
 </footer>
 </body>
 </html>
