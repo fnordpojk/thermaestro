@@ -76,7 +76,7 @@ def shown(preferences: Preferences, accept: str | None = None) -> tuple[str, str
 
 
 def test_english_with_swedish_formats() -> None:
-    # The owner's case: English, with ISO dates and a 24-hour clock.
+    # English, with Sweden's ISO dates and 24-hour clock.
     assert shown(Preferences(language="en", region="SE")) == (
         "en",
         "2026-10-06, 23:30",
