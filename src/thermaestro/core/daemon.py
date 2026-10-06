@@ -1,7 +1,7 @@
 """`thermaestro run`: the long-running process.
 
-It reads the start-up file, opens the store, runs the plugins, and keeps their values
-until it is told to stop. On SIGTERM or SIGINT it stops the plugins, writes what's
+It reads the start-up file, opens the store, runs the plugins and the web UI, and keeps
+their values until it is told to stop. On SIGTERM or SIGINT it stops the plugins, writes what's
 waiting, runs the shutdown hooks, and exits. The core keeps those signals for itself,
 so the restore-on-exit that comes with the write path has its place here.
 """
@@ -90,11 +90,17 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
     )
     server = await _plugin_socket(core)
     await core.host.start()
-    log.info("Thermaestro is running")
+    stop_web = None
     try:
+        from ..web.server import start as start_web
+
+        stop_web = await start_web(core)
+        log.info("Thermaestro is running")
         await stop.wait()
     finally:
         log.info("stopping")
+        if stop_web is not None:
+            await stop_web()  # first, so nothing is changed on the way out
         for hook in core.shutdown_hooks:
             try:
                 await hook()

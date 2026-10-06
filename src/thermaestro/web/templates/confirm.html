@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Confirm") }}{% endblock %}
+{% block main %}
+<section class="narrow">
+<h1>{{ _("Enter your password again") }}</h1>
+<p>{{ _("Changes to users, groups, secrets and plugins need your password within the last 15 minutes.") }}</p>
+<form method="post" action="/confirm">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <label>{{ _("Password") }}
+    <input name="password" type="password" autocomplete="current-password" required autofocus></label>
+  <button type="submit">{{ _("Confirm") }}</button>
+</form>
+</section>
+{% endblock %}

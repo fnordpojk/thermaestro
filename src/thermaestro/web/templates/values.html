@@ -1,0 +1,36 @@
+{% for instance in instances %}
+<section class="instance">
+  <h2>{{ instance.id }} <small>{{ instance.plugin }}</small>
+    <span class="state state-{{ instance.state }}">{{ _(instance.state) }}</span></h2>
+  {% if instance.health and instance.health.needs_user_action %}
+  <p class="error">{{ instance.health.needs_user_action }}</p>
+  {% endif %}
+  {% if instance.last_error and instance.state != "up" %}
+  <p class="error">{{ _("Last error:") }} {{ instance.last_error }}</p>
+  {% endif %}
+  {% if instance.points %}
+  <table class="values">
+    <thead><tr><th>{{ _("Point") }}</th><th class="num">{{ _("Value") }}</th><th>{{ _("Quality") }}</th><th>{{ _("Observed") }}</th></tr></thead>
+    <tbody>
+    {% for p in instance.points %}
+      <tr class="quality-{{ p.quality }}">
+        <td><a href="/points/{{ instance.id | urlencode }}/{{ p.path }}">{{ p.path }}</a></td>
+        <td class="num">
+          {%- if p.value is none -%}–
+          {%- elif p.value is sameas true or p.value is sameas false -%}{{ _("on") if p.value else _("off") }}
+          {%- elif p.value is number -%}{{ p.value | num }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
+          {%- else -%}{{ p.value }}{%- endif -%}
+        </td>
+        <td>{% if p.quality == "good" %}{{ _("good") }}{% else %}{{ _(p.quality) }}{% if p.why %}: {{ p.why }}{% endif %}{% endif %}</td>
+        <td>{{ p.t | when }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif instance.state == "up" %}
+  <p>{{ _("This plugin offers no points.") }}</p>
+  {% else %}
+  <p>{{ _("Waiting for the plugin to describe its device…") }}</p>
+  {% endif %}
+</section>
+{% endfor %}

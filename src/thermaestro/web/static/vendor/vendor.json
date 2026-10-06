@@ -1,0 +1,41 @@
+{
+  "about": "Browser files from npm, unchanged. Each tarball was checked against npm's integrity hash before unpacking; each file is pinned by its SHA-256, which a test checks.",
+  "packages": {
+    "htmx.org": {
+      "version": "2.0.11",
+      "license": "0BSD",
+      "tarball": "https://registry.npmjs.org/htmx.org/-/htmx.org-2.0.11.tgz",
+      "integrity": "sha512-Thx/WtpeOQqSrqBCw/A1cwGJGg4UrVa3+sW0GmrM3p4gJgO89ecH4qtbnyzDDWFvBTqjnIMCgELTNt636dtamA==",
+      "files": {
+        "htmx.min.js": {
+          "from": "package/dist/htmx.min.js",
+          "sha256": "d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717"
+        },
+        "htmx.LICENSE.txt": {
+          "from": "package/LICENSE",
+          "sha256": "d3d2456f76414f2456104660ebd65aff1c04cd7966b942bdabd63f3cdb316a38"
+        }
+      }
+    },
+    "uplot": {
+      "version": "1.6.32",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/uplot/-/uplot-1.6.32.tgz",
+      "integrity": "sha512-KIMVnG68zvu5XXUbC4LQEPnhwOxBuLyW1AHtpm6IKTXImkbLgkMy+jabjLgSLMasNuGGzQm/ep3tOkyTxpiQIw==",
+      "files": {
+        "uPlot.iife.min.js": {
+          "from": "package/dist/uPlot.iife.min.js",
+          "sha256": "19c8d4c6ad88929a79f4ae49d6f7161566dfd0ba3d15cc495e974f787eb78f1f"
+        },
+        "uPlot.min.css": {
+          "from": "package/dist/uPlot.min.css",
+          "sha256": "df630c6a8d6f8eeaff264b50f73ce5b114f646ffd9a0bb74f049b0a00135fa04"
+        },
+        "uPlot.LICENSE.txt": {
+          "from": "package/LICENSE",
+          "sha256": "8f989229699b4fe2f1a0432d0e9edc338a8a911e250e2d1b01ecd770a5f5b1bd"
+        }
+      }
+    }
+  }
+}

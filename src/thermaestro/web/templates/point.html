@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ point }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<script src="/static/vendor/uPlot.iife.min.js" defer></script>
+{% endblock %}
+{% block main %}
+<h1>{{ point }} <small>{{ instance }}</small></h1>
+<nav class="ranges" aria-label="{{ _('Time range') }}">
+  <button type="button" data-hours="6">{{ _("6 hours") }}</button>
+  <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>
+  <button type="button" data-hours="168">{{ _("7 days") }}</button>
+</nav>
+<div id="chart" data-source="{{ source }}" data-decimal="{{ decimal }}" data-lang="{{ lang }}"
+     data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
+<p class="hint">{{ _("Only values of good quality are drawn; gaps are times the value wasn't valid.") }}</p>
+{% endblock %}

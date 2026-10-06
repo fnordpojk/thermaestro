@@ -1,0 +1,536 @@
+# German translations of Thermaestro's web UI.
+# Distributed under the same license as Thermaestro (AGPL-3.0-or-later).
+msgid ""
+msgstr ""
+"Project-Id-Version: Thermaestro 0.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-06 22:56+0200\n"
+"PO-Revision-Date: 2026-10-06 22:56+0200\n"
+"Last-Translator: \n"
+"Language: de\n"
+"Language-Team: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "0 picks a free one"
+msgstr "0 wählt einen freien"
+
+msgid "24 hours"
+msgstr "24 Stunden"
+
+msgid "6 hours"
+msgstr "6 Stunden"
+
+msgid "64 hex digits, for the Thermaestro gateway"
+msgstr "64 Hexadezimalziffern, für das Thermaestro-Gateway"
+
+msgid "7 days"
+msgstr "7 Tage"
+
+msgid ""
+"A Nibe F-series pump sends up to 20 registers listed in a LOG.SET file by itself, "
+"twice a second, so Thermaestro needn't ask for them one at a time. Copy the file to a"
+" USB stick and load it in the pump's USB menu (7.2). The pump is particular about "
+"sticks: those larger than 4 GB, or made in about the last 15 years, often aren't "
+"accepted. Everything works without it, more slowly."
+msgstr ""
+"Eine Nibe-Wärmepumpe der F-Serie sendet bis zu 20 Register, die in einer LOG.SET-"
+"Datei stehen, von selbst zweimal pro Sekunde, sodass Thermaestro sie nicht einzeln "
+"abfragen muss. Kopieren Sie die Datei auf einen USB-Stick und laden Sie sie im USB-"
+"Menü der Pumpe (7.2). Die Pumpe ist bei USB-Sticks wählerisch: Sticks mit mehr als 4 "
+"GB oder aus etwa den letzten 15 Jahren werden oft nicht angenommen. Ohne die Datei "
+"funktioniert alles, nur langsamer."
+
+msgid ""
+"A token lets a script or the command line use the API. It carries only the rights you"
+" give it, never more than yours."
+msgstr ""
+"Ein Token erlaubt einem Skript oder der Kommandozeile, die API zu nutzen. Es hat nur "
+"die Rechte, die Sie ihm geben, nie mehr als Ihre eigenen."
+
+msgid "API tokens"
+msgstr "API-Tokens"
+
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Add a user"
+msgstr "Benutzer hinzufügen"
+
+msgid "Add the pump's connection in the settings."
+msgstr "Fügen Sie die Verbindung zur Pumpe in den Einstellungen hinzu."
+
+msgid "Audit log"
+msgstr "Prüfprotokoll"
+
+msgid "Browser"
+msgstr "Browser"
+
+msgid "Change"
+msgstr "Ändern"
+
+msgid "Change your password"
+msgstr "Passwort ändern"
+
+msgid "Changes here need your password within the last 15 minutes; you'll be asked for it."
+msgstr ""
+"Änderungen hier erfordern Ihr Passwort innerhalb der letzten 15 Minuten; Sie werden "
+"danach gefragt."
+
+msgid ""
+"Changes to users, groups, secrets and plugins need your password within the last 15 "
+"minutes."
+msgstr ""
+"Änderungen an Benutzern, Gruppen, Geheimnissen und Plugins erfordern Ihr Passwort "
+"innerhalb der letzten 15 Minuten."
+
+msgid "Confirm"
+msgstr "Bestätigen"
+
+msgid "Control port"
+msgstr "Steuerport"
+
+msgid "Copy it now: it is shown only this once."
+msgstr "Kopieren Sie es jetzt: Es wird nur dieses eine Mal angezeigt."
+
+msgid "Create and log in"
+msgstr "Anlegen und anmelden"
+
+msgid "Create the first one with the setup code."
+msgstr "Legen Sie ihn mit dem Einrichtungscode an."
+
+msgid "Create token"
+msgstr "Token erstellen"
+
+msgid "Days it lasts"
+msgstr "Gültigkeit in Tagen"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Diagnostics"
+msgstr "Diagnose"
+
+msgid "Download"
+msgstr "Herunterladen"
+
+msgid ""
+"Enter the setup code from the host. It is in Thermaestro's log at start, and "
+"`thermaestro setup-code` prints it. It works once, for 60 minutes."
+msgstr ""
+"Geben Sie den Einrichtungscode vom Host ein. Er steht beim Start im Protokoll von "
+"Thermaestro, und `thermaestro setup-code` gibt ihn aus. Er gilt einmal, für 60 "
+"Minuten."
+
+msgid "Enter your password again"
+msgstr "Geben Sie Ihr Passwort erneut ein"
+
+msgid "Expires"
+msgstr "Läuft ab"
+
+msgid "First administrator"
+msgstr "Erster Administrator"
+
+msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
+msgstr "Für Vorhersagen und den Sonnenstand. Koordinaten mit Dezimalpunkt, zum Beispiel 59.33."
+
+msgid "From"
+msgstr "Von"
+
+msgid "Gateway address"
+msgstr "Adresse des Gateways"
+
+msgid "Group"
+msgstr "Gruppe"
+
+msgid "Groups"
+msgstr "Gruppen"
+
+msgid "HTTPS"
+msgstr "HTTPS"
+
+msgid "HTTPS is off."
+msgstr "HTTPS ist ausgeschaltet."
+
+msgid "Health"
+msgstr "Zustand"
+
+msgid "Instance"
+msgstr "Instanz"
+
+msgid "Key (pre-shared)"
+msgstr "Schlüssel (vorab vereinbart)"
+
+msgid "Last error:"
+msgstr "Letzter Fehler:"
+
+msgid "Last seen"
+msgstr "Zuletzt aktiv"
+
+msgid "Last used"
+msgstr "Zuletzt verwendet"
+
+msgid "Latitude"
+msgstr "Breitengrad"
+
+msgid "Local port"
+msgstr "Lokaler Port"
+
+msgid "Location"
+msgstr "Standort"
+
+msgid "Log in"
+msgstr "Anmelden"
+
+msgid "Log out"
+msgstr "Abmelden"
+
+msgid "Longitude"
+msgstr "Längengrad"
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "More"
+msgstr "Mehr"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "New group"
+msgstr "Neue Gruppe"
+
+msgid "New password"
+msgstr "Neues Passwort"
+
+msgid ""
+"Newest first. `thermaestro audit verify` on the host checks that no line was changed "
+"or removed."
+msgstr ""
+"Neueste zuerst. `thermaestro audit verify` auf dem Host prüft, dass keine Zeile "
+"geändert oder entfernt wurde."
+
+msgid "NibeGW (plain)"
+msgstr "NibeGW (einfach)"
+
+msgid "No administrator exists yet."
+msgstr "Es gibt noch keinen Administrator."
+
+msgid "No plugin instances."
+msgstr "Keine Plugin-Instanzen."
+
+msgid "No values in this period."
+msgstr "Keine Werte in diesem Zeitraum."
+
+msgid "None yet."
+msgstr "Noch keine."
+
+msgid "Nothing is connected yet."
+msgstr "Noch ist nichts verbunden."
+
+msgid "Observed"
+msgstr "Gemessen"
+
+msgid "Only values of good quality are drawn; gaps are times the value wasn't valid."
+msgstr ""
+"Nur Werte guter Qualität werden gezeichnet; Lücken sind Zeiten, in denen der Wert "
+"nicht gültig war."
+
+msgid "Outcome"
+msgstr "Ergebnis"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Plugins"
+msgstr "Plugins"
+
+msgid "Point"
+msgstr "Messpunkt"
+
+msgid "Protocol"
+msgstr "Protokoll"
+
+msgid "Quality"
+msgstr "Qualität"
+
+msgid "Read port"
+msgstr "Leseport"
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Remove this user"
+msgstr "Diesen Benutzer entfernen"
+
+msgid "Restarts"
+msgstr "Neustarts"
+
+msgid "Revoke"
+msgstr "Widerrufen"
+
+msgid "Rights"
+msgstr "Rechte"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Save and connect"
+msgstr "Speichern und verbinden"
+
+msgid "Secrets"
+msgstr "Geheimnisse"
+
+msgid ""
+"Secrets are kept in a separate file only Thermaestro can read, and never shown after "
+"they're entered."
+msgstr ""
+"Geheimnisse werden in einer separaten Datei gespeichert, die nur Thermaestro lesen "
+"kann, und nach der Eingabe nie wieder angezeigt."
+
+msgid "Set password and log out everywhere"
+msgstr "Passwort setzen und überall abmelden"
+
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "Setup code"
+msgstr "Einrichtungscode"
+
+msgid "Since"
+msgstr "Seit"
+
+msgid "Stale:"
+msgstr "Veraltet:"
+
+msgid "State"
+msgstr "Status"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "The form had expired, or came from another site. Please try again."
+msgstr ""
+"Das Formular war abgelaufen oder kam von einer anderen Website. Bitte versuchen Sie "
+"es erneut."
+
+msgid ""
+"The gateway that connects Thermaestro to a Nibe pump's bus: its address, and the "
+"protocol it speaks."
+msgstr ""
+"Das Gateway, das Thermaestro mit dem Bus einer Nibe-Pumpe verbindet: seine Adresse "
+"und das Protokoll, das es spricht."
+
+msgid "The pump's connection"
+msgstr "Verbindung zur Pumpe"
+
+msgid "The same again"
+msgstr "Noch einmal"
+
+msgid "The values could not be loaded."
+msgstr "Die Werte konnten nicht geladen werden."
+
+msgid "Thermaestro gateway (with a key)"
+msgstr "Thermaestro-Gateway (mit Schlüssel)"
+
+msgid ""
+"This installation's certificate is its own, not from an authority, so the browser "
+"warns about it. Compare its SHA-256 fingerprint with the one the browser shows:"
+msgstr ""
+"Das Zertifikat dieser Installation ist ein eigenes, nicht von einer "
+"Zertifizierungsstelle, daher warnt der Browser davor. Vergleichen Sie seinen "
+"SHA-256-Fingerabdruck mit dem, den der Browser anzeigt:"
+
+msgid "This plugin offers no points."
+msgstr "Dieses Plugin bietet keine Messpunkte."
+
+msgid "Time range"
+msgstr "Zeitraum"
+
+msgid "Time zone"
+msgstr "Zeitzone"
+
+msgid "User"
+msgstr "Benutzer"
+
+msgid "User name"
+msgstr "Benutzername"
+
+msgid "Users"
+msgstr "Benutzer"
+
+msgid "Value"
+msgstr "Wert"
+
+msgid "Waiting for the plugin to describe its device…"
+msgstr "Warten, bis das Plugin sein Gerät beschreibt…"
+
+msgid "What"
+msgstr "Was"
+
+msgid "When"
+msgstr "Wann"
+
+msgid "Where you're logged in"
+msgstr "Wo Sie angemeldet sind"
+
+msgid "Who"
+msgstr "Wer"
+
+msgid "Write port"
+msgstr "Schreibport"
+
+msgid "You don't have the right to do that."
+msgstr "Dazu haben Sie nicht das Recht."
+
+msgid "Your new token"
+msgstr "Ihr neues Token"
+
+msgid "a password can have at most 256 characters"
+msgstr "ein Passwort darf höchstens 256 Zeichen haben"
+
+msgid "a password needs at least 15 characters"
+msgstr "ein Passwort braucht mindestens 15 Zeichen"
+
+msgid "a user name is 1 to 64 letters, digits or . _ @ -"
+msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
+
+msgid "add, change and remove plugin instances"
+msgstr "Plugin-Instanzen hinzufügen, ändern und entfernen"
+
+msgid "add, change and remove users and their rights"
+msgstr "Benutzer und ihre Rechte hinzufügen, ändern und entfernen"
+
+msgid "all"
+msgstr "alle"
+
+msgid "as the pump reports it"
+msgstr "wie die Pumpe es meldet"
+
+msgid "assumed"
+msgstr "angenommen"
+
+msgid "at least 15 characters"
+msgstr "mindestens 15 Zeichen"
+
+msgid "at least 15 characters; a sentence is easy to remember"
+msgstr "mindestens 15 Zeichen; ein Satz ist leicht zu merken"
+
+msgid "change the installation's settings"
+msgstr "die Einstellungen der Installation ändern"
+
+msgid "contended"
+msgstr "belegt"
+
+msgid "create and revoke one's own API tokens"
+msgstr "eigene API-Tokens erstellen und widerrufen"
+
+msgid "disabled"
+msgstr "deaktiviert"
+
+msgid "down"
+msgstr "ausgefallen"
+
+msgid "e.g. backup script"
+msgstr "z. B. Sicherungsskript"
+
+msgid "empty: as the pump reports it"
+msgstr "leer: wie die Pumpe es meldet"
+
+msgid "enter or replace secrets (never read them back)"
+msgstr "Geheimnisse eingeben oder ersetzen (nie wieder auslesen)"
+
+msgid "enter your password again to make this change"
+msgstr "geben Sie Ihr Passwort erneut ein, um diese Änderung vorzunehmen"
+
+msgid "entered; leave empty to keep it"
+msgstr "eingegeben; leer lassen, um ihn zu behalten"
+
+msgid "good"
+msgstr "gut"
+
+msgid "last heard"
+msgstr "zuletzt gehört"
+
+msgid "no_flow"
+msgstr "kein Durchfluss"
+
+msgid "not_connected"
+msgstr "nicht angeschlossen"
+
+msgid "off"
+msgstr "aus"
+
+msgid "on"
+msgstr "ein"
+
+msgid "out_of_range"
+msgstr "außerhalb des Bereichs"
+
+msgid "read the audit log"
+msgstr "das Prüfprotokoll lesen"
+
+msgid "restarting"
+msgstr "startet neu"
+
+msgid "see devices, values and their history"
+msgstr "Geräte, Werte und ihren Verlauf sehen"
+
+msgid "see the installation's settings"
+msgstr "die Einstellungen der Installation sehen"
+
+msgid "stale"
+msgstr "veraltet"
+
+msgid "starting"
+msgstr "startet"
+
+msgid "stopped"
+msgstr "gestoppt"
+
+msgid ""
+"that password is too easy to guess: it is a common one, or contains the user name or "
+"the product's"
+msgstr ""
+"dieses Passwort ist zu leicht zu erraten: Es ist ein gängiges oder enthält den "
+"Benutzernamen oder den Produktnamen"
+
+msgid "that would leave no user who can manage users"
+msgstr "dann könnte kein Benutzer mehr Benutzer verwalten"
+
+msgid "the password you entered isn't right"
+msgstr "das eingegebene Passwort ist nicht richtig"
+
+msgid "the setup code isn't right, or has expired"
+msgstr "der Einrichtungscode ist falsch oder abgelaufen"
+
+msgid "the two passwords differ"
+msgstr "die beiden Passwörter stimmen nicht überein"
+
+msgid "there is already an administrator"
+msgstr "es gibt bereits einen Administrator"
+
+msgid "this one"
+msgstr "dieser"
+
+msgid "too many attempts; wait a few minutes"
+msgstr "zu viele Versuche; warten Sie ein paar Minuten"
+
+msgid "transitional"
+msgstr "im Übergang"
+
+msgid "unknown"
+msgstr "unbekannt"
+
+msgid "up"
+msgstr "läuft"
+
+msgid "waiting"
+msgstr "wartet"
+
+msgid "wrong user name or password"
+msgstr "falscher Benutzername oder falsches Passwort"
+

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Audit log") }}{% endblock %}
+{% block main %}
+<h1>{{ _("Audit log") }}</h1>
+<p class="hint">{{ _("Newest first. `thermaestro audit verify` on the host checks that no line was changed or removed.") }}</p>
+<table class="audit">
+  <thead><tr><th>{{ _("When") }}</th><th>{{ _("Who") }}</th><th>{{ _("From") }}</th><th>{{ _("What") }}</th><th>{{ _("Outcome") }}</th><th>{{ _("Details") }}</th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+  <tr class="outcome-{{ e.outcome }}">
+    <td>{{ e.t }}</td>
+    <td>{{ e.who }}</td>
+    <td>{{ e["from"] or "" }}</td>
+    <td>{{ e.what }}</td>
+    <td>{{ e.outcome }}{% if e.why %}: {{ e.why }}{% endif %}</td>
+    <td>{% for k, v in (e.details or {}) | dictsort %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

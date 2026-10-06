@@ -7,6 +7,7 @@ host is what catches that. Values of secrets never go in; their names may.
 """
 
 import asyncio
+import fcntl
 import hashlib
 import json
 import os
@@ -30,6 +31,7 @@ class AuditLog:
         self.path = directory / FILE
         self._lock = asyncio.Lock()
         self._previous: str | None = None
+        self._size = -1
 
     async def record(
         self,
@@ -58,7 +60,30 @@ class AuditLog:
     ) -> None:
         if self._previous is None:
             private_directory(self.path.parent)
-            self._previous = _last_hash(self.path)
+        # The command line appends too (`thermaestro admin ...`), possibly while the
+        # service runs: a lock, and the last hash read again if the file grew under us.
+        fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            if self._previous is None or os.fstat(fd).st_size != self._size:
+                self._previous = _last_hash(self.path)
+            line = self._line(who, what, outcome, why, source, details)
+            os.write(fd, line + b"\n")
+            os.fsync(fd)
+            self._size = os.fstat(fd).st_size
+        finally:
+            os.close(fd)  # also releases the lock
+        self._previous = _hash(line)
+
+    def _line(
+        self,
+        who: str,
+        what: str,
+        outcome: str,
+        why: str | None,
+        source: str | None,
+        details: Mapping[str, Any] | None,
+    ) -> bytes:
         entry = {
             "t": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "who": who,
@@ -70,14 +95,7 @@ class AuditLog:
             "prev": self._previous,
         }
         # json.dumps escapes CR and LF, so an entry can never forge a second line.
-        line = json.dumps(entry, ensure_ascii=False, separators=(",", ":")).encode()
-        fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-        try:
-            os.write(fd, line + b"\n")
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-        self._previous = _hash(line)
+        return json.dumps(entry, ensure_ascii=False, separators=(",", ":")).encode()
 
 
 def _last_hash(path: Path) -> str:

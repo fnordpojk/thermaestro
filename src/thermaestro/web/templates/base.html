@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"allowEval": false, "allowScriptTags": false, "includeIndicatorStyles": false, "selfRequestsOnly": true}'>
+<title>{% block title %}{% endblock %} · Thermaestro</title>
+<link rel="stylesheet" href="/static/style.css">
+{% block head %}{% endblock %}
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">Thermaestro</a>
+  {% if who %}
+  <nav>
+    {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Status") }}</a>{% endif %}
+    {% if can("settings.read") %}<a href="/settings"{% if path == "/settings" %} aria-current="page"{% endif %}>{{ _("Settings") }}</a>
+    <a href="/diagnostics"{% if path == "/diagnostics" %} aria-current="page"{% endif %}>{{ _("Diagnostics") }}</a>{% endif %}
+    {% if can("users.manage") %}<a href="/users"{% if path == "/users" %} aria-current="page"{% endif %}>{{ _("Users") }}</a>{% endif %}
+    {% if can("audit.read") %}<a href="/audit"{% if path == "/audit" %} aria-current="page"{% endif %}>{{ _("Audit log") }}</a>{% endif %}
+  </nav>
+  <div class="me">
+    <a href="/account">{{ who.principal.user.name }}</a>
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="link">{{ _("Log out") }}</button>
+    </form>
+  </div>
+  {% endif %}
+</header>
+<main>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% block main %}{% endblock %}
+</main>
+<footer>
+  <ul class="languages">
+  {% for code, name in languages.items() %}
+    <li>{% if code == lang %}<strong>{{ name }}</strong>{% else %}<a href="/lang/{{ code }}?next={{ path | urlencode }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</footer>
+</body>
+</html>

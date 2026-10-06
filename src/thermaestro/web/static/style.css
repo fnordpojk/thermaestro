@@ -1,0 +1,98 @@
+:root {
+  --bg: #fafaf8;
+  --fg: #1d1f21;
+  --muted: #5f6368;
+  --line: #d9dcde;
+  --accent: #b5462a;
+  --good: #2f7d32;
+  --warn: #9a6700;
+  --bad: #b3261e;
+  --panel: #ffffff;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17191b;
+    --fg: #e6e6e3;
+    --muted: #a0a4a8;
+    --line: #34383c;
+    --accent: #ef8a62;
+    --good: #81c784;
+    --warn: #e0b04a;
+    --bad: #ef9a9a;
+    --panel: #1f2224;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+header .brand { font-weight: 700; color: var(--accent); text-decoration: none; }
+header nav { display: flex; flex-wrap: wrap; gap: 1rem; flex: 1; }
+header nav a { color: var(--fg); text-decoration: none; }
+header nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 0.3em; }
+header .me { display: flex; gap: 0.75rem; align-items: center; }
+header .me form { margin: 0; }
+main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+footer { padding: 1rem; color: var(--muted); }
+footer .languages { display: flex; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+h1 small, h2 small { color: var(--muted); font-weight: 400; font-size: 0.7em; }
+a { color: var(--accent); }
+section { margin: 1.5rem 0; }
+.narrow { max-width: 26rem; margin: 2rem auto; }
+.hint, small { color: var(--muted); }
+.error { color: var(--bad); border-left: 3px solid var(--bad); padding-left: 0.75rem; }
+.notice { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
+code.token { word-break: break-all; font-size: 0.95em; }
+
+form { margin: 0.5rem 0; }
+form.grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: end; }
+form.inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0; }
+.narrow form label { display: block; margin-bottom: 0.75rem; }
+label { display: block; }
+label.check { display: inline-flex; gap: 0.25rem; align-items: center; margin-right: 0.75rem; }
+fieldset { border: 1px solid var(--line); padding: 0.5rem; }
+input, select, button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+input:not([type="checkbox"]), select { width: 100%; }
+button { cursor: pointer; background: var(--accent); color: #fff; border-color: var(--accent); }
+button.link { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; }
+button.danger { background: var(--panel); color: var(--bad); border-color: var(--bad); }
+button[aria-pressed="true"] { outline: 2px solid var(--fg); }
+
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.quality-stale td, tr.quality-unknown td, tr.quality-not_connected td,
+tr.quality-no_flow td, tr.quality-out_of_range td { color: var(--muted); }
+tr.quality-transitional td:nth-child(3), tr.quality-assumed td:nth-child(3) { color: var(--warn); }
+tr.outcome-failed td, tr.outcome-refused td { color: var(--bad); }
+
+.state { font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 3px; border: 1px solid currentColor; vertical-align: middle; }
+.state-up { color: var(--good); }
+.state-starting, .state-waiting { color: var(--warn); }
+.state-restarting, .state-stopped { color: var(--bad); }
+dl.counters { display: grid; grid-template-columns: auto auto; gap: 0 0.75rem; margin: 0.25rem 0; }
+dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+.ranges { display: flex; gap: 0.5rem; margin: 0.5rem 0; }
+#chart { min-height: 320px; }

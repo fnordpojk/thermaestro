@@ -5,7 +5,9 @@ file that upgrades keep. A missing file means every default.
 
     [web]
     listen = "0.0.0.0"
-    port = 8080
+    port = 8080           # HTTP
+    https = true          # also HTTPS, with a certificate of its own
+    https_port = 8443
 
     [paths]
     state = "/var/lib/thermaestro"
@@ -37,6 +39,8 @@ class _Model(BaseModel):
 class Web(_Model):
     listen: str = "0.0.0.0"  # noqa: S104  # the web UI is for the whole LAN
     port: Port = 8080
+    https: bool = True
+    https_port: Port = 8443
 
 
 class Paths(_Model):

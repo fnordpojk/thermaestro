@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ who.principal.user.name }}{% endblock %}
+{% block main %}
+<h1>{{ who.principal.user.name }}</h1>
+
+{% if new_token is defined %}
+<section class="notice" role="status">
+  <h2>{{ _("Your new token") }}</h2>
+  <p>{{ _("Copy it now: it is shown only this once.") }}</p>
+  <p><code class="token">{{ new_token }}</code></p>
+</section>
+{% endif %}
+
+<section>
+<h2>{{ _("Where you're logged in") }}</h2>
+<table>
+  <thead><tr><th>{{ _("Since") }}</th><th>{{ _("Last seen") }}</th><th>{{ _("From") }}</th><th>{{ _("Browser") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for s in sessions %}
+  <tr>
+    <td>{{ s.created | when }}</td>
+    <td>{{ s.last_seen | when }}</td>
+    <td>{{ s.source or "" }}</td>
+    <td>{{ s.agent or "" }}{% if s.id == current %} <strong>({{ _("this one") }})</strong>{% endif %}</td>
+    <td>
+      <form method="post" action="/account/sessions/{{ s.id }}/end">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit">{{ _("Log out") }}</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</section>
+
+{% if can("tokens.own") %}
+<section>
+<h2>{{ _("API tokens") }}</h2>
+<p>{{ _("A token lets a script or the command line use the API. It carries only the rights you give it, never more than yours.") }}</p>
+{% if tokens %}
+<table>
+  <thead><tr><th>{{ _("Name") }}</th><th>{{ _("Rights") }}</th><th>{{ _("Expires") }}</th><th>{{ _("Last used") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+  <tr>
+    <td>{{ t.name }}</td>
+    <td>{{ t.permissions | join(", ") }}</td>
+    <td>{{ t.expires | when }}</td>
+    <td>{{ t.last_used | when }}</td>
+    <td>
+      <form method="post" action="/account/tokens/{{ t.id }}/revoke">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="danger">{{ _("Revoke") }}</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<form method="post" action="/account/tokens" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64" placeholder="{{ _('e.g. backup script') }}"></label>
+  <label>{{ _("Days it lasts") }} <input name="days" inputmode="numeric" value="365"></label>
+  <fieldset><legend>{{ _("Rights") }}</legend>
+  {% for r in rights %}<label class="check" title="{{ _(rights[r]) }}"><input type="checkbox" name="rights" value="{{ r }}"{% if r == "points.read" %} checked{% endif %}> {{ r }}</label>{% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Create token") }}</button>
+</form>
+</section>
+{% endif %}
+
+<section>
+<h2>{{ _("Change your password") }}</h2>
+<form method="post" action="/users/{{ who.principal.user.name | urlencode }}/password" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("New password") }} <small>{{ _("at least 15 characters") }}</small>
+    <input name="password" type="password" autocomplete="new-password" minlength="15" required></label>
+  <label>{{ _("The same again") }}
+    <input name="again" type="password" autocomplete="new-password" minlength="15" required></label>
+  <button type="submit">{{ _("Change") }}</button>
+</form>
+</section>
+{% endblock %}

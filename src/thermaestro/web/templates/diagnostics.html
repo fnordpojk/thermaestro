@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Diagnostics") }}{% endblock %}
+{% block main %}
+<h1>{{ _("Diagnostics") }}</h1>
+
+<section>
+<h2>{{ _("Plugins") }}</h2>
+<table>
+  <thead><tr><th>{{ _("Instance") }}</th><th>{{ _("State") }}</th><th>{{ _("Restarts") }}</th><th>{{ _("Health") }}</th></tr></thead>
+  <tbody>
+  {% for i in instances %}
+  <tr>
+    <td>{{ i.id }} <small>{{ i.plugin }}</small></td>
+    <td><span class="state state-{{ i.state }}">{{ _(i.state) }}</span>{% if i.last_error %}<br><small>{{ i.last_error }}</small>{% endif %}</td>
+    <td class="num">{{ i.failures }}</td>
+    <td>
+      {% if i.health %}
+      {{ _(i.health.state) }}{% if i.health.last_traffic %}, {{ _("last heard") }} {{ i.health.last_traffic }}{% endif %}
+      {% if i.health.counters %}
+      <dl class="counters">{% for k, v in i.health.counters | dictsort %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+      {% endif %}
+      {% if i.health.stale %}<p>{{ _("Stale:") }} {{ i.health.stale | join(", ") }}</p>{% endif %}
+      {% else %}–{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">{{ _("No plugin instances.") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</section>
+
+<section>
+<h2>LOG.SET</h2>
+<p>{{ _("A Nibe F-series pump sends up to 20 registers listed in a LOG.SET file by itself, twice a second, so Thermaestro needn't ask for them one at a time. Copy the file to a USB stick and load it in the pump's USB menu (7.2). The pump is particular about sticks: those larger than 4 GB, or made in about the last 15 years, often aren't accepted. Everything works without it, more slowly.") }}</p>
+<form method="get" action="/api/v1/nibe/logset" class="inline">
+  <label>{{ _("Model") }}
+    <select name="model">{% for m in models %}<option>{{ m }}</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Download") }}</button>
+</form>
+</section>
+
+<section>
+<h2>{{ _("HTTPS") }}</h2>
+{% if fingerprint %}
+<p>{{ _("This installation's certificate is its own, not from an authority, so the browser warns about it. Compare its SHA-256 fingerprint with the one the browser shows:") }}</p>
+<p><code class="token">{{ fingerprint }}</code></p>
+{% else %}
+<p>{{ _("HTTPS is off.") }}</p>
+{% endif %}
+</section>
+{% endblock %}

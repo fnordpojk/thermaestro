@@ -1,0 +1,516 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-06 22:56+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "0 picks a free one"
+msgstr ""
+
+msgid "24 hours"
+msgstr ""
+
+msgid "6 hours"
+msgstr ""
+
+msgid "64 hex digits, for the Thermaestro gateway"
+msgstr ""
+
+msgid "7 days"
+msgstr ""
+
+msgid ""
+"A Nibe F-series pump sends up to 20 registers listed in a LOG.SET file by"
+" itself, twice a second, so Thermaestro needn't ask for them one at a "
+"time. Copy the file to a USB stick and load it in the pump's USB menu "
+"(7.2). The pump is particular about sticks: those larger than 4 GB, or "
+"made in about the last 15 years, often aren't accepted. Everything works "
+"without it, more slowly."
+msgstr ""
+
+msgid ""
+"A token lets a script or the command line use the API. It carries only "
+"the rights you give it, never more than yours."
+msgstr ""
+
+msgid "API tokens"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Add a user"
+msgstr ""
+
+msgid "Add the pump's connection in the settings."
+msgstr ""
+
+msgid "Audit log"
+msgstr ""
+
+msgid "Browser"
+msgstr ""
+
+msgid "Change"
+msgstr ""
+
+msgid "Change your password"
+msgstr ""
+
+msgid ""
+"Changes here need your password within the last 15 minutes; you'll be "
+"asked for it."
+msgstr ""
+
+msgid ""
+"Changes to users, groups, secrets and plugins need your password within "
+"the last 15 minutes."
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
+msgid "Control port"
+msgstr ""
+
+msgid "Copy it now: it is shown only this once."
+msgstr ""
+
+msgid "Create and log in"
+msgstr ""
+
+msgid "Create the first one with the setup code."
+msgstr ""
+
+msgid "Create token"
+msgstr ""
+
+msgid "Days it lasts"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "Diagnostics"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid ""
+"Enter the setup code from the host. It is in Thermaestro's log at start, "
+"and `thermaestro setup-code` prints it. It works once, for 60 minutes."
+msgstr ""
+
+msgid "Enter your password again"
+msgstr ""
+
+msgid "Expires"
+msgstr ""
+
+msgid "First administrator"
+msgstr ""
+
+msgid ""
+"For forecasts and the sun. Coordinates with a decimal point, such as "
+"59.33."
+msgstr ""
+
+msgid "From"
+msgstr ""
+
+msgid "Gateway address"
+msgstr ""
+
+msgid "Group"
+msgstr ""
+
+msgid "Groups"
+msgstr ""
+
+msgid "HTTPS"
+msgstr ""
+
+msgid "HTTPS is off."
+msgstr ""
+
+msgid "Health"
+msgstr ""
+
+msgid "Instance"
+msgstr ""
+
+msgid "Key (pre-shared)"
+msgstr ""
+
+msgid "Last error:"
+msgstr ""
+
+msgid "Last seen"
+msgstr ""
+
+msgid "Last used"
+msgstr ""
+
+msgid "Latitude"
+msgstr ""
+
+msgid "Local port"
+msgstr ""
+
+msgid "Location"
+msgstr ""
+
+msgid "Log in"
+msgstr ""
+
+msgid "Log out"
+msgstr ""
+
+msgid "Longitude"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "More"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "New group"
+msgstr ""
+
+msgid "New password"
+msgstr ""
+
+msgid ""
+"Newest first. `thermaestro audit verify` on the host checks that no line "
+"was changed or removed."
+msgstr ""
+
+msgid "NibeGW (plain)"
+msgstr ""
+
+msgid "No administrator exists yet."
+msgstr ""
+
+msgid "No plugin instances."
+msgstr ""
+
+msgid "No values in this period."
+msgstr ""
+
+msgid "None yet."
+msgstr ""
+
+msgid "Nothing is connected yet."
+msgstr ""
+
+msgid "Observed"
+msgstr ""
+
+msgid ""
+"Only values of good quality are drawn; gaps are times the value wasn't "
+"valid."
+msgstr ""
+
+msgid "Outcome"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Plugins"
+msgstr ""
+
+msgid "Point"
+msgstr ""
+
+msgid "Protocol"
+msgstr ""
+
+msgid "Quality"
+msgstr ""
+
+msgid "Read port"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Remove this user"
+msgstr ""
+
+msgid "Restarts"
+msgstr ""
+
+msgid "Revoke"
+msgstr ""
+
+msgid "Rights"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save and connect"
+msgstr ""
+
+msgid "Secrets"
+msgstr ""
+
+msgid ""
+"Secrets are kept in a separate file only Thermaestro can read, and never "
+"shown after they're entered."
+msgstr ""
+
+msgid "Set password and log out everywhere"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Setup code"
+msgstr ""
+
+msgid "Since"
+msgstr ""
+
+msgid "Stale:"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "The form had expired, or came from another site. Please try again."
+msgstr ""
+
+msgid ""
+"The gateway that connects Thermaestro to a Nibe pump's bus: its address, "
+"and the protocol it speaks."
+msgstr ""
+
+msgid "The pump's connection"
+msgstr ""
+
+msgid "The same again"
+msgstr ""
+
+msgid "The values could not be loaded."
+msgstr ""
+
+msgid "Thermaestro gateway (with a key)"
+msgstr ""
+
+msgid ""
+"This installation's certificate is its own, not from an authority, so the"
+" browser warns about it. Compare its SHA-256 fingerprint with the one the"
+" browser shows:"
+msgstr ""
+
+msgid "This plugin offers no points."
+msgstr ""
+
+msgid "Time range"
+msgstr ""
+
+msgid "Time zone"
+msgstr ""
+
+msgid "User"
+msgstr ""
+
+msgid "User name"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "Value"
+msgstr ""
+
+msgid "Waiting for the plugin to describe its device…"
+msgstr ""
+
+msgid "What"
+msgstr ""
+
+msgid "When"
+msgstr ""
+
+msgid "Where you're logged in"
+msgstr ""
+
+msgid "Who"
+msgstr ""
+
+msgid "Write port"
+msgstr ""
+
+msgid "You don't have the right to do that."
+msgstr ""
+
+msgid "Your new token"
+msgstr ""
+
+msgid "a password can have at most 256 characters"
+msgstr ""
+
+msgid "a password needs at least 15 characters"
+msgstr ""
+
+msgid "a user name is 1 to 64 letters, digits or . _ @ -"
+msgstr ""
+
+msgid "add, change and remove plugin instances"
+msgstr ""
+
+msgid "add, change and remove users and their rights"
+msgstr ""
+
+msgid "all"
+msgstr ""
+
+msgid "as the pump reports it"
+msgstr ""
+
+msgid "assumed"
+msgstr ""
+
+msgid "at least 15 characters"
+msgstr ""
+
+msgid "at least 15 characters; a sentence is easy to remember"
+msgstr ""
+
+msgid "change the installation's settings"
+msgstr ""
+
+msgid "contended"
+msgstr ""
+
+msgid "create and revoke one's own API tokens"
+msgstr ""
+
+msgid "disabled"
+msgstr ""
+
+msgid "down"
+msgstr ""
+
+msgid "e.g. backup script"
+msgstr ""
+
+msgid "empty: as the pump reports it"
+msgstr ""
+
+msgid "enter or replace secrets (never read them back)"
+msgstr ""
+
+msgid "enter your password again to make this change"
+msgstr ""
+
+msgid "entered; leave empty to keep it"
+msgstr ""
+
+msgid "good"
+msgstr ""
+
+msgid "last heard"
+msgstr ""
+
+msgid "no_flow"
+msgstr ""
+
+msgid "not_connected"
+msgstr ""
+
+msgid "off"
+msgstr ""
+
+msgid "on"
+msgstr ""
+
+msgid "out_of_range"
+msgstr ""
+
+msgid "read the audit log"
+msgstr ""
+
+msgid "restarting"
+msgstr ""
+
+msgid "see devices, values and their history"
+msgstr ""
+
+msgid "see the installation's settings"
+msgstr ""
+
+msgid "stale"
+msgstr ""
+
+msgid "starting"
+msgstr ""
+
+msgid "stopped"
+msgstr ""
+
+msgid ""
+"that password is too easy to guess: it is a common one, or contains the "
+"user name or the product's"
+msgstr ""
+
+msgid "that would leave no user who can manage users"
+msgstr ""
+
+msgid "the password you entered isn't right"
+msgstr ""
+
+msgid "the setup code isn't right, or has expired"
+msgstr ""
+
+msgid "the two passwords differ"
+msgstr ""
+
+msgid "there is already an administrator"
+msgstr ""
+
+msgid "this one"
+msgstr ""
+
+msgid "too many attempts; wait a few minutes"
+msgstr ""
+
+msgid "transitional"
+msgstr ""
+
+msgid "unknown"
+msgstr ""
+
+msgid "up"
+msgstr ""
+
+msgid "waiting"
+msgstr ""
+
+msgid "wrong user name or password"
+msgstr ""
+

@@ -1,0 +1,530 @@
+# Swedish translations of Thermaestro's web UI.
+# Distributed under the same license as Thermaestro (AGPL-3.0-or-later).
+msgid ""
+msgstr ""
+"Project-Id-Version: Thermaestro 0.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-06 22:56+0200\n"
+"PO-Revision-Date: 2026-10-06 22:56+0200\n"
+"Last-Translator: \n"
+"Language: sv\n"
+"Language-Team: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "0 picks a free one"
+msgstr "0 väljer en ledig"
+
+msgid "24 hours"
+msgstr "24 timmar"
+
+msgid "6 hours"
+msgstr "6 timmar"
+
+msgid "64 hex digits, for the Thermaestro gateway"
+msgstr "64 hexadecimala siffror, för Thermaestros gateway"
+
+msgid "7 days"
+msgstr "7 dagar"
+
+msgid ""
+"A Nibe F-series pump sends up to 20 registers listed in a LOG.SET file by itself, "
+"twice a second, so Thermaestro needn't ask for them one at a time. Copy the file to a"
+" USB stick and load it in the pump's USB menu (7.2). The pump is particular about "
+"sticks: those larger than 4 GB, or made in about the last 15 years, often aren't "
+"accepted. Everything works without it, more slowly."
+msgstr ""
+"En Nibe-pump i F-serien skickar själv upp till 20 register som står i en LOG.SET-fil,"
+" två gånger i sekunden, så att Thermaestro inte behöver fråga efter dem ett i taget. "
+"Kopiera filen till ett USB-minne och läs in den i pumpens USB-meny (7.2). Pumpen är "
+"kinkig med USB-minnen: sådana som är större än 4 GB, eller tillverkade under ungefär "
+"de senaste 15 åren, godtas ofta inte. Allt fungerar utan den, fast långsammare."
+
+msgid ""
+"A token lets a script or the command line use the API. It carries only the rights you"
+" give it, never more than yours."
+msgstr ""
+"En token låter ett skript eller kommandoraden använda API:et. Den har bara de "
+"rättigheter du ger den, aldrig fler än dina egna."
+
+msgid "API tokens"
+msgstr "API-tokens"
+
+msgid "Add"
+msgstr "Lägg till"
+
+msgid "Add a user"
+msgstr "Lägg till en användare"
+
+msgid "Add the pump's connection in the settings."
+msgstr "Lägg till pumpens anslutning i inställningarna."
+
+msgid "Audit log"
+msgstr "Granskningslogg"
+
+msgid "Browser"
+msgstr "Webbläsare"
+
+msgid "Change"
+msgstr "Ändra"
+
+msgid "Change your password"
+msgstr "Byt ditt lösenord"
+
+msgid "Changes here need your password within the last 15 minutes; you'll be asked for it."
+msgstr ""
+"Ändringar här kräver ditt lösenord inom de senaste 15 minuterna; du blir tillfrågad "
+"om det."
+
+msgid ""
+"Changes to users, groups, secrets and plugins need your password within the last 15 "
+"minutes."
+msgstr ""
+"Ändringar av användare, grupper, hemligheter och tillägg kräver ditt lösenord inom de"
+" senaste 15 minuterna."
+
+msgid "Confirm"
+msgstr "Bekräfta"
+
+msgid "Control port"
+msgstr "Kontrollport"
+
+msgid "Copy it now: it is shown only this once."
+msgstr "Kopiera den nu: den visas bara den här gången."
+
+msgid "Create and log in"
+msgstr "Skapa och logga in"
+
+msgid "Create the first one with the setup code."
+msgstr "Skapa den första med installationskoden."
+
+msgid "Create token"
+msgstr "Skapa token"
+
+msgid "Days it lasts"
+msgstr "Giltig antal dagar"
+
+msgid "Details"
+msgstr "Detaljer"
+
+msgid "Diagnostics"
+msgstr "Diagnostik"
+
+msgid "Download"
+msgstr "Ladda ner"
+
+msgid ""
+"Enter the setup code from the host. It is in Thermaestro's log at start, and "
+"`thermaestro setup-code` prints it. It works once, for 60 minutes."
+msgstr ""
+"Ange installationskoden från värddatorn. Den står i Thermaestros logg vid start, och "
+"`thermaestro setup-code` skriver ut den. Den fungerar en gång, i 60 minuter."
+
+msgid "Enter your password again"
+msgstr "Ange ditt lösenord igen"
+
+msgid "Expires"
+msgstr "Upphör"
+
+msgid "First administrator"
+msgstr "Första administratören"
+
+msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
+msgstr "För prognoser och solen. Koordinater med decimalpunkt, till exempel 59.33."
+
+msgid "From"
+msgstr "Från"
+
+msgid "Gateway address"
+msgstr "Gatewayens adress"
+
+msgid "Group"
+msgstr "Grupp"
+
+msgid "Groups"
+msgstr "Grupper"
+
+msgid "HTTPS"
+msgstr "HTTPS"
+
+msgid "HTTPS is off."
+msgstr "HTTPS är avstängt."
+
+msgid "Health"
+msgstr "Hälsa"
+
+msgid "Instance"
+msgstr "Instans"
+
+msgid "Key (pre-shared)"
+msgstr "Nyckel (delad i förväg)"
+
+msgid "Last error:"
+msgstr "Senaste fel:"
+
+msgid "Last seen"
+msgstr "Senast aktiv"
+
+msgid "Last used"
+msgstr "Senast använd"
+
+msgid "Latitude"
+msgstr "Latitud"
+
+msgid "Local port"
+msgstr "Lokal port"
+
+msgid "Location"
+msgstr "Plats"
+
+msgid "Log in"
+msgstr "Logga in"
+
+msgid "Log out"
+msgstr "Logga ut"
+
+msgid "Longitude"
+msgstr "Longitud"
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "More"
+msgstr "Mer"
+
+msgid "Name"
+msgstr "Namn"
+
+msgid "New group"
+msgstr "Ny grupp"
+
+msgid "New password"
+msgstr "Nytt lösenord"
+
+msgid ""
+"Newest first. `thermaestro audit verify` on the host checks that no line was changed "
+"or removed."
+msgstr ""
+"Nyaste först. `thermaestro audit verify` på värddatorn kontrollerar att ingen rad har"
+" ändrats eller tagits bort."
+
+msgid "NibeGW (plain)"
+msgstr "NibeGW (vanlig)"
+
+msgid "No administrator exists yet."
+msgstr "Det finns ingen administratör än."
+
+msgid "No plugin instances."
+msgstr "Inga tilläggsinstanser."
+
+msgid "No values in this period."
+msgstr "Inga värden under den här perioden."
+
+msgid "None yet."
+msgstr "Inga än."
+
+msgid "Nothing is connected yet."
+msgstr "Inget är anslutet än."
+
+msgid "Observed"
+msgstr "Uppmätt"
+
+msgid "Only values of good quality are drawn; gaps are times the value wasn't valid."
+msgstr "Bara värden av god kvalitet ritas; luckorna är tider då värdet inte var giltigt."
+
+msgid "Outcome"
+msgstr "Utfall"
+
+msgid "Password"
+msgstr "Lösenord"
+
+msgid "Plugins"
+msgstr "Tillägg"
+
+msgid "Point"
+msgstr "Punkt"
+
+msgid "Protocol"
+msgstr "Protokoll"
+
+msgid "Quality"
+msgstr "Kvalitet"
+
+msgid "Read port"
+msgstr "Läsport"
+
+msgid "Remove"
+msgstr "Ta bort"
+
+msgid "Remove this user"
+msgstr "Ta bort den här användaren"
+
+msgid "Restarts"
+msgstr "Omstarter"
+
+msgid "Revoke"
+msgstr "Återkalla"
+
+msgid "Rights"
+msgstr "Rättigheter"
+
+msgid "Save"
+msgstr "Spara"
+
+msgid "Save and connect"
+msgstr "Spara och anslut"
+
+msgid "Secrets"
+msgstr "Hemligheter"
+
+msgid ""
+"Secrets are kept in a separate file only Thermaestro can read, and never shown after "
+"they're entered."
+msgstr ""
+"Hemligheter sparas i en separat fil som bara Thermaestro kan läsa, och visas aldrig "
+"efter att de har angetts."
+
+msgid "Set password and log out everywhere"
+msgstr "Sätt lösenord och logga ut överallt"
+
+msgid "Settings"
+msgstr "Inställningar"
+
+msgid "Setup code"
+msgstr "Installationskod"
+
+msgid "Since"
+msgstr "Sedan"
+
+msgid "Stale:"
+msgstr "Inaktuella:"
+
+msgid "State"
+msgstr "Tillstånd"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "The form had expired, or came from another site. Please try again."
+msgstr "Formuläret hade gått ut, eller kom från en annan webbplats. Försök igen."
+
+msgid ""
+"The gateway that connects Thermaestro to a Nibe pump's bus: its address, and the "
+"protocol it speaks."
+msgstr ""
+"Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
+"protokollet den talar."
+
+msgid "The pump's connection"
+msgstr "Pumpens anslutning"
+
+msgid "The same again"
+msgstr "Samma igen"
+
+msgid "The values could not be loaded."
+msgstr "Värdena kunde inte hämtas."
+
+msgid "Thermaestro gateway (with a key)"
+msgstr "Thermaestros gateway (med nyckel)"
+
+msgid ""
+"This installation's certificate is its own, not from an authority, so the browser "
+"warns about it. Compare its SHA-256 fingerprint with the one the browser shows:"
+msgstr ""
+"Den här installationens certifikat är dess eget, inte utfärdat av en "
+"certifikatutfärdare, så webbläsaren varnar för det. Jämför dess SHA-256-fingeravtryck"
+" med det som webbläsaren visar:"
+
+msgid "This plugin offers no points."
+msgstr "Det här tillägget erbjuder inga punkter."
+
+msgid "Time range"
+msgstr "Tidsintervall"
+
+msgid "Time zone"
+msgstr "Tidszon"
+
+msgid "User"
+msgstr "Användare"
+
+msgid "User name"
+msgstr "Användarnamn"
+
+msgid "Users"
+msgstr "Användare"
+
+msgid "Value"
+msgstr "Värde"
+
+msgid "Waiting for the plugin to describe its device…"
+msgstr "Väntar på att tillägget ska beskriva sin enhet…"
+
+msgid "What"
+msgstr "Vad"
+
+msgid "When"
+msgstr "När"
+
+msgid "Where you're logged in"
+msgstr "Där du är inloggad"
+
+msgid "Who"
+msgstr "Vem"
+
+msgid "Write port"
+msgstr "Skrivport"
+
+msgid "You don't have the right to do that."
+msgstr "Du har inte rätt att göra det."
+
+msgid "Your new token"
+msgstr "Din nya token"
+
+msgid "a password can have at most 256 characters"
+msgstr "ett lösenord får ha högst 256 tecken"
+
+msgid "a password needs at least 15 characters"
+msgstr "ett lösenord måste ha minst 15 tecken"
+
+msgid "a user name is 1 to 64 letters, digits or . _ @ -"
+msgstr "ett användarnamn är 1 till 64 bokstäver, siffror eller . _ @ -"
+
+msgid "add, change and remove plugin instances"
+msgstr "lägga till, ändra och ta bort tilläggsinstanser"
+
+msgid "add, change and remove users and their rights"
+msgstr "lägga till, ändra och ta bort användare och deras rättigheter"
+
+msgid "all"
+msgstr "alla"
+
+msgid "as the pump reports it"
+msgstr "som pumpen anger den"
+
+msgid "assumed"
+msgstr "antaget"
+
+msgid "at least 15 characters"
+msgstr "minst 15 tecken"
+
+msgid "at least 15 characters; a sentence is easy to remember"
+msgstr "minst 15 tecken; en mening är lätt att komma ihåg"
+
+msgid "change the installation's settings"
+msgstr "ändra installationens inställningar"
+
+msgid "contended"
+msgstr "upptagen"
+
+msgid "create and revoke one's own API tokens"
+msgstr "skapa och återkalla sina egna API-tokens"
+
+msgid "disabled"
+msgstr "avstängd"
+
+msgid "down"
+msgstr "nere"
+
+msgid "e.g. backup script"
+msgstr "t.ex. säkerhetskopieringsskript"
+
+msgid "empty: as the pump reports it"
+msgstr "tomt: som pumpen anger den"
+
+msgid "enter or replace secrets (never read them back)"
+msgstr "ange eller byta hemligheter (aldrig läsa dem igen)"
+
+msgid "enter your password again to make this change"
+msgstr "ange ditt lösenord igen för att göra den här ändringen"
+
+msgid "entered; leave empty to keep it"
+msgstr "angiven; lämna tomt för att behålla den"
+
+msgid "good"
+msgstr "god"
+
+msgid "last heard"
+msgstr "senast hörd"
+
+msgid "no_flow"
+msgstr "inget flöde"
+
+msgid "not_connected"
+msgstr "inte ansluten"
+
+msgid "off"
+msgstr "av"
+
+msgid "on"
+msgstr "på"
+
+msgid "out_of_range"
+msgstr "utanför intervallet"
+
+msgid "read the audit log"
+msgstr "läsa granskningsloggen"
+
+msgid "restarting"
+msgstr "startar om"
+
+msgid "see devices, values and their history"
+msgstr "se enheter, värden och deras historik"
+
+msgid "see the installation's settings"
+msgstr "se installationens inställningar"
+
+msgid "stale"
+msgstr "inaktuellt"
+
+msgid "starting"
+msgstr "startar"
+
+msgid "stopped"
+msgstr "stoppad"
+
+msgid ""
+"that password is too easy to guess: it is a common one, or contains the user name or "
+"the product's"
+msgstr ""
+"det lösenordet är för lätt att gissa: det är ett vanligt lösenord, eller innehåller "
+"användarnamnet eller produktens namn"
+
+msgid "that would leave no user who can manage users"
+msgstr "då skulle ingen användare kunna hantera användare"
+
+msgid "the password you entered isn't right"
+msgstr "lösenordet du angav stämmer inte"
+
+msgid "the setup code isn't right, or has expired"
+msgstr "installationskoden stämmer inte, eller har gått ut"
+
+msgid "the two passwords differ"
+msgstr "de två lösenorden skiljer sig åt"
+
+msgid "there is already an administrator"
+msgstr "det finns redan en administratör"
+
+msgid "this one"
+msgstr "den här"
+
+msgid "too many attempts; wait a few minutes"
+msgstr "för många försök; vänta några minuter"
+
+msgid "transitional"
+msgstr "övergående"
+
+msgid "unknown"
+msgstr "okänt"
+
+msgid "up"
+msgstr "igång"
+
+msgid "waiting"
+msgstr "väntar"
+
+msgid "wrong user name or password"
+msgstr "fel användarnamn eller lösenord"
+

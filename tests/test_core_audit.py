@@ -61,3 +61,11 @@ async def test_the_command(tmp_path: Path) -> None:
     assert main(["audit", "verify", str(path)]) == 0
     path.write_text(path.read_text().replace('"a"', '"z"'))
     assert main(["audit", "verify", str(path)]) == 1
+
+
+async def test_two_writers_keep_one_chain(tmp_path: Path) -> None:
+    # The service and the command line append to the same file.
+    service, cli = AuditLog(tmp_path), AuditLog(tmp_path)
+    for log in (service, cli, service, service, cli, service):
+        await log.record("core", "x")
+    assert verify(tmp_path / "audit.jsonl") == []

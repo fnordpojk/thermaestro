@@ -78,17 +78,33 @@ class PluginHost:
         every 15 s."""
         self.instances: dict[str, Instance] = {}
         self._tasks: set[asyncio.Task[None]] = set()
+        self._supervisors: dict[str, asyncio.Task[None]] = {}
 
     async def start(self) -> None:
         for id, setting in (await self._db.all(Plugin)).items():
-            if not setting.enabled:
-                continue
-            instance = Instance(id, setting)
-            self.instances[id] = instance
-            if setting.plugin in self._factories:
-                self._spawn(self._supervise(instance))
-            else:
-                instance.state = State.WAITING
+            self._begin(id, setting)
+
+    async def apply(self, id: str) -> None:
+        """Start, restart or stop one instance after its setting changed."""
+        supervisor = self._supervisors.pop(id, None)
+        if supervisor is not None:
+            supervisor.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await supervisor
+        self.instances.pop(id, None)
+        setting = await self._db.get(Plugin, id)
+        if setting is not None:
+            self._begin(id, setting)
+
+    def _begin(self, id: str, setting: Plugin) -> None:
+        if not setting.enabled:
+            return
+        instance = Instance(id, setting)
+        self.instances[id] = instance
+        if setting.plugin in self._factories:
+            self._supervisors[id] = self._spawn(self._supervise(instance))
+        else:
+            instance.state = State.WAITING
 
     async def stop(self) -> None:
         for task in list(self._tasks):
@@ -132,10 +148,11 @@ class PluginHost:
         finally:
             await link.close()
 
-    def _spawn(self, coro: Coroutine[Any, Any, None]) -> None:
+    def _spawn(self, coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+        return task
 
     async def _supervise(self, instance: Instance) -> None:
         factory = self._factories[instance.setting.plugin]

@@ -61,6 +61,59 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (instance, point, slot)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 3: accounts: users, groups and their rights, sessions, API tokens
+    """
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password TEXT NOT NULL,
+        created REAL NOT NULL,
+        failures INTEGER NOT NULL DEFAULT 0,
+        locked_until REAL NOT NULL DEFAULT 0,
+        disabled INTEGER NOT NULL DEFAULT 0
+    ) STRICT;
+    CREATE TABLE groups (name TEXT PRIMARY KEY) STRICT;
+    CREATE TABLE group_permissions (
+        group_name TEXT NOT NULL REFERENCES groups (name) ON DELETE CASCADE,
+        permission TEXT NOT NULL,
+        PRIMARY KEY (group_name, permission)
+    ) STRICT;
+    CREATE TABLE user_groups (
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        group_name TEXT NOT NULL REFERENCES groups (name) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, group_name)
+    ) STRICT;
+    CREATE TABLE user_permissions (
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        permission TEXT NOT NULL,
+        PRIMARY KEY (user_id, permission)
+    ) STRICT;
+    CREATE TABLE sessions (
+        hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        created REAL NOT NULL,
+        last_seen REAL NOT NULL,
+        expires REAL NOT NULL,
+        confirmed REAL NOT NULL,
+        source TEXT,
+        agent TEXT
+    ) STRICT;
+    CREATE TABLE tokens (
+        id INTEGER PRIMARY KEY,
+        hash TEXT NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        permissions TEXT NOT NULL CHECK (json_valid(permissions)),
+        created REAL NOT NULL,
+        expires REAL NOT NULL,
+        last_used REAL
+    ) STRICT;
+    INSERT INTO groups (name) VALUES ('Administrators'), ('Household'), ('Viewers');
+    INSERT INTO group_permissions (group_name, permission) VALUES
+        ('Administrators', '*'),
+        ('Household', 'points.read'),
+        ('Viewers', 'points.read');
+    """,
 )
 VERSION = len(MIGRATIONS)
 

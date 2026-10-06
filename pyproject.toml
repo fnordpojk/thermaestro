@@ -16,6 +16,16 @@ dependencies = [
     # The frame and protocol codec. Pinned to this release: both sides of the
     # protocol registry must match.
     "thermaestro-gateway==0.0.0",
+    # The web UI and API. FastAPI is still 0.x and changes often, so upgrades are
+    # taken one minor version at a time.
+    "fastapi>=0.142.2,<0.143",
+    "uvicorn>=0.54.0",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.32",
+    "babel>=2.18.0",
+    # Password hashing, and the certificate a new installation makes for HTTPS.
+    "argon2-cffi>=25.1.0",
+    "cryptography>=50.0.2",
 ]
 
 [project.scripts]
@@ -39,6 +49,7 @@ thermaestro-gateway = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",

@@ -1,0 +1,27 @@
+<form method="post" action="/settings/pump" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ id }}">
+  <label>{{ _("Gateway address") }}
+    <input name="host" required placeholder="192.0.2.20" value="{{ s.host | default('') }}"></label>
+  <label>{{ _("Protocol") }}
+    <select name="protocol">
+      <option value="nibegw"{% if s.protocol | default('nibegw') == "nibegw" %} selected{% endif %}>{{ _("NibeGW (plain)") }}</option>
+      <option value="thermaestro-gw"{% if s.protocol | default('') == "thermaestro-gw" %} selected{% endif %}>{{ _("Thermaestro gateway (with a key)") }}</option>
+    </select></label>
+  <label>{{ _("Read port") }}
+    <input name="read_port" inputmode="numeric" value="{{ s.read_port | default(9999) }}"></label>
+  <label>{{ _("Write port") }}
+    <input name="write_port" inputmode="numeric" value="{{ s.write_port | default(10000) }}"></label>
+  <label>{{ _("Control port") }}
+    <input name="control_port" inputmode="numeric" value="{{ s.control_port | default(10090) }}"></label>
+  <label>{{ _("Local port") }} <small>{{ _("0 picks a free one") }}</small>
+    <input name="local_port" inputmode="numeric" value="{{ s.local_port | default(0) }}"></label>
+  <label>{{ _("Model") }} <small>{{ _("empty: as the pump reports it") }}</small>
+    <select name="model">
+      <option value="">{{ _("as the pump reports it") }}</option>
+      {% for m in models %}<option{% if s.model | default('') == m %} selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Key (pre-shared)") }} <small>{% if s.psk | default(none) %}{{ _("entered; leave empty to keep it") }}{% else %}{{ _("64 hex digits, for the Thermaestro gateway") }}{% endif %}</small>
+    <input name="psk" type="password" autocomplete="off" spellcheck="false"></label>
+  {% if can("plugins.manage") %}<button type="submit">{{ _("Save and connect") }}</button>{% endif %}
+</form>

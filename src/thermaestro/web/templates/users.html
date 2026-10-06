@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Users") }}{% endblock %}
+{% block main %}
+<h1>{{ _("Users") }}</h1>
+<p class="hint">{{ _("Changes here need your password within the last 15 minutes; you'll be asked for it.") }}</p>
+
+<table>
+  <thead><tr><th>{{ _("User") }}</th><th>{{ _("Groups") }}</th><th>{{ _("Rights") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td>{{ u.name }}{% if u.disabled %} <span class="state state-stopped">{{ _("disabled") }}</span>{% endif %}</td>
+      <td>
+        <form method="post" action="/users/{{ u.name | urlencode }}/groups" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          {% for g in groups %}
+          <label class="check"><input type="checkbox" name="groups" value="{{ g }}"{% if g in u.groups %} checked{% endif %}> {{ g }}</label>
+          {% endfor %}
+          <button type="submit">{{ _("Save") }}</button>
+        </form>
+      </td>
+      <td>{% if "*" in u.permissions %}{{ _("all") }}{% else %}{{ u.permissions | sort | join(", ") }}{% endif %}</td>
+      <td>
+        <details>
+          <summary>{{ _("More") }}</summary>
+          <form method="post" action="/users/{{ u.name | urlencode }}/password">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <label>{{ _("New password") }} <input name="password" type="password" autocomplete="new-password" minlength="15" required></label>
+            <label>{{ _("The same again") }} <input name="again" type="password" autocomplete="new-password" minlength="15" required></label>
+            <button type="submit">{{ _("Set password and log out everywhere") }}</button>
+          </form>
+          {% if u.name != who.principal.user.name %}
+          <form method="post" action="/users/{{ u.name | urlencode }}/delete">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button type="submit" class="danger">{{ _("Remove this user") }}</button>
+          </form>
+          {% endif %}
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<section>
+<h2>{{ _("Add a user") }}</h2>
+<form method="post" action="/users" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("User name") }} <input name="name" autocomplete="off" required></label>
+  <label>{{ _("Password") }} <small>{{ _("at least 15 characters") }}</small>
+    <input name="password" type="password" autocomplete="new-password" minlength="15" required></label>
+  <fieldset><legend>{{ _("Groups") }}</legend>
+  {% for g in groups %}<label class="check"><input type="checkbox" name="groups" value="{{ g }}"{% if g == "Household" %} checked{% endif %}> {{ g }}</label>{% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+</section>
+
+<section>
+<h2>{{ _("Groups") }}</h2>
+<table>
+  <thead><tr><th>{{ _("Group") }}</th><th>{{ _("Rights") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for g, granted in groups.items() %}
+  <tr>
+    <td>{{ g }}</td>
+    <td>
+      <form method="post" action="/groups" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="name" value="{{ g }}">
+        <label class="check"><input type="checkbox" name="rights" value="*"{% if "*" in granted %} checked{% endif %}> {{ _("all") }}</label>
+        {% for r in rights %}<label class="check" title="{{ _(rights[r]) }}"><input type="checkbox" name="rights" value="{{ r }}"{% if r in granted %} checked{% endif %}> {{ r }}</label>{% endfor %}
+        <button type="submit">{{ _("Save") }}</button>
+      </form>
+    </td>
+    <td>
+      <form method="post" action="/groups/{{ g | urlencode }}/delete">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="danger">{{ _("Remove") }}</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<form method="post" action="/groups" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("New group") }} <input name="name" required></label>
+  {% for r in rights %}<label class="check" title="{{ _(rights[r]) }}"><input type="checkbox" name="rights" value="{{ r }}"> {{ r }}</label>{% endfor %}
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+</section>
+{% endblock %}

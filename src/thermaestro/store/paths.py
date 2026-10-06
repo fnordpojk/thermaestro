@@ -49,3 +49,13 @@ class Layout:
     @property
     def audit(self) -> Path:
         return self.state / "audit"
+
+    @property
+    def tls(self) -> Path:
+        """The web UI's own HTTPS certificate and key."""
+        return self.state / "tls"
+
+    @property
+    def setup_code(self) -> Path:
+        """The one-time code that lets the first administrator be created in the web UI."""
+        return self.state / "setup-code"
