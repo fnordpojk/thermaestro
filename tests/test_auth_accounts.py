@@ -61,21 +61,46 @@ def audit(tmp_path: Path) -> list[dict[str, object]]:
 
 @pytest.mark.parametrize(
     "password",
-    ["short", "a" * 257, "films+pic+galeries", "my thermaestro password", "anna's long password"],
+    [
+        "short",
+        "a" * 257,
+        "films+pic+galeries",  # common, and long enough
+        "!QAZXSW2#EDCVFR4",  # breached, any case
+        "password1234567",  # a common one padded with digits
+        "!!!monkey2024!!!",  # and with symbols
+        "aaaaaaaaaaaaaaa",  # a repeat
+        "121212121212121",
+        "1234567890123456",  # a run
+        "zyxwvutsrqponmlk",
+        "my thermaestro password",
+        "anna's long password",
+    ],
 )
 def test_weak_passwords_are_refused(password: str) -> None:
     with pytest.raises(passwords.WeakPassword):
         passwords.check(password, user="anna")
 
 
-def test_a_long_uncommon_password_is_fine() -> None:
-    passwords.check(GOOD, user="anna")
+@pytest.mark.parametrize(
+    "password",
+    [
+        GOOD,
+        "839274651029384",  # random digits are fine
+        "the kettle sings at seven",
+        "Tre små grisar i en sko",  # any language, any letters
+    ],
+)
+def test_long_uncommon_passwords_are_fine(password: str) -> None:
+    passwords.check(password, user="anna")
 
 
-def test_the_blocklist_is_loaded() -> None:
-    common = passwords._common()
-    assert len(common) > 2000
-    assert all(len(p) >= 8 for p in common)
+def test_the_blocklists_are_loaded() -> None:
+    common, breached = passwords._common(), passwords._breached()
+    assert len(common) == 10_001
+    assert all(len(p) >= 4 for p in common)
+    assert len(breached) > 10_000
+    assert all(len(p) >= passwords.MIN_LENGTH for p in breached)
+    assert all(p == p.lower() for p in breached)
 
 
 async def test_hash_and_verify() -> None:

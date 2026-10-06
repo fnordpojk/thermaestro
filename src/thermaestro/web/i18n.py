@@ -72,8 +72,9 @@ SHOWN_BY_VALUE = (
     mark("a password needs at least 15 characters"),
     mark("a password can have at most 256 characters"),
     mark(
-        "that password is too easy to guess: it is a common one, or contains the user"
-        " name or the product's"
+        "that password is too easy to guess: it is a common one, a common one with"
+        " digits or symbols around it, a repeat or a run, or contains the user name or"
+        " the product's"
     ),
     mark("enter your password again to make this change"),
 )
