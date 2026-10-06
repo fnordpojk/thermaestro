@@ -19,8 +19,20 @@ import struct
 from collections.abc import Awaitable, Callable, Collection
 from pathlib import Path
 
+from ..files import UnsafePath, private_directory, write_private
 from .carrier import LINE_LIMIT, BadLine, Closed, Endpoint, StreamEndpoint
 from .messages import Auth
+
+__all__ = [
+    "AlreadyRunning",
+    "SocketError",
+    "UnsafePath",
+    "connect_tcp",
+    "connect_unix",
+    "listen_tcp",
+    "listen_unix",
+    "private_directory",
+]
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +48,6 @@ class SocketError(Exception):
 
 class AlreadyRunning(SocketError):
     """Another instance is listening on the socket."""
-
-
-class UnsafePath(SocketError):
-    """The directory or the path isn't safe to listen in."""
 
 
 def unix_available() -> bool:
@@ -131,47 +139,6 @@ def peer_credentials(sock: socket.socket) -> tuple[int, int, int]:
         "3i", sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, size)
     )
     return pid, uid, gid
-
-
-def private_directory(directory: Path) -> None:
-    """Make `directory` 0700 if it doesn't exist. If it does, it must be this user's and
-    closed to others: 0700, or 0750 for a plugin group."""
-    try:
-        directory.mkdir(mode=0o700, parents=True)
-    except FileExistsError:
-        pass
-    else:
-        directory.chmod(0o700)  # mkdir's mode passes through the umask
-        return
-    st = directory.lstat()
-    if not stat.S_ISDIR(st.st_mode):
-        raise UnsafePath(f"{directory} isn't a directory")
-    if st.st_uid != os.getuid():
-        raise UnsafePath(f"{directory} belongs to uid {st.st_uid}, not this user")
-    if st.st_mode & 0o027:
-        raise UnsafePath(f"{directory} is open to others ({stat.filemode(st.st_mode)})")
-
-
-def write_private(path: Path, data: bytes) -> None:
-    """Write a file only this user can read, so that it's either all old or all new:
-    a temporary file, fsync, rename, then fsync the directory."""
-    temporary = path.with_name(f".{path.name}.{secrets.token_hex(4)}")
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        temporary.replace(path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            temporary.unlink()
-        raise
-    directory = os.open(path.parent, os.O_RDONLY)
-    try:
-        os.fsync(directory)
-    finally:
-        os.close(directory)
 
 
 async def _refuse_live(path: Path) -> None:
