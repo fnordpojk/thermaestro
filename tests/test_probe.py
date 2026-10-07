@@ -17,7 +17,15 @@ from thermaestro.cli import main
 from thermaestro.nibe import probe as probe_module
 from thermaestro.nibe import profile
 from thermaestro.nibe.probe import ProbeFailed, ReadOnly, load_capture, probe
-from thermaestro.nibe.transport.base import LinkHealth, Promises, Reading, WriteOutcome
+from thermaestro.nibe.transport import GatewayConfig, connect
+from thermaestro.nibe.transport.base import (
+    LinkHealth,
+    Promises,
+    ReadFailed,
+    Reading,
+    Transport,
+    WriteOutcome,
+)
 from thermaestro.store import NibeGateway
 
 LOG_SET = [40004, 40008, 43005]
@@ -142,6 +150,43 @@ async def test_an_unknown_pump_is_reported(stocked: SimPump, gateway: Gateway) -
             transport_settings={"plain_settings": FAST_PLAIN},
             identify_timeout_s=3,
         )
+
+
+class Queued(ReadOnly):
+    """Reads of one register wait, as on a real pump, where they queue behind polling."""
+
+    async def read(
+        self, register: int, *, after: float | None = None, timeout: float = 30.0
+    ) -> Reading:
+        if register == 40007:
+            if timeout < 0.5:
+                await asyncio.sleep(timeout)
+                raise ReadFailed(register, "timed out in the queue")
+            await asyncio.sleep(0.5)
+        return await super().read(register, after=after, timeout=timeout)
+
+
+async def test_detection_waits_for_queued_reads(stocked: SimPump, gateway: Gateway) -> None:
+    async def queued(config: GatewayConfig, **settings: Any) -> Transport:
+        return Queued(await connect(config, **settings))
+
+    def system2(**kw: Any) -> Any:
+        return probe(
+            plain(gateway),
+            seconds=1.0,
+            connect_fn=queued,
+            transport_settings={"plain_settings": FAST_PLAIN},
+            identify_timeout_s=5,
+            **kw,
+        )
+
+    hurried = await system2(detection_read_s=0.2)
+    checked = next(c for c in hurried.report["detection"]["checked"] if c["system"] == 2)
+    assert checked["supply_connected"] is None  # not read in time
+    patient = await system2()
+    checked = next(c for c in patient.report["detection"]["checked"] if c["system"] == 2)
+    assert checked["supply_connected"] is False
+    assert stocked.taken_writes == []
 
 
 class Inner:

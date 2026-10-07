@@ -51,6 +51,9 @@ CAPTURE_FORMAT = "thermaestro-capture"
 VERSION = 1
 SECONDS = 300.0
 UNREAD_GRACE_S = 120.0
+DETECTION_READ_S = 60.0
+"""How long a detection read may take: on a real pump it queues behind the plugin's polling,
+about one read a second."""
 PSK_NAME = "probe.psk"
 
 
@@ -153,6 +156,7 @@ async def probe(
     connect_fn: Callable[..., Awaitable[Transport]] = connect,
     transport_settings: dict[str, Any] | None = None,
     identify_timeout_s: float = 40.0,
+    detection_read_s: float = DETECTION_READ_S,
     progress: Callable[[str], None] = lambda _: None,
 ) -> Result:
     """Identify the pump, read Thermaestro's points while capturing the bus for
@@ -189,7 +193,7 @@ async def probe(
             model = plugin.model
             assert model is not None  # noqa: S101 - described means identified
             progress(f"Identified the pump: {model.name}, firmware {plugin.firmware}.")
-            detection = await _detection(transports[0], plugin)
+            detection = await _detection(transports[0], plugin, detection_read_s)
             progress(f"Reading and capturing the bus for {seconds / 60:g} minutes.")
             started = time.monotonic()
             while (left := seconds - (time.monotonic() - started)) > 0:
@@ -232,7 +236,9 @@ def _unread(plugin: NibePlugin, path: str) -> bool:
     return plugin.envelope(path).why == "not read yet"
 
 
-async def _detection(transport: ReadOnly, plugin: NibePlugin) -> list[dict[str, Any]]:
+async def _detection(
+    transport: ReadOnly, plugin: NibePlugin, timeout: float
+) -> list[dict[str, Any]]:
     """Each climate system beyond the first this model can have: its accessory switch and
     whether its supply sensor is connected, read again for the report."""
     model = plugin.model
@@ -242,13 +248,13 @@ async def _detection(transport: ReadOnly, plugin: NibePlugin) -> list[dict[str, 
         entry: dict[str, Any] = {"system": system.number, "supply": system.supply}
         if system.accessory is not None:
             entry["accessory"] = system.accessory
-            found = await _read(transport, system.accessory)
+            found = await _read(transport, system.accessory, timeout)
             entry["accessory_value"] = (
                 None
                 if found is None
                 else decode(model.register(system.accessory), *found, high_word_first=True).value
             )
-        found = await _read(transport, system.supply)
+        found = await _read(transport, system.supply, timeout)
         entry["supply_connected"] = (
             None
             if found is None
@@ -260,9 +266,9 @@ async def _detection(transport: ReadOnly, plugin: NibePlugin) -> list[dict[str, 
     return out
 
 
-async def _read(transport: ReadOnly, register: int) -> tuple[int, int] | None:
+async def _read(transport: ReadOnly, register: int, timeout: float) -> tuple[int, int] | None:
     try:
-        return words((await transport.read(register, timeout=5.0)).data)
+        return words((await transport.read(register, timeout=timeout)).data)
     except ReadFailed:
         return None
 
