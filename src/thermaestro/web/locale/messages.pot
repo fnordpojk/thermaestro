@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 00:01+0200\n"
+"POT-Creation-Date: 2026-10-08 00:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -376,6 +376,9 @@ msgid ""
 msgstr ""
 
 msgid "Electrical power"
+msgstr ""
+
+msgid "Electricity now"
 msgstr ""
 
 msgid "Electricity price"
@@ -1029,6 +1032,9 @@ msgid ""
 msgstr ""
 
 msgid "The location's climate"
+msgstr ""
+
+msgid "The next 48 hours"
 msgstr ""
 
 msgid "The pump's connection"

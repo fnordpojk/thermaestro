@@ -254,13 +254,27 @@ def _overview(request: Request, who: Caller) -> dict[str, Any]:
 
 @router.get("/")
 async def status_page(request: Request, who: Logged) -> Response:
-    return render(request, "status.html", who, **_overview(request, who))
+    glance: dict[str, Any] = {}
+    if who.principal.allows("settings.read"):
+        # The price and weather at a glance, drawn once: the values below reload, these don't.
+        from .price_pages import chart_config
+        from .weather_pages import meteogram_config
+
+        glance = {
+            "price_chart": await chart_config(request, who),
+            "meteogram": await meteogram_config(request, who),
+            "decimal": i18n.decimal_symbol(),
+            "zone": i18n.zone_name(),
+            "formats": i18n.formats.get(),
+        }
+    return render(request, "status.html", who, glance=glance, part=None, **_overview(request, who))
 
 
 @router.get("/status/values")
-async def status_values(request: Request, who: Logged) -> Response:
-    """The values alone, which the overview reloads every few seconds."""
-    return render(request, "values.html", who, **_overview(request, who))
+async def status_values(request: Request, who: Logged, part: str | None = None) -> Response:
+    """The values alone, which the overview reloads every few seconds: `top` or `devices`,
+    or both."""
+    return render(request, "values.html", who, part=part, **_overview(request, who))
 
 
 @router.get("/pump")

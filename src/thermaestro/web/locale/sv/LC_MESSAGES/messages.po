@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 00:01+0200\n"
-"PO-Revision-Date: 2026-10-08 00:01+0200\n"
+"POT-Creation-Date: 2026-10-08 00:15+0200\n"
+"PO-Revision-Date: 2026-10-08 00:15+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -400,6 +400,9 @@ msgstr ""
 
 msgid "Electrical power"
 msgstr "Elektrisk effekt"
+
+msgid "Electricity now"
+msgstr "Elpriset nu"
 
 msgid "Electricity price"
 msgstr "Elpris"
@@ -1075,6 +1078,9 @@ msgstr ""
 
 msgid "The location's climate"
 msgstr "Platsens klimat"
+
+msgid "The next 48 hours"
+msgstr "De närmaste 48 timmarna"
 
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"

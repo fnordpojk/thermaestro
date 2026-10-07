@@ -28,29 +28,36 @@ async def prices_page(request: Request, who: Logged) -> Response:
     days = []
     for day in (today, today + timedelta(days=1)):
         days.append((day, await s.price_stack(who, day)))
-    layers = await s.price_layers(who)
-    names = {
-        id: labels.role(layer.role) + (f" \N{MIDDLE DOT} {layer.plugin}" if layer.plugin else "")
-        for id, layer in layers.items()
-    }
     return render(
         request,
         "prices.html",
         who,
         offered=s.offered_series(who),
         days=days,
-        chart={
-            "names": {**names, "vat": labels.role("vat")},
-            "days": [d.isoformat() for d in (today, today + timedelta(days=1))],
-            "day_names": [i18n._("Today"), i18n._("Tomorrow")],
-            "total": i18n._("Total"),
-            "empty": i18n._("No prices for this day yet."),
-            "fallback": i18n._("* from a fallback series, where the layer's own has no price."),
-        },
+        chart=await chart_config(request, who),
         decimal=i18n.decimal_symbol(),
         zone=i18n.zone_name(),
         formats=i18n.formats.get(),
     )
+
+
+async def chart_config(request: Request, who: Caller) -> dict[str, Any]:
+    """What the price chart needs besides the prices: the days, and each layer's name."""
+    s = services(request)
+    today = datetime.now(s.zone).date()
+    layers = await s.price_layers(who)
+    names = {
+        id: labels.role(layer.role) + (f" \N{MIDDLE DOT} {layer.plugin}" if layer.plugin else "")
+        for id, layer in layers.items()
+    }
+    return {
+        "names": {**names, "vat": labels.role("vat")},
+        "days": [d.isoformat() for d in (today, today + timedelta(days=1))],
+        "day_names": [i18n._("Today"), i18n._("Tomorrow")],
+        "total": i18n._("Total"),
+        "empty": i18n._("No prices for this day yet."),
+        "fallback": i18n._("* from a fallback series, where the layer's own has no price."),
+    }
 
 
 @router.post("/prices/layers")

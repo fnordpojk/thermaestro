@@ -6,7 +6,27 @@
 <p class="notice">{{ _("Nothing is connected yet.") }}
 {% if can("plugins.manage") %}<a href="/setup/pump">{{ _("Add the pump's connection under Setup.") }}</a>{% endif %}</p>
 {% endif %}
-<div id="values" hx-get="/status/values" hx-trigger="every 5s" hx-swap="innerHTML">
-{% include "values.html" %}
+<div id="values-top" hx-get="/status/values?part=top" hx-trigger="every 5s" hx-swap="innerHTML">
+{% with part = "top" %}{% include "values.html" %}{% endwith %}
+</div>
+{% if glance %}
+{# Drawn once: the values around them reload every few seconds, these don't. #}
+<div class="cards glance">
+  <section class="card">
+    <h2><a href="/prices">{{ _("Electricity now") }}</a> <span class="price-now" id="price-now">–</span></h2>
+    <div class="price-chart" data-compact="1" data-now="price-now" data-source="/api/v1/prices"
+         data-chart='{{ glance.price_chart | tojson }}' data-decimal="{{ glance.decimal }}" data-locale="{{ glance.formats.tag }}"
+         data-zone="{{ glance.zone }}" data-clock="{{ glance.formats.clock or '' }}"></div>
+  </section>
+  <section class="card">
+    <h2><a href="/weather">{{ _("The next 48 hours") }}</a></h2>
+    <div class="price-chart" data-compact="1"
+         data-meteogram='{{ glance.meteogram | tojson }}' data-decimal="{{ glance.decimal }}" data-locale="{{ glance.formats.tag }}"
+         data-zone="{{ glance.zone }}" data-clock="{{ glance.formats.clock or '' }}"></div>
+  </section>
+</div>
+{% endif %}
+<div id="values-devices" hx-get="/status/values?part=devices" hx-trigger="every 5s" hx-swap="innerHTML">
+{% with part = "devices" %}{% include "values.html" %}{% endwith %}
 </div>
 {% endblock %}

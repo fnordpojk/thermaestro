@@ -368,12 +368,10 @@ function cssColor(name, fallback) {
 // What one more kWh costs, today and tomorrow: each layer of the stack a band, bottom to
 // top, so the top edge is the total; VAT the last band. Negative parts (a spot price below
 // zero) stack downward from zero, so the total is drawn as its own line too.
-(function () {
-  const box = document.getElementById("price-chart");
-  if (!box) {
-    return;
-  }
+// On the overview it is small (`data-compact`): no legend, and the price now beside it.
+function priceChart(box) {
   const config = JSON.parse(box.dataset.chart || "{}");
+  const compact = Boolean(box.dataset.compact);
   const f = pageFormats(box);
   const COLORS = ["#0b5c99", "#b8500b", "#00785a", "#9c4f80", "#a86a00", "#2a7fb0", "#6b6b6b"];
   let data = null;
@@ -444,8 +442,14 @@ function cssColor(name, fallback) {
     }
     const ids = layers();
     const width = box.clientWidth || 800;
-    const height = 300;
+    const height = compact ? 170 : 300;
     const pad = { left: 62, right: 12, top: 22, bottom: 26 };
+    const nowShown = box.dataset.now ? document.getElementById(box.dataset.now) : null;
+    if (nowShown) {
+      const at = Date.now() / 1000;
+      const current = data.slots.find((s) => s.t0 <= at && at < s.t1);
+      nowShown.textContent = current ? `${f.number(current.total, 2)} ${data.unit}` : "–";
+    }
     const canvas = document.createElement("canvas");
     const ratio = window.devicePixelRatio || 1;
     canvas.width = width * ratio;
@@ -657,6 +661,10 @@ function cssColor(name, fallback) {
     total.append(mark, config.total);
     legend.append(total);
 
+    if (compact) {
+      box.append(canvas, tip);
+      return;
+    }
     box.append(canvas, tip, legend);
     if (data.slots.some((s) => s.parts.some((p) => p.fallback))) {
       const note = document.createElement("p");
@@ -681,16 +689,17 @@ function cssColor(name, fallback) {
     }
   });
   load();
-})();
+}
+for (const box of document.querySelectorAll("[data-chart]")) {
+  priceChart(box);
+}
 
 // The weather after Yr's meteogram: one graph. On top, the temperature (red above zero,
 // blue below) with precipitation as bars, and the sky above it; below, the wind and its
 // gusts with the wind's direction; at the bottom, sunlight, which Thermaestro plans with.
-(function () {
-  const box = document.getElementById("meteogram");
-  if (!box) {
-    return;
-  }
+// On the overview it is small (`data-compact`): the sky, temperature and precipitation only.
+function meteogram(box) {
+  const compact = Boolean(box.dataset.compact);
   const config = JSON.parse(box.dataset.meteogram || "{}");
   const series = config.series || {};
   const texts = config.texts || {};
@@ -878,11 +887,12 @@ function cssColor(name, fallback) {
     const end = Math.min(start + 48 * HOUR, Math.max(...temps.values.map((v) => v[1])));
     const width = box.clientWidth || 900;
     const pad = { left: 46, right: 40 };
-    const top = { y0: 76, y1: 246 };
+    const top = { y0: 76, y1: compact ? 186 : 246 };
     const wind = { y0: 276, y1: 356 };
     const arrows = 372;
     const sunlight = { y0: 400, y1: 444 };
-    const height = 456;
+    const height = compact ? 196 : 456;
+    const bottom = compact ? top.y1 : null;
     const canvas = document.createElement("canvas");
     const ratio = window.devicePixelRatio || 1;
     canvas.width = width * ratio;
@@ -914,11 +924,11 @@ function cssColor(name, fallback) {
       .map(([a, b, v]) => [Math.max(a, start), Math.min(b, end), v / ((b - a) / HOUR)]);
     const rs = scale(0, Math.max(0, ...rainBars.map((r) => r[2])), 1, 4);
     const ry = (v) => top.y1 - (v / rs.high) * (top.y1 - top.y0);
-    const windPts = points("wind_speed", start, end);
-    const gustPts = points("wind_gust", start, end);
+    const windPts = compact ? [] : points("wind_speed", start, end);
+    const gustPts = compact ? [] : points("wind_gust", start, end);
     const ws = scale(0, Math.max(0, ...windPts.map((p) => p[1]), ...gustPts.map((p) => p[1])), 4, 8);
     const wy = (v) => wind.y1 - (v / ws.high) * (wind.y1 - wind.y0);
-    const sunPts = points("irradiance.global", start, end);
+    const sunPts = compact ? [] : points("irradiance.global", start, end);
     const ss = scale(0, Math.max(0, ...sunPts.map((p) => p[1])), 100, 200);
     const sy = (v) => sunlight.y1 - (v / ss.high) * (sunlight.y1 - sunlight.y0);
 
@@ -939,7 +949,7 @@ function cssColor(name, fallback) {
     for (let v = 0; v <= rs.high + 0.001; v += rs.high / 4) {
       ctx.fillText(f.number(v, rs.high < 4 ? 1 : 0), width - pad.right + 6, ry(v));
     }
-    for (let v = 0; v <= ws.high + 0.001; v += ws.step) {
+    for (let v = 0; !compact && v <= ws.high + 0.001; v += ws.step) {
       ctx.beginPath();
       ctx.moveTo(pad.left, Math.round(wy(v)) + 0.5);
       ctx.lineTo(width - pad.right, Math.round(wy(v)) + 0.5);
@@ -958,7 +968,9 @@ function cssColor(name, fallback) {
     }
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText("m/s", 4, wind.y0 - 14);
+    if (!compact) {
+      ctx.fillText("m/s", 4, wind.y0 - 14);
+    }
     if (sunPts.length) {
       ctx.fillText("W/m²", 4, sunlight.y0 - 18);
     }
@@ -991,7 +1003,7 @@ function cssColor(name, fallback) {
           ctx.strokeStyle = muted;
           ctx.beginPath();
           ctx.moveTo(Math.round(x(t)) + 0.5, 16);
-          ctx.lineTo(Math.round(x(t)) + 0.5, sunPts.length ? sunlight.y1 : arrows + 8);
+          ctx.lineTo(Math.round(x(t)) + 0.5, bottom ?? (sunPts.length ? sunlight.y1 : arrows + 8));
           ctx.stroke();
         }
       }
@@ -1000,7 +1012,7 @@ function cssColor(name, fallback) {
         ctx.textAlign = "center";
         ctx.fillText(f.hour(t), x(t), 20);
         sky(ctx, x(t + HOUR / 2), 52, t + HOUR / 2);
-        const from = value("wind_direction", t + HOUR / 2);
+        const from = compact ? null : value("wind_direction", t + HOUR / 2);
         if (from !== null) {
           arrow(ctx, x(t + HOUR / 2), arrows, from);
         }
@@ -1075,7 +1087,7 @@ function cssColor(name, fallback) {
     ctx.setLineDash([4, 3]);
     ctx.beginPath();
     ctx.moveTo(x(now), top.y0 - 4);
-    ctx.lineTo(x(now), sunPts.length ? sunlight.y1 : wind.y1);
+    ctx.lineTo(x(now), bottom ?? (sunPts.length ? sunlight.y1 : wind.y1));
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -1159,7 +1171,7 @@ function cssColor(name, fallback) {
     const note = document.createElement("p");
     note.className = "hint";
     note.textContent = texts.sky || "";
-    box.append(canvas, tip, legend, note);
+    box.append(...(compact ? [canvas, tip] : [canvas, tip, legend, note]));
   }
 
   function unit(code) {
@@ -1181,4 +1193,7 @@ function cssColor(name, fallback) {
     }
   });
   draw();
-})();
+}
+for (const box of document.querySelectorAll("[data-meteogram]")) {
+  meteogram(box);
+}

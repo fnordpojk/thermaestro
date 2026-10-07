@@ -191,6 +191,10 @@ dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-num
 .band-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; list-style: none; padding: 0; margin: 0.75rem 0 0; }
 .band-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
 .price-chart { position: relative; margin: 0.5rem 0 1rem; }
+.glance { grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); margin: 1rem 0; }
+.glance .price-chart { margin: 0.25rem 0; }
+.glance h2 a { color: var(--fg); text-decoration: none; }
+.glance .price-now { float: right; font-variant-numeric: tabular-nums; }
 .price-chart canvas { display: block; max-width: 100%; }
 .chart-tip { position: absolute; z-index: 2; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); pointer-events: none; }
 .chart-tip table { margin: 0.25rem 0 0; width: auto; }

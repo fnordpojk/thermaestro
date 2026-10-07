@@ -54,6 +54,13 @@ async def weather_page(request: Request, who: Logged) -> Response:
     )
 
 
+async def meteogram_config(request: Request, who: Caller) -> dict[str, Any]:
+    """The weather graph's data, for the overview's small one."""
+    s = services(request)
+    forecast = await s.weather_forecast(who, 48)
+    return _meteogram(forecast, s.weather_register(who), await s.location(who))
+
+
 GRAPHED = (
     "temperature",
     "temperature.p10",

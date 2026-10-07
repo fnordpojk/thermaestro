@@ -886,6 +886,30 @@ async def test_the_overview_lists_devices_and_what_needs_attention(site: Site) -
     assert 'href="/setup/prices"' in troubled
 
 
+async def test_the_price_and_weather_at_a_glance(site: Site) -> None:
+    """The overview's small charts sit between its two reloading parts, drawn once; only
+    for those who may see the prices and the weather."""
+    _with_a_pump(site)
+    async with admin(site) as client:
+        page = (await client.get("/")).text
+        top = (await client.get("/status/values", params={"part": "top"})).text
+        devices = (await client.get("/status/values", params={"part": "devices"})).text
+    assert page.index('id="values-top"') < page.index("data-chart=") < page.index("data-meteogram=")
+    assert page.index("data-meteogram=") < page.index('id="values-devices"')
+    assert 'data-compact="1" data-now="price-now"' in page
+    assert "Fake FP-1" not in top
+    assert "Fake FP-1" in devices
+    viewer = await site.services.accounts.create_user(
+        "vic", ADMIN_PASSWORD + " too", ["Viewers"], by="cli"
+    )
+    raw = await site.services.accounts.start_session(viewer)
+    async with site.client() as client:
+        client.cookies.set("thermaestro_session", raw)
+        page = (await client.get("/")).text
+    assert "data-chart=" not in page
+    assert "Fake FP-1" in page
+
+
 async def test_named_values_are_charted_as_bands(site: Site) -> None:
     """A demand or a switch has no line to draw: its chart is bands over time, with the
     value names in the page's language."""

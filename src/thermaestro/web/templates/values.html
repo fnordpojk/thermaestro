@@ -1,4 +1,7 @@
 {% from "cells.html" import parts_table with context %}
+{# The overview's values: `part` "top" (what needs attention, rooms, outdoors, pinned),
+   "devices" (each device by part), or both. #}
+{% if part != "devices" %}
 {% if attention %}
 <section class="attention" aria-label="{{ _('Needs attention') }}">
   <h2>{{ _("Needs attention") }}</h2>
@@ -11,6 +14,8 @@
 </section>
 {% endif %}
 {% include "site.html" %}
+{% endif %}
+{% if part != "top" %}
 {% for device in devices %}
 <section class="device card">
   <h2>{{ device.name }}</h2>
@@ -28,4 +33,5 @@
   <span class="quality-grey">{{ _("no usable value") }}</span>
   · {{ _("Point at a value to see why.") }}
 </p>
+{% endif %}
 {% endif %}
