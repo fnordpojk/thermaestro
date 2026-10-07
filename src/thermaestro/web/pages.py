@@ -247,6 +247,7 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
         node=node,
         digits=s.point_digits(instance, point),
         description=s.point_description(instance, point),
+        display=s.sensors.display if s.sensors else None,
         node_built_in=s.node_label(who, instance, node, built_in=True) if node else "",
         names=await s.names(who),
         source=source,

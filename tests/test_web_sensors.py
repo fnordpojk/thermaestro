@@ -293,3 +293,59 @@ async def test_a_viewer_sees_rooms_but_changes_nothing(site: Site) -> None:
         assert (await client.get("/api/v1/sensors")).status_code == 403
         assert (await client.get("/sensors")).status_code == 403
         assert (await client.get("/rooms")).status_code == 403
+
+
+async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> None:
+    async with logged_in(site) as client:
+        page = (await client.get("/points/pump/hp1/dhw/temp.top")).text
+        assert "Pinned to the overview" in page
+        await form(
+            client,
+            "/points/pump/hp1/dhw/temp.top",
+            "/display",
+            ref="pump:hp1/dhw/temp.top",
+            pinned="1",
+            next="/",
+        )
+        status = (await client.get("/status/values")).text
+        assert "<h2>Hot water</h2>" in status  # a card named after what it belongs to
+        assert "Top temperature" in status
+        # Moved to the diagnostics: off the status page's table, onto the diagnostics page.
+        await form(
+            client,
+            "/points/pump/hp1/outdoor.temp",
+            "/display",
+            ref="pump:hp1/outdoor.temp",
+            category="diagnostic",
+            next="/",
+        )
+        status = (await client.get("/status/values")).text
+        assert 'title="hp1/outdoor.temp"' not in status
+        assert 'title="hp1/outdoor.temp"' in (await client.get("/diagnostics")).text
+        shown = (await client.get("/api/v1/display")).json()
+        assert shown == {
+            "categories": {"pump:hp1/outdoor.temp": "diagnostic"},
+            "pinned": ["pump:hp1/dhw/temp.top"],
+        }
+        # Unpinned again from the same form.
+        await form(
+            client,
+            "/points/pump/hp1/dhw/temp.top",
+            "/display",
+            ref="pump:hp1/dhw/temp.top",
+            next="/",
+        )
+        assert "<h2>Hot water</h2>" not in (await client.get("/status/values")).text
+
+
+async def test_page_order_and_a_broker_first(site: Site) -> None:
+    async with logged_in(site) as client:
+        settings = (await client.get("/settings")).text
+        assert settings.index("Location") < settings.index("The pump's connection")
+        sensors = (await client.get("/sensors")).text
+        assert 'action="/sensors" class="grid"' not in sensors  # no broker: no MQTT sensor form
+        assert "Set up the MQTT broker in the settings" in sensors
+        await form(client, "/settings", "/settings/mqtt", host="192.0.2.30", port="1883")
+        assert 'action="/sensors" class="grid"' in (await client.get("/sensors")).text
+        users = (await client.get("/users")).text
+        assert users.index("New group") < users.index("What the rights allow")

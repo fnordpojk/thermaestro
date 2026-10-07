@@ -66,9 +66,13 @@
 
 <section>
 <h2>{{ _("Add an MQTT sensor") }}</h2>
+{% if has_broker %}
 {% set form_id = none %}
 {% set s = none %}
 {% include "sensor-form.html" %}
+{% else %}
+<p>{{ _("Set up the MQTT broker in the settings to add MQTT sensors here.") }} <a href="/settings#mqtt">{{ _("Settings") }}</a></p>
+{% endif %}
 </section>
 
 <section id="homeassistant">

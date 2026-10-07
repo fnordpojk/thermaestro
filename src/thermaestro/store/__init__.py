@@ -11,6 +11,7 @@ from .paths import Layout
 from .secrets import SecretStore
 from .settings import (
     SETTINGS,
+    Display,
     HomeAssistant,
     Location,
     Mqtt,
@@ -30,6 +31,7 @@ __all__ = [
     "SETTINGS",
     "VERSION",
     "Database",
+    "Display",
     "HomeAssistant",
     "Layout",
     "Location",

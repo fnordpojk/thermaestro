@@ -226,6 +226,19 @@ class Names(Setting):
     names: dict[PointRef, Name] = Field(default_factory=dict)
 
 
+class Display(Setting):
+    """How the household wants points shown, for everyone. One per installation."""
+
+    kind = "display"
+
+    categories: dict[PointRef, Literal["primary", "config", "diagnostic"]] = Field(
+        default_factory=dict
+    )
+    """A point moved to another category than its plugin gave it."""
+    pinned: tuple[PointRef, ...] = ()
+    """Points shown on the overview's cards, in the order pinned."""
+
+
 class PriceLayer(Setting):
     """One layer of the import price: a series a plugin offers, or a fixed amount."""
 
@@ -259,5 +272,6 @@ class Vat(Setting):
 
 
 SETTINGS: dict[str, type[Setting]] = {
-    m.kind: m for m in (Location, Mqtt, Plugin, Sensor, Room, Outdoor, Names, PriceLayer, Vat)
+    m.kind: m
+    for m in (Location, Mqtt, Plugin, Sensor, Room, Outdoor, Names, Display, PriceLayer, Vat)
 }

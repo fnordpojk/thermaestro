@@ -27,7 +27,7 @@ from typing import Any
 
 from ..cap.model import Envelope, Quality
 from ..cap.vocabulary import QUANTITIES, STATES
-from ..store import Database, Names, Outdoor, Room, Sensor
+from ..store import Database, Display, Names, Outdoor, Room, Sensor
 from .values import Key, Values
 
 log = logging.getLogger(__name__)
@@ -109,6 +109,7 @@ class SensorHub:
         self.rooms: dict[str, Room] = {}
         self.outdoor = Outdoor()
         self.names: dict[str, str] = {}
+        self.display = Display()
         self._readings: dict[str, Reading] = {}
         self._by_point: dict[str, list[str]] = {}
         self._by_topic: dict[str, list[str]] = {}
@@ -120,9 +121,10 @@ class SensorHub:
         """Read the sensor, room, outdoor and name settings again, after a change."""
 
         def read(t: Any) -> tuple[Any, ...]:
-            return t.all(Sensor), t.all(Room), t.get(Outdoor), t.get(Names)
+            return t.all(Sensor), t.all(Room), t.get(Outdoor), t.get(Names), t.get(Display)
 
-        sensors, rooms, outdoor, names = await self._db.run(read)
+        sensors, rooms, outdoor, names, display = await self._db.run(read)
+        self.display = display or Display()
         self.sensors, self.rooms = sensors, rooms
         self.outdoor = outdoor or Outdoor()
         self.names = dict(names.names) if names else {}

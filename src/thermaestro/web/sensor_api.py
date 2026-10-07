@@ -145,6 +145,30 @@ async def set_name(body: NameIt, request: Request, who: Logged) -> dict[str, str
 # --- the MQTT broker and Home Assistant --------------------------------------------------
 
 
+class Showing(BaseModel):
+    ref: str = Field(description="`<instance>:<path>` of a point")
+    category: str | None = Field(
+        None, description="primary, config or diagnostic; null: as its plugin says"
+    )
+    pinned: bool | None = Field(None, description="on the overview's cards; null: unchanged")
+
+
+@router.get("/display")
+@action("display.read")
+async def display(request: Request, who: Logged) -> dict[str, Any]:
+    """The household's choices: points moved to another category, and those pinned."""
+    who.principal.require("points.read")
+    hub = services(request).sensors
+    return hub.display.model_dump(mode="json") if hub else {"categories": {}, "pinned": []}
+
+
+@router.put("/display")
+@action("display.write")
+async def set_display(body: Showing, request: Request, who: Logged) -> dict[str, str]:
+    await services(request).set_display(who, body.ref, body.category, body.pinned)
+    return {"status": "ok"}
+
+
 @router.get("/mqtt")
 @action("mqtt.read")
 async def mqtt(request: Request, who: Logged) -> dict[str, Any]:

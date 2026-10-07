@@ -45,6 +45,7 @@ async def _sensors(request: Request, who: Caller, status_code: int = 200, **extr
         outdoor_quantities=OUTDOOR_QUANTITIES,
         quantities=SENSOR_QUANTITIES,
         connections=connections,
+        has_broker=await s.mqtt_settings(who) is not None,
         **extra,
     )
 
@@ -308,6 +309,26 @@ async def set_room(
 @action("room.delete")
 async def delete_room(request: Request, who: Logged, id: str) -> Response:
     return await _room_attempt(request, who, services(request).delete_room(who, id))
+
+
+# --- showing ---------------------------------------------------------------------------
+
+
+@router.post("/display")
+@action("display.write")
+async def set_display(
+    request: Request,
+    who: Logged,
+    ref: Text,
+    category: Text = "",
+    pinned: Text = "",
+    next: Annotated[str, Form()] = "/",
+) -> Response:
+    try:
+        await services(request).set_display(who, ref, category or None, bool(pinned))
+    except AccountError as e:
+        return render(request, "error.html", who, status_code=400, error=message(e))
+    return back(local_path(next))
 
 
 # --- names -------------------------------------------------------------------------------

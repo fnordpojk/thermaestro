@@ -107,7 +107,7 @@ class Services(SensorOperations, PriceOperations):
                     {
                         "path": point.path,
                         "label": self._label(id, described, point.path),
-                        "category": point.category,
+                        "category": self._category(id, point.path, point.category),
                         "unit": point.unit,
                         "digits": digits(
                             point.resolution.value, envelope.value if envelope else None
@@ -184,6 +184,94 @@ class Services(SensorOperations, PriceOperations):
             return f"{node_name} \N{MIDDLE DOT} {built_in.rpartition(' · ')[2]}"
         return built_in
 
+    def _category(self, instance: str, path: str, given: str | None) -> str | None:
+        """The household's choice where it made one, else the plugin's."""
+        display = self.sensors.display if self.sensors else None
+        chosen = display.categories.get(f"{instance}:{path}") if display else None
+        if chosen is None:
+            return given
+        return None if chosen == "primary" else chosen
+
+    def _pinned_cards(self) -> list[dict[str, Any]]:
+        """The pinned points, on a card per node they belong to, in the order pinned."""
+        display = self.sensors.display if self.sensors else None
+        if display is None or self.host is None:
+            return []
+        cards: dict[tuple[str, str], dict[str, Any]] = {}
+        for ref in display.pinned:
+            instance, _, path = ref.partition(":")
+            found = self.host.instances.get(instance)
+            described = found.described if found else None
+            point = (
+                next((p for p in described.points if p.path == path), None) if described else None
+            )
+            if point is None:
+                continue
+            node = path.rpartition("/")[0]
+            key = (instance, node)
+            if key not in cards:
+                cards[key] = {
+                    "name": self._card_name(instance, described, node),
+                    "instance": instance,
+                    "points": [],
+                }
+            envelope = self.values.latest.get(Key(instance, path))
+            own = self._label(instance, described, path)
+            cards[key]["points"].append(
+                {
+                    "path": path,
+                    "instance": instance,
+                    "label": own.rpartition(" \N{MIDDLE DOT} ")[2],
+                    "unit": point.unit,
+                    "digits": digits(point.resolution.value, envelope.value if envelope else None),
+                    "value": None if envelope is None else envelope.value,
+                    "quality": "unknown" if envelope is None else envelope.quality,
+                    "why": None if envelope is None else envelope.why,
+                    "t": None if envelope is None else sample(envelope).t,
+                }
+            )
+        return list(cards.values())
+
+    def _card_name(self, instance: str, described: Described | None, node: str) -> str:
+        names = self.sensors.names if self.sensors else {}
+        if f"{instance}:{node}" in names:
+            return names[f"{instance}:{node}"]
+        nodes = {n.path: n for n in described.nodes} if described else {}
+        n = nodes.get(node)
+        if n is None:
+            return instance
+        return labels.node(n.kind, node, n.label) or n.label or instance
+
+    async def set_display(
+        self, caller: Caller, ref: str, category: str | None, pinned: bool | None
+    ) -> None:
+        """Move a point to a category (None: the plugin's) and pin it to the overview or
+        not (None: leave as it is)."""
+        self._require(caller, "settings.write")
+        from ..store import Display
+
+        current = await self.db.get(Display) or Display()
+        categories = dict(current.categories)
+        if category in (None, ""):
+            categories.pop(ref, None)
+        else:
+            categories[ref] = category  # type: ignore[assignment]
+        pins = list(current.pinned)
+        if pinned is True and ref not in pins:
+            pins.append(ref)
+        elif pinned is False and ref in pins:
+            pins.remove(ref)
+        display = _validated(Display, {"categories": categories, "pinned": pins}, "the display")
+        await self.db.put(display)
+        await self.audit.record(
+            caller.principal.name,
+            "setting.change",
+            source=caller.source,
+            details={"kind": "display", "of": ref},
+        )
+        if self.sensors is not None:
+            await self.sensors.load()
+
     def _site_label(self, path: str) -> str:
         node, _, quantity = path.rpartition("/")
         if node == "outdoor":
@@ -198,7 +286,7 @@ class Services(SensorOperations, PriceOperations):
         caller.principal.require("points.read")
         hub = self.sensors
         if hub is None:
-            return {"rooms": [], "outdoor": []}
+            return {"rooms": [], "outdoor": [], "pinned": []}
         rooms = []
         for room_id, room in sorted(hub.rooms.items(), key=lambda r: r[1].name.lower()):
             node = f"room.{room_id}"
@@ -210,7 +298,11 @@ class Services(SensorOperations, PriceOperations):
                     "points": self._site_points(node),
                 }
             )
-        return {"rooms": rooms, "outdoor": self._site_points("outdoor")}
+        return {
+            "rooms": rooms,
+            "outdoor": self._site_points("outdoor"),
+            "pinned": self._pinned_cards(),
+        }
 
     def _site_points(self, node: str) -> list[dict[str, Any]]:
         out = []

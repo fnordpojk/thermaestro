@@ -14,8 +14,29 @@
 </nav>
 <div id="chart" data-source="{{ source }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
      data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
-     data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
-<p class="hint">{{ _("Only values of good quality are drawn; gaps are times the value wasn't valid.") }}</p>
+     data-held="{{ _('not valid: the last valid value') }}" data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
+<p class="hint">{{ _("Where the value wasn't valid, the last valid one is drawn on in grey.") }}</p>
+{% if can("settings.write") and instance != "site" and display is not none %}
+{% set ref = instance ~ ":" ~ point %}
+<section>
+<h2>{{ _("Where it's shown") }}</h2>
+<form method="post" action="/display" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="ref" value="{{ ref }}">
+  <input type="hidden" name="next" value="{{ path }}">
+  <label>{{ _("Shown with") }}
+    <select name="category">
+      {% set chosen = display.categories.get(ref, "") %}
+      <option value=""{% if not chosen %} selected{% endif %}>{{ _("as the device says") }}</option>
+      <option value="primary"{% if chosen == "primary" %} selected{% endif %}>{{ _("the everyday values") }}</option>
+      <option value="config"{% if chosen == "config" %} selected{% endif %}>{{ _("the settings") }}</option>
+      <option value="diagnostic"{% if chosen == "diagnostic" %} selected{% endif %}>{{ _("the diagnostic values") }}</option>
+    </select></label>
+  <label class="check"><input type="checkbox" name="pinned" value="1"{% if ref in display.pinned %} checked{% endif %}> {{ _("Pinned to the overview") }}</label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+{% endif %}
 {% if can("settings.write") and instance != "site" %}
 <section>
 <h2>{{ _("Names") }}</h2>

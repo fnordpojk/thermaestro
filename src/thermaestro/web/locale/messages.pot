@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 03:23+0200\n"
+"POT-Creation-Date: 2026-10-07 03:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -473,11 +473,6 @@ msgstr ""
 msgid "Occupied"
 msgstr ""
 
-msgid ""
-"Only values of good quality are drawn; gaps are times the value wasn't "
-"valid."
-msgstr ""
-
 msgid "Open"
 msgstr ""
 
@@ -508,6 +503,9 @@ msgstr ""
 msgid ""
 "Pick what Thermaestro should read. Each picked value becomes a sensor; a "
 "room is suggested from the entity's area where a room has the same name."
+msgstr ""
+
+msgid "Pinned to the overview"
 msgstr ""
 
 msgid "Plugins"
@@ -614,6 +612,9 @@ msgstr ""
 msgid "Set password and log out everywhere"
 msgstr ""
 
+msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
+msgstr ""
+
 msgid "Setpoint"
 msgstr ""
 
@@ -627,6 +628,9 @@ msgid "Settings read from the device"
 msgstr ""
 
 msgid "Setup code"
+msgstr ""
+
+msgid "Shown with"
 msgstr ""
 
 msgid "Since"
@@ -781,6 +785,12 @@ msgstr ""
 msgid "Where"
 msgstr ""
 
+msgid "Where it's shown"
+msgstr ""
+
+msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgstr ""
+
 msgid "Where you're logged in"
 msgstr ""
 
@@ -844,6 +854,9 @@ msgid "all"
 msgstr ""
 
 msgid "as the browser asks"
+msgstr ""
+
+msgid "as the device says"
 msgstr ""
 
 msgid "as the pump reports it"
@@ -981,6 +994,9 @@ msgstr ""
 msgid "not said yet"
 msgstr ""
 
+msgid "not valid: the last valid value"
+msgstr ""
+
 msgid "not_connected"
 msgstr ""
 
@@ -1056,6 +1072,12 @@ msgstr ""
 msgid "that would leave no user who can manage users"
 msgstr ""
 
+msgid "the diagnostic values"
+msgstr ""
+
+msgid "the everyday values"
+msgstr ""
+
 msgid "the password you entered isn't right"
 msgstr ""
 
@@ -1063,6 +1085,9 @@ msgid "the pump's own"
 msgstr ""
 
 msgid "the room's reference"
+msgstr ""
+
+msgid "the settings"
 msgstr ""
 
 msgid "the setup code isn't right, or has expired"

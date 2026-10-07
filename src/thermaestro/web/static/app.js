@@ -113,14 +113,31 @@
       message(chart.dataset.failed);
       return;
     }
-    const numeric = samples.filter((s) => s.value !== null);
-    if (numeric.length === 0) {
+    if (!samples.some((s) => s.quality === "good" && s.value !== null)) {
       message(chart.dataset.empty);
       return;
     }
-    // A value that wasn't good leaves a gap rather than a misleading line.
-    const times = numeric.map((s) => s.t);
-    const values = numeric.map((s) => (s.quality === "good" ? s.value : null));
+    // Where a value wasn't valid, the last valid one is drawn on, in grey: the line goes
+    // on, and shows it wasn't measured. The grey line starts at the last valid point.
+    const times = samples.map((s) => s.t);
+    const values = [];
+    const held = [];
+    let last = null;
+    samples.forEach((s, i) => {
+      const good = s.quality === "good" && s.value !== null;
+      values.push(good ? s.value : null);
+      if (good) {
+        last = s.value;
+        const next = samples[i + 1];
+        const endsHere = next && !(next.quality === "good" && next.value !== null);
+        held.push(endsHere ? s.value : null);
+      } else {
+        held.push(last);
+        if (last !== null && i > 0 && values[i - 1] !== null) {
+          held[i - 1] = values[i - 1];
+        }
+      }
+    });
     const options = {
       width: chart.clientWidth || 800,
       height: 320,
@@ -133,6 +150,14 @@
           width: 2,
           spanGaps: false,
         },
+        {
+          label: chart.dataset.held || "",
+          value: (u, v) => format(v),
+          stroke: getComputedStyle(document.body).getPropertyValue("--muted").trim() || "#5f6368",
+          width: 2,
+          dash: [4, 4],
+          spanGaps: false,
+        },
       ],
       axes: [
         { values: ticks, ...axisStyle() },
@@ -143,7 +168,7 @@
       plot.destroy();
     }
     chart.textContent = "";
-    plot = new uPlot(options, [times, values], chart);
+    plot = new uPlot(options, [times, values, held], chart);
   }
 
   for (const button of document.querySelectorAll(".ranges button")) {

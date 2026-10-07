@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:23+0200\n"
-"PO-Revision-Date: 2026-10-07 03:23+0200\n"
+"POT-Creation-Date: 2026-10-07 03:34+0200\n"
+"PO-Revision-Date: 2026-10-07 03:34+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -491,11 +491,6 @@ msgstr "Gemessen"
 msgid "Occupied"
 msgstr "Belegt"
 
-msgid "Only values of good quality are drawn; gaps are times the value wasn't valid."
-msgstr ""
-"Nur Werte guter Qualität werden gezeichnet; Lücken sind Zeiten, in denen der Wert "
-"nicht gültig war."
-
 msgid "Open"
 msgstr "Offen"
 
@@ -529,6 +524,9 @@ msgid ""
 msgstr ""
 "Wählen Sie, was Thermaestro lesen soll. Jeder gewählte Wert wird ein Sensor; ein Raum"
 " wird nach dem Bereich der Entität vorgeschlagen, wo ein Raum denselben Namen hat."
+
+msgid "Pinned to the overview"
+msgstr "An die Übersicht angeheftet"
 
 msgid "Plugins"
 msgstr "Plugins"
@@ -636,6 +634,11 @@ msgstr "Angebotene Reihen"
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
 
+msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
+msgstr ""
+"Richten Sie den MQTT-Broker in den Einstellungen ein, um hier MQTT-Sensoren "
+"hinzuzufügen."
+
 msgid "Setpoint"
 msgstr "Sollwert"
 
@@ -650,6 +653,9 @@ msgstr "Vom Gerät gelesene Einstellungen"
 
 msgid "Setup code"
 msgstr "Einrichtungscode"
+
+msgid "Shown with"
+msgstr "Angezeigt bei"
 
 msgid "Since"
 msgstr "Seit"
@@ -816,6 +822,12 @@ msgstr "Wann"
 msgid "Where"
 msgstr "Wo"
 
+msgid "Where it's shown"
+msgstr "Wo es angezeigt wird"
+
+msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgstr "Wo der Wert nicht gültig war, wird der letzte gültige in Grau weitergezeichnet."
+
 msgid "Where you're logged in"
 msgstr "Wo Sie angemeldet sind"
 
@@ -885,6 +897,9 @@ msgstr "alle"
 
 msgid "as the browser asks"
 msgstr "wie vom Browser gewünscht"
+
+msgid "as the device says"
+msgstr "wie vom Gerät angegeben"
 
 msgid "as the pump reports it"
 msgstr "wie die Pumpe es meldet"
@@ -1021,6 +1036,9 @@ msgstr "noch keine"
 msgid "not said yet"
 msgstr "noch nicht angegeben"
 
+msgid "not valid: the last valid value"
+msgstr "ungültig: der letzte gültige Wert"
+
 msgid "not_connected"
 msgstr "nicht angeschlossen"
 
@@ -1098,6 +1116,12 @@ msgstr ""
 msgid "that would leave no user who can manage users"
 msgstr "dann könnte kein Benutzer mehr Benutzer verwalten"
 
+msgid "the diagnostic values"
+msgstr "den Diagnosewerten"
+
+msgid "the everyday values"
+msgstr "den Alltagswerten"
+
 msgid "the password you entered isn't right"
 msgstr "das eingegebene Passwort ist nicht richtig"
 
@@ -1106,6 +1130,9 @@ msgstr "der der Pumpe"
 
 msgid "the room's reference"
 msgstr "Referenz des Raums"
+
+msgid "the settings"
+msgstr "den Einstellungen"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "der Einrichtungscode ist falsch oder abgelaufen"

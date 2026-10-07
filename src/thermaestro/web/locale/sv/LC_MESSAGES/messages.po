@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:23+0200\n"
-"PO-Revision-Date: 2026-10-07 03:23+0200\n"
+"POT-Creation-Date: 2026-10-07 03:34+0200\n"
+"PO-Revision-Date: 2026-10-07 03:34+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -484,9 +484,6 @@ msgstr "Uppmätt"
 msgid "Occupied"
 msgstr "Upptaget"
 
-msgid "Only values of good quality are drawn; gaps are times the value wasn't valid."
-msgstr "Bara värden av god kvalitet ritas; luckorna är tider då värdet inte var giltigt."
-
 msgid "Open"
 msgstr "Öppen"
 
@@ -520,6 +517,9 @@ msgid ""
 msgstr ""
 "Välj vad Thermaestro ska läsa. Varje valt värde blir en givare; ett rum föreslås från"
 " entitetens område där ett rum har samma namn."
+
+msgid "Pinned to the overview"
+msgstr "Fäst på översikten"
 
 msgid "Plugins"
 msgstr "Tillägg"
@@ -627,6 +627,9 @@ msgstr "Erbjudna serier"
 msgid "Set password and log out everywhere"
 msgstr "Sätt lösenord och logga ut överallt"
 
+msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
+msgstr "Ställ in MQTT-brokern i inställningarna för att lägga till MQTT-givare här."
+
 msgid "Setpoint"
 msgstr "Börvärde"
 
@@ -641,6 +644,9 @@ msgstr "Inställningar lästa från enheten"
 
 msgid "Setup code"
 msgstr "Installationskod"
+
+msgid "Shown with"
+msgstr "Visas bland"
 
 msgid "Since"
 msgstr "Sedan"
@@ -804,6 +810,12 @@ msgstr "När"
 msgid "Where"
 msgstr "Var"
 
+msgid "Where it's shown"
+msgstr "Var det visas"
+
+msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgstr "Där värdet inte var giltigt ritas det senaste giltiga vidare i grått."
+
 msgid "Where you're logged in"
 msgstr "Där du är inloggad"
 
@@ -870,6 +882,9 @@ msgstr "alla"
 
 msgid "as the browser asks"
 msgstr "som webbläsaren önskar"
+
+msgid "as the device says"
+msgstr "som enheten anger"
 
 msgid "as the pump reports it"
 msgstr "som pumpen anger den"
@@ -1006,6 +1021,9 @@ msgstr "inga än"
 msgid "not said yet"
 msgstr "inte angivet än"
 
+msgid "not valid: the last valid value"
+msgstr "ogiltigt: det senaste giltiga värdet"
+
 msgid "not_connected"
 msgstr "inte ansluten"
 
@@ -1083,6 +1101,12 @@ msgstr ""
 msgid "that would leave no user who can manage users"
 msgstr "då skulle ingen användare kunna hantera användare"
 
+msgid "the diagnostic values"
+msgstr "de diagnostiska värdena"
+
+msgid "the everyday values"
+msgstr "vardagsvärdena"
+
 msgid "the password you entered isn't right"
 msgstr "lösenordet du angav stämmer inte"
 
@@ -1091,6 +1115,9 @@ msgstr "pumpens egen"
 
 msgid "the room's reference"
 msgstr "rummets referens"
+
+msgid "the settings"
+msgstr "inställningarna"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "installationskoden stämmer inte, eller har gått ut"

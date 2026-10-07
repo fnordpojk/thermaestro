@@ -8,7 +8,7 @@
   <span class="hidden"> ({{ quality }})</span>
 </td>
 {% endmacro %}
-{% if site.rooms or site.outdoor %}
+{% if site.rooms or site.outdoor or site.pinned %}
 <section class="site">
   <div class="cards">
   {% if site.outdoor %}
@@ -21,6 +21,16 @@
     </table>
   </div>
   {% endif %}
+  {% for card in site.pinned %}
+  <div class="card">
+    <h2>{{ card.name }}</h2>
+    <table class="values">
+    {% for p in card.points %}
+      <tr><td><a href="/points/{{ p.instance | urlencode }}/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+    {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
   {% for room in site.rooms %}
   <div class="card">
     <h2>{{ room.name }}</h2>
