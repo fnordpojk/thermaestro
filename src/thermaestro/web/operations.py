@@ -107,6 +107,7 @@ class Services(SensorOperations, PriceOperations):
                     {
                         "path": point.path,
                         "label": self._label(id, described, point.path),
+                        "category": point.category,
                         "unit": point.unit,
                         "digits": digits(
                             point.resolution.value, envelope.value if envelope else None

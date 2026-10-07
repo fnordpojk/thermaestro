@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "points-table.html" import points_table with context %}
 {% block title %}{{ _("Diagnostics") }}{% endblock %}
 {% block main %}
 <h1>{{ _("Diagnostics") }}</h1>
@@ -29,6 +30,24 @@
   </tbody>
 </table>
 </section>
+
+{% for i in instances %}
+{% set settings = i.points | selectattr("category", "equalto", "config") | list %}
+{% set technical = i.points | selectattr("category", "equalto", "diagnostic") | list %}
+{% if settings or technical %}
+<section id="{{ i.id }}">
+<h2>{{ i.id }} <small>{{ i.plugin }}</small></h2>
+{% if settings %}
+<h3>{{ _("Settings read from the device") }}</h3>
+{{ points_table(i.id, settings) }}
+{% endif %}
+{% if technical %}
+<h3>{{ _("Diagnostic values") }}</h3>
+{{ points_table(i.id, technical) }}
+{% endif %}
+</section>
+{% endif %}
+{% endfor %}
 
 <section>
 <h2>LOG.SET</h2>

@@ -815,3 +815,23 @@ def test_values_are_shown_in_sentence_case() -> None:
     assert labels.value("Auto") == "Auto"  # the pump's own
     assert labels.value("on") == "On"
     assert labels.value("hot water") == "Hot water"
+
+
+async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> None:
+    _with_a_pump(site)
+    host = site.services.host
+    assert host is not None
+    instance = host.instances["pump"]
+    assert instance.described is not None
+    points = tuple(
+        p.model_copy(update={"category": "config"}) if p.path == "hp1/x.fake.prio" else p
+        for p in instance.described.points
+    )
+    instance.described = instance.described.model_copy(update={"points": points})
+    async with admin(site) as client:
+        status = (await client.get("/status/values")).text
+        diagnostics = (await client.get("/diagnostics")).text
+    assert "hp1/x.fake.prio" not in status
+    assert "Outdoor temperature" in status
+    assert 'href="/diagnostics#pump"' in status
+    assert "hp1/x.fake.prio" in diagnostics

@@ -1,0 +1,22 @@
+{# A table of points: their names, colored values with the reason on hover, and when. #}
+{% macro points_table(instance_id, points) %}
+<table class="values">
+  <thead><tr><th>{{ _("Point") }}</th><th class="num">{{ _("Value") }}</th><th class="when">{{ _("Observed") }}</th></tr></thead>
+  <tbody>
+  {% for p in points %}
+    {% set quality = _(p.quality) ~ (": " ~ p.why if p.why else "") %}
+    <tr>
+      <td><a href="/points/{{ instance_id | urlencode }}/{{ p.path }}" title="{{ p.path }}">{{ p.label }}</a></td>
+      <td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
+        {%- if p.value is none -%}–
+        {%- elif p.value is sameas true or p.value is sameas false -%}{{ ("on" if p.value else "off") | value_label }}
+        {%- elif p.value is number -%}{{ p.value | num(p.digits) }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
+        {%- else -%}{{ p.value | value_label }}{%- endif -%}
+        <span class="hidden"> ({{ quality }})</span>
+      </td>
+      <td class="when">{{ p.t | when }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}

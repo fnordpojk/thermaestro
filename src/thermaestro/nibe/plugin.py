@@ -16,7 +16,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from ..cap import Message, Send
 from ..cap.messages import (
@@ -535,6 +535,7 @@ class NibePlugin:
             path=f"{profile.UNIT}/{definition.path}",
             label=register.title if definition.path.rpartition("/")[2].startswith("x.") else None,
             description=(register.info or "").strip() or None,
+            category=_category(definition, register),
             unit=unit,
             wraps_at=wraps_at,
             resolution=Knowledge(value=1 / register.factor, known="documented")
@@ -567,6 +568,18 @@ class NibePlugin:
             last_traffic=last,
             counters=dict(health.detail),
         )
+
+
+def _category(
+    definition: profile.PointDef, register: Register
+) -> Literal["config", "diagnostic"] | None:
+    """A standard point is worth seeing every day; a pump setting read back is `config`;
+    any other register of the pump's own is `diagnostic`, and so is the word order."""
+    if definition.register == profile.WORD_SWAP:
+        return "diagnostic"
+    if not definition.path.rpartition("/")[2].startswith("x."):
+        return None
+    return "config" if register.writable else "diagnostic"
 
 
 _TEXT = re.compile(r"(-?\d+)\s*=\s*([^,=]+?)\s*(?=,|\s+-?\d+\s*=|$)")

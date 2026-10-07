@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:17+0200\n"
-"PO-Revision-Date: 2026-10-07 03:17+0200\n"
+"POT-Creation-Date: 2026-10-07 03:23+0200\n"
+"PO-Revision-Date: 2026-10-07 03:23+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -240,6 +240,9 @@ msgstr "Details"
 
 msgid "Dew point"
 msgstr "Taupunkt"
+
+msgid "Diagnostic values"
+msgstr "Diagnosewerte"
 
 msgid "Diagnostics"
 msgstr "Diagnose"
@@ -638,6 +641,12 @@ msgstr "Sollwert"
 
 msgid "Settings"
 msgstr "Einstellungen"
+
+msgid "Settings and diagnostic values"
+msgstr "Einstellungen und Diagnosewerte"
+
+msgid "Settings read from the device"
+msgstr "Vom Gerät gelesene Einstellungen"
 
 msgid "Setup code"
 msgstr "Einrichtungscode"

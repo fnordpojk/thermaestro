@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 03:17+0200\n"
+"POT-Creation-Date: 2026-10-07 03:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -228,6 +228,9 @@ msgid "Details"
 msgstr ""
 
 msgid "Dew point"
+msgstr ""
+
+msgid "Diagnostic values"
 msgstr ""
 
 msgid "Diagnostics"
@@ -615,6 +618,12 @@ msgid "Setpoint"
 msgstr ""
 
 msgid "Settings"
+msgstr ""
+
+msgid "Settings and diagnostic values"
+msgstr ""
+
+msgid "Settings read from the device"
 msgstr ""
 
 msgid "Setup code"

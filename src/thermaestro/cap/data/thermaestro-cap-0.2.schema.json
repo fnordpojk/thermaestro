@@ -2266,6 +2266,22 @@
           "default": null,
           "title": "Description"
         },
+        "category": {
+          "anyOf": [
+            {
+              "enum": [
+                "config",
+                "diagnostic"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
         "unit": {
           "anyOf": [
             {

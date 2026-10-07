@@ -212,6 +212,10 @@ class Point(Model):
     register's own title, for a point under `x.<plugin>`."""
     description: str | None = None
     """What the device's own documentation says the point is, for people."""
+    category: Literal["config", "diagnostic"] | None = None
+    """None for a value worth seeing every day; `config` for a device setting read back;
+    `diagnostic` for a technical one. Home Assistant's entity categories, which its
+    discovery uses too."""
     unit: str | None = None
     wraps_at: Annotated[float, Field(gt=0)] | None = None
     """For a counter: the value at which it starts over from 0, from the size of the
