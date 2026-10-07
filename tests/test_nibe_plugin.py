@@ -360,3 +360,39 @@ async def test_a_meter_the_pump_doesnt_keep_is_left_out(stocked: SimPump, gatewa
         await plugin_side.close()
         served.cancel()
         await asyncio.gather(served, return_exceptions=True)
+
+
+def test_what_register_values_mean() -> None:
+    from thermaestro.nibe.plugin import is_switch, value_texts
+
+    m = load("bus").model("F1245")
+    assert value_texts(m.register(47137)) == {0: "Auto", 1: "Manual", 2: "Add. heat only"}
+    assert value_texts(m.register(47041)) == {
+        0: "Economy",
+        1: "Normal",
+        2: "Luxury",
+        4: "Smart Control",
+    }
+    assert value_texts(m.register(48132)) == {
+        0: "Off",
+        1: "3h",
+        2: "6h",
+        3: "12h",
+        4: "One time increase",
+    }
+    assert value_texts(m.register(40004)) is None
+    assert value_texts(m.register(43005)) is None
+    assert is_switch(m.register(47370))  # allow additive heating: 0 or 1, nothing said
+    assert is_switch(m.register(47387))  # 0=Off 1=On
+    assert not is_switch(m.register(47137))
+
+
+async def test_settings_show_their_meaning(plugin: NibePlugin, stocked: SimPump) -> None:
+    stocked.registers.update({47137: 1, 47370: 1, 47041: 2})
+    await until(lambda: all_read(plugin))
+    await until(lambda: value(plugin, "x.nibe.47137")[0] == "Manual")
+    assert value(plugin, "x.nibe.47370") == (True, "good", None)
+    assert value(plugin, "dhw/x.nibe.47041") == ("Luxury", "good", None)
+    points = {p.path: p for p in plugin.describe().points}
+    assert points["hp1/dhw/x.nibe.47041"].label == "Hot water comfort mode"
+    assert points["hp1/x.nibe.47137"].enum.value == {"Auto": 0, "Manual": 1, "Add. heat only": 2}

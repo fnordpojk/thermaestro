@@ -48,7 +48,7 @@ from ..cap.vocabulary import point as standard_point
 from ..core.plugins import PluginContext
 from ..store import NibeGateway, SecretStore
 from . import profile
-from .maps import ModelMap, RegisterMap, Status, decode, load, words
+from .maps import ModelMap, Register, RegisterMap, Status, decode, load, words
 from .transport import GatewayConfig, connect
 from .transport.base import FateKind, Observed, ReadFailed, Transport
 from .transport.nibegw import PlainSettings
@@ -404,8 +404,10 @@ class NibePlugin:
             quality, why, value = "unknown", "the pump gives no value", None
         elif decoded.status is Status.OUT_OF_RANGE:
             quality, why = "out_of_range", f"outside {register.min}..{register.max}"
-        elif definition.enum is not None:
-            name = definition.enum.get(int(decoded.raw or 0))
+        elif is_switch(register) and definition.enum is None:
+            value = bool(decoded.raw)
+        elif (enum := definition.enum or value_texts(register)) is not None:
+            name = enum.get(int(decoded.raw or 0))
             if name is None:
                 quality, value = "unknown", None
                 why = definition.unknown_why or f"unknown value {decoded.raw}"
@@ -518,22 +520,24 @@ class NibePlugin:
                 basis="Nibe register database",
             )
         enum = Knowledge[dict[str, int | str]]()
-        if definition.enum is not None:
+        texts = definition.enum or (None if is_switch(register) else value_texts(register))
+        if texts is not None:
             enum = Knowledge(
-                value={name: raw for raw, name in definition.enum.items()},
+                value={name: raw for raw, name in texts.items()},
                 known="documented",
                 basis="Nibe register database",
             )
+        whole = texts is None and not is_switch(register)
         wraps_at = None
         if definition.path.startswith(COUNTERS) and register.size is not None:
             wraps_at = (1 << register.size.bits) / register.factor
         return Point(
             path=f"{profile.UNIT}/{definition.path}",
-            label=register.title if ".x.nibe." in f".{definition.path}" else None,
+            label=register.title if definition.path.rpartition("/")[2].startswith("x.") else None,
             unit=unit,
             wraps_at=wraps_at,
             resolution=Knowledge(value=1 / register.factor, known="documented")
-            if definition.enum is None
+            if whole
             else Knowledge[float](),
             range=range_,
             enum=enum,
@@ -562,6 +566,29 @@ class NibePlugin:
             last_traffic=last,
             counters=dict(health.detail),
         )
+
+
+_TEXT = re.compile(r"(-?\d+)\s*=\s*([^,=]+?)\s*(?=,|\s+-?\d+\s*=|$)")
+
+
+def value_texts(register: Register) -> dict[int, str] | None:
+    """What a register's values mean, from its notes in the register database: "0=Auto
+    1=Manual 2=Add. heat only", "0=Off, 1=3h, 2=6h". None where the notes don't say."""
+    if register.factor != 1:
+        return None
+    out: dict[int, str] = {}
+    for raw, text in _TEXT.findall(register.info or ""):
+        out.setdefault(int(raw), text.strip().rstrip("."))
+    return out if len(out) >= 2 else None
+
+
+def is_switch(register: Register) -> bool:
+    """A setting that is only off or on: 0 and 1, with no other meanings given (or just
+    "0=Off 1=On")."""
+    if register.factor != 1 or (register.min, register.max) != (0, 1):
+        return False
+    texts = value_texts(register)
+    return texts is None or {k: v.lower() for k, v in texts.items()} == {0: "off", 1: "on"}
 
 
 def _now() -> datetime:
