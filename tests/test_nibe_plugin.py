@@ -395,4 +395,5 @@ async def test_settings_show_their_meaning(plugin: NibePlugin, stocked: SimPump)
     assert value(plugin, "dhw/x.nibe.47041") == ("Luxury", "good", None)
     points = {p.path: p for p in plugin.describe().points}
     assert points["hp1/dhw/x.nibe.47041"].label == "Hot water comfort mode"
+    assert points["hp1/outdoor.temp"].description == "Current outdoor temperature"
     assert points["hp1/x.nibe.47137"].enum.value == {"Auto": 0, "Manual": 1, "Add. heat only": 2}

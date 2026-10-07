@@ -133,6 +133,13 @@ class Services(SensorOperations):
         found = self.host.instances.get(instance) if self.host else None
         return self._label(instance, found.described if found else None, path)
 
+    def point_description(self, instance: str, path: str) -> str | None:
+        """What the device's documentation says the point is."""
+        found = self.host.instances.get(instance) if self.host else None
+        described = found.described if found else None
+        point = next((p for p in described.points if p.path == path), None) if described else None
+        return point.description if point else None
+
     def point_digits(self, instance: str, path: str) -> int:
         """The decimals a point's values are shown with, for its chart."""
         found = self.host.instances.get(instance) if self.host else None

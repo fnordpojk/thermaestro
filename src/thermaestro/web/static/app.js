@@ -81,6 +81,15 @@
     );
   }
 
+  // Axes, ticks and grid in the page's text and line colors, so the chart reads in
+  // light and dark mode alike.
+  function axisStyle() {
+    const style = getComputedStyle(document.body);
+    const fg = style.getPropertyValue("--fg").trim() || "#1d1f21";
+    const line = style.getPropertyValue("--line").trim() || "#d9dcde";
+    return { stroke: fg, grid: { stroke: line, width: 1 }, ticks: { stroke: line, width: 1 } };
+  }
+
   function message(text) {
     if (plot) {
       plot.destroy();
@@ -125,7 +134,10 @@
           spanGaps: false,
         },
       ],
-      axes: [{ values: ticks }, { values: (u, values) => values.map(format) }],
+      axes: [
+        { values: ticks, ...axisStyle() },
+        { values: (u, values) => values.map(format), ...axisStyle() },
+      ],
     };
     if (plot) {
       plot.destroy();

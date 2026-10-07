@@ -776,3 +776,21 @@ async def test_implausible_values_show_red(site: Site) -> None:
         page = (await client.get("/status/values")).text
     assert "quality-red" in page
     assert "implausible: outside -60..150 degC" in page
+
+
+async def test_a_point_page_shows_its_description(site: Site) -> None:
+    _with_a_pump(site)
+    host = site.services.host
+    assert host is not None
+    instance = host.instances["pump"]
+    assert instance.described is not None
+    points = tuple(
+        p.model_copy(update={"description": "Current outdoor temperature"})
+        if p.path == "hp1/outdoor.temp"
+        else p
+        for p in instance.described.points
+    )
+    instance.described = instance.described.model_copy(update={"points": points})
+    async with admin(site) as client:
+        page = (await client.get("/points/pump/hp1/outdoor.temp")).text
+    assert '<p class="description">Current outdoor temperature</p>' in page

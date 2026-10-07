@@ -210,6 +210,8 @@ class Point(Model):
     label: str | None = None
     """A name for people where the path's standard name doesn't give one: a device
     register's own title, for a point under `x.<plugin>`."""
+    description: str | None = None
+    """What the device's own documentation says the point is, for people."""
     unit: str | None = None
     wraps_at: Annotated[float, Field(gt=0)] | None = None
     """For a counter: the value at which it starts over from 0, from the size of the

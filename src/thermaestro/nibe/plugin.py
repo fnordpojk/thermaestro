@@ -534,6 +534,7 @@ class NibePlugin:
         return Point(
             path=f"{profile.UNIT}/{definition.path}",
             label=register.title if definition.path.rpartition("/")[2].startswith("x.") else None,
+            description=(register.info or "").strip() or None,
             unit=unit,
             wraps_at=wraps_at,
             resolution=Knowledge(value=1 / register.factor, known="documented")

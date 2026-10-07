@@ -6,6 +6,7 @@
 {% endblock %}
 {% block main %}
 <h1>{{ label }} <small title="{{ point }}">{{ instance }}</small></h1>
+{% if description %}<p class="description">{{ description }}</p>{% endif %}
 <nav class="ranges" aria-label="{{ _('Time range') }}">
   <button type="button" data-hours="6">{{ _("6 hours") }}</button>
   <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>

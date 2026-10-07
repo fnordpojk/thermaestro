@@ -2024,6 +2024,18 @@
           "default": null,
           "title": "Label"
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
         "unit": {
           "anyOf": [
             {

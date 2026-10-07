@@ -127,3 +127,5 @@ dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-num
 
 .ranges { display: flex; gap: 0.5rem; margin: 0.5rem 0; }
 #chart { min-height: 320px; }
+.u-legend, .u-legend th, .u-legend td { color: var(--fg); }
+p.description { color: var(--muted); max-width: 48rem; }

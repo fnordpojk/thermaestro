@@ -246,6 +246,7 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
         built_in=s.built_in_label(instance, point),
         node=node,
         digits=s.point_digits(instance, point),
+        description=s.point_description(instance, point),
         node_built_in=s.node_label(who, instance, node, built_in=True) if node else "",
         names=await s.names(who),
         source=source,
