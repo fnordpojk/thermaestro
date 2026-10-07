@@ -1,0 +1,96 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<section id="location">
+<h2>{{ _("Location") }}</h2>
+<p>{{ _("For forecasts and the sun. Coordinates with a decimal point, such as 59.33.") }}</p>
+<form method="post" action="/settings/location" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Latitude") }}
+    <input name="latitude" inputmode="decimal" required value="{{ location.latitude if location else '' }}"></label>
+  <label>{{ _("Longitude") }}
+    <input name="longitude" inputmode="decimal" required value="{{ location.longitude if location else '' }}"></label>
+  {% set chosen = location.timezone if location else "" %}
+  <label>{{ _("Time zone") }}{% if not chosen %} <small>{{ _("preselected from this browser") }}</small>{% endif %}
+    <select name="timezone" required{% if not chosen %} data-detect-zone{% endif %}>
+      <option value=""{% if not chosen %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for region, places in zones.items() %}
+      <optgroup label="{{ region }}">
+        {% for name, label in places %}<option value="{{ name }}"{% if name == chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+      <optgroup label="UTC"><option value="UTC"{% if chosen == "UTC" %} selected{% endif %}>UTC</option></optgroup>
+    </select></label>
+  {% if can("settings.write") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
+</form>
+</section>
+
+<section id="climate">
+<h2>{{ _("The location's climate") }}</h2>
+<p>{{ _("The annual mean temperature and how far the warmest month's mean is from the coldest's. Thermaestro estimates the cold water's temperature from them.") }}</p>
+{% if climate %}
+<p>{{ _("Annual mean %(mean)s °C, monthly spread %(spread)s K", mean=climate.annual_mean | num(1), spread=climate.monthly_spread | num(1)) }}
+  <small>({% if climate.source == "open_meteo" %}{{ _("Open-Meteo's archive, %(period)s", period=climate.period) }}{% else %}{{ _("as you entered it") }}{% endif %})</small></p>
+{% endif %}
+{% if can("settings.write") %}
+{% if has_open_meteo %}
+<form method="post" action="/weather/climate/fetch" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Get it from Open-Meteo's archive") }}</button>
+</form>
+{% endif %}
+<form method="post" action="/weather/climate" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Annual mean, °C") }} <input name="annual_mean" inputmode="decimal" required value="{{ climate.annual_mean if climate else '' }}"></label>
+  <label>{{ _("Monthly spread, K") }} <input name="monthly_spread" inputmode="decimal" required value="{{ climate.monthly_spread if climate else '' }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endif %}
+</section>
+
+{% macro room_form(rid, room) %}
+<form method="post" action="{{ '/rooms/' ~ (rid | urlencode) if rid else '/rooms' }}" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64" value="{{ room.name if room else '' }}"></label>
+  <label>{{ _("Climate system") }}
+    <select name="climate_system">
+      <option value="">–</option>
+      {% for ref, label in systems %}<option value="{{ ref }}"{% if room and room.climate_system == ref %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Its own control") }}
+    <select name="own_device">
+      {% for kind in ("unknown", "none", "simple_thermostat", "smart_thermostat", "radiator_valves", "zone_controller") %}
+      <option value="{{ kind }}"{% if (room.own_device if room else "unknown") == kind %} selected{% endif %}>{{ kind | own_device }}</option>
+      {% endfor %}
+    </select></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endmacro %}
+
+<section id="rooms">
+<h2>{{ _("Rooms") }}</h2>
+<p>{{ _("Each room has its own sensors, and a comfort band of its own later. A room's temperature is the mean of its sensors, or its reference sensor alone.") }} <a href="/setup/sensors">{{ _("Sensors") }}</a></p>
+{% for rid, room in rooms.items() %}
+<div class="room">
+  <h3>{{ room.name }}</h3>
+  {% set mine = [] %}
+  {% for sid, s in sensors.items() if s.room == rid %}{% set _ = mine.append(s.name ~ (" (" ~ _("reference") ~ ")" if s.reference else "")) %}{% endfor %}
+  <p>{{ _("Sensors:") }} {{ mine | join(", ") if mine else _("none yet") }}</p>
+  {% if room.own_device == "simple_thermostat" %}
+  <p class="notice">{{ _("A simple thermostat cuts the room off at its own setting. Where Thermaestro steers the room, turn the thermostat up to its highest setting, so it doesn't stop the room before Thermaestro's band is reached.") }}</p>
+  {% endif %}
+  <details>
+    <summary>{{ _("Change") }}</summary>
+    {{ room_form(rid, room) }}
+    <form method="post" action="/rooms/{{ rid | urlencode }}/delete">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="danger">{{ _("Remove") }}</button>
+    </form>
+  </details>
+</div>
+{% else %}
+<p class="notice">{{ _("No rooms yet.") }}</p>
+{% endfor %}
+<h3>{{ _("Add a room") }}</h3>
+{{ room_form(none, none) }}
+</section>
+{% endblock %}

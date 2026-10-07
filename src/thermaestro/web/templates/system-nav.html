@@ -1,0 +1,5 @@
+<nav class="tabs" aria-label="{{ _('System') }}">
+  {% if can("settings.read") %}<a href="/system/health"{% if path == "/system/health" %} aria-current="page"{% endif %}>{{ _("Health") }}</a>{% endif %}
+  {% if can("users.manage") %}<a href="/users"{% if path == "/users" %} aria-current="page"{% endif %}>{{ _("Users") }}</a>{% endif %}
+  {% if can("audit.read") %}<a href="/audit"{% if path == "/audit" %} aria-current="page"{% endif %}>{{ _("Audit log") }}</a>{% endif %}
+</nav>

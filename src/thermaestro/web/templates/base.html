@@ -15,15 +15,15 @@
   <a class="brand" href="/">Thermaestro</a>
   {% if who %}
   <nav>
-    {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Status") }}</a>{% endif %}
-    {% if can("settings.read") %}<a href="/rooms"{% if path == "/rooms" %} aria-current="page"{% endif %}>{{ _("Rooms") }}</a>
-    <a href="/sensors"{% if path.startswith("/sensors") %} aria-current="page"{% endif %}>{{ _("Sensors") }}</a>
+    {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Overview") }}</a>{% endif %}
+    {% if can("settings.read") %}
     <a href="/prices"{% if path == "/prices" %} aria-current="page"{% endif %}>{{ _("Prices") }}</a>
     <a href="/weather"{% if path == "/weather" %} aria-current="page"{% endif %}>{{ _("Weather") }}</a>
-    <a href="/settings"{% if path == "/settings" %} aria-current="page"{% endif %}>{{ _("Settings") }}</a>
-    <a href="/diagnostics"{% if path == "/diagnostics" %} aria-current="page"{% endif %}>{{ _("Diagnostics") }}</a>{% endif %}
-    {% if can("users.manage") %}<a href="/users"{% if path == "/users" %} aria-current="page"{% endif %}>{{ _("Users") }}</a>{% endif %}
-    {% if can("audit.read") %}<a href="/audit"{% if path == "/audit" %} aria-current="page"{% endif %}>{{ _("Audit log") }}</a>{% endif %}
+    <a href="/setup/house" class="apart"{% if path.startswith("/setup") or path.startswith("/sensors/") %} aria-current="page"{% endif %}>{{ _("Setup") }}</a>
+    {% endif %}
+    {% if can("settings.read") or can("users.manage") or can("audit.read") %}
+    <a href="/system"{% if path.startswith("/system") or path in ("/users", "/audit") %} aria-current="page"{% endif %}>{{ _("System") }}</a>
+    {% endif %}
   </nav>
   <div class="me">
     <a href="/account">{{ who.principal.user.name }}</a>

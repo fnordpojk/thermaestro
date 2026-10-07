@@ -1,0 +1,31 @@
+{% extends "setup-base.html" %}
+{% macro state_line(i) %}
+{% if i %}<p>{{ _("State:") }} <span class="state state-{{ i.state }}">{{ _(i.state) }}</span>
+  {% if i.health and i.health.needs_user_action %}<br><span class="error">{{ i.health.needs_user_action }}</span>
+  {% elif i.last_error and i.state != "up" %}<br><span class="error">{{ _("Last error:") }} {{ i.last_error }}</span>{% endif %}</p>{% endif %}
+{% endmacro %}
+{% block topic %}
+<section id="connection">
+<h2>{{ _("The pump's connection") }}</h2>
+<p>{{ _("The gateway that connects Thermaestro to a Nibe pump's bus: its address, and the protocol it speaks.") }}</p>
+{% for id, pump in pumps.items() %}
+  {% set s = pump.settings %}
+  {{ state_line(states.get(id)) }}
+  {% include "pump-form.html" %}
+{% else %}
+  {% set id = "pump" %}
+  {% set s = {} %}
+  {% include "pump-form.html" %}
+{% endfor %}
+</section>
+
+<section id="logset">
+<h2>LOG.SET</h2>
+<p>{{ _("A Nibe F-series pump sends up to 20 registers listed in a LOG.SET file by itself, twice a second, so Thermaestro needn't ask for them one at a time. Copy the file to a USB stick and load it in the pump's USB menu (7.2). The pump is particular about sticks: those larger than 4 GB, or made in about the last 15 years, often aren't accepted. Everything works without it, more slowly.") }}</p>
+<form method="get" action="/api/v1/nibe/logset" class="inline">
+  <label>{{ _("Model") }}
+    <select name="model">{% for m in models %}<option>{{ m }}</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Download") }}</button>
+</form>
+</section>
+{% endblock %}

@@ -261,10 +261,12 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
         price_pages,
         sensor_api,
         sensor_pages,
+        setup_pages,
         weather_api,
         weather_pages,
     )
 
+    app.include_router(setup_pages.router)
     app.include_router(api.router)
     app.include_router(price_api.router)
     app.include_router(price_pages.router)

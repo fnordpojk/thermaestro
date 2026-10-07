@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ _(topics[topic]) }} · {{ _("Setup") }}{% endblock %}
+{% block main %}
+<div class="with-side">
+<nav class="side" aria-label="{{ _('Setup') }}">
+  <h2>{{ _("Setup") }}</h2>
+  <ul>
+  {% for key, name in topics.items() %}
+    <li><a href="/setup/{{ key }}"{% if key == topic %} aria-current="page"{% endif %}>{{ _(name) }}</a></li>
+  {% endfor %}
+  </ul>
+</nav>
+<div class="topic">
+<h1>{{ _(topics[topic]) }}</h1>
+{% block topic %}{% endblock %}
+</div>
+</div>
+{% endblock %}

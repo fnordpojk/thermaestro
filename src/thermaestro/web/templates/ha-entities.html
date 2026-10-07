@@ -2,7 +2,7 @@
 {% block title %}Home Assistant{% endblock %}
 {% block main %}
 <h1>{{ _("Choose from Home Assistant") }}</h1>
-<p>{{ _("Tick what Thermaestro should read. Each picked value becomes a sensor; names and rooms come next.") }} <a href="/rooms">{{ _("Rooms") }}</a></p>
+<p>{{ _("Tick what Thermaestro should read. Each picked value becomes a sensor; names and rooms come next.") }} <a href="/setup/house#rooms">{{ _("Rooms") }}</a></p>
 {% if entities %}
 <form method="get" action="/sensors/homeassistant/{{ id | urlencode }}/pick">
   <table>
@@ -25,5 +25,5 @@
 {% elif not error %}
 <p>{{ _("Home Assistant offers nothing Thermaestro can use.") }}</p>
 {% endif %}
-<p><a href="/sensors">{{ _("Back to the sensors") }}</a></p>
+<p><a href="/setup/sensors">{{ _("Back to the sensors") }}</a></p>
 {% endblock %}

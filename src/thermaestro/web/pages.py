@@ -160,8 +160,10 @@ async def logout(request: Request, who: Logged) -> Response:
 
 @router.get("/setup")
 async def setup_page(request: Request) -> Response:
+    """The first run's page, which makes the first administrator; after that, Setup's
+    first topic."""
     if await services(request).accounts.has_admin():
-        return back("/login")
+        return back("/setup/house")
     return render(request, "setup.html", None, name="")
 
 
@@ -293,56 +295,15 @@ def time_zones() -> dict[str, list[tuple[str, str]]]:
     return {r: sorted(z, key=lambda zone: zone[1]) for r, z in grouped.items() if z}
 
 
-async def _settings(
-    request: Request, who: Caller, status_code: int = 200, **extra: Any
-) -> Response:
-    s = services(request)
-    location = await s.location(who)
-    plugins = await s.plugins(who)
-    pumps = {id: p for id, p in plugins.items() if p.plugin == "nibe"}
-    from ..entsoe.zones import ZONES
-    from ..nibe.maps import load
-
-    models = sorted(load("bus").models)
-    sources = await s.price_sources(who)
-    return render(
-        request,
-        "settings.html",
-        who,
-        status_code=status_code,
-        location=location,
-        zones=time_zones(),
-        pumps=pumps,
-        models=models,
-        fingerprint=s.fingerprint,
-        mqtt=await s.mqtt_settings(who),
-        mqtt_state=s.mqtt_state(who),
-        discovery=await s.discovery_settings(who),
-        discovery_state=s.discovery_state(who),
-        connections={id: p for id, p in plugins.items() if p.plugin == "homeassistant"},
-        tibber={id: p for id, p in sources.items() if p["plugin"] == "tibber"},
-        entsoe={id: p for id, p in sources.items() if p["plugin"] == "entsoe"},
-        bidding_zones=ZONES,
-        **extra,
-    )
-
-
-@router.get("/settings")
-async def settings_page(request: Request, who: Logged) -> Response:
-    return await _settings(request, who)
-
-
 @router.post("/settings/location")
 @action("location.write")
 async def set_location(
     request: Request, who: Logged, latitude: Text, longitude: Text, timezone: Text
 ) -> Response:
+    from .setup_pages import attempt
+
     body = {"latitude": latitude, "longitude": longitude, "timezone": timezone.strip()}
-    try:
-        await services(request).set_location(who, body)
-    except AccountError as e:
-        return await _settings(request, who, 400, error=_message(e))
-    return back("/settings")
+    return await attempt(request, who, services(request).set_location(who, body), "house")
 
 
 @router.post("/settings/pump")
@@ -377,15 +338,15 @@ async def set_pump(
     }
     if psk or had_key or protocol == "thermaestro-gw":
         body["psk"] = key_name
-    try:
+
+    async def work() -> None:
         if psk:
             await s.set_secret(who, key_name, psk.strip())
         await s.set_pump(who, id, body)
-    except NeedsConfirmation:
-        raise
-    except AccountError as e:
-        return await _settings(request, who, 400, error=_message(e))
-    return back("/settings")
+
+    from .setup_pages import attempt
+
+    return await attempt(request, who, work(), "pump")
 
 
 # --- users and groups --------------------------------------------------------------------
@@ -594,21 +555,31 @@ async def end_session(request: Request, who: Logged, session_id: str) -> Respons
     return back("/account")
 
 
-# --- diagnostics and the audit log -------------------------------------------------------
+# --- System: health and the audit log -------------------------------------------------------
 
 
-@router.get("/diagnostics")
-async def diagnostics_page(request: Request, who: Logged) -> Response:
+@router.get("/system")
+async def system_page(who: Logged) -> Response:
+    """System's first page this user may see."""
+    for right, page in (
+        ("settings.read", "/system/health"),
+        ("users.manage", "/users"),
+        ("audit.read", "/audit"),
+    ):
+        if who.principal.allows(right):
+            return back(page)
+    return back("/")
+
+
+@router.get("/system/health")
+async def health_page(request: Request, who: Logged) -> Response:
     s = services(request)
     who.principal.require("settings.read")
-    from ..nibe.maps import load
-
     return render(
         request,
-        "diagnostics.html",
+        "health.html",
         who,
         instances=s.status(who),
-        models=sorted(load("bus").models),
         fingerprint=s.fingerprint,
     )
 

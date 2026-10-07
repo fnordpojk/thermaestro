@@ -66,11 +66,11 @@ async def logged_in(site: Site) -> AsyncIterator[httpx.AsyncClient]:
 
 async def test_rooms_and_their_sensors(site: Site) -> None:
     async with logged_in(site) as client:
-        rooms = (await client.get("/rooms")).text
+        rooms = (await client.get("/setup/house")).text
         assert '<option value="pump:hp1/cs1">Climate system 1</option>' in rooms
         made = await form(
             client,
-            "/rooms",
+            "/setup/house",
             "/rooms",
             name="Living room",
             climate_system="pump:hp1/cs1",
@@ -79,7 +79,7 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
         assert made.status_code == 303
         added = await form(
             client,
-            "/sensors",
+            "/setup/sensors",
             "/sensors",
             name="Sofa",
             topic="zigbee2mqtt/sofa",
@@ -96,13 +96,13 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
         status = (await client.get("/status/values")).text
         assert "<h2>Living room</h2>" in status
         assert "21.5 \N{DEGREE SIGN}C" in status
-        rooms = (await client.get("/rooms")).text
+        rooms = (await client.get("/setup/house")).text
         assert "Sofa" in rooms
         assert "turn the thermostat up" in rooms  # the advice for a simple thermostat
         site_api = (await client.get("/api/v1/site")).json()
         assert site_api["rooms"][0]["points"][0]["value"] == 21.5
         # Removing the room keeps the sensor, without a room.
-        await form(client, "/rooms", "/rooms/living-room/delete")
+        await form(client, "/setup/house", "/rooms/living-room/delete")
         sensor = await site.services.db.get(Sensor, "sofa")
         assert sensor is not None
         assert sensor.room is None
@@ -110,7 +110,7 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
 
 async def test_bad_sensors_are_refused(site: Site) -> None:
     async with logged_in(site) as client:
-        token = csrf_of((await client.get("/sensors")).text)
+        token = csrf_of((await client.get("/setup/sensors")).text)
         refused = await client.post(
             "/api/v1/sensors",
             json={"name": "x", "source": "mqtt", "topic": "t", "room": "nowhere"},
@@ -128,7 +128,7 @@ async def test_the_outdoor_reference(site: Site) -> None:
     async with logged_in(site) as client:
         await form(
             client,
-            "/sensors",
+            "/setup/sensors",
             "/sensors",
             name="North wall",
             topic="o/t",
@@ -137,16 +137,16 @@ async def test_the_outdoor_reference(site: Site) -> None:
         )
         await form(
             client,
-            "/sensors",
+            "/setup/sensors",
             "/sensors",
             name="Hall",
             topic="h/t",
             quantity="temperature",
             placement="other",
         )
-        wrong = await form(client, "/sensors", "/sensors/outdoor", temperature="hall")
+        wrong = await form(client, "/setup/sensors", "/sensors/outdoor", temperature="hall")
         assert wrong.status_code == 400
-        chosen = await form(client, "/sensors", "/sensors/outdoor", temperature="north-wall")
+        chosen = await form(client, "/setup/sensors", "/sensors/outdoor", temperature="north-wall")
         assert chosen.status_code == 303
         hub = site.services.sensors
         assert hub is not None
@@ -216,7 +216,12 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
     await site.services.sensors.load()  # type: ignore[union-attr]
     async with running(fake) as url, logged_in(site) as client:
         connected = await form(
-            client, "/settings", "/settings/homeassistant", id="homeassistant", url=url, token=TOKEN
+            client,
+            "/setup/external",
+            "/settings/homeassistant",
+            id="homeassistant",
+            url=url,
+            token=TOKEN,
         )
         assert connected.headers["location"] == "/sensors/homeassistant/homeassistant"
         page = (await client.get("/sensors/homeassistant/homeassistant")).text
@@ -274,7 +279,12 @@ async def test_a_large_home_assistant_can_be_picked_from(site: Site) -> None:
         )
     async with running(fake) as url, logged_in(site) as client:
         await form(
-            client, "/settings", "/settings/homeassistant", id="homeassistant", url=url, token=TOKEN
+            client,
+            "/setup/external",
+            "/settings/homeassistant",
+            id="homeassistant",
+            url=url,
+            token=TOKEN,
         )
         page = (await client.get("/sensors/homeassistant/homeassistant")).text
         listing = page.split('action="/sensors/homeassistant/homeassistant/pick"', 1)[1]
@@ -294,7 +304,7 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
     async with logged_in(site) as client:
         saved = await form(
             client,
-            "/settings",
+            "/setup/external",
             "/settings/mqtt",
             host="192.0.2.30",
             port="1883",
@@ -305,12 +315,12 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
         api = (await client.get("/api/v1/mqtt")).json()
         assert api["settings"]["password"] == "mqtt.password"
         assert api["state"] == "off"
-        settings = (await client.get("/settings")).text
-        assert "broker secret" not in settings
-        assert 'action="/settings/mqtt"' in settings
-        assert 'action="/settings/mqtt"' not in (await client.get("/sensors")).text
+        external = (await client.get("/setup/external")).text
+        assert "broker secret" not in external
+        assert 'action="/settings/mqtt"' in external
+        assert 'action="/settings/mqtt"' not in (await client.get("/setup/sensors")).text
         # Saved again without a password: the one entered stays.
-        await form(client, "/settings", "/settings/mqtt", host="192.0.2.31", port="1883")
+        await form(client, "/setup/external", "/settings/mqtt", host="192.0.2.31", port="1883")
         api = (await client.get("/api/v1/mqtt")).json()
         assert (api["settings"]["host"], api["settings"]["password"]) == (
             "192.0.2.31",
@@ -320,7 +330,7 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
 
 async def test_home_assistant_discovery_settings(site: Site) -> None:
     async with logged_in(site) as client:
-        page = (await client.get("/settings")).text
+        page = (await client.get("/setup/external")).text
         assert 'action="/settings/discovery"' in page
         assert "Set the MQTT broker above first." in page
         off = (await client.get("/api/v1/discovery")).json()
@@ -330,7 +340,12 @@ async def test_home_assistant_discovery_settings(site: Site) -> None:
             "off",
         )
         saved = await form(
-            client, "/settings", "/settings/discovery", enabled="1", language="sv", prefix="ha"
+            client,
+            "/setup/external",
+            "/settings/discovery",
+            enabled="1",
+            language="sv",
+            prefix="ha",
         )
         assert saved.status_code == 303
         on = (await client.get("/api/v1/discovery")).json()["settings"]
@@ -343,10 +358,10 @@ async def test_home_assistant_discovery_settings(site: Site) -> None:
             False,
         )
         # Off again: the id stays, so what was published can be found and cleared.
-        await form(client, "/settings", "/settings/discovery", prefix="ha")
+        await form(client, "/setup/external", "/settings/discovery", prefix="ha")
         again = (await client.get("/api/v1/discovery")).json()["settings"]
         assert (again["enabled"], again["id"]) == (False, on["id"])
-        token = csrf_of((await client.get("/settings")).text)
+        token = csrf_of((await client.get("/setup/external")).text)
         refused = await client.put(
             "/api/v1/discovery", json={"prefix": "ha/#"}, headers={"x-csrf-token": token}
         )
@@ -364,8 +379,8 @@ async def test_a_viewer_sees_rooms_but_changes_nothing(site: Site) -> None:
         client.cookies.set("thermaestro_session", raw)
         assert (await client.get("/api/v1/site")).status_code == 200
         assert (await client.get("/api/v1/sensors")).status_code == 403
-        assert (await client.get("/sensors")).status_code == 403
-        assert (await client.get("/rooms")).status_code == 403
+        assert (await client.get("/setup/sensors")).status_code == 403
+        assert (await client.get("/setup/house")).status_code == 403
 
 
 async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> None:
@@ -394,7 +409,7 @@ async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> No
         )
         status = (await client.get("/status/values")).text
         assert 'title="hp1/outdoor.temp"' not in status
-        assert 'title="hp1/outdoor.temp"' in (await client.get("/diagnostics")).text
+        assert 'title="hp1/outdoor.temp"' in (await client.get("/system/health")).text
         shown = (await client.get("/api/v1/display")).json()
         assert shown == {
             "categories": {"pump:hp1/outdoor.temp": "diagnostic"},
@@ -413,12 +428,12 @@ async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> No
 
 async def test_page_order_and_a_broker_first(site: Site) -> None:
     async with logged_in(site) as client:
-        settings = (await client.get("/settings")).text
-        assert settings.index("Location") < settings.index("The pump's connection")
-        sensors = (await client.get("/sensors")).text
+        house = (await client.get("/setup/house")).text
+        assert house.index('href="/setup/house"') < house.index('href="/setup/pump"')
+        sensors = (await client.get("/setup/sensors")).text
         assert 'action="/sensors" class="grid"' not in sensors  # no broker: no MQTT sensor form
-        assert "Set up the MQTT broker in the settings" in sensors
-        await form(client, "/settings", "/settings/mqtt", host="192.0.2.30", port="1883")
-        assert 'action="/sensors" class="grid"' in (await client.get("/sensors")).text
+        assert "Set up the MQTT broker under External" in sensors
+        await form(client, "/setup/external", "/settings/mqtt", host="192.0.2.30", port="1883")
+        assert 'action="/sensors" class="grid"' in (await client.get("/setup/sensors")).text
         users = (await client.get("/users")).text
         assert users.index("New group") < users.index("What the rights allow")

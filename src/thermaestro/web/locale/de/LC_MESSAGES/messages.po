@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 22:21+0200\n"
-"PO-Revision-Date: 2026-10-07 22:21+0200\n"
+"POT-Creation-Date: 2026-10-07 22:48+0200\n"
+"PO-Revision-Date: 2026-10-07 22:48+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -136,8 +136,8 @@ msgstr "Benutzer hinzufügen"
 msgid "Add an MQTT sensor"
 msgstr "MQTT-Sensor hinzufügen"
 
-msgid "Add the pump's connection in the settings."
-msgstr "Fügen Sie die Verbindung zur Pumpe in den Einstellungen hinzu."
+msgid "Add the pump's connection under Setup."
+msgstr "Fügen Sie die Verbindung der Pumpe unter Einrichtung hinzu."
 
 msgid "Addition"
 msgstr "Zusatzheizung"
@@ -279,10 +279,8 @@ msgstr "Bedingungen"
 msgid "Confirm"
 msgstr "Bestätigen"
 
-msgid "Connect Home Assistant in the settings to choose its entities here."
-msgstr ""
-"Verbinden Sie Home Assistant in den Einstellungen, um hier seine Entitäten "
-"auszuwählen."
+msgid "Connect Home Assistant under External to choose its entities here."
+msgstr "Verbinden Sie Home Assistant unter Extern, um hier seine Entitäten zu wählen."
 
 msgid "Control port"
 msgstr "Steuerport"
@@ -342,9 +340,6 @@ msgstr "Taupunkt"
 
 msgid "Diagnostic values"
 msgstr "Diagnosewerte"
-
-msgid "Diagnostics"
-msgstr "Diagnose"
 
 msgid "Diffuse sunlight"
 msgstr "Diffuses Sonnenlicht"
@@ -411,6 +406,9 @@ msgstr "Ablufttemperatur"
 msgid "Expires"
 msgstr "Läuft ab"
 
+msgid "External"
+msgstr "Extern"
+
 msgid "Fallback"
 msgstr "Ersatz"
 
@@ -453,6 +451,9 @@ msgstr ""
 
 msgid "From"
 msgstr "Von"
+
+msgid "From Home Assistant"
+msgstr "Aus Home Assistant"
 
 msgid "Gateway address"
 msgstr "Adresse des Gateways"
@@ -504,6 +505,9 @@ msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 
 msgid "Hot water"
 msgstr "Warmwasser"
+
+msgid "House"
+msgstr "Haus"
 
 msgid "How each has done at this house"
 msgstr "Wie gut jeder an diesem Haus war"
@@ -645,8 +649,8 @@ msgstr "NibeGW (einfach)"
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
 
-msgid "No forecast yet: choose a main provider above."
-msgstr "Noch keine Vorhersage: Wählen Sie oben einen Hauptanbieter."
+msgid "No forecast yet: choose a main provider under Setup."
+msgstr "Noch keine Vorhersage: Wählen Sie unter Einrichtung einen Hauptanbieter."
 
 msgid "No layers yet."
 msgstr "Noch keine Schichten."
@@ -673,10 +677,11 @@ msgstr "Noch keine Sensoren in diesem Raum."
 msgid "No sensors yet."
 msgstr "Noch keine Sensoren."
 
-msgid "No source offers prices yet. Add Tibber or ENTSO-E in the settings."
-msgstr ""
-"Noch bietet keine Quelle Preise an. Fügen Sie Tibber oder ENTSO-E in den "
-"Einstellungen hinzu."
+msgid "No source offers prices yet."
+msgstr "Noch keine Quelle bietet Preise an."
+
+msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
+msgstr "Noch keine Quelle bietet Preise an. Fügen Sie oben Tibber oder ENTSO-E hinzu."
 
 msgid "No values in this period."
 msgstr "Keine Werte in diesem Zeitraum."
@@ -727,9 +732,6 @@ msgstr "Betreiber"
 msgid "Outcome"
 msgstr "Ergebnis"
 
-msgid "Outdoor reference"
-msgstr "Außenreferenz"
-
 msgid "Outdoor references"
 msgstr "Außenreferenzen"
 
@@ -738,6 +740,9 @@ msgstr "Außentemperatur"
 
 msgid "Outdoors"
 msgstr "Draußen"
+
+msgid "Overview"
+msgstr "Übersicht"
 
 msgid "PM10"
 msgstr "PM10"
@@ -808,6 +813,9 @@ msgstr "An Home Assistant veröffentlichen"
 
 msgid "Published verification"
 msgstr "Veröffentlichte Verifikation"
+
+msgid "Pump"
+msgstr "Wärmepumpe"
 
 msgid "Quantity"
 msgstr "Größe"
@@ -903,22 +911,20 @@ msgstr "Legen Sie zuerst oben den MQTT-Broker fest."
 msgid "Set the location first: forecasts are for a place."
 msgstr "Legen Sie zuerst den Standort fest: Vorhersagen gelten für einen Ort."
 
-msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
-msgstr ""
-"Richten Sie den MQTT-Broker in den Einstellungen ein, um hier MQTT-Sensoren "
-"hinzuzufügen."
+msgid "Set up the MQTT broker under External to add MQTT sensors here."
+msgstr "Richten Sie den MQTT-Broker unter Extern ein, um hier MQTT-Sensoren hinzuzufügen."
 
 msgid "Setpoint"
 msgstr "Sollwert"
-
-msgid "Settings"
-msgstr "Einstellungen"
 
 msgid "Settings and diagnostic values"
 msgstr "Einstellungen und Diagnosewerte"
 
 msgid "Settings read from the device"
 msgstr "Vom Gerät gelesene Einstellungen"
+
+msgid "Setup"
+msgstr "Einrichtung"
 
 msgid "Setup code"
 msgstr "Einrichtungscode"
@@ -953,9 +959,6 @@ msgstr "Status"
 msgid "State:"
 msgstr "Zustand:"
 
-msgid "Status"
-msgstr "Status"
-
 msgid "Steps"
 msgstr "Schritte"
 
@@ -971,6 +974,9 @@ msgid ""
 msgstr ""
 "Die schwedische Vorhersage, nur für die nordischen und baltischen Länder. Kein "
 "Taupunkt und kein Sonnenlicht; Thermaestro leitet sie ab."
+
+msgid "System"
+msgstr "System"
 
 msgid "Temperature"
 msgstr "Temperatur"
@@ -1133,13 +1139,6 @@ msgstr "Wetter"
 msgid "Weather entity"
 msgstr "Wetter-Entität"
 
-msgid ""
-"Weather providers are added and chosen on the weather page; they move with the "
-"location."
-msgstr ""
-"Wetteranbieter werden auf der Wetterseite hinzugefügt und gewählt; sie ziehen mit dem"
-" Standort um."
-
 msgid "What"
 msgstr "Was"
 
@@ -1172,13 +1171,11 @@ msgid "Where it's shown"
 msgstr "Wo es angezeigt wird"
 
 msgid ""
-"Where the spot price, and your supplier's price, come from. Each source offers its "
-"prices on the prices page, where the stack is built. Tokens are kept in the secrets "
-"file."
+"Where the spot price, and your supplier's price, come from. Tokens are kept in the "
+"secrets file."
 msgstr ""
-"Woher der Spotpreis und der Preis Ihres Stromanbieters kommen. Jede Quelle bietet "
-"ihre Preise auf der Preisseite an, wo der Preisstapel aufgebaut wird. Tokens werden "
-"in der Geheimnisdatei aufbewahrt."
+"Woher der Spotpreis und der Preis Ihres Stromanbieters kommen. Tokens werden in der "
+"Geheimnisdatei aufbewahrt."
 
 msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
 msgstr "Wo der Wert nicht gültig war, wird der letzte gültige in Grau weitergezeichnet."

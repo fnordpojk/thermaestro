@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Prices") }}{% endblock %}
 {% block main %}
-<h1>{{ _("Prices") }}</h1>
-<p>{{ _("What one more kWh costs is a stack of layers: the spot price, the supplier's adders, taxes and grid fees, and VAT. Thermaestro adds them per 15 minutes, and refuses a stack that counts something twice.") }}</p>
+<h1>{{ _("Prices") }} {% if can("settings.read") %}<small><a href="/setup/prices">{{ _("Setup") }}</a></small>{% endif %}</h1>
 
 {% for day, stack in days %}
 <section>
@@ -35,99 +34,11 @@
 {% endfor %}
 
 <section>
-<h2>{{ _("Layers") }}</h2>
-{% if layers %}
-<table>
-  <thead><tr><th>{{ _("Layer") }}</th><th>{{ _("Role") }}</th><th>{{ _("Source") }}</th><th>VAT</th><th></th></tr></thead>
-  <tbody>
-  {% for id, layer in layers.items() %}
-  <tr>
-    <td>{{ id }}</td>
-    <td><code>{{ layer.role }}</code></td>
-    <td>{% if layer.source == "series" %}{{ layer.plugin }} · {{ layer.series }}
-      {% set others = offered | selectattr("role", "equalto", layer.role) | selectattr("unit", "equalto", layer.unit) | rejectattr("instance", "equalto", layer.plugin) | list %}
-      {% if others or layer.fallbacks %}
-      <form method="post" action="/prices/layers/{{ id | urlencode }}/fallbacks" class="inline">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <label>{{ _("Fallback") }}
-          <select name="fallbacks">
-            <option value="">{{ _("none") }}</option>
-            {% for o in others %}{% set ref = o.instance ~ ":" ~ o.series %}<option value="{{ ref }}"{% if ref in layer.fallbacks %} selected{% endif %}>{{ o.instance }} · {{ o.series }}</option>{% endfor %}
-          </select></label>
-        <button type="submit">{{ _("Save") }}</button>
-      </form>
-      {% endif %}
-    {% else %}{{ layer.value | num(4) }} {{ layer.unit }}{% endif %}</td>
-    <td>{{ _("included") if layer.vat == "incl" else _("excluded") }}</td>
-    <td><form method="post" action="/prices/layers/{{ id | urlencode }}/delete">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button type="submit" class="danger">{{ _("Remove") }}</button></form></td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="notice">{{ _("No layers yet.") }}</p>
-{% endif %}
-
-{% if offered %}
-<h3>{{ _("Add a series") }}</h3>
-<form method="post" action="/prices/layers" class="grid">
-  <input type="hidden" name="csrf" value="{{ csrf }}">
-  <input type="hidden" name="source" value="series">
-  <label>{{ _("Series") }}
-    <select name="offered">
-      {% for o in offered if o.kind == "price" %}<option value="{{ o.instance }}:{{ o.series }}">{{ o.instance }} · {{ o.series }} ({{ o.role }}, {{ o.unit }})</option>{% endfor %}
-    </select></label>
-  <button type="submit">{{ _("Add") }}</button>
-</form>
-{% endif %}
-
-<h3>{{ _("Add a fixed amount") }}</h3>
-<form method="post" action="/prices/layers" class="grid">
-  <input type="hidden" name="csrf" value="{{ csrf }}">
-  <input type="hidden" name="source" value="fixed">
-  <label>{{ _("Role") }}
-    <select name="role">{% for r in fixed_roles %}<option>{{ r }}</option>{% endfor %}</select></label>
-  <label>{{ _("Amount per kWh") }} <input name="value" inputmode="decimal" required placeholder="0.360"></label>
-  <label>{{ _("Unit") }} <input name="unit" required placeholder="SEK/kWh" value="{{ (layers.values() | first).unit if layers else '' }}"></label>
-  <label>VAT
-    <select name="vat"><option value="excl">{{ _("excluded") }}</option><option value="incl">{{ _("included") }}</option></select></label>
-  <button type="submit">{{ _("Add") }}</button>
-</form>
-</section>
-
-<section>
-<h2>VAT</h2>
-<form method="post" action="/prices/vat" class="grid">
-  <input type="hidden" name="csrf" value="{{ csrf }}">
-  <label>{{ _("Rate in percent") }} <input name="rate" inputmode="decimal" required value="{{ (vat.rate * 100) | round(2) if vat else '' }}" placeholder="25"></label>
-  <fieldset><legend>{{ _("Charged on") }}</legend>
-  {% for id, layer in layers.items() %}<label class="check"><input type="checkbox" name="applies_to" value="{{ id }}"{% if vat and id in vat.applies_to %} checked{% endif %}> {{ id }}</label>{% endfor %}
-  </fieldset>
-  <button type="submit">{{ _("Save") }}</button>
-</form>
-</section>
-
-<section>
 <h2>{{ _("Series offered") }}</h2>
 {% if offered %}
-<table>
-  <thead><tr><th>{{ _("Series") }}</th><th>{{ _("Role") }}</th><th>{{ _("Covers") }}</th><th>{{ _("Unit") }}</th><th>{{ _("Holds until") }}</th></tr></thead>
-  <tbody>
-  {% for o in offered if o.kind != "forecast" %}
-  <tr>
-    <td>{{ o.instance }} · {{ o.series }}</td>
-    <td><code>{{ o.role }}</code></td>
-    <td>{{ o.covers | join(", ") }}</td>
-    <td>{{ o.unit }}</td>
-    <td class="value quality-{{ 'green' if o.freshness == 'fresh' else 'grey' if o.freshness == 'empty' else 'yellow' }}" title="{{ o.why or '' }}">{{ o.known_until | when }}</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
+{% include "series-offered.html" %}
 {% else %}
-<p class="hint">{{ _("No source offers prices yet. Add Tibber or ENTSO-E in the settings.") }} <a href="/settings#prices">{{ _("Settings") }}</a></p>
+<p class="hint">{{ _("No source offers prices yet.") }} {% if can("settings.read") %}<a href="/setup/prices#sources">{{ _("Setup") }}</a>{% endif %}</p>
 {% endif %}
 </section>
 {% endblock %}

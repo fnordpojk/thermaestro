@@ -71,10 +71,12 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
     async with logged_in(site) as client:
         page = (await client.get("/prices")).text
         assert "tibber · se3/spot" in page  # offered
-        await form(client, "/prices", "/prices/layers", source="series", offered="tibber:se3/spot")
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
+        )
         await form(
             client,
-            "/prices",
+            "/setup/prices",
             "/prices/layers",
             source="fixed",
             role="energy.supplier",
@@ -84,7 +86,7 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
         )
         await form(
             client,
-            "/prices",
+            "/setup/prices",
             "/prices/layers",
             source="fixed",
             role="tax.energy",
@@ -94,7 +96,7 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
         )
         await form(
             client,
-            "/prices",
+            "/setup/prices",
             "/prices/layers",
             source="fixed",
             role="grid.transfer",
@@ -107,7 +109,7 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
         saved = await client.post(
             "/prices/vat",
             data={
-                "csrf": csrf_of((await client.get("/prices")).text),
+                "csrf": csrf_of((await client.get("/setup/prices")).text),
                 "rate": "25",
                 "applies_to": list(layers),
             },
@@ -127,9 +129,15 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
 
 async def test_a_double_count_is_shown_not_summed(site: Site) -> None:
     async with logged_in(site) as client:
-        await form(client, "/prices", "/prices/layers", source="series", offered="tibber:se3/spot")
         await form(
-            client, "/prices", "/prices/layers", source="series", offered="tibber:home/price.total"
+            client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
+        )
+        await form(
+            client,
+            "/setup/prices",
+            "/prices/layers",
+            source="series",
+            offered="tibber:home/price.total",
         )
         today = (await client.get("/api/v1/prices")).json()
         assert today["problems"] == [
@@ -151,10 +159,10 @@ async def test_series_and_their_freshness(site: Site) -> None:
 
 async def test_price_sources_in_the_settings(site: Site) -> None:
     async with logged_in(site) as client:
-        page = (await client.get("/settings")).text
+        page = (await client.get("/setup/prices")).text
         assert "SE3 \N{EN DASH} Sweden" in page
-        await form(client, "/settings", "/settings/tibber", token="tibber-token-1")
-        await form(client, "/settings", "/settings/entsoe", zone="SE3", token="entsoe-token-1")
+        await form(client, "/setup/prices", "/settings/tibber", token="tibber-token-1")
+        await form(client, "/setup/prices", "/settings/entsoe", zone="SE3", token="entsoe-token-1")
         sources = (await client.get("/api/v1/prices/sources")).json()
         assert sources["tibber"]["settings"] == {"token": "tibber.token", "home": None}
         assert sources["entsoe"]["settings"] == {
@@ -166,7 +174,7 @@ async def test_price_sources_in_the_settings(site: Site) -> None:
         assert secret is not None
         assert secret.get_secret_value() == "entsoe-token-1"
         # Saved again without a token: the one entered is kept.
-        await form(client, "/settings", "/settings/entsoe", zone="SE4", currency="eur")
+        await form(client, "/setup/prices", "/settings/entsoe", zone="SE4", currency="eur")
         sources = (await client.get("/api/v1/prices/sources")).json()
         assert (
             sources["entsoe"]["settings"]["zone"],
@@ -177,11 +185,11 @@ async def test_price_sources_in_the_settings(site: Site) -> None:
         )
         refused = await client.post(
             "/settings/entsoe",
-            data={"csrf": csrf_of((await client.get("/settings")).text), "zone": "XX9"},
+            data={"csrf": csrf_of((await client.get("/setup/prices")).text), "zone": "XX9"},
         )
         assert refused.status_code == 400
         assert "no bidding zone" in refused.text
-        assert "tibber-token-1" not in (await client.get("/settings")).text
+        assert "tibber-token-1" not in (await client.get("/setup/prices")).text
 
 
 async def test_a_fallback_and_the_check_against_tibber(site: Site) -> None:
@@ -197,10 +205,12 @@ async def test_a_fallback_and_the_check_against_tibber(site: Site) -> None:
         "tibber", quarters(TOTAL.id, today, n_today, round(1.25 * 0.59016 + 0.1248, 6), vat="incl")
     )
     async with logged_in(site) as client:
-        await form(client, "/prices", "/prices/layers", source="series", offered="tibber:se3/spot")
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
+        )
         await form(
             client,
-            "/prices",
+            "/setup/prices",
             "/prices/layers",
             source="fixed",
             role="energy.supplier",
@@ -211,15 +221,15 @@ async def test_a_fallback_and_the_check_against_tibber(site: Site) -> None:
         await client.post(
             "/prices/vat",
             data={
-                "csrf": csrf_of((await client.get("/prices")).text),
+                "csrf": csrf_of((await client.get("/setup/prices")).text),
                 "rate": "25",
                 "applies_to": ["energy-spot", "energy-supplier"],
             },
         )
-        page = (await client.get("/prices")).text
+        page = (await client.get("/setup/prices")).text
         assert 'action="/prices/layers/energy-spot/fallbacks"' in page
         await form(
-            client, "/prices", "/prices/layers/energy-spot/fallbacks", fallbacks="entsoe:spot"
+            client, "/setup/prices", "/prices/layers/energy-spot/fallbacks", fallbacks="entsoe:spot"
         )
         layers = (await client.get("/api/v1/prices/layers")).json()
         assert layers["energy-spot"]["fallbacks"] == ["entsoe:spot"]

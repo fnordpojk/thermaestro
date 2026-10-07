@@ -1,0 +1,14 @@
+<table>
+  <thead><tr><th>{{ _("Series") }}</th><th>{{ _("Role") }}</th><th>{{ _("Covers") }}</th><th>{{ _("Unit") }}</th><th>{{ _("Holds until") }}</th></tr></thead>
+  <tbody>
+  {% for o in offered if o.kind != "forecast" %}
+  <tr>
+    <td>{{ o.instance }} · {{ o.series }}</td>
+    <td><code>{{ o.role }}</code></td>
+    <td>{{ o.covers | join(", ") }}</td>
+    <td>{{ o.unit }}</td>
+    <td class="value quality-{{ 'green' if o.freshness == 'fresh' else 'grey' if o.freshness == 'empty' else 'yellow' }}" title="{{ o.why or '' }}">{{ o.known_until | when }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>

@@ -1,0 +1,63 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<section id="homeassistant">
+<h2>Home Assistant</h2>
+<p>{{ _("Thermaestro reads the entities you choose, through Home Assistant's WebSocket API. Make a long-lived access token in Home Assistant (your profile, Security) and enter it here; it is kept in the secrets file.") }}</p>
+{% for id, p in connections.items() %}
+{% set i = states.get(id) %}
+<p>{% if i %}{{ _("State:") }} <span class="state state-{{ i.state }}">{{ _(i.state) }}</span>
+  {% if i.last_error and i.state != "up" %}<br><span class="error">{{ _("Last error:") }} {{ i.last_error }}</span>{% endif %}<br>{% endif %}
+  <a href="/sensors/homeassistant/{{ id | urlencode }}">{{ _("Choose entities from %(url)s", url=p.settings.url) }}</a> · {{ p.settings.entities | length }} {{ _("read now") }}</p>
+{% endfor %}
+{% set current = (connections.values() | first).settings if connections else {} %}
+<form method="post" action="/settings/homeassistant" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (connections.keys() | first) if connections else 'homeassistant' }}">
+  <label>{{ _("Address") }}
+    <input name="url" required placeholder="http://homeassistant.local:8123" value="{{ current.url | default('') }}"></label>
+  <label>{{ _("Long-lived access token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save and choose entities") }}</button>
+</form>
+</section>
+
+<section id="mqtt">
+<h2>{{ _("MQTT broker") }}</h2>
+<p>{{ _("State:") }} <strong>{{ _(mqtt_state.state) }}</strong>{% if mqtt_state.error %} – {{ mqtt_state.error }}{% endif %}</p>
+<form method="post" action="/settings/mqtt" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Address") }} <input name="host" required placeholder="192.0.2.30" value="{{ mqtt.host if mqtt else '' }}"></label>
+  <label>{{ _("Port") }} <input name="port" inputmode="numeric" value="{{ mqtt.port if mqtt else 1883 }}"></label>
+  <label>{{ _("User name") }} <input name="username" autocomplete="off" value="{{ mqtt.username or '' if mqtt else '' }}"></label>
+  <label>{{ _("Password") }} <small>{% if mqtt and mqtt.password %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="password" type="password" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" name="tls" value="1"{% if mqtt and mqtt.tls %} checked{% endif %}> TLS</label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+
+<section id="discovery">
+<h2>{{ _("Home Assistant discovery") }}</h2>
+<p>{{ _("Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as devices: the rooms' and the outdoor values, the electricity price, the pump's values, and how the plugins are doing. The pump's settings and diagnostic values come disabled; enable those you want in Home Assistant. Nothing is accepted back.") }}</p>
+{% if not mqtt %}<p>{{ _("Set the MQTT broker above first.") }}</p>{% endif %}
+<p>{{ _("State:") }} <strong>{{ _(discovery_state.state) }}</strong></p>
+{% if discovery_state.devices %}
+<ul>
+  {% for d in discovery_state.devices %}<li>{{ d.name }}: {{ _("%(n)s entities, %(enabled)s enabled", n=d.entities, enabled=d.enabled) }}</li>{% endfor %}
+</ul>
+{% endif %}
+<form method="post" action="/settings/discovery" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="check"><input type="checkbox" name="enabled" value="1"{% if discovery.enabled %} checked{% endif %}> {{ _("Publish to Home Assistant") }}</label>
+  <label>{{ _("Language of the names") }}
+    <select name="language">{% for code, name in languages.items() %}<option value="{{ code }}"{% if code == discovery.language %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <label class="check"><input type="checkbox" name="sensors" value="1"{% if discovery.sensors %} checked{% endif %}> {{ _("Also each sensor's own values") }}
+    <small>{{ _("Home Assistant may have them already.") }}</small></label>
+  <label>{{ _("Discovery prefix") }} <small>{{ _("as set in Home Assistant's MQTT integration") }}</small>
+    <input name="prefix" required value="{{ discovery.prefix }}"></label>
+  <label>{{ _("Topic prefix") }} <small>{{ _("where the values go") }}</small>
+    <input name="base" required value="{{ discovery.base }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+{% endblock %}

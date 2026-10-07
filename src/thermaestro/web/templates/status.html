@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Status") }}{% endblock %}
+{% block title %}{{ _("Overview") }}{% endblock %}
 {% block main %}
-<h1>{{ _("Status") }}</h1>
+<h1>{{ _("Overview") }}</h1>
 {% if not instances %}
 <p class="notice">{{ _("Nothing is connected yet.") }}
-{% if can("plugins.manage") %}<a href="/settings">{{ _("Add the pump's connection in the settings.") }}</a>{% endif %}</p>
+{% if can("plugins.manage") %}<a href="/setup/pump">{{ _("Add the pump's connection under Setup.") }}</a>{% endif %}</p>
 {% endif %}
 <div id="values" hx-get="/status/values" hx-trigger="every 5s" hx-swap="innerHTML">
 {% include "values.html" %}

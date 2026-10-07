@@ -43,6 +43,24 @@ header .brand { font-weight: 700; color: var(--accent); text-decoration: none; }
 header nav { display: flex; flex-wrap: wrap; gap: 1rem; flex: 1; }
 header nav a { color: var(--fg); text-decoration: none; }
 header nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 0.3em; }
+header nav a.apart { margin-left: auto; }
+
+/* Setup: the topics beside the topic's page; System: tabs. */
+.with-side { display: grid; grid-template-columns: 11rem 1fr; gap: 2rem; align-items: start; }
+nav.side h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0.5rem 0; }
+nav.side ul { list-style: none; margin: 0; padding: 0; }
+nav.side a { display: block; padding: 0.35rem 0.6rem; border-radius: 4px; color: var(--fg); text-decoration: none; }
+nav.side a[aria-current="page"] { background: var(--panel); border: 1px solid var(--line); font-weight: 600; }
+.topic h1 { margin-top: 0.25rem; }
+.topic .room { border-top: 1px solid var(--line); padding-top: 0.25rem; }
+nav.tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
+nav.tabs a { padding: 0.4rem 0.8rem; color: var(--fg); text-decoration: none; border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0; }
+nav.tabs a[aria-current="page"] { background: var(--panel); border-color: var(--line); font-weight: 600; margin-bottom: -1px; }
+@media (max-width: 40rem) {
+  .with-side { grid-template-columns: 1fr; gap: 0.5rem; }
+  nav.side ul { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  header nav a.apart { margin-left: 0; }
+}
 header .me { display: flex; gap: 0.75rem; align-items: center; }
 header .me form { margin: 0; }
 main { max-width: 72rem; margin: 0 auto; padding: 1rem; }

@@ -1,6 +1,6 @@
-"""The prices page: the series offered, the layers of the stack, VAT, and what one more
-kWh costs today and tomorrow. Each form posts to an endpoint that does what its API
-counterpart does."""
+"""The prices page: what one more kWh costs today and tomorrow, and where the prices come
+from. The sources, the layers of the stack and VAT are set under Setup → Prices; their
+forms post here, each to an endpoint that does what its API counterpart does."""
 
 from datetime import datetime, timedelta
 from typing import Annotated, Any
@@ -11,55 +11,23 @@ from fastapi.responses import HTMLResponse, Response
 from ..auth import AccountError
 from .app import action, caller, services
 from .operations import Caller
-from .pages import Text, back, render
+from .pages import Text, render
 from .pages import _message as message
+from .setup_pages import attempt, show
 
 router = APIRouter(default_response_class=HTMLResponse)
 
 Logged = Annotated[Caller, Depends(caller)]
 
-FIXED_ROLES = (
-    "energy.supplier",
-    "tax.energy",
-    "grid.transfer",
-    "grid.tou",
-    "levy",
-    "subsidy",
-    "energy.spot",
-)
 
-
-async def _prices(request: Request, who: Caller, status_code: int = 200, **extra: Any) -> Response:
+@router.get("/prices")
+async def prices_page(request: Request, who: Logged) -> Response:
     s = services(request)
     today = datetime.now(s.zone).date()
     days = []
     for day in (today, today + timedelta(days=1)):
         days.append((day, await s.price_stack(who, day)))
-    return render(
-        request,
-        "prices.html",
-        who,
-        status_code=status_code,
-        offered=s.offered_series(who),
-        layers=await s.price_layers(who),
-        vat=await s.vat(who),
-        days=days,
-        fixed_roles=FIXED_ROLES,
-        **extra,
-    )
-
-
-@router.get("/prices")
-async def prices_page(request: Request, who: Logged) -> Response:
-    return await _prices(request, who)
-
-
-async def _attempt(request: Request, who: Caller, work: Any) -> Response:
-    try:
-        await work
-    except AccountError as e:
-        return await _prices(request, who, 400, error=message(e))
-    return back("/prices")
+    return render(request, "prices.html", who, offered=s.offered_series(who), days=days)
 
 
 @router.post("/prices/layers")
@@ -81,7 +49,9 @@ async def add_layer(
             (o for o in s.offered_series(who) if f"{o['instance']}:{o['series']}" == offered), None
         )
         if found is None:
-            return await _prices(request, who, 400, error=message(AccountError("no such series")))
+            return await show(
+                request, who, "prices", 400, error=message(AccountError("no such series"))
+            )
         body = {
             "role": found["role"],
             "source": "series",
@@ -94,15 +64,17 @@ async def add_layer(
         try:
             amount = float(value.replace(",", "."))
         except ValueError:
-            return await _prices(request, who, 400, error=message(AccountError("not a number")))
+            return await show(
+                request, who, "prices", 400, error=message(AccountError("not a number"))
+            )
         body = {"role": role, "source": "fixed", "value": amount, "unit": unit.strip(), "vat": vat}
-    return await _attempt(request, who, s.set_price_layer(who, None, body))
+    return await attempt(request, who, s.set_price_layer(who, None, body), "prices")
 
 
 @router.post("/prices/layers/{id}/delete")
 @action("price_layer.delete")
 async def delete_layer(request: Request, who: Logged, id: str) -> Response:
-    return await _attempt(request, who, services(request).delete_price_layer(who, id))
+    return await attempt(request, who, services(request).delete_price_layer(who, id), "prices")
 
 
 @router.post("/prices/layers/{id}/fallbacks")
@@ -113,12 +85,9 @@ async def set_fallbacks(
     id: str,
     fallbacks: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
-    return await _attempt(
-        request, who, services(request).set_fallbacks(who, id, list(fallbacks or []))
+    return await attempt(
+        request, who, services(request).set_fallbacks(who, id, list(fallbacks or [])), "prices"
     )
-
-
-# --- the sources, on the settings page ----------------------------------------------------
 
 
 @router.post("/settings/tibber")
@@ -126,8 +95,6 @@ async def set_fallbacks(
 async def set_tibber(
     request: Request, who: Logged, id: Text = "tibber", token: Text = ""
 ) -> Response:
-    from .sensor_pages import _settings_attempt
-
     s = services(request)
     current = (await s.price_sources(who)).get(id)
     token_name = f"{id.lower()}.token"
@@ -140,7 +107,7 @@ async def set_tibber(
         home = current["settings"].get("home") if current else None
         await s.set_price_source(who, "tibber", id, {"token": token_name, "home": home})
 
-    return await _settings_attempt(request, who, work(), "/settings#prices")
+    return await attempt(request, who, work(), "prices", "/setup/prices#sources")
 
 
 @router.post("/settings/entsoe")
@@ -154,7 +121,6 @@ async def set_entsoe(
     currency: Text = "",
 ) -> Response:
     from ..entsoe.zones import ZONES
-    from .sensor_pages import _settings_attempt
 
     s = services(request)
     current = (await s.price_sources(who)).get(id)
@@ -174,7 +140,7 @@ async def set_entsoe(
         }
         await s.set_price_source(who, "entsoe", id, settings)
 
-    return await _settings_attempt(request, who, work(), "/settings#prices")
+    return await attempt(request, who, work(), "prices", "/setup/prices#sources")
 
 
 @router.post("/prices/vat")
@@ -188,6 +154,8 @@ async def set_vat(
     try:
         fraction = float(rate.replace(",", ".")) / 100
     except ValueError:
-        return await _prices(request, who, 400, error=message(AccountError("not a number")))
+        return await show(request, who, "prices", 400, error=message(AccountError("not a number")))
     body = {"rate": fraction, "applies_to": applies_to or []}
-    return await _attempt(request, who, services(request).set_vat(who, body))
+    return await attempt(
+        request, who, services(request).set_vat(who, body), "prices", "/setup/prices#vat"
+    )

@@ -1,10 +1,8 @@
-{% extends "base.html" %}
-{% block title %}{{ _("Sensors") }}{% endblock %}
-{% block main %}
-<h1>{{ _("Sensors") }}</h1>
+{% extends "setup-base.html" %}
+{% block topic %}
 <p>{{ _("Sensors from outside the pump: an MQTT topic, or an entity in Home Assistant. Each one is placed in a room, outdoors, or elsewhere.") }}</p>
 
-<section>
+<section id="list">
 {% if sensors %}
 <table>
   <thead><tr><th>{{ _("Sensor") }}</th><th>{{ _("Measures") }}</th><th>{{ _("Where") }}</th><th class="num">{{ _("Value") }}</th><th></th></tr></thead>
@@ -46,6 +44,26 @@
 {% endif %}
 </section>
 
+<section id="homeassistant">
+<h2>{{ _("From Home Assistant") }}</h2>
+{% for id, p in connections.items() %}
+<p><a href="/sensors/homeassistant/{{ id | urlencode }}">{{ _("Choose entities from %(url)s", url=p.settings.url) }}</a> · {{ p.settings.entities | length }} {{ _("read now") }}</p>
+{% else %}
+<p>{{ _("Connect Home Assistant under External to choose its entities here.") }} <a href="/setup/external#homeassistant">{{ _("External") }}</a></p>
+{% endfor %}
+</section>
+
+<section id="mqtt">
+<h2>{{ _("Add an MQTT sensor") }}</h2>
+{% if has_broker %}
+{% set form_id = none %}
+{% set s = none %}
+{% include "sensor-form.html" %}
+{% else %}
+<p>{{ _("Set up the MQTT broker under External to add MQTT sensors here.") }} <a href="/setup/external#mqtt">{{ _("External") }}</a></p>
+{% endif %}
+</section>
+
 <section id="outdoor">
 <h2>{{ _("Outdoor references") }}</h2>
 <p>{{ _("Which outdoor sensor counts for each quantity: forecasts are checked against it, and the house model learns from it. Without one for temperature, the pump's own outdoor sensor is used.") }}</p>
@@ -62,25 +80,5 @@
   {% endfor %}
   <button type="submit">{{ _("Save") }}</button>
 </form>
-</section>
-
-<section>
-<h2>{{ _("Add an MQTT sensor") }}</h2>
-{% if has_broker %}
-{% set form_id = none %}
-{% set s = none %}
-{% include "sensor-form.html" %}
-{% else %}
-<p>{{ _("Set up the MQTT broker in the settings to add MQTT sensors here.") }} <a href="/settings#mqtt">{{ _("Settings") }}</a></p>
-{% endif %}
-</section>
-
-<section id="homeassistant">
-<h2>Home Assistant</h2>
-{% for id, p in connections.items() %}
-<p><a href="/sensors/homeassistant/{{ id | urlencode }}">{{ _("Choose entities from %(url)s", url=p.settings.url) }}</a> · {{ p.settings.entities | length }} {{ _("read now") }}</p>
-{% else %}
-<p>{{ _("Connect Home Assistant in the settings to choose its entities here.") }} <a href="/settings#homeassistant">{{ _("Settings") }}</a></p>
-{% endfor %}
 </section>
 {% endblock %}

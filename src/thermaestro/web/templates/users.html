@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Users") }}{% endblock %}
 {% block main %}
-<h1>{{ _("Users") }}</h1>
+<h1>{{ _("System") }}</h1>
+{% include "system-nav.html" %}
 <p class="hint">{{ _("Changes here need your password within the last 15 minutes; you'll be asked for it.") }}</p>
 
 <table>

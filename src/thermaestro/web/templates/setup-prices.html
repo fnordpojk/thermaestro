@@ -1,0 +1,127 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<p>{{ _("What one more kWh costs is a stack of layers: the spot price, the supplier's adders, taxes and grid fees, and VAT. Thermaestro adds them per 15 minutes, and refuses a stack that counts something twice.") }} <a href="/prices">{{ _("Prices") }}</a></p>
+
+<section id="sources">
+<h2>{{ _("Price sources") }}</h2>
+<p>{{ _("Where the spot price, and your supplier's price, come from. Tokens are kept in the secrets file.") }}</p>
+{% for id, src in (tibber | dictsort) + (entsoe | dictsort) %}
+<p><strong>{{ id }}</strong> · {{ _(src.state) }}{% if src.plugin == "entsoe" %} · {{ src.settings.zone }}, {{ src.settings.currency }}{% endif %}
+  {% if src.needs_user_action %}<br><span class="error">{{ src.needs_user_action }}</span>{% elif src.error %}<br><span class="hint">{{ src.error }}</span>{% endif %}</p>
+{% endfor %}
+
+<h3>Tibber</h3>
+<p>{{ _("Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. Make a personal access token at developer.tibber.com. Thermaestro asks Tibber for prices only, never for your name, address or consumption.") }}</p>
+{% set current = (tibber.values() | first) if tibber else none %}
+<form method="post" action="/settings/tibber" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (tibber.keys() | first) if tibber else 'tibber' }}">
+  <label>{{ _("Personal access token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+
+<h3>ENTSO-E</h3>
+<p>{{ _("Day-ahead spot prices for every European bidding zone, from the ENTSO-E Transparency Platform. You need a security token of your own: register on the platform, then ask its helpdesk for access to the API. Prices in euros are converted at the ECB's reference rates.") }}</p>
+{% set current = (entsoe.values() | first) if entsoe else none %}
+<form method="post" action="/settings/entsoe" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (entsoe.keys() | first) if entsoe else 'entsoe' }}">
+  {% set chosen = current.settings.zone if current else "" %}
+  <label>{{ _("Bidding zone") }}
+    <select name="zone" required>
+      <option value=""{% if not chosen %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for code, z in bidding_zones.items() %}<option value="{{ code }}"{% if code == chosen %} selected{% endif %}>{{ code }} – {{ z.country | country }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Currency") }} <small>{{ _("empty: the zone's own") }}</small>
+    <input name="currency" maxlength="3" placeholder="SEK" value="{{ current.settings.currency if current else '' }}"></label>
+  <label>{{ _("Security token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+
+<section id="layers">
+<h2>{{ _("Layers") }}</h2>
+{% if layers %}
+<table>
+  <thead><tr><th>{{ _("Layer") }}</th><th>{{ _("Role") }}</th><th>{{ _("Source") }}</th><th>VAT</th><th></th></tr></thead>
+  <tbody>
+  {% for id, layer in layers.items() %}
+  <tr>
+    <td>{{ id }}</td>
+    <td><code>{{ layer.role }}</code></td>
+    <td>{% if layer.source == "series" %}{{ layer.plugin }} · {{ layer.series }}
+      {% set others = offered | selectattr("role", "equalto", layer.role) | selectattr("unit", "equalto", layer.unit) | rejectattr("instance", "equalto", layer.plugin) | list %}
+      {% if others or layer.fallbacks %}
+      <form method="post" action="/prices/layers/{{ id | urlencode }}/fallbacks" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label>{{ _("Fallback") }}
+          <select name="fallbacks">
+            <option value="">{{ _("none") }}</option>
+            {% for o in others %}{% set ref = o.instance ~ ":" ~ o.series %}<option value="{{ ref }}"{% if ref in layer.fallbacks %} selected{% endif %}>{{ o.instance }} · {{ o.series }}</option>{% endfor %}
+          </select></label>
+        <button type="submit">{{ _("Save") }}</button>
+      </form>
+      {% endif %}
+    {% else %}{{ layer.value | num(4) }} {{ layer.unit }}{% endif %}</td>
+    <td>{{ _("included") if layer.vat == "incl" else _("excluded") }}</td>
+    <td><form method="post" action="/prices/layers/{{ id | urlencode }}/delete">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="danger">{{ _("Remove") }}</button></form></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="notice">{{ _("No layers yet.") }}</p>
+{% endif %}
+
+{% if offered %}
+<h3>{{ _("Add a series") }}</h3>
+<form method="post" action="/prices/layers" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="source" value="series">
+  <label>{{ _("Series") }}
+    <select name="offered">
+      {% for o in offered if o.kind == "price" %}<option value="{{ o.instance }}:{{ o.series }}">{{ o.instance }} · {{ o.series }} ({{ o.role }}, {{ o.unit }})</option>{% endfor %}
+    </select></label>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+{% endif %}
+
+<h3>{{ _("Add a fixed amount") }}</h3>
+<form method="post" action="/prices/layers" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="source" value="fixed">
+  <label>{{ _("Role") }}
+    <select name="role">{% for r in fixed_roles %}<option>{{ r }}</option>{% endfor %}</select></label>
+  <label>{{ _("Amount per kWh") }} <input name="value" inputmode="decimal" required placeholder="0.360"></label>
+  <label>{{ _("Unit") }} <input name="unit" required placeholder="SEK/kWh" value="{{ (layers.values() | first).unit if layers else '' }}"></label>
+  <label>VAT
+    <select name="vat"><option value="excl">{{ _("excluded") }}</option><option value="incl">{{ _("included") }}</option></select></label>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+</section>
+
+<section id="vat">
+<h2>VAT</h2>
+<form method="post" action="/prices/vat" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Rate in percent") }} <input name="rate" inputmode="decimal" required value="{{ (vat.rate * 100) | round(2) if vat else '' }}" placeholder="25"></label>
+  <fieldset><legend>{{ _("Charged on") }}</legend>
+  {% for id, layer in layers.items() %}<label class="check"><input type="checkbox" name="applies_to" value="{{ id }}"{% if vat and id in vat.applies_to %} checked{% endif %}> {{ id }}</label>{% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+
+<section id="offered">
+<h2>{{ _("Series offered") }}</h2>
+{% if offered %}
+{% include "series-offered.html" %}
+{% else %}
+<p class="hint">{{ _("No source offers prices yet. Add Tibber or ENTSO-E above.") }}</p>
+{% endif %}
+</section>
+{% endblock %}

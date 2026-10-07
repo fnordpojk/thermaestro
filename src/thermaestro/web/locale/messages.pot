@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 22:21+0200\n"
+"POT-Creation-Date: 2026-10-07 22:48+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -124,7 +124,7 @@ msgstr ""
 msgid "Add an MQTT sensor"
 msgstr ""
 
-msgid "Add the pump's connection in the settings."
+msgid "Add the pump's connection under Setup."
 msgstr ""
 
 msgid "Addition"
@@ -263,7 +263,7 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-msgid "Connect Home Assistant in the settings to choose its entities here."
+msgid "Connect Home Assistant under External to choose its entities here."
 msgstr ""
 
 msgid "Control port"
@@ -319,9 +319,6 @@ msgid "Dew point"
 msgstr ""
 
 msgid "Diagnostic values"
-msgstr ""
-
-msgid "Diagnostics"
 msgstr ""
 
 msgid "Diffuse sunlight"
@@ -382,6 +379,9 @@ msgstr ""
 msgid "Expires"
 msgstr ""
 
+msgid "External"
+msgstr ""
+
 msgid "Fallback"
 msgstr ""
 
@@ -418,6 +418,9 @@ msgid ""
 msgstr ""
 
 msgid "From"
+msgstr ""
+
+msgid "From Home Assistant"
 msgstr ""
 
 msgid "Gateway address"
@@ -469,6 +472,9 @@ msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr ""
 
 msgid "Hot water"
+msgstr ""
+
+msgid "House"
 msgstr ""
 
 msgid "How each has done at this house"
@@ -607,7 +613,7 @@ msgstr ""
 msgid "No administrator exists yet."
 msgstr ""
 
-msgid "No forecast yet: choose a main provider above."
+msgid "No forecast yet: choose a main provider under Setup."
 msgstr ""
 
 msgid "No layers yet."
@@ -633,7 +639,10 @@ msgstr ""
 msgid "No sensors yet."
 msgstr ""
 
-msgid "No source offers prices yet. Add Tibber or ENTSO-E in the settings."
+msgid "No source offers prices yet."
+msgstr ""
+
+msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
 msgstr ""
 
 msgid "No values in this period."
@@ -681,9 +690,6 @@ msgstr ""
 msgid "Outcome"
 msgstr ""
 
-msgid "Outdoor reference"
-msgstr ""
-
 msgid "Outdoor references"
 msgstr ""
 
@@ -691,6 +697,9 @@ msgid "Outdoor temperature"
 msgstr ""
 
 msgid "Outdoors"
+msgstr ""
+
+msgid "Overview"
 msgstr ""
 
 msgid "PM10"
@@ -761,6 +770,9 @@ msgid "Publish to Home Assistant"
 msgstr ""
 
 msgid "Published verification"
+msgstr ""
+
+msgid "Pump"
 msgstr ""
 
 msgid "Quantity"
@@ -855,19 +867,19 @@ msgstr ""
 msgid "Set the location first: forecasts are for a place."
 msgstr ""
 
-msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
+msgid "Set up the MQTT broker under External to add MQTT sensors here."
 msgstr ""
 
 msgid "Setpoint"
-msgstr ""
-
-msgid "Settings"
 msgstr ""
 
 msgid "Settings and diagnostic values"
 msgstr ""
 
 msgid "Settings read from the device"
+msgstr ""
+
+msgid "Setup"
 msgstr ""
 
 msgid "Setup code"
@@ -903,9 +915,6 @@ msgstr ""
 msgid "State:"
 msgstr ""
 
-msgid "Status"
-msgstr ""
-
 msgid "Steps"
 msgstr ""
 
@@ -918,6 +927,9 @@ msgstr ""
 msgid ""
 "Sweden's forecast, for the Nordic and Baltic countries only. No dew point"
 " and no sunlight; Thermaestro derives them."
+msgstr ""
+
+msgid "System"
 msgstr ""
 
 msgid "Temperature"
@@ -1063,11 +1075,6 @@ msgstr ""
 msgid "Weather entity"
 msgstr ""
 
-msgid ""
-"Weather providers are added and chosen on the weather page; they move "
-"with the location."
-msgstr ""
-
 msgid "What"
 msgstr ""
 
@@ -1096,9 +1103,8 @@ msgid "Where it's shown"
 msgstr ""
 
 msgid ""
-"Where the spot price, and your supplier's price, come from. Each source "
-"offers its prices on the prices page, where the stack is built. Tokens "
-"are kept in the secrets file."
+"Where the spot price, and your supplier's price, come from. Tokens are "
+"kept in the secrets file."
 msgstr ""
 
 msgid "Where the value wasn't valid, the last valid one is drawn on in grey."

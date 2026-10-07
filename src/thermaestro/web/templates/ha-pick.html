@@ -2,7 +2,7 @@
 {% block title %}Home Assistant{% endblock %}
 {% block main %}
 <h1>{{ _("Choose from Home Assistant") }}</h1>
-<p>{{ _("A room is suggested from the entity's area where a room has the same name.") }} <a href="/rooms">{{ _("Rooms") }}</a></p>
+<p>{{ _("A room is suggested from the entity's area where a room has the same name.") }} <a href="/setup/house#rooms">{{ _("Rooms") }}</a></p>
 {% if picks %}
 <form method="post" action="/sensors/homeassistant/{{ id | urlencode }}/sensors">
   <input type="hidden" name="csrf" value="{{ csrf }}">

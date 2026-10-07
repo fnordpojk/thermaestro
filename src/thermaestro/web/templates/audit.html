@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Audit log") }}{% endblock %}
 {% block main %}
-<h1>{{ _("Audit log") }}</h1>
+<h1>{{ _("System") }}</h1>
+{% include "system-nav.html" %}
 <p class="hint">{{ _("Newest first. `thermaestro audit verify` on the host checks that no line was changed or removed.") }}</p>
 <table class="audit">
   <thead><tr><th>{{ _("When") }}</th><th>{{ _("Who") }}</th><th>{{ _("From") }}</th><th>{{ _("What") }}</th><th>{{ _("Outcome") }}</th><th>{{ _("Details") }}</th></tr></thead>

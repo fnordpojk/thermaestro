@@ -211,7 +211,7 @@ async def test_first_run(site: Site) -> None:
         assert done.status_code == 303
         assert (await client.get("/")).status_code == 200  # and logged in
         again = await client.get("/setup")
-        assert again.headers["location"] == "/login"
+        assert again.headers["location"] == "/setup/house"  # Setup's first topic
     assert site.services.setup.current() is None
 
 
@@ -270,7 +270,7 @@ async def test_sessions_end_when_idle(site: Site) -> None:
 
 async def test_unsafe_requests_need_the_token_and_the_origin(site: Site) -> None:
     async with admin(site) as client:
-        token = csrf_of((await client.get("/settings")).text)
+        token = csrf_of((await client.get("/setup/house")).text)
         fields = {"latitude": "52.52", "longitude": "13.40", "timezone": "Europe/Berlin"}
         no_token = await client.post("/settings/location", data=fields)
         assert no_token.status_code == 403
@@ -395,7 +395,7 @@ async def test_a_viewer_can_only_look(site: Site) -> None:
             body = BODIES.get(path.split("?")[0])
             answer = await client.request(method, path, json=body, headers=headers)
             assert answer.status_code == 403, (method, path, answer.text)
-        for page in ("/settings", "/users", "/audit", "/diagnostics"):
+        for page in ("/setup/house", "/setup/prices", "/system/health", "/users", "/audit"):
             assert (await client.get(page)).status_code == 403, page
 
 
@@ -510,17 +510,39 @@ PAGES = [
     "/",
     "/status/values",
     "/points/pump/hp1/outdoor.temp",
-    "/settings",
-    "/users",
-    "/account",
-    "/diagnostics",
-    "/audit",
-    "/sensors",
-    "/rooms",
     "/prices",
     "/weather",
+    "/setup/house",
+    "/setup/pump",
+    "/setup/external",
+    "/setup/sensors",
+    "/setup/prices",
+    "/setup/weather",
+    "/system/health",
+    "/users",
+    "/audit",
+    "/account",
     "/confirm",
 ]
+
+
+async def test_old_pages_lead_to_their_new_places(site: Site) -> None:
+    async with admin(site) as client:
+        for old, new in (
+            ("/settings", "/setup/house"),
+            ("/sensors", "/setup/sensors"),
+            ("/rooms", "/setup/house#rooms"),
+            ("/diagnostics", "/system/health"),
+            ("/system", "/system/health"),
+        ):
+            answer = await client.get(old)
+            assert (answer.status_code, answer.headers["location"]) == (303, new), old
+        assert (await client.get("/setup/nowhere")).status_code == 404
+        house = (await client.get("/setup/house")).text
+    # Each topic is in the side list, the current one marked.
+    for topic in ("house", "pump", "external", "sensors", "prices", "weather"):
+        assert f'href="/setup/{topic}"' in house
+    assert 'href="/setup/house" aria-current="page"' in house
 
 
 async def test_pages_render_with_nothing_inline(site: Site) -> None:
@@ -579,7 +601,7 @@ async def test_the_pump_connection_and_its_key(site: Site) -> None:
     async with admin(site) as client:
         answer = await form(
             client,
-            "/settings",
+            "/setup/pump",
             "/settings/pump",
             id="pump",
             host="192.0.2.20",
@@ -587,10 +609,10 @@ async def test_the_pump_connection_and_its_key(site: Site) -> None:
             psk=key,
         )
         assert answer.status_code == 303, answer.text
-        page = (await client.get("/settings")).text
+        page = (await client.get("/setup/pump")).text
         missing = await form(
             client,
-            "/settings",
+            "/setup/pump",
             "/settings/pump",
             id="pump2",
             host="192.0.2.21",
@@ -693,7 +715,7 @@ async def test_a_reloaded_part_sends_the_whole_page_to_the_login(site: Site) -> 
 
 async def test_the_time_zone_is_picked_from_a_list(site: Site) -> None:
     async with admin(site) as client:
-        page = (await client.get("/settings")).text
+        page = (await client.get("/setup/house")).text
         assert '<option value="Europe/Stockholm">Stockholm</option>' in page
         assert '<optgroup label="Europe">' in page
         assert "data-detect-zone" in page  # none chosen yet: the browser's is preselected
@@ -701,19 +723,19 @@ async def test_the_time_zone_is_picked_from_a_list(site: Site) -> None:
         assert 'value="Etc/GMT+1"' not in page
         saved = await form(
             client,
-            "/settings",
+            "/setup/house",
             "/settings/location",
             latitude="52.52",
             longitude="13.40",
             timezone="Europe/Berlin",
         )
         assert saved.status_code == 303
-        page = (await client.get("/settings")).text
+        page = (await client.get("/setup/house")).text
         assert '<option value="Europe/Berlin" selected>Berlin</option>' in page
         assert "data-detect-zone" not in page
         refused = await form(
             client,
-            "/settings",
+            "/setup/house",
             "/settings/location",
             latitude="52.52",
             longitude="13.40",
@@ -727,7 +749,7 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
     async with admin(site) as client:
         await form(
             client,
-            "/settings",
+            "/setup/house",
             "/settings/location",
             latitude="59.33",
             longitude="18.07",
@@ -863,8 +885,8 @@ async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> N
     instance.described = instance.described.model_copy(update={"points": points})
     async with admin(site) as client:
         status = (await client.get("/status/values")).text
-        diagnostics = (await client.get("/diagnostics")).text
+        diagnostics = (await client.get("/system/health")).text
     assert "hp1/x.fake.prio" not in status
     assert "Outdoor temperature" in status
-    assert 'href="/diagnostics#pump"' in status
+    assert 'href="/system/health#pump"' in status
     assert "hp1/x.fake.prio" in diagnostics

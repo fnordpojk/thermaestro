@@ -21,7 +21,7 @@
   </p>
   {{ points_table(instance.id, primary) }}
   {% if primary | length < instance.points | length %}
-  <p class="hint"><a href="/diagnostics#{{ instance.id | urlencode }}">{{ _("Settings and diagnostic values") }}</a></p>
+  <p class="hint"><a href="/system/health#{{ instance.id | urlencode }}">{{ _("Settings and diagnostic values") }}</a></p>
   {% endif %}
   {% elif instance.state == "up" %}
   <p>{{ _("This plugin offers no points.") }}</p>

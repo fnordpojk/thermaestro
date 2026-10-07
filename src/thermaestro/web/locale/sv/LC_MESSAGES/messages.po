@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 22:21+0200\n"
-"PO-Revision-Date: 2026-10-07 22:21+0200\n"
+"POT-Creation-Date: 2026-10-07 22:48+0200\n"
+"PO-Revision-Date: 2026-10-07 22:48+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -132,8 +132,8 @@ msgstr "Lägg till en användare"
 msgid "Add an MQTT sensor"
 msgstr "Lägg till en MQTT-givare"
 
-msgid "Add the pump's connection in the settings."
-msgstr "Lägg till pumpens anslutning i inställningarna."
+msgid "Add the pump's connection under Setup."
+msgstr "Lägg till pumpens anslutning under Inställningar."
 
 msgid "Addition"
 msgstr "Tillsats"
@@ -275,8 +275,8 @@ msgstr "Villkor"
 msgid "Confirm"
 msgstr "Bekräfta"
 
-msgid "Connect Home Assistant in the settings to choose its entities here."
-msgstr "Anslut Home Assistant i inställningarna för att välja dess entiteter här."
+msgid "Connect Home Assistant under External to choose its entities here."
+msgstr "Anslut Home Assistant under Externt för att välja dess entiteter här."
 
 msgid "Control port"
 msgstr "Kontrollport"
@@ -336,9 +336,6 @@ msgstr "Daggpunkt"
 
 msgid "Diagnostic values"
 msgstr "Diagnostiska värden"
-
-msgid "Diagnostics"
-msgstr "Diagnostik"
 
 msgid "Diffuse sunlight"
 msgstr "Diffust solljus"
@@ -403,6 +400,9 @@ msgstr "Frånluftstemperatur"
 msgid "Expires"
 msgstr "Upphör"
 
+msgid "External"
+msgstr "Externt"
+
 msgid "Fallback"
 msgstr "Reserv"
 
@@ -443,6 +443,9 @@ msgstr ""
 
 msgid "From"
 msgstr "Från"
+
+msgid "From Home Assistant"
+msgstr "Från Home Assistant"
 
 msgid "Gateway address"
 msgstr "Gatewayens adress"
@@ -494,6 +497,9 @@ msgstr "Home Assistant erbjuder inget som Thermaestro kan använda."
 
 msgid "Hot water"
 msgstr "Varmvatten"
+
+msgid "House"
+msgstr "Huset"
 
 msgid "How each has done at this house"
 msgstr "Hur var och en har klarat sig vid det här huset"
@@ -635,8 +641,8 @@ msgstr "NibeGW (vanlig)"
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
 
-msgid "No forecast yet: choose a main provider above."
-msgstr "Ingen prognos än: välj en huvudleverantör ovan."
+msgid "No forecast yet: choose a main provider under Setup."
+msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
 
 msgid "No layers yet."
 msgstr "Inga lager än."
@@ -663,8 +669,11 @@ msgstr "Inga givare i det här rummet än."
 msgid "No sensors yet."
 msgstr "Inga givare än."
 
-msgid "No source offers prices yet. Add Tibber or ENTSO-E in the settings."
-msgstr "Ingen källa erbjuder priser ännu. Lägg till Tibber eller ENTSO-E i inställningarna."
+msgid "No source offers prices yet."
+msgstr "Ingen källa erbjuder priser än."
+
+msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
+msgstr "Ingen källa erbjuder priser än. Lägg till Tibber eller ENTSO-E ovan."
 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
@@ -713,9 +722,6 @@ msgstr "Huvudman"
 msgid "Outcome"
 msgstr "Utfall"
 
-msgid "Outdoor reference"
-msgstr "Utomhusreferens"
-
 msgid "Outdoor references"
 msgstr "Utomhusreferenser"
 
@@ -724,6 +730,9 @@ msgstr "Utetemperatur"
 
 msgid "Outdoors"
 msgstr "Utomhus"
+
+msgid "Overview"
+msgstr "Översikt"
 
 msgid "PM10"
 msgstr "PM10"
@@ -794,6 +803,9 @@ msgstr "Publicera till Home Assistant"
 
 msgid "Published verification"
 msgstr "Publicerad verifiering"
+
+msgid "Pump"
+msgstr "Värmepump"
 
 msgid "Quantity"
 msgstr "Storhet"
@@ -889,20 +901,20 @@ msgstr "Ange MQTT-mäklaren ovan först."
 msgid "Set the location first: forecasts are for a place."
 msgstr "Ange platsen först: prognoser gäller en plats."
 
-msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
-msgstr "Ställ in MQTT-brokern i inställningarna för att lägga till MQTT-givare här."
+msgid "Set up the MQTT broker under External to add MQTT sensors here."
+msgstr "Ställ in MQTT-mäklaren under Externt för att lägga till MQTT-givare här."
 
 msgid "Setpoint"
 msgstr "Börvärde"
-
-msgid "Settings"
-msgstr "Inställningar"
 
 msgid "Settings and diagnostic values"
 msgstr "Inställningar och diagnostiska värden"
 
 msgid "Settings read from the device"
 msgstr "Inställningar lästa från enheten"
+
+msgid "Setup"
+msgstr "Inställningar"
 
 msgid "Setup code"
 msgstr "Installationskod"
@@ -937,9 +949,6 @@ msgstr "Tillstånd"
 msgid "State:"
 msgstr "Tillstånd:"
 
-msgid "Status"
-msgstr "Status"
-
 msgid "Steps"
 msgstr "Steg"
 
@@ -955,6 +964,9 @@ msgid ""
 msgstr ""
 "Sveriges prognos, bara för Norden och Baltikum. Ingen daggpunkt och inget solljus; "
 "Thermaestro härleder dem."
+
+msgid "System"
+msgstr "System"
 
 msgid "Temperature"
 msgstr "Temperatur"
@@ -1114,11 +1126,6 @@ msgstr "Väder"
 msgid "Weather entity"
 msgstr "Väderentitet"
 
-msgid ""
-"Weather providers are added and chosen on the weather page; they move with the "
-"location."
-msgstr "Väderleverantörer läggs till och väljs på vädersidan; de följer med platsen."
-
 msgid "What"
 msgstr "Vad"
 
@@ -1150,12 +1157,9 @@ msgid "Where it's shown"
 msgstr "Var det visas"
 
 msgid ""
-"Where the spot price, and your supplier's price, come from. Each source offers its "
-"prices on the prices page, where the stack is built. Tokens are kept in the secrets "
-"file."
-msgstr ""
-"Varifrån spotpriset och din elhandlares pris kommer. Varje källa erbjuder sina priser"
-" på prissidan, där prisstapeln byggs. Token sparas i hemlighetsfilen."
+"Where the spot price, and your supplier's price, come from. Tokens are kept in the "
+"secrets file."
+msgstr "Varifrån spotpriset och din elhandlares pris kommer. Token sparas i hemlighetsfilen."
 
 msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
 msgstr "Där värdet inte var giltigt ritas det senaste giltiga vidare i grått."

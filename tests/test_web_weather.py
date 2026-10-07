@@ -97,7 +97,7 @@ async def call(client: httpx.AsyncClient, method: str, path: str, **kw: object) 
 
 async def test_the_register_shows_what_each_provider_gives(site: Site) -> None:
     async with logged_in(site) as client:
-        page = (await client.get("/weather")).text
+        page = (await client.get("/setup/weather")).text
         register = (await client.get("/api/v1/weather")).json()
     assert "Data from MET Norway" in page
     assert "derived from Temperature, Humidity" in page  # MET Norway's dew point
@@ -119,7 +119,7 @@ async def test_choosing_a_provider_per_quantity(site: Site) -> None:
     async with logged_in(site) as client:
         await form(
             client,
-            "/weather",
+            "/setup/weather",
             "/weather/choice",
             main="met",
             fallback="om",
@@ -148,12 +148,12 @@ async def test_choosing_a_provider_per_quantity(site: Site) -> None:
 
 async def test_providers_follow_the_location(site: Site) -> None:
     async with logged_in(site) as client:
-        await form(client, "/weather", "/weather/sources", plugin="smhi")
+        await form(client, "/setup/weather", "/weather/sources", plugin="smhi")
         sources = (await client.get("/api/v1/weather/sources")).json()
         assert sources["smhi"]["settings"] == {"latitude": 59.33, "longitude": 18.07}
         await form(
             client,
-            "/settings",
+            "/setup/house",
             "/settings/location",
             latitude="57.7",
             longitude="11.97",
@@ -178,7 +178,7 @@ async def test_a_removed_provider_leaves_the_choice(site: Site) -> None:
             "/api/v1/weather/choice",
             json={"main": "met", "quantities": {"irradiance.global": "om"}, "fallbacks": ["om"]},
         )
-        await form(client, "/weather", "/weather/sources/om/delete")
+        await form(client, "/setup/weather", "/weather/sources/om/delete")
         choice = (await client.get("/api/v1/weather")).json()["choice"]
         sources = (await client.get("/api/v1/weather/sources")).json()
     assert choice == {"main": "met", "quantities": {}, "fallbacks": []}
@@ -187,7 +187,9 @@ async def test_a_removed_provider_leaves_the_choice(site: Site) -> None:
 
 async def test_the_climate_entered_or_fetched(site: Site) -> None:
     async with logged_in(site) as client:
-        await form(client, "/weather", "/weather/climate", annual_mean="7,4", monthly_spread="19.6")
+        await form(
+            client, "/setup/house", "/weather/climate", annual_mean="7,4", monthly_spread="19.6"
+        )
         climate = (await client.get("/api/v1/weather/climate")).json()
         assert (climate["annual_mean"], climate["monthly_spread"], climate["source"]) == (
             7.4,
@@ -198,7 +200,7 @@ async def test_the_climate_entered_or_fetched(site: Site) -> None:
         async with running(fake) as url:
             site.services.archive_url = f"{url}/v1/archive"
             fetched = (await call(client, "POST", "/api/v1/weather/climate/fetch")).json()
-        page = (await client.get("/weather")).text
+        page = (await client.get("/setup/house")).text
     assert fetched["source"] == "open_meteo"
     assert fetched["monthly_means"] == [float(m) for m in range(1, 13)]
     assert fetched["monthly_spread"] == 11.0
@@ -209,7 +211,7 @@ async def test_the_climate_entered_or_fetched(site: Site) -> None:
 
 async def test_the_climate_needs_open_meteo_to_be_fetched(site: Site) -> None:
     async with logged_in(site) as client:
-        await form(client, "/weather", "/weather/sources/om/delete")
+        await form(client, "/setup/weather", "/weather/sources/om/delete")
         refused = await call(client, "POST", "/api/v1/weather/climate/fetch")
     assert refused.status_code == 400
     assert "add Open-Meteo" in refused.json()["error"]
