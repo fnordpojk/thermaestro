@@ -1,6 +1,6 @@
 """A small stand-in for Home Assistant's WebSocket API: login, `get_states`, the three
-registries and `subscribe_entities` with the compressed state format, and a way to send
-changes. Only what the plugin uses."""
+registries, `subscribe_entities` with the compressed state format,
+`weather/subscribe_forecast`, and ways to send changes. Only what the plugin uses."""
 
 import time
 from collections.abc import AsyncIterator
@@ -20,6 +20,17 @@ class FakeHomeAssistant:
         self.entity_areas: dict[str, str] = {}
         self.subscribers: list[tuple[web.WebSocketResponse, int, list[str]]] = []
         self.subscribed: list[list[str]] = []
+        self.forecasts: dict[str, list[dict[str, Any]]] = {}
+        """An hourly forecast per weather entity, in the entity's units."""
+        self.forecast_subscribers: list[tuple[web.WebSocketResponse, int, str]] = []
+
+    async def new_forecast(self, entity: str, forecast: list[dict[str, Any]]) -> None:
+        self.forecasts[entity] = forecast
+        for ws, id, subscribed in self.forecast_subscribers:
+            if subscribed == entity and not ws.closed:
+                await ws.send_json(
+                    {"id": id, "type": "event", "event": {"type": "hourly", "forecast": forecast}}
+                )
 
     def set(self, entity: str, state: str, **attributes: Any) -> None:
         self.states[entity] = {"s": state, "a": attributes, "lc": time.time()}
@@ -78,6 +89,31 @@ class FakeHomeAssistant:
             self.subscribers.append((ws, id, entities))
             added = {e: s for e, s in self.states.items() if e in entities}
             await ws.send_json({"id": id, "type": "event", "event": {"a": added}})
+            return
+        elif kind == "weather/subscribe_forecast":
+            entity = command["entity_id"]
+            if entity not in self.forecasts:
+                await ws.send_json(
+                    {
+                        "id": id,
+                        "type": "result",
+                        "success": False,
+                        "error": {
+                            "code": "invalid_entity_id",
+                            "message": "Weather entity not found",
+                        },
+                    }
+                )
+                return
+            await ws.send_json({"id": id, "type": "result", "success": True, "result": None})
+            self.forecast_subscribers.append((ws, id, entity))
+            await ws.send_json(
+                {
+                    "id": id,
+                    "type": "event",
+                    "event": {"type": command["forecast_type"], "forecast": self.forecasts[entity]},
+                }
+            )
             return
         else:
             await ws.send_json(

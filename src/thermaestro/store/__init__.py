@@ -11,6 +11,7 @@ from .paths import Layout
 from .secrets import SecretStore
 from .settings import (
     SETTINGS,
+    Climate,
     Display,
     EntsoE,
     HomeAssistant,
@@ -18,6 +19,7 @@ from .settings import (
     Mqtt,
     Names,
     NibeGateway,
+    OpenMeteo,
     Outdoor,
     Plugin,
     PriceLayer,
@@ -26,12 +28,15 @@ from .settings import (
     Setting,
     Tibber,
     Vat,
+    WeatherChoice,
+    WeatherPoint,
 )
 from .startup import Startup, load_startup
 
 __all__ = [
     "SETTINGS",
     "VERSION",
+    "Climate",
     "Database",
     "Display",
     "EntsoE",
@@ -41,6 +46,7 @@ __all__ = [
     "Mqtt",
     "Names",
     "NibeGateway",
+    "OpenMeteo",
     "Outdoor",
     "Plugin",
     "PriceLayer",
@@ -53,5 +59,7 @@ __all__ = [
     "Tibber",
     "Transaction",
     "Vat",
+    "WeatherChoice",
+    "WeatherPoint",
     "load_startup",
 ]

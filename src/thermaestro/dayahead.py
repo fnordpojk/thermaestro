@@ -19,28 +19,15 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
-from .cap import Message, Send
-from .cap.messages import (
-    Act,
-    Describe,
-    Described,
-    Error,
-    Fate,
-    Health,
-    Read,
-    SeriesData,
-    SeriesGet,
-    SeriesSubscribe,
-    SeriesUpdate,
-    Subscribe,
-    Update,
-    Values,
-)
-from .cap.model import Envelope, Interval, Node, Presence, Provider, Publication, SeriesInfo
+from .cap import Send
+from .cap.messages import Health
+from .cap.model import Interval, Publication
+from .seriesplugin import Refused, SeriesPlugin, SourceError, user_agent
+
+__all__ = ["DayAheadPlugin", "Refused", "SourceError"]
 
 log = logging.getLogger(__name__)
 
-HOME = "https://github.com/fnordpojk/thermaestro"
 GRACE = timedelta(hours=2)
 """How long after their publication time missing prices count as stale."""
 JITTER_S = 300
@@ -48,21 +35,8 @@ JITTER_S = 300
 don't all ask at once."""
 
 
-class Refused(Exception):
-    """The source refused the credentials: asking again won't help."""
-
-
-class SourceError(Exception):
-    """The source answered with something that isn't prices."""
-
-
-class DayAheadPlugin:
-    features: tuple[str, ...] = ("subscribe",)
-    name: str
-    version: str
-    root: str
-    """The plugin's one node."""
-    label: str
+class DayAheadPlugin(SeriesPlugin):
+    nothing_to_act_on = "a price source has nothing to act on"
 
     def __init__(
         self,
@@ -72,27 +46,15 @@ class DayAheadPlugin:
         retry_s: tuple[float, float] = (60.0, 1800.0),
         health_interval_s: float = 60.0,
     ) -> None:
-        self._clock = clock
+        super().__init__(clock=clock)
         self._poll = poll_s
         self._retry = retry_s
         self._health_interval = health_interval_s
-        self.held: dict[str, dict[datetime, Interval]] = {}
-        self._ready: asyncio.Future[None] = asyncio.get_running_loop().create_future()
-        self._ready.add_done_callback(lambda f: f.cancelled() or f.exception())
-        self._changed = asyncio.Event()
         self._last_traffic: datetime | None = None
         self._problem: str | None = None
         self._error: str | None = None
 
     # --- what each source supplies ---------------------------------------------------------
-
-    def series_infos(self) -> tuple[SeriesInfo, ...]:
-        """The series offered; empty while not yet known (a source may first have to be
-        asked what currency it prices in)."""
-        raise NotImplementedError
-
-    def provider(self) -> Provider:
-        raise NotImplementedError
 
     def publication(self) -> Publication:
         raise NotImplementedError
@@ -106,13 +68,13 @@ class DayAheadPlugin:
         Refused, SourceError, or aiohttp's and asyncio's errors."""
         raise NotImplementedError
 
-    # --- the plugin interface ---------------------------------------------------------------
+    # --- running ---------------------------------------------------------------------------
 
     async def events(self, send: Send) -> None:
         failures = 0
         timeout = aiohttp.ClientTimeout(total=60)
-        agent = f"Thermaestro-{self.name}/{self.version} (+{HOME})"
-        async with aiohttp.ClientSession(headers={"User-Agent": agent}, timeout=timeout) as s:
+        headers = {"User-Agent": user_agent(self.name, self.version)}
+        async with aiohttp.ClientSession(headers=headers, timeout=timeout) as s:
             health = asyncio.create_task(self._send_health(send))
             try:
                 while True:
@@ -141,95 +103,11 @@ class DayAheadPlugin:
             finally:
                 health.cancel()
 
-    async def handle(self, request: Message, send: Send) -> None:
-        match request:
-            case Act():
-                await send(
-                    Fate(
-                        id=request.id,
-                        stage="dropped",
-                        t=_now(),
-                        detail="a price source has nothing to act on",
-                    )
-                )
-            case Read():
-                await send(Values(id=request.id, values=tuple(_unknown(p) for p in request.points)))
-            case Subscribe():
-                await send(Update(id=request.id, values=tuple(_unknown(p) for p in request.points)))
-                await asyncio.Event().wait()
-            case Describe():
-                await asyncio.shield(self._ready)
-                await send(self.describe(request.id))
-            case SeriesGet():
-                await asyncio.shield(self._ready)
-                if request.series not in self._offered():
-                    await send(Error(id=request.id, code="invalid", detail="no such series"))
-                    return
-                held = self._overlapping(request.series, request.start, request.end)
-                await send(
-                    SeriesData(
-                        id=request.id,
-                        series=request.series,
-                        intervals=tuple(held),
-                        known_until=self._known_until(request.series),
-                    )
-                )
-            case SeriesSubscribe():
-                await asyncio.shield(self._ready)
-                if request.series not in self._offered():
-                    await send(Error(id=request.id, code="invalid", detail="no such series"))
-                    return
-                await self._follow(request, send)
-            case _:
-                await send(
-                    Error(id=getattr(request, "id", None), code="unsupported", detail="not offered")
-                )
-
-    def describe(self, id: int | None = None) -> Described:
-        return Described(
-            id=id,
-            nodes=(
-                Node(
-                    path=self.root,
-                    kind="site",
-                    presence=Presence(how="configured"),
-                    label=self.label,
-                ),
-            ),
-            series=self.series_infos(),
-            provider=self.provider(),
-        )
-
-    # --- fetching ----------------------------------------------------------------------------
-
     async def _refresh(self, session: aiohttp.ClientSession) -> None:
         today = datetime.fromtimestamp(self._clock(), self.zone()).date()
         intervals = await self.fetch(session, [today, today + timedelta(days=1)])
         self._last_traffic = _now()
-        if self._keep(intervals):
-            changed, self._changed = self._changed, asyncio.Event()
-            changed.set()
-
-    def _keep(self, intervals: list[Interval]) -> bool:
-        """Keep new intervals, and revisions of changed ones. True if anything changed."""
-        changed = False
-        for interval in intervals:
-            held = self.held.setdefault(interval.series, {})
-            current = held.get(interval.start)
-            if current is None:
-                held[interval.start] = interval
-            elif (current.value, current.end) != (interval.value, interval.end):
-                held[interval.start] = interval.model_copy(
-                    update={"revision": current.revision + 1}
-                )
-            else:
-                continue
-            changed = True
-        return changed
-
-    def _settle(self) -> None:
-        if not self._ready.done():
-            self._ready.set_result(None)
+        self.held.keep(intervals)
 
     def _wait(self) -> float:
         """Seconds until the next fetch: the next publication time once tomorrow's prices
@@ -253,33 +131,8 @@ class DayAheadPlugin:
         end = datetime.combine(today + timedelta(days=2), datetime.min.time(), zone)
         offered = self._offered()
         return bool(offered) and all(
-            (until := self._known_until(s)) is not None and until >= end for s in offered
+            (until := self.held.known_until(s)) is not None and until >= end for s in offered
         )
-
-    # --- answering ---------------------------------------------------------------------------
-
-    def _offered(self) -> set[str]:
-        return {info.id for info in self.series_infos()}
-
-    def _overlapping(self, series: str, start: datetime, end: datetime) -> list[Interval]:
-        held = self.held.get(series, {})
-        return [held[t] for t in sorted(held) if held[t].end > start and held[t].start < end]
-
-    def _known_until(self, series: str) -> datetime | None:
-        held = self.held.get(series)
-        return max(i.end for i in held.values()) if held else None
-
-    async def _follow(self, request: SeriesSubscribe, send: Send) -> None:
-        """Send what is held, then each new interval or revision."""
-        sent: dict[datetime, int] = {}
-        while True:
-            changed = self._changed
-            held = self.held.get(request.series, {})
-            new = [held[t] for t in sorted(held) if sent.get(t) != held[t].revision]
-            if new:
-                await send(SeriesUpdate(id=request.id, series=request.series, intervals=tuple(new)))
-                sent.update((i.start, i.revision) for i in new)
-            await changed.wait()
 
     async def _send_health(self, send: Send) -> None:
         await asyncio.shield(self._ready)
@@ -304,20 +157,6 @@ class DayAheadPlugin:
             needs_user_action=self._problem,
             stale=stale,
         )
-
-
-def _unknown(path: str) -> Envelope:
-    return Envelope.model_validate(
-        {
-            "point": path,
-            "value": None,
-            "t_observed": None,
-            "t_received": _now(),
-            "quality": "unknown",
-            "source": "measured",
-            "why": "a price source has no points",
-        }
-    )
 
 
 def _now() -> datetime:

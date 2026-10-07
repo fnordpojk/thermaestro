@@ -14,15 +14,21 @@ them.
 Values come in Thermaestro's stored units (°F becomes °C, mbar hPa, and so on). HA's
 `unavailable` and `unknown` become quality `unknown`; the time observed is when HA last
 heard from the device.
+
+A weather entity is a forecast provider, for the times the chosen one has nothing: its
+hourly forecast (`weather/subscribe_forecast`) becomes a series per quantity it gives,
+`<entity>/<quantity>`, in the units its attributes name (`temperature_unit` and the
+like). HA's weather has no sunlight, and doesn't say which model is behind it.
 """
 
 import asyncio
 import contextlib
 import itertools
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -36,13 +42,28 @@ from ..cap.messages import (
     Fate,
     Health,
     Read,
+    SeriesGet,
+    SeriesSubscribe,
     Subscribe,
     Update,
     Values,
 )
-from ..cap.model import Delivery, Envelope, Knowledge, Node, Point, Presence
-from ..cap.vocabulary import QUANTITIES, STATES
+from ..cap.model import (
+    Delivery,
+    Envelope,
+    Interval,
+    Knowledge,
+    Node,
+    Point,
+    Presence,
+    Provider,
+    SeriesInfo,
+    Terms,
+)
+from ..cap.vocabulary import QUANTITIES, STATES, WEATHER
 from ..core.plugins import PluginContext
+from ..forecast import instants, iso
+from ..seriesplugin import Held
 from ..store import HomeAssistant, SecretStore
 
 log = logging.getLogger(__name__)
@@ -81,6 +102,31 @@ UNITS: dict[str, tuple[str, Callable[[float], float]]] = {
     "m\N{SUPERSCRIPT THREE}": ("L", lambda v: v * 1000),
 }
 """Home Assistant's units to the ones Thermaestro stores."""
+
+WIND: dict[str, float] = {
+    "m/s": 1.0,
+    "km/h": 1 / 3.6,
+    "mph": 0.44704,
+    "kn": 0.514444,
+    "ft/s": 0.3048,
+}
+PRECIPITATION: dict[str, float] = {"mm": 1.0, "cm": 10.0, "in": 25.4}
+PRESSURE_MORE: dict[str, float] = {"mmHg": 1.333224, "psi": 68.94757}
+FORECAST_FIELDS = {
+    "temperature": "temperature",
+    "dew_point": "dew_point",
+    "humidity": "relative_humidity",
+    "cloud_coverage": "cloud_cover",
+    "wind_speed": "wind_speed",
+    "wind_gust_speed": "wind_gust",
+    "wind_bearing": "wind_direction",
+    "precipitation": "precipitation",
+    "pressure": "pressure",
+}
+"""A forecast entry's fields, as Home Assistant sends them in the user's units, and the
+quantities they are."""
+FORECAST_WAIT_S = 10.0
+"""How long the first forecasts are waited for before describing without them."""
 
 DEMAND_ATTRIBUTES = ("pi_heating_demand", "heating_demand", "valve_position")
 WINDOW_ATTRIBUTES = ("window_open", "window_detection")
@@ -150,6 +196,18 @@ class Connection:
         await self.ws.send_json({"id": id, "type": "subscribe_entities", "entity_ids": entities})
         return id
 
+    async def subscribe_forecast(self, entity: str) -> int:
+        id = next(self._ids)
+        await self.ws.send_json(
+            {
+                "id": id,
+                "type": "weather/subscribe_forecast",
+                "entity_id": entity,
+                "forecast_type": "hourly",
+            }
+        )
+        return id
+
     async def close(self) -> None:
         await self.ws.close()
 
@@ -184,6 +242,8 @@ async def list_entities(url: str, token: str) -> list[EntityInfo]:
                 (f"{ROOT}/{entity_id}/{p}", p if p != "temperature" else "temperature")
                 for p, _ in HomeAssistantPlugin._climate_points(attributes)
             )
+        elif domain == "weather":
+            points = ()  # a forecast provider, not a sensor
         elif quantity is not None:
             points = ((f"{ROOT}/{OWN}{entity_id}", quantity),)
         else:
@@ -254,6 +314,17 @@ class HomeAssistantPlugin:
         self._connection: Connection | None = None
         self._last_traffic: datetime | None = None
         self._problem: str | None = None
+        self.held = Held()
+        self._forecasts: dict[int, str] = {}
+        """Forecast subscriptions: their ids, and the weather entity each is for."""
+        self._waiting: set[str] = set()
+        """Weather entities whose first forecast hasn't come yet."""
+        self._unconverted: dict[str, list[dict[str, Any]]] = {}
+        """Forecasts that came before their entity's state, which names their units."""
+        self._states_seen = False
+
+    def _weather(self) -> list[str]:
+        return [e for e in self.settings.entities if e.startswith("weather.")]
 
     # --- the plugin interface -----------------------------------------------------------
 
@@ -270,13 +341,21 @@ class HomeAssistantPlugin:
                             await send(self._health())
                             await asyncio.sleep(self._health_interval)
                     subscription = await self._connection.subscribe(list(self.settings.entities))
+                    self._waiting = set(self._weather())
+                    for entity in self._weather():
+                        id = await self._connection.subscribe_forecast(entity)
+                        self._forecasts[id] = entity
                     reader = asyncio.create_task(self._read(subscription))
+                    patience = asyncio.get_running_loop().call_later(
+                        FORECAST_WAIT_S, self._stop_waiting
+                    )
                     try:
                         while not reader.done():
                             await send(self._health())
                             await asyncio.wait({reader}, timeout=self._health_interval)
                         reader.result()
                     finally:
+                        patience.cancel()
                         reader.cancel()
                         with contextlib.suppress(asyncio.CancelledError):
                             await reader
@@ -303,6 +382,13 @@ class HomeAssistantPlugin:
                     detail="Thermaestro only reads Home Assistant",
                 )
             )
+            return
+        if isinstance(request, SeriesGet | SeriesSubscribe):
+            await asyncio.shield(self._ready)
+            if request.series not in {s.id for s in self._series()}:
+                await send(Error(id=request.id, code="invalid", detail="no such series"))
+                return
+            await self.held.answer(request, send)
             return
         if not isinstance(request, Describe | Read | Subscribe):
             await send(
@@ -336,6 +422,9 @@ class HomeAssistantPlugin:
                     break
                 continue
             data = message.json()
+            if data.get("id") in self._forecasts:
+                self._forecast(self._forecasts[data["id"]], data)
+                continue
             if data.get("id") != subscription:
                 continue
             if data.get("type") == "result" and not data.get("success"):
@@ -364,10 +453,69 @@ class HomeAssistantPlugin:
             state.t = _when(plus) or state.t
         for entity in event.get("r", ()):
             self.states.pop(entity, None)
-        if not self._ready.done():
-            self._ready.set_result(None)
+        for entity in [e for e in self._unconverted if e in self.states]:
+            self._keep_forecast(entity, self._unconverted.pop(entity))
+        self._states_seen = True
+        self._maybe_ready()
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
+
+    # --- forecasts ----------------------------------------------------------------------
+
+    def _forecast(self, entity: str, data: dict[str, Any]) -> None:
+        """A message of a forecast subscription: its result, or a forecast."""
+        if data.get("type") == "result":
+            if not data.get("success"):
+                reason = data.get("error", {}).get("message", "refused")
+                log.warning("Home Assistant gives no hourly forecast for %s: %s", entity, reason)
+                self._waiting.discard(entity)
+                self._maybe_ready()
+            return
+        if data.get("type") != "event":
+            return
+        entries = data.get("event", {}).get("forecast") or []
+        if entity in self.states:
+            self._keep_forecast(entity, entries)
+        else:
+            self._unconverted[entity] = entries
+        self._waiting.discard(entity)
+        self._maybe_ready()
+
+    def _keep_forecast(self, entity: str, entries: list[dict[str, Any]]) -> None:
+        now = time.time()
+        self.held.keep(
+            forecast_intervals(entity, entries, self.states[entity].attributes),
+            revision=int(now // 60),
+        )
+
+    def _stop_waiting(self) -> None:
+        self._waiting.clear()
+        self._maybe_ready()
+
+    def _maybe_ready(self) -> None:
+        if self._states_seen and not self._waiting and not self._ready.done():
+            self._ready.set_result(None)
+
+    def _series(self) -> list[SeriesInfo]:
+        out = []
+        now = _now()
+        for entity in self._weather():
+            for quantity, unit in WEATHER.items():
+                held = self.held.all(f"{entity}/{quantity}")
+                if not held:
+                    continue
+                out.append(
+                    SeriesInfo(
+                        id=f"{entity}/{quantity}",
+                        kind="forecast",
+                        role="weather",
+                        unit=unit,
+                        resolution=iso(min(i.end - i.start for i in held)),
+                        horizon=iso(max(timedelta(minutes=1), held[-1].end - now)),
+                        quantity=quantity,
+                    )
+                )
+        return out
 
     async def _read_points(self, request: Read) -> list[Envelope]:
         """A read; with `after`, only states HA heard after it. HA can't be asked to read
@@ -435,11 +583,18 @@ class HomeAssistantPlugin:
                 )
                 for point, unit in self._climate_points(attributes):
                     points.append(_point(f"{ROOT}/{entity}/{point}", unit, None))
-            else:
+            elif domain != "weather":
                 unit = attributes.get("unit_of_measurement")
                 stored = UNITS[unit][0] if unit in UNITS else unit
                 points.append(_point(f"{ROOT}/{OWN}{entity}", stored, name))
-        return Described(id=id, nodes=tuple(nodes), points=tuple(points))
+        series = self._series()
+        return Described(
+            id=id,
+            nodes=tuple(nodes),
+            points=tuple(points),
+            series=tuple(series),
+            provider=_weather_provider() if series else None,
+        )
 
     @staticmethod
     def _climate_points(attributes: dict[str, Any]) -> list[tuple[str, str | None]]:
@@ -519,6 +674,73 @@ class HomeAssistantPlugin:
             last_traffic=self._last_traffic,
             needs_user_action=self._problem,
         )
+
+
+def _weather_provider() -> Provider:
+    model = "Home Assistant's weather entity model, read 2026-10-07"
+    return Provider(
+        name="Home Assistant",
+        coverage=Knowledge(
+            value="that of the weather integration behind the entity, which isn't said",
+            known="documented",
+            basis=model,
+        ),
+        terms=Terms(
+            conditions=Knowledge(
+                value=("the terms of the provider behind the entity apply",),
+                known="documented",
+                basis=model,
+            ),
+        ),
+    )
+
+
+def forecast_intervals(
+    entity: str, entries: list[dict[str, Any]], attributes: dict[str, Any]
+) -> list[Interval]:
+    """An hourly forecast as Home Assistant sends it, in the entity's units, as intervals
+    in Thermaestro's. A quantity in a unit that isn't known is left out."""
+    times: list[datetime] = []
+    kept: list[dict[str, Any]] = []
+    for entry in entries:
+        try:
+            times.append(datetime.fromisoformat(str(entry["datetime"])))
+        except (KeyError, ValueError):
+            continue
+        kept.append(entry)
+    temperature = UNITS.get(attributes.get("temperature_unit") or "\N{DEGREE SIGN}C")
+    pressure_unit = attributes.get("pressure_unit") or "hPa"
+    pressure: Callable[[float], float] | None = None
+    if pressure_unit in UNITS and UNITS[pressure_unit][0] == "hPa":
+        pressure = UNITS[pressure_unit][1]
+    elif pressure_unit in PRESSURE_MORE:
+        pressure = _times(PRESSURE_MORE[pressure_unit])
+    wind = WIND.get(attributes.get("wind_speed_unit") or "")
+    rain = PRECIPITATION.get(attributes.get("precipitation_unit") or "mm")
+    converters: dict[str, Callable[[float], float] | None] = {
+        "temperature": temperature[1] if temperature else None,
+        "dew_point": temperature[1] if temperature else None,
+        "relative_humidity": float,
+        "cloud_cover": float,
+        "wind_speed": _times(wind) if wind else None,
+        "wind_gust": _times(wind) if wind else None,
+        "wind_direction": float,
+        "precipitation": _times(rain) if rain else None,
+        "pressure": pressure,
+    }
+    out: list[Interval] = []
+    for field, quantity in FORECAST_FIELDS.items():
+        convert = converters[quantity]
+        if convert is None:
+            continue
+        values = [_number(e.get(field), convert) for e in kept]
+        if any(v is not None for v in values):
+            out += instants(f"{entity}/{quantity}", times, values, None, quantity=quantity)
+    return out
+
+
+def _times(factor: float) -> Callable[[float], float]:
+    return lambda v: v * factor
 
 
 def _point(path: str, unit: str | None, label: str | None) -> Point:

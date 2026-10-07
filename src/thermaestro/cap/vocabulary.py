@@ -110,6 +110,28 @@ QUANTITIES: dict[str, str] = {
 DERIVED: dict[str, str] = {"dew_point": "degC", "absolute_humidity": "g/m3"}
 """Computed by the core from other points, never more trustworthy than their inputs."""
 
+WEATHER: dict[str, str] = {
+    "temperature": "degC",
+    "temperature.p10": "degC",
+    "temperature.p90": "degC",
+    "dew_point": "degC",
+    "relative_humidity": "%",
+    "cloud_cover": "%",
+    "irradiance.global": "W/m2",
+    "irradiance.direct_normal": "W/m2",
+    "irradiance.diffuse": "W/m2",
+    "wind_speed": "m/s",
+    "wind_gust": "m/s",
+    "wind_direction": "deg",
+    "precipitation": "mm",
+    "pressure": "hPa",
+}
+"""Forecast quantities, with the unit a forecast series gives them in. A value for an
+instant (temperature, humidity, cloud cover, wind, pressure) is its interval's start;
+irradiance is the mean over the interval, precipitation the amount in it, and a gust
+the strongest the provider gives for it. Wind blows from the direction given, clockwise
+from north; pressure is at sea level."""
+
 STATES = frozenset({"window", "door", "opening", "presence", "occupancy", "motion", "moisture"})
 """On/off states, by Home Assistant binary sensor device class."""
 

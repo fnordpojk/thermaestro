@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Weather") }}{% endblock %}
+{% macro fact(k) -%}
+{%- if k.value is none -%}<span class="hint">{{ _("not known") }}</span>
+{%- else -%}{{ k.value | join("; ") if k.value is iterable and k.value is not string else k.value }} <small>({{ k.known | known }})</small>{%- endif -%}
+{%- endmacro %}
+{% macro source_name(key) -%}{% for p in register if p.key == key %}{{ p.label }}{% else %}{{ key }}{% endfor %}{%- endmacro %}
+{% block main %}
+<h1>{{ _("Weather") }}</h1>
+<p>{{ _("Forecasts for the location, from providers you choose: one for everything, and another for any quantity it lacks or does worse. Each provider says what it gives; after some days, Thermaestro shows how each has done at this house.") }}</p>
+{% if not location %}<p class="notice">{{ _("Set the location first: forecasts are for a place.") }} <a href="/settings">{{ _("Settings") }}</a></p>{% endif %}
+
+<section id="providers">
+<h2>{{ _("Providers") }}</h2>
+{% for id, src in sources | dictsort %}
+<p><strong>{{ id }}</strong> · {{ src.plugin }} · {{ _(src.state) }}{% if src.settings.model is defined %} · {{ src.settings.model }}{% endif %}
+  {% if src.needs_user_action %}<br><span class="error">{{ src.needs_user_action }}</span>{% elif src.error %}<br><span class="hint">{{ src.error }}</span>{% endif %}</p>
+{% if can("plugins.manage") %}
+<form method="post" action="/weather/sources/{{ id | urlencode }}/delete" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" class="danger">{{ _("Remove") }}</button>
+</form>
+{% endif %}
+{% else %}
+<p class="hint">{{ _("No provider yet. Several can run side by side, to compare them at this house before choosing.") }}</p>
+{% endfor %}
+
+{% if can("plugins.manage") and location %}
+<h3>{{ _("Add a provider") }}</h3>
+<form method="post" action="/weather/sources" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="plugin" value="met_norway">
+  <p><strong>MET Norway</strong> · {{ _("The forecast behind Yr, for the whole world; in the Nordic countries refined to 1 km, with percentiles. No sunlight.") }}</p>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+<form method="post" action="/weather/sources" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="plugin" value="smhi">
+  <p><strong>SMHI</strong> · {{ _("Sweden's forecast, for the Nordic and Baltic countries only. No dew point and no sunlight; Thermaestro derives them.") }}</p>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+<form method="post" action="/weather/sources" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="plugin" value="open_meteo">
+  <p><strong>Open-Meteo</strong> · {{ _("Many national and global models through one service, sunlight included. Free for non-commercial use, which includes personal home automation.") }}</p>
+  <label>{{ _("Model") }}
+    <select name="model">{% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+{% if ha_weather %}
+<form method="post" action="/weather/homeassistant" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p><strong>Home Assistant</strong> · {{ _("A weather entity's hourly forecast, to stand in while the chosen provider has none. It has no sunlight, and doesn't say which model is behind it.") }}</p>
+  <label>{{ _("Weather entity") }}
+    <select name="entity">{% for id, entity, name in ha_weather %}<option value="{{ id }} {{ entity }}">{{ name }} ({{ entity }})</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+{% endif %}
+{% endif %}
+</section>
+
+<section id="register">
+<h2>{{ _("What each provider gives") }}</h2>
+{% for p in register %}
+<details{% if loop.first %} open{% endif %}>
+  <summary><strong>{{ p.label }}</strong>{% if p.provider and p.provider.terms.attribution.value %} · {{ p.provider.terms.attribution.value }}{% endif %}</summary>
+  {% if p.provider %}{% set pr = p.provider %}
+  <dl class="rights">
+    <dt>{{ _("Operator") }}</dt><dd>{{ fact(pr.operator) }}</dd>
+    <dt>{{ _("Coverage") }}</dt><dd>{{ fact(pr.coverage) }}</dd>
+    <dt>{{ _("Models") }}</dt><dd>{% if p.models.value %}{% for m in p.models.value %}{{ m.name }}{% if m.grid_km %}, {{ m.grid_km | num(1) }} km{% endif %}{% if m.area %} ({{ m.area }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %} <small>({{ p.models.known | known }})</small>{% else %}<span class="hint">{{ _("not known") }}</span>{% endif %}</dd>
+    <dt>{{ _("License") }}</dt><dd>{{ fact(pr.terms.license) }}</dd>
+    <dt>{{ _("Conditions") }}</dt><dd>{{ fact(pr.terms.conditions) }}</dd>
+    <dt>{{ _("Requirements") }}</dt><dd>{{ fact(pr.access.requirements) }}</dd>
+    <dt>{{ _("Limits") }}</dt><dd>{{ fact(pr.access.rate_limit) }}</dd>
+    <dt>{{ _("Published verification") }}</dt><dd>{{ fact(pr.verification) }}</dd>
+  </dl>
+  {% endif %}
+  <table>
+    <thead><tr><th>{{ _("Quantity") }}</th><th>{{ _("Given") }}</th><th>{{ _("Steps") }}</th><th>{{ _("Reaches") }}</th></tr></thead>
+    <tbody>
+    {% for q in p.quantities %}
+    <tr>
+      <td>{{ q.quantity | quantity }}</td>
+      <td>{% if q.how == "offered" %}<span class="value quality-{{ 'green' if q.freshness == 'fresh' else 'yellow' }}" title="{{ q.why or '' }}">{{ _("yes") }}</span>
+        {% elif q.how == "derived" %}{{ _("derived from %(inputs)s", inputs=q["from"] | map("quantity") | join(", ")) }}
+        {% else %}<span class="hint">{{ _("no") }}</span> <small>{{ q.quantity | without }}</small>{% endif %}</td>
+      <td>{% if q.steps %}{% for s in q.steps %}{{ s.step | duration }}{% if s.until %} {{ _("to %(lead)s", lead=s.until | duration) }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% elif q.resolution %}{{ q.resolution | duration }}{% endif %}</td>
+      <td>{{ q.horizon | duration if q.horizon else "" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% else %}
+<p class="hint">{{ _("Nothing yet: a provider shows here once it has sent its first forecast.") }}</p>
+{% endfor %}
+</section>
+
+{% if register %}
+<section id="choice">
+<h2>{{ _("Which provider for what") }}</h2>
+<form method="post" action="/weather/choice">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="grid">
+  <label>{{ _("Main provider") }}
+    <select name="main">
+      <option value="">{{ _("none") }}</option>
+      {% for p in register %}<option value="{{ p.key }}"{% if choice.main == p.key %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Fallback, while the chosen one has nothing") }}
+    <select name="fallback">
+      <option value="">{{ _("none") }}</option>
+      {% for p in register %}<option value="{{ p.key }}"{% if choice.fallbacks and choice.fallbacks[0] == p.key %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
+    </select></label>
+  {% for f in choice.fallbacks[1:] %}<input type="hidden" name="fallbacks" value="{{ f }}">{% endfor %}
+  </div>
+  <table>
+    <thead><tr><th>{{ _("Quantity") }}</th><th>{{ _("From") }}</th><th>{{ _("Now from") }}</th></tr></thead>
+    <tbody>
+    {% for q in quantities %}{% set f = forecast[q] %}
+    <tr>
+      <td>{{ q | quantity }}</td>
+      <td><select name="q_{{ q }}" aria-label="{{ q | quantity }}">
+        <option value="">{{ _("the main provider") }}</option>
+        {% for p in register %}<option value="{{ p.key }}"{% if choice.quantities.get(q) == p.key %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
+      </select></td>
+      <td>{% if f.source %}{{ source_name(f.source) }}{% if f.derived %} · {{ _("derived") }}{% endif %}{% if f.fallback %} · {{ _("fallback") }}{% endif %}{% if f.stale %} · <span class="value quality-yellow">{{ _("stale") }}</span>{% endif %}
+        {% else %}<span class="hint">{{ _("missing") }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if can("settings.write") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
+</form>
+</section>
+{% endif %}
+
+<section id="forecast">
+<h2>{{ _("The forecast") }}</h2>
+{% if table %}
+<table class="values">
+  <thead><tr><th>{{ _("At") }}</th>{% for q in shown %}<th class="num">{{ q | quantity }}{% if forecast[q].unit %} <small>{{ forecast[q].unit | unit }}</small>{% endif %}{% if forecast[q].derived %}*{% endif %}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for t, row in table %}
+  <tr>
+    <td class="when">{{ t.timestamp() | when }}</td>
+    {% for q in shown %}<td class="num">{{ row[q] | num(1) if q in row else "–" }}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if any_derived %}<p class="hint">{{ _("* derived by Thermaestro from the provider's other values.") }}</p>{% endif %}
+{% else %}
+<p class="hint">{{ _("No forecast yet: choose a main provider above.") }}</p>
+{% endif %}
+</section>
+
+<section id="scores">
+<h2>{{ _("How each has done at this house") }}</h2>
+<p>{{ _("Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor reference once the hour has come: the bias (forecast less measured) and the mean error, over the last 30 days. The outdoor sensor isn't a weather station's, so a steady bias is expected; how much the error varies says more.") }} <a href="/sensors#outdoor">{{ _("Outdoor reference") }}</a></p>
+{% if scores %}
+<table>
+  <thead><tr><th>{{ _("Provider") }}</th><th>{{ _("Quantity") }}</th>{% for lead in leads %}<th class="num">{{ _("%(n)s h ahead", n=lead) }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in scores %}
+  <tr>
+    <td>{{ source_name(row.source) }}</td>
+    <td>{{ row.quantity | quantity }}</td>
+    {% for lead in leads %}{% set s = row.by_lead.get(lead) %}
+    <td class="num">{% if s and s.enough %}{{ s.bias | num(1) }} / {{ s.mae | num(1) }} <small>({{ s.n }})</small>{% elif s %}<span class="hint">{{ _("%(n)s so far", n=s.n) }}</span>{% else %}–{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="hint">{{ _("Bias / mean error in kelvin, with the number of comparisons. Shown once there are a day's worth.") }}</p>
+{% else %}
+<p class="hint">{{ _("Nothing to compare yet. Forecasts are kept from now on, and compared as their hours come.") }}</p>
+{% endif %}
+</section>
+
+<section id="climate">
+<h2>{{ _("The location's climate") }}</h2>
+<p>{{ _("The annual mean temperature and how far the warmest month's mean is from the coldest's. Thermaestro estimates the cold water's temperature from them.") }}</p>
+{% if climate %}
+<p>{{ _("Annual mean %(mean)s °C, monthly spread %(spread)s K", mean=climate.annual_mean | num(1), spread=climate.monthly_spread | num(1)) }}
+  <small>({% if climate.source == "open_meteo" %}{{ _("Open-Meteo's archive, %(period)s", period=climate.period) }}{% else %}{{ _("as you entered it") }}{% endif %})</small></p>
+{% endif %}
+{% if can("settings.write") %}
+{% if has_open_meteo %}
+<form method="post" action="/weather/climate/fetch" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Get it from Open-Meteo's archive") }}</button>
+</form>
+{% endif %}
+<form method="post" action="/weather/climate" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Annual mean, °C") }} <input name="annual_mean" inputmode="decimal" required value="{{ climate.annual_mean if climate else '' }}"></label>
+  <label>{{ _("Monthly spread, K") }} <input name="monthly_spread" inputmode="decimal" required value="{{ climate.monthly_spread if climate else '' }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endif %}
+</section>
+{% endblock %}

@@ -37,11 +37,13 @@ from ..core.mqtt import MqttInput
 from ..core.sensors import SITE, SensorHub
 from ..core.series import Series
 from ..core.values import Key, Values, sample
+from ..core.weather import Weather
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
 from . import i18n, labels
 from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
+from .weather_operations import WeatherOperations
 
 HISTORY_MAX_S = 31 * 86_400.0
 """The longest stretch of samples one request returns."""
@@ -66,7 +68,7 @@ class Caller:
 
 
 @dataclass
-class Services(SensorOperations, PriceOperations):
+class Services(SensorOperations, PriceOperations, WeatherOperations):
     accounts: Accounts
     db: Database
     values: Values
@@ -81,6 +83,7 @@ class Services(SensorOperations, PriceOperations):
     sensors: SensorHub | None = None
     mqtt: MqttInput | None = None
     series: Series | None = None
+    weather: Weather | None = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)
@@ -367,6 +370,7 @@ class Services(SensorOperations, PriceOperations):
             source=caller.source,
             details={"kind": "location"},
         )
+        await self._weather_follows_location(caller, location)
         return location
 
     async def plugins(self, caller: Caller) -> dict[str, Plugin]:

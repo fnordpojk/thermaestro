@@ -254,13 +254,24 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    from . import api, pages, price_api, price_pages, sensor_api, sensor_pages
+    from . import (
+        api,
+        pages,
+        price_api,
+        price_pages,
+        sensor_api,
+        sensor_pages,
+        weather_api,
+        weather_pages,
+    )
 
     app.include_router(api.router)
     app.include_router(price_api.router)
     app.include_router(price_pages.router)
     app.include_router(sensor_api.router)
     app.include_router(sensor_pages.router)
+    app.include_router(weather_api.router)
+    app.include_router(weather_pages.router)
     app.include_router(pages.router)
 
     @app.get("/api/v1/openapi.json", include_in_schema=False)

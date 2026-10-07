@@ -134,11 +134,36 @@ class EntsoE(BaseModel):
     """The currency to give prices in; other than EUR, converted at the ECB's rates."""
 
 
+Latitude = Annotated[float, Field(ge=-90, le=90)]
+Longitude = Annotated[float, Field(ge=-180, le=180)]
+
+
+class WeatherPoint(BaseModel):
+    """Where to forecast for: the settings of a `met_norway` or `smhi` plugin instance,
+    copied from the location."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    latitude: Latitude
+    longitude: Longitude
+
+
+class OpenMeteo(WeatherPoint):
+    """The settings of an `open_meteo` plugin instance."""
+
+    model: Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]{1,64}$")] = "best_match"
+    """Open-Meteo's name of the model or model group to ask; `best_match` lets it combine
+    the most suitable ones for the place."""
+
+
 PLUGIN_SETTINGS: dict[str, type[BaseModel]] = {
     "nibe": NibeGateway,
     "homeassistant": HomeAssistant,
     "tibber": Tibber,
     "entsoe": EntsoE,
+    "met_norway": WeatherPoint,
+    "smhi": WeatherPoint,
+    "open_meteo": OpenMeteo,
 }
 """The settings model of each plugin that has one, checked whenever settings load."""
 
@@ -313,7 +338,66 @@ class Vat(Setting):
     applies_to: tuple[str, ...]
 
 
+WeatherSource = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,64}(:[a-z_]+\.[a-z0-9_]+)?$")
+]
+"""Where forecasts come from: a weather plugin's instance (`met`), or a Home Assistant
+instance and one of its weather entities (`ha:weather.forecast_home`)."""
+
+Quantity = Annotated[str, StringConstraints(pattern=r"^[a-z_]+(\.[a-z0-9_]+)*$")]
+
+
+class WeatherChoice(Setting):
+    """Which provider's forecast to use for each quantity. One per installation."""
+
+    kind = "weather"
+
+    main: WeatherSource | None = None
+    """The provider for every quantity not chosen otherwise."""
+    quantities: dict[Quantity, WeatherSource] = Field(default_factory=dict)
+    """A provider chosen for one quantity, instead of the main one."""
+    fallbacks: tuple[WeatherSource, ...] = ()
+    """Providers that stand in, in order, while the chosen one's forecast is missing or
+    stale: Home Assistant's weather, for one."""
+
+
+class Climate(Setting):
+    """The location's climate, for the cold-water estimate: the annual mean temperature
+    and the spread of the monthly means. One per installation."""
+
+    kind = "climate"
+
+    annual_mean: Annotated[float, Field(ge=-60, le=60)]
+    """°C."""
+    monthly_spread: Annotated[float, Field(ge=0, le=80)]
+    """The warmest month's mean less the coldest's, K."""
+    monthly_means: tuple[float, ...] = ()
+    """January to December, °C, where known."""
+    source: Literal["open_meteo", "user"]
+    period: str | None = None
+    """The years averaged, for an archive's numbers."""
+
+    @model_validator(mode="after")
+    def _twelve_months(self) -> Self:
+        if self.monthly_means and len(self.monthly_means) != 12:
+            raise ValueError("monthly means are twelve, January to December")
+        return self
+
+
 SETTINGS: dict[str, type[Setting]] = {
     m.kind: m
-    for m in (Location, Mqtt, Plugin, Sensor, Room, Outdoor, Names, Display, PriceLayer, Vat)
+    for m in (
+        Location,
+        Mqtt,
+        Plugin,
+        Sensor,
+        Room,
+        Outdoor,
+        Names,
+        Display,
+        PriceLayer,
+        Vat,
+        WeatherChoice,
+        Climate,
+    )
 }

@@ -27,6 +27,8 @@ from thermaestro.web import (
     price_pages,
     sensor_api,
     sensor_pages,
+    weather_api,
+    weather_pages,
 )
 from thermaestro.web.app import TELEMETRY_OFF
 
@@ -91,6 +93,8 @@ def routes(app: FastAPI) -> list[APIRoute]:
         *sensor_pages.router.routes,
         *price_api.router.routes,
         *price_pages.router.routes,
+        *weather_api.router.routes,
+        *weather_pages.router.routes,
     ]
     return [r for r in (*app.routes, *included) if isinstance(r, APIRoute)]
 
@@ -514,6 +518,7 @@ PAGES = [
     "/sensors",
     "/rooms",
     "/prices",
+    "/weather",
     "/confirm",
 ]
 

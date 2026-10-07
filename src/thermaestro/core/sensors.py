@@ -62,6 +62,12 @@ def dew_point(t: float, rh: float) -> float:
     return b * gamma / (a - gamma)
 
 
+def relative_humidity(t: float, dew: float) -> float:
+    """The inverse of `dew_point`: relative humidity in % from temperature and dew point."""
+    a, b = 17.62, 243.12
+    return min(100.0, 100.0 * math.exp(a * dew / (b + dew) - a * t / (b + t)))
+
+
 def absolute_humidity(t: float, rh: float) -> float:
     """Grams of water per cubic meter of air."""
     saturation = 6.112 * math.exp(17.67 * t / (t + 243.5))  # hPa

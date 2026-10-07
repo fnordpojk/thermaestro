@@ -36,7 +36,10 @@ thermaestro = "thermaestro.cli:main"
 [project.entry-points."thermaestro.plugins"]
 entsoe = "thermaestro.entsoe.plugin:create"
 homeassistant = "thermaestro.homeassistant.plugin:create"
+met_norway = "thermaestro.met_norway.plugin:create"
 nibe = "thermaestro.nibe.plugin:create"
+open_meteo = "thermaestro.open_meteo.plugin:create"
+smhi = "thermaestro.smhi.plugin:create"
 tibber = "thermaestro.tibber.plugin:create"
 
 [project.urls]

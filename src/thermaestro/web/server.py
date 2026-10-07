@@ -87,6 +87,7 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         sensors=core.sensors,
         mqtt=core.mqtt,
         series=core.host.series,
+        weather=core.weather,
     )
     await services.load_zone()
     app = create_app(services, await _csrf_key(core))

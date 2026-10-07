@@ -137,6 +137,19 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (instance, series, start)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 6: forecasts kept at fixed lead times, and what was measured then, for scoring
+    """
+    CREATE TABLE forecast_leads (
+        source TEXT NOT NULL,
+        quantity TEXT NOT NULL,
+        valid REAL NOT NULL,
+        lead INTEGER NOT NULL,
+        value REAL NOT NULL,
+        made REAL NOT NULL,
+        observed REAL,
+        PRIMARY KEY (source, quantity, valid, lead)
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

@@ -52,6 +52,9 @@ def _environment() -> jinja2.Environment:
     env.globals["quality_color"] = labels.quality_color
     env.filters["quantity"] = labels.quantity
     env.filters["own_device"] = labels.own_device
+    env.filters["without"] = labels.without
+    env.filters["known"] = labels.known
+    env.filters["duration"] = labels.duration
     return env
 
 

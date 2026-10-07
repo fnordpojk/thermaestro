@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:58+0200\n"
-"PO-Revision-Date: 2026-10-07 03:58+0200\n"
+"POT-Creation-Date: 2026-10-07 06:25+0200\n"
+"PO-Revision-Date: 2026-10-07 06:25+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -14,6 +14,29 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(n)s d"
+msgstr "%(n)s T"
+
+#, python-format
+msgid "%(n)s h"
+msgstr "%(n)s h"
+
+#, python-format
+msgid "%(n)s h ahead"
+msgstr "%(n)s h voraus"
+
+#, python-format
+msgid "%(n)s min"
+msgstr "%(n)s min"
+
+#, python-format
+msgid "%(n)s so far"
+msgstr "bisher %(n)s"
+
+msgid "* derived by Thermaestro from the provider's other values."
+msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
 
 msgid "* from a fallback series, where the layer's own has no price."
 msgstr "* aus einer Ersatzreihe, wo die eigene Reihe der Ebene keinen Preis hat."
@@ -69,6 +92,14 @@ msgstr ""
 "Ein Token erlaubt einem Skript oder der Kommandozeile, die API zu nutzen. Es hat nur "
 "die Rechte, die Sie ihm geben, nie mehr als Ihre eigenen."
 
+msgid ""
+"A weather entity's hourly forecast, to stand in while the chosen provider has none. "
+"It has no sunlight, and doesn't say which model is behind it."
+msgstr ""
+"Die stündliche Vorhersage einer Wetter-Entität, als Ersatz, solange der gewählte "
+"Anbieter keine hat. Sie enthält kein Sonnenlicht und sagt nicht, welches Modell "
+"dahintersteht."
+
 msgid "API tokens"
 msgstr "API-Tokens"
 
@@ -80,6 +111,9 @@ msgstr "Hinzufügen"
 
 msgid "Add a fixed amount"
 msgstr "Festen Betrag hinzufügen"
+
+msgid "Add a provider"
+msgstr "Einen Anbieter hinzufügen"
 
 msgid "Add a room"
 msgstr "Raum hinzufügen"
@@ -114,8 +148,18 @@ msgstr "Alarm"
 msgid "Amount per kWh"
 msgstr "Betrag pro kWh"
 
+#, python-format
+msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
+msgstr "Jahresmittel %(mean)s °C, Monatsspanne %(spread)s K"
+
+msgid "Annual mean, °C"
+msgstr "Jahresmittel, °C"
+
 msgid "Area"
 msgstr "Bereich"
+
+msgid "At"
+msgstr "Zeit"
 
 msgid "Audit log"
 msgstr "Prüfprotokoll"
@@ -125,6 +169,13 @@ msgstr "Zurück zu den Sensoren"
 
 msgid "Back to the status"
 msgstr "Zurück zum Status"
+
+msgid ""
+"Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
+"day's worth."
+msgstr ""
+"Systematischer Fehler / mittlerer Fehler in Kelvin, mit der Zahl der Vergleiche. "
+"Angezeigt, sobald es Vergleiche für einen Tag gibt."
 
 msgid "Bidding zone"
 msgstr "Gebotszone"
@@ -201,8 +252,14 @@ msgstr "Heizkreis %(n)s"
 msgid "Clock"
 msgstr "Uhrzeit"
 
+msgid "Cloud cover"
+msgstr "Bewölkung"
+
 msgid "Compressor"
 msgstr "Verdichter"
+
+msgid "Conditions"
+msgstr "Bedingungen"
 
 msgid "Confirm"
 msgstr "Bestätigen"
@@ -217,6 +274,9 @@ msgstr "Steuerport"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopieren Sie es jetzt: Es wird nur dieses eine Mal angezeigt."
+
+msgid "Coverage"
+msgstr "Abdeckung"
 
 msgid "Covers"
 msgstr "Enthält"
@@ -271,6 +331,12 @@ msgstr "Diagnosewerte"
 msgid "Diagnostics"
 msgstr "Diagnose"
 
+msgid "Diffuse sunlight"
+msgstr "Diffuses Sonnenlicht"
+
+msgid "Direct sunlight"
+msgstr "Direktes Sonnenlicht"
+
 msgid "Diverter valve"
 msgstr "Umschaltventil"
 
@@ -320,6 +386,9 @@ msgstr "Läuft ab"
 msgid "Fallback"
 msgstr "Ersatz"
 
+msgid "Fallback, while the chosen one has nothing"
+msgstr "Ersatz, solange der gewählte nichts hat"
+
 msgid "Fan speed"
 msgstr "Lüfterdrehzahl"
 
@@ -332,17 +401,48 @@ msgstr "Durchfluss"
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "Für Vorhersagen und den Sonnenstand. Koordinaten mit Dezimalpunkt, zum Beispiel 59.33."
 
+msgid ""
+"Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
+"reference once the hour has come: the bias (forecast less measured) and the mean "
+"error, over the last 30 days. The outdoor sensor isn't a weather station's, so a "
+"steady bias is expected; how much the error varies says more."
+msgstr ""
+"Vorhersagen für 1, 6, 24 und 48 Stunden im Voraus werden aufbewahrt und mit der "
+"Außenreferenz verglichen, sobald die Stunde gekommen ist: der systematische Fehler "
+"(Vorhersage minus gemessen) und der mittlere Fehler, über die letzten 30 Tage. Der "
+"Außenfühler ist nicht der einer Wetterstation, ein gleichbleibender systematischer "
+"Fehler ist also zu erwarten; wie stark der Fehler schwankt, sagt mehr."
+
+msgid ""
+"Forecasts for the location, from providers you choose: one for everything, and "
+"another for any quantity it lacks or does worse. Each provider says what it gives; "
+"after some days, Thermaestro shows how each has done at this house."
+msgstr ""
+"Vorhersagen für den Standort, von Anbietern Ihrer Wahl: einer für alles, und ein "
+"anderer für jede Größe, die ihm fehlt oder die er schlechter vorhersagt. Jeder "
+"Anbieter sagt, was er liefert; nach einigen Tagen zeigt Thermaestro, wie gut jeder an"
+" diesem Haus war."
+
 msgid "From"
 msgstr "Von"
 
 msgid "Gateway address"
 msgstr "Adresse des Gateways"
 
+msgid "Get it from Open-Meteo's archive"
+msgstr "Aus dem Archiv von Open-Meteo holen"
+
+msgid "Given"
+msgstr "Geliefert"
+
 msgid "Group"
 msgstr "Gruppe"
 
 msgid "Groups"
 msgstr "Gruppen"
+
+msgid "Gusts"
+msgstr "Böen"
 
 msgid "HTTPS"
 msgstr "HTTPS"
@@ -370,6 +470,9 @@ msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 
 msgid "Hot water"
 msgstr "Warmwasser"
+
+msgid "How each has done at this house"
+msgstr "Wie gut jeder an diesem Haus war"
 
 msgid "Humidity"
 msgstr "Luftfeuchte"
@@ -413,8 +516,14 @@ msgstr "Schicht"
 msgid "Layers"
 msgstr "Schichten"
 
+msgid "License"
+msgstr "Lizenz"
+
 msgid "Light"
 msgstr "Licht"
+
+msgid "Limits"
+msgstr "Grenzen"
 
 msgid "Local port"
 msgstr "Lokaler Port"
@@ -437,6 +546,16 @@ msgstr "Längengrad"
 msgid "MQTT broker"
 msgstr "MQTT-Broker"
 
+msgid "Main provider"
+msgstr "Hauptanbieter"
+
+msgid ""
+"Many national and global models through one service, sunlight included. Free for non-"
+"commercial use, which includes personal home automation."
+msgstr ""
+"Viele nationale und globale Modelle über einen Dienst, Sonnenlicht inbegriffen. Frei "
+"für nichtkommerzielle Nutzung, wozu die eigene Hausautomation gehört."
+
 msgid "Measures"
 msgstr "Misst"
 
@@ -445,6 +564,12 @@ msgstr "Mitteltemperatur"
 
 msgid "Model"
 msgstr "Modell"
+
+msgid "Models"
+msgstr "Modelle"
+
+msgid "Monthly spread, K"
+msgstr "Monatsspanne, K"
 
 msgid "More"
 msgstr "Mehr"
@@ -477,6 +602,9 @@ msgstr "NibeGW (einfach)"
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
 
+msgid "No forecast yet: choose a main provider above."
+msgstr "Noch keine Vorhersage: Wählen Sie oben einen Hauptanbieter."
+
 msgid "No layers yet."
 msgstr "Noch keine Schichten."
 
@@ -485,6 +613,13 @@ msgstr "Keine Plugin-Instanzen."
 
 msgid "No prices for this day yet."
 msgstr "Noch keine Preise für diesen Tag."
+
+msgid ""
+"No provider yet. Several can run side by side, to compare them at this house before "
+"choosing."
+msgstr ""
+"Noch kein Anbieter. Mehrere können nebeneinander laufen, um sie vor der Wahl an "
+"diesem Haus zu vergleichen."
 
 msgid "No rooms yet."
 msgstr "Noch keine Räume."
@@ -509,6 +644,21 @@ msgstr "Nicht ausgeführt"
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
 
+msgid ""
+"Nothing to compare yet. Forecasts are kept from now on, and compared as their hours "
+"come."
+msgstr ""
+"Noch nichts zu vergleichen. Vorhersagen werden ab jetzt aufbewahrt und verglichen, "
+"sobald ihre Stunden kommen."
+
+msgid "Nothing yet: a provider shows here once it has sent its first forecast."
+msgstr ""
+"Noch nichts: Ein Anbieter erscheint hier, sobald er seine erste Vorhersage geschickt "
+"hat."
+
+msgid "Now from"
+msgstr "Jetzt von"
+
 msgid "Now:"
 msgstr "Jetzt:"
 
@@ -521,8 +671,18 @@ msgstr "Belegt"
 msgid "Open"
 msgstr "Offen"
 
+#, python-format
+msgid "Open-Meteo's archive, %(period)s"
+msgstr "Archiv von Open-Meteo, %(period)s"
+
+msgid "Operator"
+msgstr "Betreiber"
+
 msgid "Outcome"
 msgstr "Ergebnis"
+
+msgid "Outdoor reference"
+msgstr "Außenreferenz"
 
 msgid "Outdoor references"
 msgstr "Außenreferenzen"
@@ -582,6 +742,9 @@ msgstr "Leistung aus dem Netz"
 msgid "Power to the grid"
 msgstr "Leistung ins Netz"
 
+msgid "Precipitation"
+msgstr "Niederschlag"
+
 msgid "Price sources"
 msgstr "Preisquellen"
 
@@ -591,8 +754,23 @@ msgstr "Preise"
 msgid "Protocol"
 msgstr "Protokoll"
 
+msgid "Provider"
+msgstr "Anbieter"
+
+msgid "Providers"
+msgstr "Anbieter"
+
+msgid "Published verification"
+msgstr "Veröffentlichte Verifikation"
+
+msgid "Quantity"
+msgstr "Größe"
+
 msgid "Rate in percent"
 msgstr "Satz in Prozent"
+
+msgid "Reaches"
+msgstr "Reicht bis"
 
 msgid "Read port"
 msgstr "Leseport"
@@ -608,6 +786,9 @@ msgstr "Entfernen"
 
 msgid "Remove this user"
 msgstr "Diesen Benutzer entfernen"
+
+msgid "Requirements"
+msgstr "Anforderungen"
 
 msgid "Restarts"
 msgstr "Neustarts"
@@ -670,6 +851,9 @@ msgstr "Angebotene Reihen"
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
 
+msgid "Set the location first: forecasts are for a place."
+msgstr "Legen Sie zuerst den Standort fest: Vorhersagen gelten für einen Ort."
+
 msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
 msgstr ""
 "Richten Sie den MQTT-Broker in den Einstellungen ein, um hier MQTT-Sensoren "
@@ -689,6 +873,9 @@ msgstr "Vom Gerät gelesene Einstellungen"
 
 msgid "Setup code"
 msgstr "Einrichtungscode"
+
+msgid "Shown only; Thermaestro doesn't plan with it."
+msgstr "Nur angezeigt; Thermaestro plant nicht damit."
 
 msgid "Shown with"
 msgstr "Angezeigt bei"
@@ -720,14 +907,47 @@ msgstr "Zustand:"
 msgid "Status"
 msgstr "Status"
 
+msgid "Steps"
+msgstr "Schritte"
+
 msgid "Sunlight"
 msgstr "Sonnenlicht"
 
 msgid "Supply temperature"
 msgstr "Vorlauftemperatur"
 
+msgid ""
+"Sweden's forecast, for the Nordic and Baltic countries only. No dew point and no "
+"sunlight; Thermaestro derives them."
+msgstr ""
+"Die schwedische Vorhersage, nur für die nordischen und baltischen Länder. Kein "
+"Taupunkt und kein Sonnenlicht; Thermaestro leitet sie ab."
+
 msgid "Temperature"
 msgstr "Temperatur"
+
+msgid "Temperature, 10th percentile"
+msgstr "Temperatur, 10. Perzentil"
+
+msgid "Temperature, 90th percentile"
+msgstr "Temperatur, 90. Perzentil"
+
+msgid ""
+"The annual mean temperature and how far the warmest month's mean is from the "
+"coldest's. Thermaestro estimates the cold water's temperature from them."
+msgstr ""
+"Die mittlere Jahrestemperatur und wie weit das Mittel des wärmsten Monats von dem des"
+" kältesten entfernt ist. Thermaestro schätzt daraus die Temperatur des Kaltwassers."
+
+msgid "The forecast"
+msgstr "Die Vorhersage"
+
+msgid ""
+"The forecast behind Yr, for the whole world; in the Nordic countries refined to 1 km,"
+" with percentiles. No sunlight."
+msgstr ""
+"Die Vorhersage hinter Yr, für die ganze Welt; in den nordischen Ländern auf 1 km "
+"verfeinert, mit Perzentilen. Kein Sonnenlicht."
 
 msgid "The form had expired, or came from another site. Please try again."
 msgstr ""
@@ -740,6 +960,9 @@ msgid ""
 msgstr ""
 "Das Gateway, das Thermaestro mit dem Bus einer Nibe-Pumpe verbindet: seine Adresse "
 "und das Protokoll, das es spricht."
+
+msgid "The location's climate"
+msgstr "Das Klima des Standorts"
 
 msgid "The pump's connection"
 msgstr "Verbindung zur Pumpe"
@@ -833,8 +1056,24 @@ msgstr "Wasser"
 msgid "Water leak"
 msgstr "Wasserleck"
 
+msgid "Weather"
+msgstr "Wetter"
+
+msgid "Weather entity"
+msgstr "Wetter-Entität"
+
+msgid ""
+"Weather providers are added and chosen on the weather page; they move with the "
+"location."
+msgstr ""
+"Wetteranbieter werden auf der Wetterseite hinzugefügt und gewählt; sie ziehen mit dem"
+" Standort um."
+
 msgid "What"
 msgstr "Was"
+
+msgid "What each provider gives"
+msgstr "Was jeder Anbieter liefert"
 
 msgid "What it belongs to"
 msgstr "Wozu er gehört"
@@ -885,11 +1124,56 @@ msgstr ""
 "das Hausmodell lernt von ihm. Ohne einen für die Temperatur wird der Außenfühler der "
 "Pumpe verwendet."
 
+msgid "Which provider for what"
+msgstr "Welcher Anbieter wofür"
+
 msgid "Who"
 msgstr "Wer"
 
+msgid "Wind"
+msgstr "Wind"
+
+msgid "Wind direction"
+msgstr "Windrichtung"
+
 msgid "Window open"
 msgstr "Fenster offen"
+
+msgid ""
+"Without it or humidity, there's no defrost estimate, and indoor humidity can't be "
+"predicted."
+msgstr ""
+"Ohne ihn oder die Luftfeuchte gibt es keine Abtau-Schätzung, und die Raumfeuchte "
+"lässt sich nicht vorhersagen."
+
+msgid ""
+"Without it or the dew point, there's no defrost estimate, and indoor humidity can't "
+"be predicted."
+msgstr ""
+"Ohne sie oder den Taupunkt gibt es keine Abtau-Schätzung, und die Raumfeuchte lässt "
+"sich nicht vorhersagen."
+
+msgid "Without it, heat loss and the pump's efficiency can't be planned ahead."
+msgstr "Ohne sie lassen sich Wärmeverlust und Wirkungsgrad der Pumpe nicht vorausplanen."
+
+msgid "Without it, sun gains can't be planned ahead, only learned afterwards."
+msgstr "Ohne es lassen sich Sonnengewinne nicht vorausplanen, nur im Nachhinein lernen."
+
+msgid "Without it, sunlight can't be estimated where a provider gives none."
+msgstr "Ohne sie lässt sich Sonnenlicht nicht schätzen, wo ein Anbieter keines liefert."
+
+msgid "Without it, sunlight on windows facing a direction is estimated from global sunlight."
+msgstr ""
+"Ohne es wird das Sonnenlicht auf Fenster in einer Himmelsrichtung aus dem Globallicht"
+" geschätzt."
+
+msgid "Without it, the extra heat loss in wind can't be planned ahead."
+msgstr "Ohne ihn lässt sich der zusätzliche Wärmeverlust bei Wind nicht vorausplanen."
+
+msgid "Without it, the margin on firm goals comes from this house's own forecast errors only."
+msgstr ""
+"Ohne es kommt die Reserve für feste Ziele nur aus den eigenen Vorhersagefehlern "
+"dieses Hauses."
 
 msgid "Write port"
 msgstr "Schreibport"
@@ -965,6 +1249,12 @@ msgstr "wie in der Region üblich"
 msgid "as the region writes them"
 msgstr "wie in der Region üblich"
 
+msgid "as you entered it"
+msgstr "wie von Ihnen eingegeben"
+
+msgid "as you set it"
+msgstr "wie von Ihnen eingestellt"
+
 msgid "assumed"
 msgstr "angenommen"
 
@@ -997,6 +1287,13 @@ msgstr "Kühlung"
 
 msgid "create and revoke one's own API tokens"
 msgstr "eigene API-Tokens erstellen und widerrufen"
+
+msgid "derived"
+msgstr "abgeleitet"
+
+#, python-format
+msgid "derived from %(inputs)s"
+msgstr "abgeleitet aus %(inputs)s"
 
 msgid "disabled"
 msgstr "deaktiviert"
@@ -1040,9 +1337,21 @@ msgstr "nicht enthalten"
 msgid "failed"
 msgstr "fehlgeschlagen"
 
+msgid "fallback"
+msgstr "Ersatz"
+
+msgid "found to be false"
+msgstr "als falsch befunden"
+
 #, python-format
 msgid "from %(series)s"
 msgstr "aus %(series)s"
+
+msgid "from a third party"
+msgstr "von Dritten"
+
+msgid "from its documents"
+msgstr "laut seiner Dokumentation"
 
 msgid "gives the formats"
 msgstr "bestimmt die Formate"
@@ -1071,6 +1380,9 @@ msgstr "enthalten"
 msgid "last heard"
 msgstr "zuletzt gehört"
 
+msgid "missing"
+msgstr "fehlt"
+
 msgid "no"
 msgstr "nein"
 
@@ -1094,6 +1406,9 @@ msgstr "keiner"
 
 msgid "none yet"
 msgstr "noch keine"
+
+msgid "not known"
+msgstr "unbekannt"
 
 msgid "not said yet"
 msgstr "noch nicht angegeben"
@@ -1155,6 +1470,12 @@ msgstr "Geräte, Werte und ihren Verlauf sehen"
 msgid "see the installation's settings"
 msgstr "die Einstellungen der Installation sehen"
 
+msgid "seen in its answers"
+msgstr "in seinen Antworten gesehen"
+
+msgid "seen in running"
+msgstr "im Betrieb gesehen"
+
 msgid "stale"
 msgstr "veraltet"
 
@@ -1184,6 +1505,9 @@ msgstr "den Diagnosewerten"
 msgid "the everyday values"
 msgstr "den Alltagswerten"
 
+msgid "the main provider"
+msgstr "der Hauptanbieter"
+
 msgid "the password you entered isn't right"
 msgstr "das eingegebene Passwort ist nicht richtig"
 
@@ -1207,6 +1531,10 @@ msgstr "es gibt bereits einen Administrator"
 
 msgid "this one"
 msgstr "dieser"
+
+#, python-format
+msgid "to %(lead)s"
+msgstr "bis %(lead)s"
 
 msgid "too many attempts; wait a few minutes"
 msgstr "zu viele Versuche; warten Sie ein paar Minuten"

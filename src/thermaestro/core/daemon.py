@@ -23,6 +23,7 @@ from .plugins import Factory, discover
 from .sensors import SensorHub
 from .series import Series
 from .values import Values
+from .weather import Weather
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class Core:
     host: PluginHost
     sensors: SensorHub
     mqtt: MqttInput
+    weather: Weather
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -77,7 +79,8 @@ async def run(
         )
         sensors = SensorHub(db, values)
         mqtt = MqttInput(db, secrets, sensors)
-        core = Core(layout, startup, db, secrets, audit, values, host, sensors, mqtt)
+        weather = Weather(db, series, values, host)
+        core = Core(layout, startup, db, secrets, audit, values, host, sensors, mqtt, weather)
         await _serve(core, stop, flush_s)
     finally:
         await db.close()
@@ -93,6 +96,7 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
     sensor_tasks = [
         asyncio.create_task(core.mqtt.run()),
         asyncio.create_task(_tick(core.sensors)),
+        asyncio.create_task(core.weather.run()),
     ]
     writer = asyncio.create_task(
         core.values.run(

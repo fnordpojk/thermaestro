@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:58+0200\n"
-"PO-Revision-Date: 2026-10-07 03:58+0200\n"
+"POT-Creation-Date: 2026-10-07 06:25+0200\n"
+"PO-Revision-Date: 2026-10-07 06:25+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -14,6 +14,29 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(n)s d"
+msgstr "%(n)s d"
+
+#, python-format
+msgid "%(n)s h"
+msgstr "%(n)s h"
+
+#, python-format
+msgid "%(n)s h ahead"
+msgstr "%(n)s h framåt"
+
+#, python-format
+msgid "%(n)s min"
+msgstr "%(n)s min"
+
+#, python-format
+msgid "%(n)s so far"
+msgstr "%(n)s hittills"
+
+msgid "* derived by Thermaestro from the provider's other values."
+msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
 
 msgid "* from a fallback series, where the layer's own has no price."
 msgstr "* från en reservserie, där lagrets egen serie saknar pris."
@@ -68,6 +91,13 @@ msgstr ""
 "En token låter ett skript eller kommandoraden använda API:et. Den har bara de "
 "rättigheter du ger den, aldrig fler än dina egna."
 
+msgid ""
+"A weather entity's hourly forecast, to stand in while the chosen provider has none. "
+"It has no sunlight, and doesn't say which model is behind it."
+msgstr ""
+"En väderentitets timprognos, som ersättning när den valda leverantören inte har "
+"någon. Den har inget solljus och säger inte vilken modell som ligger bakom."
+
 msgid "API tokens"
 msgstr "API-tokens"
 
@@ -79,6 +109,9 @@ msgstr "Lägg till"
 
 msgid "Add a fixed amount"
 msgstr "Lägg till ett fast belopp"
+
+msgid "Add a provider"
+msgstr "Lägg till en leverantör"
 
 msgid "Add a room"
 msgstr "Lägg till ett rum"
@@ -113,8 +146,18 @@ msgstr "Larm"
 msgid "Amount per kWh"
 msgstr "Belopp per kWh"
 
+#, python-format
+msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
+msgstr "Årsmedel %(mean)s °C, månadsspridning %(spread)s K"
+
+msgid "Annual mean, °C"
+msgstr "Årsmedel, °C"
+
 msgid "Area"
 msgstr "Område"
+
+msgid "At"
+msgstr "Tid"
 
 msgid "Audit log"
 msgstr "Granskningslogg"
@@ -124,6 +167,13 @@ msgstr "Tillbaka till givarna"
 
 msgid "Back to the status"
 msgstr "Tillbaka till status"
+
+msgid ""
+"Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
+"day's worth."
+msgstr ""
+"Systematiskt fel / medelfel i kelvin, med antalet jämförelser. Visas när det finns "
+"ett dygns underlag."
 
 msgid "Bidding zone"
 msgstr "Elområde"
@@ -200,8 +250,14 @@ msgstr "Klimatsystem %(n)s"
 msgid "Clock"
 msgstr "Klocka"
 
+msgid "Cloud cover"
+msgstr "Molnighet"
+
 msgid "Compressor"
 msgstr "Kompressor"
+
+msgid "Conditions"
+msgstr "Villkor"
 
 msgid "Confirm"
 msgstr "Bekräfta"
@@ -214,6 +270,9 @@ msgstr "Kontrollport"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopiera den nu: den visas bara den här gången."
+
+msgid "Coverage"
+msgstr "Täckning"
 
 msgid "Covers"
 msgstr "Innehåller"
@@ -268,6 +327,12 @@ msgstr "Diagnostiska värden"
 msgid "Diagnostics"
 msgstr "Diagnostik"
 
+msgid "Diffuse sunlight"
+msgstr "Diffust solljus"
+
+msgid "Direct sunlight"
+msgstr "Direkt solljus"
+
 msgid "Diverter valve"
 msgstr "Växelventil"
 
@@ -315,6 +380,9 @@ msgstr "Upphör"
 msgid "Fallback"
 msgstr "Reserv"
 
+msgid "Fallback, while the chosen one has nothing"
+msgstr "Reserv, när den valda inte har något"
+
 msgid "Fan speed"
 msgstr "Fläkthastighet"
 
@@ -327,17 +395,46 @@ msgstr "Flöde"
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "För prognoser och solen. Koordinater med decimalpunkt, till exempel 59.33."
 
+msgid ""
+"Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
+"reference once the hour has come: the bias (forecast less measured) and the mean "
+"error, over the last 30 days. The outdoor sensor isn't a weather station's, so a "
+"steady bias is expected; how much the error varies says more."
+msgstr ""
+"Prognoser för 1, 6, 24 och 48 timmar framåt sparas och jämförs med utomhusreferensen "
+"när timmen har kommit: det systematiska felet (prognos minus uppmätt) och medelfelet,"
+" under de senaste 30 dagarna. Utomhusgivaren är inte en väderstations, så ett jämnt "
+"systematiskt fel är väntat; hur mycket felet varierar säger mer."
+
+msgid ""
+"Forecasts for the location, from providers you choose: one for everything, and "
+"another for any quantity it lacks or does worse. Each provider says what it gives; "
+"after some days, Thermaestro shows how each has done at this house."
+msgstr ""
+"Prognoser för platsen, från leverantörer du väljer: en för allt, och en annan för en "
+"storhet den saknar eller är sämre på. Varje leverantör talar om vad den ger; efter "
+"några dagar visar Thermaestro hur var och en har klarat sig vid det här huset."
+
 msgid "From"
 msgstr "Från"
 
 msgid "Gateway address"
 msgstr "Gatewayens adress"
 
+msgid "Get it from Open-Meteo's archive"
+msgstr "Hämta det från Open-Meteos arkiv"
+
+msgid "Given"
+msgstr "Ges"
+
 msgid "Group"
 msgstr "Grupp"
 
 msgid "Groups"
 msgstr "Grupper"
+
+msgid "Gusts"
+msgstr "Byar"
 
 msgid "HTTPS"
 msgstr "HTTPS"
@@ -365,6 +462,9 @@ msgstr "Home Assistant erbjuder inget som Thermaestro kan använda."
 
 msgid "Hot water"
 msgstr "Varmvatten"
+
+msgid "How each has done at this house"
+msgstr "Hur var och en har klarat sig vid det här huset"
 
 msgid "Humidity"
 msgstr "Luftfuktighet"
@@ -408,8 +508,14 @@ msgstr "Lager"
 msgid "Layers"
 msgstr "Lager"
 
+msgid "License"
+msgstr "Licens"
+
 msgid "Light"
 msgstr "Ljus"
+
+msgid "Limits"
+msgstr "Gränser"
 
 msgid "Local port"
 msgstr "Lokal port"
@@ -432,6 +538,16 @@ msgstr "Longitud"
 msgid "MQTT broker"
 msgstr "MQTT-broker"
 
+msgid "Main provider"
+msgstr "Huvudleverantör"
+
+msgid ""
+"Many national and global models through one service, sunlight included. Free for non-"
+"commercial use, which includes personal home automation."
+msgstr ""
+"Många nationella och globala modeller genom en tjänst, solljus inräknat. Fri för "
+"icke-kommersiell användning, vilket omfattar egen hemautomation."
+
 msgid "Measures"
 msgstr "Mäter"
 
@@ -440,6 +556,12 @@ msgstr "Mittemperatur"
 
 msgid "Model"
 msgstr "Modell"
+
+msgid "Models"
+msgstr "Modeller"
+
+msgid "Monthly spread, K"
+msgstr "Månadsspridning, K"
 
 msgid "More"
 msgstr "Mer"
@@ -472,6 +594,9 @@ msgstr "NibeGW (vanlig)"
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
 
+msgid "No forecast yet: choose a main provider above."
+msgstr "Ingen prognos än: välj en huvudleverantör ovan."
+
 msgid "No layers yet."
 msgstr "Inga lager än."
 
@@ -480,6 +605,13 @@ msgstr "Inga tilläggsinstanser."
 
 msgid "No prices for this day yet."
 msgstr "Inga priser för den här dagen än."
+
+msgid ""
+"No provider yet. Several can run side by side, to compare them at this house before "
+"choosing."
+msgstr ""
+"Ingen leverantör än. Flera kan köras sida vid sida, för att jämföra dem vid det här "
+"huset innan du väljer."
 
 msgid "No rooms yet."
 msgstr "Inga rum än."
@@ -502,6 +634,19 @@ msgstr "Inte gjort"
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
 
+msgid ""
+"Nothing to compare yet. Forecasts are kept from now on, and compared as their hours "
+"come."
+msgstr ""
+"Inget att jämföra än. Prognoser sparas från och med nu och jämförs när deras timmar "
+"kommer."
+
+msgid "Nothing yet: a provider shows here once it has sent its first forecast."
+msgstr "Inget än: en leverantör visas här när den har skickat sin första prognos."
+
+msgid "Now from"
+msgstr "Nu från"
+
 msgid "Now:"
 msgstr "Nu:"
 
@@ -514,8 +659,18 @@ msgstr "Upptaget"
 msgid "Open"
 msgstr "Öppen"
 
+#, python-format
+msgid "Open-Meteo's archive, %(period)s"
+msgstr "Open-Meteos arkiv, %(period)s"
+
+msgid "Operator"
+msgstr "Huvudman"
+
 msgid "Outcome"
 msgstr "Utfall"
+
+msgid "Outdoor reference"
+msgstr "Utomhusreferens"
 
 msgid "Outdoor references"
 msgstr "Utomhusreferenser"
@@ -575,6 +730,9 @@ msgstr "Effekt från nätet"
 msgid "Power to the grid"
 msgstr "Effekt till nätet"
 
+msgid "Precipitation"
+msgstr "Nederbörd"
+
 msgid "Price sources"
 msgstr "Priskällor"
 
@@ -584,8 +742,23 @@ msgstr "Priser"
 msgid "Protocol"
 msgstr "Protokoll"
 
+msgid "Provider"
+msgstr "Leverantör"
+
+msgid "Providers"
+msgstr "Leverantörer"
+
+msgid "Published verification"
+msgstr "Publicerad verifiering"
+
+msgid "Quantity"
+msgstr "Storhet"
+
 msgid "Rate in percent"
 msgstr "Sats i procent"
+
+msgid "Reaches"
+msgstr "Räcker till"
 
 msgid "Read port"
 msgstr "Läsport"
@@ -601,6 +774,9 @@ msgstr "Ta bort"
 
 msgid "Remove this user"
 msgstr "Ta bort den här användaren"
+
+msgid "Requirements"
+msgstr "Krav"
 
 msgid "Restarts"
 msgstr "Omstarter"
@@ -663,6 +839,9 @@ msgstr "Erbjudna serier"
 msgid "Set password and log out everywhere"
 msgstr "Sätt lösenord och logga ut överallt"
 
+msgid "Set the location first: forecasts are for a place."
+msgstr "Ange platsen först: prognoser gäller en plats."
+
 msgid "Set up the MQTT broker in the settings to add MQTT sensors here."
 msgstr "Ställ in MQTT-brokern i inställningarna för att lägga till MQTT-givare här."
 
@@ -680,6 +859,9 @@ msgstr "Inställningar lästa från enheten"
 
 msgid "Setup code"
 msgstr "Installationskod"
+
+msgid "Shown only; Thermaestro doesn't plan with it."
+msgstr "Visas bara; Thermaestro planerar inte med den."
 
 msgid "Shown with"
 msgstr "Visas bland"
@@ -711,14 +893,47 @@ msgstr "Tillstånd:"
 msgid "Status"
 msgstr "Status"
 
+msgid "Steps"
+msgstr "Steg"
+
 msgid "Sunlight"
 msgstr "Solljus"
 
 msgid "Supply temperature"
 msgstr "Framledningstemperatur"
 
+msgid ""
+"Sweden's forecast, for the Nordic and Baltic countries only. No dew point and no "
+"sunlight; Thermaestro derives them."
+msgstr ""
+"Sveriges prognos, bara för Norden och Baltikum. Ingen daggpunkt och inget solljus; "
+"Thermaestro härleder dem."
+
 msgid "Temperature"
 msgstr "Temperatur"
+
+msgid "Temperature, 10th percentile"
+msgstr "Temperatur, 10:e percentilen"
+
+msgid "Temperature, 90th percentile"
+msgstr "Temperatur, 90:e percentilen"
+
+msgid ""
+"The annual mean temperature and how far the warmest month's mean is from the "
+"coldest's. Thermaestro estimates the cold water's temperature from them."
+msgstr ""
+"Årsmedeltemperaturen och hur långt den varmaste månadens medel ligger från den "
+"kallastes. Thermaestro uppskattar kallvattnets temperatur utifrån dem."
+
+msgid "The forecast"
+msgstr "Prognosen"
+
+msgid ""
+"The forecast behind Yr, for the whole world; in the Nordic countries refined to 1 km,"
+" with percentiles. No sunlight."
+msgstr ""
+"Prognosen bakom Yr, för hela världen; i Norden förfinad till 1 km, med percentiler. "
+"Inget solljus."
 
 msgid "The form had expired, or came from another site. Please try again."
 msgstr "Formuläret hade gått ut, eller kom från en annan webbplats. Försök igen."
@@ -729,6 +944,9 @@ msgid ""
 msgstr ""
 "Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
 "protokollet den talar."
+
+msgid "The location's climate"
+msgstr "Platsens klimat"
 
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"
@@ -822,8 +1040,22 @@ msgstr "Vatten"
 msgid "Water leak"
 msgstr "Vattenläcka"
 
+msgid "Weather"
+msgstr "Väder"
+
+msgid "Weather entity"
+msgstr "Väderentitet"
+
+msgid ""
+"Weather providers are added and chosen on the weather page; they move with the "
+"location."
+msgstr "Väderleverantörer läggs till och väljs på vädersidan; de följer med platsen."
+
 msgid "What"
 msgstr "Vad"
+
+msgid "What each provider gives"
+msgstr "Vad varje leverantör ger"
 
 msgid "What it belongs to"
 msgstr "Det som det hör till"
@@ -871,11 +1103,52 @@ msgstr ""
 "Vilken utomhusgivare som gäller för varje storhet: prognoser jämförs med den, och "
 "husmodellen lär sig av den. Utan en för temperatur används pumpens egen utegivare."
 
+msgid "Which provider for what"
+msgstr "Vilken leverantör för vad"
+
 msgid "Who"
 msgstr "Vem"
 
+msgid "Wind"
+msgstr "Vind"
+
+msgid "Wind direction"
+msgstr "Vindriktning"
+
 msgid "Window open"
 msgstr "Fönster öppet"
+
+msgid ""
+"Without it or humidity, there's no defrost estimate, and indoor humidity can't be "
+"predicted."
+msgstr ""
+"Utan den eller luftfuktigheten finns ingen uppskattning av avfrostningen, och "
+"inomhusfukten kan inte förutsägas."
+
+msgid ""
+"Without it or the dew point, there's no defrost estimate, and indoor humidity can't "
+"be predicted."
+msgstr ""
+"Utan den eller daggpunkten finns ingen uppskattning av avfrostningen, och "
+"inomhusfukten kan inte förutsägas."
+
+msgid "Without it, heat loss and the pump's efficiency can't be planned ahead."
+msgstr "Utan den kan värmeförlusten och pumpens verkningsgrad inte planeras i förväg."
+
+msgid "Without it, sun gains can't be planned ahead, only learned afterwards."
+msgstr "Utan det kan solvärmen inte planeras i förväg, bara läras i efterhand."
+
+msgid "Without it, sunlight can't be estimated where a provider gives none."
+msgstr "Utan den kan solljuset inte uppskattas där en leverantör inte ger något."
+
+msgid "Without it, sunlight on windows facing a direction is estimated from global sunlight."
+msgstr "Utan det uppskattas solljuset på fönster åt ett visst håll ur det globala solljuset."
+
+msgid "Without it, the extra heat loss in wind can't be planned ahead."
+msgstr "Utan den kan den extra värmeförlusten i blåst inte planeras i förväg."
+
+msgid "Without it, the margin on firm goals comes from this house's own forecast errors only."
+msgstr "Utan den kommer marginalen på fasta mål bara från det här husets egna prognosfel."
 
 msgid "Write port"
 msgstr "Skrivport"
@@ -948,6 +1221,12 @@ msgstr "som regionen skriver den"
 msgid "as the region writes them"
 msgstr "som regionen skriver dem"
 
+msgid "as you entered it"
+msgstr "som du angav det"
+
+msgid "as you set it"
+msgstr "som du ställt in det"
+
 msgid "assumed"
 msgstr "antaget"
 
@@ -980,6 +1259,13 @@ msgstr "kyla"
 
 msgid "create and revoke one's own API tokens"
 msgstr "skapa och återkalla sina egna API-tokens"
+
+msgid "derived"
+msgstr "härledd"
+
+#, python-format
+msgid "derived from %(inputs)s"
+msgstr "härledd ur %(inputs)s"
 
 msgid "disabled"
 msgstr "avstängd"
@@ -1023,9 +1309,21 @@ msgstr "ingår inte"
 msgid "failed"
 msgstr "misslyckades"
 
+msgid "fallback"
+msgstr "reserv"
+
+msgid "found to be false"
+msgstr "befunnet felaktigt"
+
 #, python-format
 msgid "from %(series)s"
 msgstr "från %(series)s"
+
+msgid "from a third party"
+msgstr "från tredje part"
+
+msgid "from its documents"
+msgstr "enligt dess dokumentation"
 
 msgid "gives the formats"
 msgstr "ger formaten"
@@ -1054,6 +1352,9 @@ msgstr "ingår"
 msgid "last heard"
 msgstr "senast hörd"
 
+msgid "missing"
+msgstr "saknas"
+
 msgid "no"
 msgstr "nej"
 
@@ -1077,6 +1378,9 @@ msgstr "ingen"
 
 msgid "none yet"
 msgstr "inga än"
+
+msgid "not known"
+msgstr "okänt"
 
 msgid "not said yet"
 msgstr "inte angivet än"
@@ -1138,6 +1442,12 @@ msgstr "se enheter, värden och deras historik"
 msgid "see the installation's settings"
 msgstr "se installationens inställningar"
 
+msgid "seen in its answers"
+msgstr "sett i dess svar"
+
+msgid "seen in running"
+msgstr "sett under drift"
+
 msgid "stale"
 msgstr "inaktuellt"
 
@@ -1167,6 +1477,9 @@ msgstr "de diagnostiska värdena"
 msgid "the everyday values"
 msgstr "vardagsvärdena"
 
+msgid "the main provider"
+msgstr "huvudleverantören"
+
 msgid "the password you entered isn't right"
 msgstr "lösenordet du angav stämmer inte"
 
@@ -1190,6 +1503,10 @@ msgstr "det finns redan en administratör"
 
 msgid "this one"
 msgstr "den här"
+
+#, python-format
+msgid "to %(lead)s"
+msgstr "till %(lead)s"
 
 msgid "too many attempts; wait a few minutes"
 msgstr "för många försök; vänta några minuter"

@@ -144,7 +144,87 @@ QUANTITIES = {
     "occupancy": mark("Occupied"),
     "motion": mark("Motion"),
     "moisture": mark("Water leak"),
+    # forecast quantities
+    "temperature.p10": mark("Temperature, 10th percentile"),
+    "temperature.p90": mark("Temperature, 90th percentile"),
+    "relative_humidity": mark("Humidity"),
+    "cloud_cover": mark("Cloud cover"),
+    "irradiance.global": mark("Sunlight"),
+    "irradiance.direct_normal": mark("Direct sunlight"),
+    "irradiance.diffuse": mark("Diffuse sunlight"),
+    "wind_speed": mark("Wind"),
+    "wind_gust": mark("Gusts"),
+    "wind_direction": mark("Wind direction"),
+    "precipitation": mark("Precipitation"),
+    "pressure": mark("Air pressure"),
 }
+
+SHOWN_ONLY = mark("Shown only; Thermaestro doesn't plan with it.")
+WITHOUT = {
+    "temperature": mark("Without it, heat loss and the pump's efficiency can't be planned ahead."),
+    "temperature.p10": mark(
+        "Without it, the margin on firm goals comes from this house's own forecast errors only."
+    ),
+    "temperature.p90": mark(
+        "Without it, the margin on firm goals comes from this house's own forecast errors only."
+    ),
+    "dew_point": mark(
+        "Without it or humidity, there's no defrost estimate, and indoor humidity can't be"
+        " predicted."
+    ),
+    "relative_humidity": mark(
+        "Without it or the dew point, there's no defrost estimate, and indoor humidity can't"
+        " be predicted."
+    ),
+    "irradiance.global": mark(
+        "Without it, sun gains can't be planned ahead, only learned afterwards."
+    ),
+    "irradiance.direct_normal": mark(
+        "Without it, sunlight on windows facing a direction is estimated from global sunlight."
+    ),
+    "irradiance.diffuse": mark(
+        "Without it, sunlight on windows facing a direction is estimated from global sunlight."
+    ),
+    "cloud_cover": mark("Without it, sunlight can't be estimated where a provider gives none."),
+    "wind_speed": mark("Without it, the extra heat loss in wind can't be planned ahead."),
+}
+"""What Thermaestro does without a forecast quantity, in plain words."""
+
+
+def without(name: str) -> str:
+    return i18n._(WITHOUT.get(name, SHOWN_ONLY))
+
+
+KNOWN = {
+    "documented": mark("from its documents"),
+    "verified": mark("seen in its answers"),
+    "observed": mark("seen in running"),
+    "user": mark("as you set it"),
+    "reported": mark("from a third party"),
+    "refuted": mark("found to be false"),
+    "unknown": mark("not known"),
+}
+
+
+def known(state: str) -> str:
+    """How a fact is known, in words."""
+    return i18n._(KNOWN[state]) if state in KNOWN else state
+
+
+_DURATION = re.compile(r"^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$")
+DURATION_PARTS = (mark("%(n)s d"), mark("%(n)s h"), mark("%(n)s min"))
+
+
+def duration(code: str | None) -> str:
+    """An ISO 8601 duration as people write it: `P2DT6H` is "2 d 6 h"."""
+    match = _DURATION.match(code or "")
+    if match is None:
+        return code or ""
+    parts = [
+        i18n._(text, n=int(n)) for text, n in zip(DURATION_PARTS, match.groups(), strict=True) if n
+    ]
+    return " ".join(parts)
+
 
 OWN_DEVICES = {
     "unknown": mark("not said yet"),

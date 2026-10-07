@@ -256,6 +256,8 @@ UNITS = {
     "degC": "\N{DEGREE SIGN}C",
     "g/m3": "g/m\N{SUPERSCRIPT THREE}",
     "m3": "m\N{SUPERSCRIPT THREE}",
+    "W/m2": "W/m\N{SUPERSCRIPT TWO}",
+    "deg": "\N{DEGREE SIGN}",
 }
 """Unit codes as written for people; the API keeps the codes."""
 
