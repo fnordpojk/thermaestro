@@ -126,6 +126,24 @@ dl.counters { display: grid; grid-template-columns: auto auto; gap: 0 0.75rem; m
 dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 
 .ranges { display: flex; gap: 0.5rem; margin: 0.5rem 0; }
-#chart { min-height: 320px; }
+#chart[data-kind="number"] { min-height: 320px; }
+
+/* Named values over time: a band per value, colors told apart without relying on hue
+   alone (each band is labeled where it's wide enough, and the legend names them). */
+.bands { position: relative; height: 2.5rem; margin-top: 1rem; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--panel); }
+.bands span { position: absolute; top: 0; bottom: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 0.85rem; line-height: 2.5rem; padding: 0 0.3rem; color: #fff; }
+.band-0 { background: #0b5c99; }
+.band-1 { background: #b8500b; }
+.band-2 { background: #00785a; }
+.band-3 { background: #9c4f80; }
+.band-4 { background: #a86a00; }
+.band-5 { background: #2a7fb0; }
+.bands span.band-rest, .band-legend .band-rest { background: var(--line); color: var(--fg); }
+.band-invalid { background: repeating-linear-gradient(45deg, var(--line) 0 4px, transparent 4px 8px); }
+.bands span.band-invalid { color: var(--muted); }
+.band-axis { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+.band-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; list-style: none; padding: 0; margin: 0.75rem 0 0; }
+.band-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.band-legend span { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; border: 1px solid var(--line); }
 .u-legend, .u-legend th, .u-legend td { color: var(--fg); }
 p.description { color: var(--muted); max-width: 48rem; }

@@ -12,10 +12,16 @@
   <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>
   <button type="button" data-hours="168">{{ _("7 days") }}</button>
 </nav>
-<div id="chart" data-source="{{ source }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
+<div id="chart" data-source="{{ source }}" data-kind="{{ kind }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
      data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
+     data-labels='{{ state_labels | tojson }}' data-hour-text="{{ hour_text }}" data-minute-text="{{ minute_text }}"
+     data-invalid="{{ _('not valid') }}"
      data-held="{{ _('not valid: the last valid value') }}" data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
+{% if kind == "number" %}
 <p class="hint">{{ _("Where the value wasn't valid, the last valid one is drawn on in grey.") }}</p>
+{% else %}
+<p class="hint">{{ _("Each value is a band over the time it held, with its total time in the period below. Striped: times the value wasn't valid.") }}</p>
+{% endif %}
 {% if can("settings.write") and instance != "site" and display is not none %}
 {% set ref = instance ~ ":" ~ point %}
 <section>

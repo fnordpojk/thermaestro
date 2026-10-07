@@ -24,7 +24,7 @@
 
 (function () {
   const chart = document.getElementById("chart");
-  if (!chart || typeof uPlot === "undefined") {
+  if (!chart || (chart.dataset.kind === "number" && typeof uPlot === "undefined")) {
     return;
   }
   const decimal = chart.dataset.decimal || ".";
@@ -113,6 +113,10 @@
       message(chart.dataset.failed);
       return;
     }
+    if (chart.dataset.kind !== "number") {
+      bands(samples, start, end);
+      return;
+    }
     if (!samples.some((s) => s.quality === "good" && s.value !== null)) {
       message(chart.dataset.empty);
       return;
@@ -169,6 +173,118 @@
     }
     chart.textContent = "";
     plot = new uPlot(options, [times, values, held], chart);
+  }
+
+  // Named values (a demand, a pump's state, a switch) can't be a line: each is a band over
+  // the time it held, as Home Assistant draws such entities, with its total time below.
+  const named = JSON.parse(chart.dataset.labels || "{}");
+  const REST = new Set(["off", "idle", "stopped", "no"]);
+
+  function name(text) {
+    const shown = named[text] || text;
+    return shown.charAt(0).toUpperCase() + shown.slice(1);
+  }
+
+  function state(s) {
+    if (s.quality !== "good") {
+      return null;
+    }
+    if (chart.dataset.kind === "switch") {
+      return s.value === null ? null : s.value ? "on" : "off";
+    }
+    return s.text !== null ? s.text : s.value === null ? null : String(s.value);
+  }
+
+  function span(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    const parts = [];
+    if (hours) {
+      parts.push(chart.dataset.hourText.replace("%(n)s", hours));
+    }
+    if (minutes || !hours) {
+      parts.push(chart.dataset.minuteText.replace("%(n)s", minutes));
+    }
+    return parts.join(" ");
+  }
+
+  function bands(samples, start, end) {
+    if (plot) {
+      plot.destroy();
+      plot = null;
+    }
+    // Each sample holds until the next; consecutive ones with the same value are one band.
+    const runs = [];
+    samples.forEach((s, i) => {
+      const from = Math.max(s.t, start);
+      const to = Math.min(i + 1 < samples.length ? samples[i + 1].t : end, end);
+      if (to <= from) {
+        return;
+      }
+      const value = state(s);
+      const last = runs[runs.length - 1];
+      if (last && last.value === value && last.to === from) {
+        last.to = to;
+      } else {
+        runs.push({ value, from, to });
+      }
+    });
+    if (!runs.some((r) => r.value !== null)) {
+      message(chart.dataset.empty);
+      return;
+    }
+    const order = [];
+    for (const r of runs) {
+      if (r.value !== null && !order.includes(r.value)) {
+        order.push(r.value);
+      }
+    }
+    let color = 0;
+    const classes = {};
+    for (const value of order) {
+      classes[value] = REST.has(value) ? "band-rest" : `band-${color++ % 6}`;
+    }
+    chart.textContent = "";
+    const band = document.createElement("div");
+    band.className = "bands";
+    const total = end - start;
+    for (const r of runs) {
+      const part = document.createElement("span");
+      part.className = r.value === null ? "band-invalid" : classes[r.value];
+      part.style.left = `${((r.from - start) / total) * 100}%`;
+      part.style.width = `${((r.to - r.from) / total) * 100}%`;
+      const label = name(r.value === null ? chart.dataset.invalid : r.value);
+      part.title = `${label}: ${moment(r.from)} – ${moment(r.to)}`;
+      if ((r.to - r.from) / total > 0.08) {
+        part.textContent = label;
+      }
+      band.append(part);
+    }
+    const axis = document.createElement("div");
+    axis.className = "band-axis";
+    const marks = [];
+    for (let i = 0; i <= 4; i++) {
+      marks.push(start + (total * i) / 4);
+    }
+    for (const text of ticks(null, marks)) {
+      const tick = document.createElement("span");
+      tick.textContent = text;
+      axis.append(tick);
+    }
+    const legend = document.createElement("ul");
+    legend.className = "band-legend";
+    for (const value of [...order, null]) {
+      const held = runs.filter((r) => r.value === value).reduce((n, r) => n + r.to - r.from, 0);
+      if (!held) {
+        continue;
+      }
+      const item = document.createElement("li");
+      const swatch = document.createElement("span");
+      swatch.className = value === null ? "band-invalid" : classes[value];
+      item.append(swatch, `${name(value === null ? chart.dataset.invalid : value)}: ${span(held)}`);
+      legend.append(item);
+    }
+    chart.append(band, axis, legend);
   }
 
   for (const button of document.querySelectorAll(".ranges button")) {

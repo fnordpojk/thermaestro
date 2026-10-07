@@ -158,6 +158,25 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
         latest = self.values.latest.get(Key(instance, path))
         return digits(point.resolution.value if point else None, latest.value if latest else None)
 
+    def point_kind(self, instance: str, path: str) -> str:
+        """How a point's chart draws it: "number" as a line, "state" (named values) and
+        "switch" (on and off) as bands over time."""
+        latest = self.values.latest.get(Key(instance, path))
+        value = latest.value if latest else None
+        if isinstance(value, bool):
+            return "switch"
+        if isinstance(value, str):
+            return "state"
+        if value is None:
+            found = self.host.instances.get(instance) if self.host else None
+            described = found.described if found else None
+            point = (
+                next((p for p in described.points if p.path == path), None) if described else None
+            )
+            if point is not None and point.enum.value:
+                return "state"
+        return "number"
+
     def label(self, instance: str, path: str) -> str:
         """A point's name as the pages show it, in the current language."""
         found = self.host.instances.get(instance) if self.host else None

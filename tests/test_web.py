@@ -813,6 +813,34 @@ async def test_a_point_page_shows_its_description(site: Site) -> None:
     assert '<p class="description">Current outdoor temperature</p>' in page
 
 
+async def test_named_values_are_charted_as_bands(site: Site) -> None:
+    """A demand or a switch has no line to draw: its chart is bands over time, with the
+    value names in the page's language."""
+    _with_a_pump(site)
+    pump = FakePump()
+    site.services.values.add(
+        "pump", pump.envelope("hp1/x.fake.prio").model_copy(update={"value": "dhw"})
+    )
+    site.services.values.add(
+        "pump", pump.envelope("hp1/cs1/x.fake.offset").model_copy(update={"value": True})
+    )
+    async with admin(site) as client:
+        number = (await client.get("/points/pump/hp1/outdoor.temp")).text
+        named = (await client.get("/points/pump/hp1/x.fake.prio")).text
+        switch = (await client.get("/points/pump/hp1/cs1/x.fake.offset")).text
+        await client.put(
+            "/api/v1/account/preferences",
+            json={"language": "sv"},
+            headers={"x-csrf-token": csrf_of((await client.get("/account")).text)},
+        )
+        swedish = (await client.get("/points/pump/hp1/x.fake.prio")).text
+    assert 'data-kind="number"' in number
+    assert 'data-kind="state"' in named
+    assert 'data-kind="switch"' in switch
+    assert '"dhw": "Hot water"' in named
+    assert '"dhw": "Varmvatten"' in swedish
+
+
 def test_values_are_shown_in_sentence_case() -> None:
     from thermaestro.web import labels
 
