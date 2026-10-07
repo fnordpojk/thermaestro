@@ -196,20 +196,21 @@ async def set_home_assistant(
     return await _settings_attempt(request, who, work(), f"/sensors/homeassistant/{id}")
 
 
+async def _entities(request: Request, who: Caller, id: str) -> tuple[list[Any], str | None]:
+    try:
+        return await services(request).home_assistant_entities(who, id), None
+    except AccountError as e:
+        return [], message(e)
+
+
 @router.get("/sensors/homeassistant/{id}")
 async def home_assistant_page(request: Request, who: Logged, id: str) -> Response:
-    s = services(request)
-    error = None
-    entities: list[Any] = []
-    try:
-        entities = await s.home_assistant_entities(who, id)
-    except AccountError as e:
-        error = message(e)
-    plugin = await s.db.get(Plugin, id)
+    """The entities to tick. The list sends only the ticks (a GET), so it stays small
+    however many entities Home Assistant has."""
+    entities, error = await _entities(request, who, id)
+    plugin = await services(request).db.get(Plugin, id)
     listed = plugin.settings.get("entities") if plugin else None
     chosen = {e for e in listed if isinstance(e, str)} if isinstance(listed, list) else set()
-    rooms = await s.room_settings(who)
-    by_name = {r.name.lower(): rid for rid, r in rooms.items()}
     return render(
         request,
         "ha-entities.html",
@@ -217,8 +218,28 @@ async def home_assistant_page(request: Request, who: Logged, id: str) -> Respons
         id=id,
         entities=entities,
         chosen=chosen,
+        error=error,
+    )
+
+
+@router.get("/sensors/homeassistant/{id}/pick")
+async def home_assistant_pick_page(request: Request, who: Logged, id: str) -> Response:
+    """Names and rooms for the ticked entities."""
+    wanted = set(request.query_params.getlist("pick"))
+    entities, error = await _entities(request, who, id)
+    picks = [
+        (e, point, quantity) for e in entities for point, quantity in e.points if point in wanted
+    ]
+    rooms = await services(request).room_settings(who)
+    by_name = {r.name.lower(): rid for rid, r in rooms.items()}
+    return render(
+        request,
+        "ha-pick.html",
+        who,
+        id=id,
+        picks=picks,
         rooms=rooms,
-        suggested_room={e.entity_id: by_name.get((e.area or "").lower()) for e in entities},
+        suggested_room={e.entity_id: by_name.get((e.area or "").lower()) for e, _, _ in picks},
         error=error,
     )
 

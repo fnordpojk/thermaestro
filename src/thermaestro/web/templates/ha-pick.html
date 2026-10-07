@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Home Assistant{% endblock %}
+{% block main %}
+<h1>{{ _("Choose from Home Assistant") }}</h1>
+<p>{{ _("A room is suggested from the entity's area where a room has the same name.") }} <a href="/rooms">{{ _("Rooms") }}</a></p>
+{% if picks %}
+<form method="post" action="/sensors/homeassistant/{{ id | urlencode }}/sensors">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <table>
+    <thead><tr><th>{{ _("Entity") }}</th><th>{{ _("Measures") }}</th><th>{{ _("Name") }}</th><th>{{ _("Room") }}</th></tr></thead>
+    <tbody>
+    {% for e, point, quantity in picks %}
+      {% set n = loop.index %}
+      <tr>
+        <td>{{ e.name }}<br><small>{{ e.entity_id }}</small>
+          <input type="hidden" name="pick" value="{{ n }}">
+          <input type="hidden" name="entity_{{ n }}" value="{{ e.entity_id }}">
+          <input type="hidden" name="point_{{ n }}" value="{{ point }}">
+          <input type="hidden" name="quantity_{{ n }}" value="{{ quantity }}"></td>
+        <td>{{ quantity | quantity }}</td>
+        <td><input name="name_{{ n }}" maxlength="64" value="{{ e.name }}{% if e.points | length > 1 %} – {{ quantity | quantity }}{% endif %}"></td>
+        <td><select name="room_{{ n }}">
+            <option value="">{{ _("no room") }}</option>
+            {% for rid, room in rooms.items() %}<option value="{{ rid }}"{% if suggested_room.get(e.entity_id) == rid %} selected{% endif %}>{{ room.name }}</option>{% endfor %}
+          </select></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit">{{ _("Read the picked ones") }}</button>
+</form>
+{% elif not error %}
+<p>{{ _("Nothing was picked.") }}</p>
+{% endif %}
+<p><a href="/sensors/homeassistant/{{ id | urlencode }}">{{ _("Back to the list") }}</a></p>
+{% endblock %}

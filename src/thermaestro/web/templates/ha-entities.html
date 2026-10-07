@@ -2,36 +2,25 @@
 {% block title %}Home Assistant{% endblock %}
 {% block main %}
 <h1>{{ _("Choose from Home Assistant") }}</h1>
-<p>{{ _("Pick what Thermaestro should read. Each picked value becomes a sensor; a room is suggested from the entity's area where a room has the same name.") }} <a href="/rooms">{{ _("Rooms") }}</a></p>
+<p>{{ _("Tick what Thermaestro should read. Each picked value becomes a sensor; names and rooms come next.") }} <a href="/rooms">{{ _("Rooms") }}</a></p>
 {% if entities %}
-<form method="post" action="/sensors/homeassistant/{{ id | urlencode }}/sensors">
-  <input type="hidden" name="csrf" value="{{ csrf }}">
+<form method="get" action="/sensors/homeassistant/{{ id | urlencode }}/pick">
   <table>
-    <thead><tr><th></th><th>{{ _("Entity") }}</th><th>{{ _("Area") }}</th><th>{{ _("Measures") }}</th><th>{{ _("Name") }}</th><th>{{ _("Room") }}</th></tr></thead>
+    <thead><tr><th></th><th>{{ _("Entity") }}</th><th>{{ _("Area") }}</th><th>{{ _("Measures") }}</th></tr></thead>
     <tbody>
-    {% set n = namespace(i=0) %}
     {% for e in entities %}
       {% for point, quantity in e.points %}
-      {% set n.i = n.i + 1 %}
       <tr>
-        <td><input type="checkbox" name="pick" value="{{ n.i }}" aria-label="{{ e.name }}"{% if e.entity_id in chosen %} disabled title="{{ _('read already') }}"{% endif %}></td>
-        <td>{{ e.name }}<br><small>{{ e.entity_id }}</small>
-          <input type="hidden" name="entity_{{ n.i }}" value="{{ e.entity_id }}">
-          <input type="hidden" name="point_{{ n.i }}" value="{{ point }}">
-          <input type="hidden" name="quantity_{{ n.i }}" value="{{ quantity }}"></td>
+        <td><input type="checkbox" name="pick" value="{{ point }}" aria-label="{{ e.name }}"{% if e.entity_id in chosen %} disabled title="{{ _('read already') }}"{% endif %}></td>
+        <td>{{ e.name }}<br><small>{{ e.entity_id }}</small></td>
         <td>{{ e.area or "" }}</td>
         <td>{{ quantity | quantity }}</td>
-        <td><input name="name_{{ n.i }}" maxlength="64" value="{{ e.name }}{% if e.points | length > 1 %} – {{ quantity | quantity }}{% endif %}"></td>
-        <td><select name="room_{{ n.i }}">
-            <option value="">{{ _("no room") }}</option>
-            {% for rid, room in rooms.items() %}<option value="{{ rid }}"{% if suggested_room.get(e.entity_id) == rid %} selected{% endif %}>{{ room.name }}</option>{% endfor %}
-          </select></td>
       </tr>
       {% endfor %}
     {% endfor %}
     </tbody>
   </table>
-  <button type="submit">{{ _("Read the picked ones") }}</button>
+  <button type="submit">{{ _("Next: names and rooms") }}</button>
 </form>
 {% elif not error %}
 <p>{{ _("Home Assistant offers nothing Thermaestro can use.") }}</p>

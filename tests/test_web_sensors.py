@@ -221,11 +221,18 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
         assert connected.headers["location"] == "/sensors/homeassistant/homeassistant"
         page = (await client.get("/sensors/homeassistant/homeassistant")).text
         assert "Bedroom temperature" in page
+        # First the ticks alone, then names and rooms for what was ticked.
+        point = "ha/x.homeassistant.sensor.bedroom_temperature"
+        assert f'name="pick" value="{point}"' in page
+        page = (
+            await client.get("/sensors/homeassistant/homeassistant/pick", params={"pick": point})
+        ).text
+        assert "Living thermostat" not in page
         assert '<option value="bedroom" selected>Bedroom</option>' in page  # the area's room
         rows = {
             m.group(2): m.group(1) for m in re.finditer(r'name="point_(\d+)" value="([^"]+)"', page)
         }
-        n = rows["ha/x.homeassistant.sensor.bedroom_temperature"]
+        n = rows[point]
         picked = await client.post(
             "/sensors/homeassistant/homeassistant/sensors",
             data={
@@ -251,6 +258,36 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
         "bedroom",
     )
     assert TOKEN not in (site.state / "audit" / "audit.jsonl").read_text()
+
+
+async def test_a_large_home_assistant_can_be_picked_from(site: Site) -> None:
+    """A browser sends every field of a form: the list itself sends only the ticks, so
+    hundreds of entities stay under the server's limit of 1000 fields."""
+    fake = FakeHomeAssistant()
+    for i in range(1200):
+        fake.set(
+            f"sensor.t{i}",
+            "20.0",
+            device_class="temperature",
+            unit_of_measurement="°C",
+            friendly_name=f"Sensor {i}",
+        )
+    async with running(fake) as url, logged_in(site) as client:
+        await form(
+            client, "/settings", "/settings/homeassistant", id="homeassistant", url=url, token=TOKEN
+        )
+        page = (await client.get("/sensors/homeassistant/homeassistant")).text
+        listing = page.split('action="/sensors/homeassistant/homeassistant/pick"', 1)[1]
+        listing = listing.split("</form>", 1)[0]
+        assert 'method="get"' in page
+        fields = set(re.findall(r'<(?:input|select)[^>]* name="([^"]+)"', listing))
+        assert fields == {"pick"}
+        point = "ha/x.homeassistant.sensor.t1199"
+        chosen = (
+            await client.get("/sensors/homeassistant/homeassistant/pick", params={"pick": point})
+        ).text
+        assert "Sensor 1199" in chosen
+        assert "Sensor 1198" not in chosen
 
 
 async def test_the_mqtt_broker_settings(site: Site) -> None:

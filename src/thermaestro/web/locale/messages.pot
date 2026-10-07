@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 17:26+0200\n"
+"POT-Creation-Date: 2026-10-07 22:12+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -75,6 +75,9 @@ msgid ""
 "(7.2). The pump is particular about sticks: those larger than 4 GB, or "
 "made in about the last 15 years, often aren't accepted. Everything works "
 "without it, more slowly."
+msgstr ""
+
+msgid "A room is suggested from the entity's area where a room has the same name."
 msgstr ""
 
 msgid ""
@@ -159,6 +162,9 @@ msgid "At"
 msgstr ""
 
 msgid "Audit log"
+msgstr ""
+
+msgid "Back to the list"
 msgstr ""
 
 msgid "Back to the sensors"
@@ -587,6 +593,9 @@ msgid ""
 "was changed or removed."
 msgstr ""
 
+msgid "Next: names and rooms"
+msgstr ""
+
 msgid "NibeGW (plain)"
 msgstr ""
 
@@ -634,6 +643,9 @@ msgstr ""
 msgid ""
 "Nothing to compare yet. Forecasts are kept from now on, and compared as "
 "their hours come."
+msgstr ""
+
+msgid "Nothing was picked."
 msgstr ""
 
 msgid "Nothing yet: a provider shows here once it has sent its first forecast."
@@ -689,11 +701,6 @@ msgid "Per 15 minutes"
 msgstr ""
 
 msgid "Personal access token"
-msgstr ""
-
-msgid ""
-"Pick what Thermaestro should read. Each picked value becomes a sensor; a "
-"room is suggested from the entity's area where a room has the same name."
 msgstr ""
 
 msgid "Pinned to the overview"
@@ -978,6 +985,11 @@ msgid ""
 "price, the pump's values, and how the plugins are doing. The pump's "
 "settings and diagnostic values come disabled; enable those you want in "
 "Home Assistant. Nothing is accepted back."
+msgstr ""
+
+msgid ""
+"Tick what Thermaestro should read. Each picked value becomes a sensor; "
+"names and rooms come next."
 msgstr ""
 
 msgid "Time range"

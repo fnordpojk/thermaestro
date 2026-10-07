@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 17:26+0200\n"
-"PO-Revision-Date: 2026-10-07 17:26+0200\n"
+"POT-Creation-Date: 2026-10-07 22:12+0200\n"
+"PO-Revision-Date: 2026-10-07 22:12+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -78,6 +78,9 @@ msgstr ""
 "Kopiera filen till ett USB-minne och läs in den i pumpens USB-meny (7.2). Pumpen är "
 "kinkig med USB-minnen: sådana som är större än 4 GB, eller tillverkade under ungefär "
 "de senaste 15 åren, godtas ofta inte. Allt fungerar utan den, fast långsammare."
+
+msgid "A room is suggested from the entity's area where a room has the same name."
+msgstr "Ett rum föreslås från entitetens område där ett rum har samma namn."
 
 msgid ""
 "A simple thermostat cuts the room off at its own setting. Where Thermaestro steers "
@@ -168,6 +171,9 @@ msgstr "Tid"
 
 msgid "Audit log"
 msgstr "Granskningslogg"
+
+msgid "Back to the list"
+msgstr "Tillbaka till listan"
 
 msgid "Back to the sensors"
 msgstr "Tillbaka till givarna"
@@ -613,6 +619,9 @@ msgstr ""
 "Nyaste först. `thermaestro audit verify` på värddatorn kontrollerar att ingen rad har"
 " ändrats eller tagits bort."
 
+msgid "Next: names and rooms"
+msgstr "Nästa: namn och rum"
+
 msgid "NibeGW (plain)"
 msgstr "NibeGW (vanlig)"
 
@@ -665,6 +674,9 @@ msgid ""
 msgstr ""
 "Inget att jämföra än. Prognoser sparas från och med nu och jämförs när deras timmar "
 "kommer."
+
+msgid "Nothing was picked."
+msgstr "Inget valdes."
 
 msgid "Nothing yet: a provider shows here once it has sent its first forecast."
 msgstr "Inget än: en leverantör visas här när den har skickat sin första prognos."
@@ -720,13 +732,6 @@ msgstr "Per kvart"
 
 msgid "Personal access token"
 msgstr "Personlig åtkomsttoken"
-
-msgid ""
-"Pick what Thermaestro should read. Each picked value becomes a sensor; a room is "
-"suggested from the entity's area where a room has the same name."
-msgstr ""
-"Välj vad Thermaestro ska läsa. Varje valt värde blir en givare; ett rum föreslås från"
-" entitetens område där ett rum har samma namn."
 
 msgid "Pinned to the overview"
 msgstr "Fäst på översikten"
@@ -1028,6 +1033,13 @@ msgstr ""
 "rummens och utomhusvärdena, elpriset, pumpens värden och hur tilläggen mår. Pumpens "
 "inställningar och diagnostikvärden kommer avaktiverade; aktivera dem du vill ha i "
 "Home Assistant. Inget tas emot tillbaka."
+
+msgid ""
+"Tick what Thermaestro should read. Each picked value becomes a sensor; names and "
+"rooms come next."
+msgstr ""
+"Kryssa i vad Thermaestro ska läsa. Varje valt värde blir en givare; namn och rum "
+"kommer härnäst."
 
 msgid "Time range"
 msgstr "Tidsintervall"
