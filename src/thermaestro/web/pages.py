@@ -303,6 +303,9 @@ async def _settings(
         pumps=pumps,
         models=models,
         fingerprint=s.fingerprint,
+        mqtt=await s.mqtt_settings(who),
+        mqtt_state=s.mqtt_state(who),
+        connections={id: p for id, p in plugins.items() if p.plugin == "homeassistant"},
         **extra,
     )
 

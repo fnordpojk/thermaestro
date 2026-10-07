@@ -216,7 +216,7 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
     await site.services.sensors.load()  # type: ignore[union-attr]
     async with running(fake) as url, logged_in(site) as client:
         connected = await form(
-            client, "/sensors", "/sensors/homeassistant", id="homeassistant", url=url, token=TOKEN
+            client, "/settings", "/settings/homeassistant", id="homeassistant", url=url, token=TOKEN
         )
         assert connected.headers["location"] == "/sensors/homeassistant/homeassistant"
         page = (await client.get("/sensors/homeassistant/homeassistant")).text
@@ -257,8 +257,8 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
     async with logged_in(site) as client:
         saved = await form(
             client,
-            "/sensors",
-            "/sensors/mqtt",
+            "/settings",
+            "/settings/mqtt",
             host="192.0.2.30",
             port="1883",
             username="thermaestro",
@@ -268,9 +268,12 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
         api = (await client.get("/api/v1/mqtt")).json()
         assert api["settings"]["password"] == "mqtt.password"
         assert api["state"] == "off"
-        assert "broker secret" not in (await client.get("/sensors")).text
+        settings = (await client.get("/settings")).text
+        assert "broker secret" not in settings
+        assert 'action="/settings/mqtt"' in settings
+        assert 'action="/settings/mqtt"' not in (await client.get("/sensors")).text
         # Saved again without a password: the one entered stays.
-        await form(client, "/sensors", "/sensors/mqtt", host="192.0.2.31", port="1883")
+        await form(client, "/settings", "/settings/mqtt", host="192.0.2.31", port="1883")
         api = (await client.get("/api/v1/mqtt")).json()
         assert (api["settings"]["host"], api["settings"]["password"]) == (
             "192.0.2.31",

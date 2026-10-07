@@ -44,8 +44,6 @@ async def _sensors(request: Request, who: Caller, status_code: int = 200, **extr
         outdoor=(await s.outdoor(who)).references,
         outdoor_quantities=OUTDOOR_QUANTITIES,
         quantities=SENSOR_QUANTITIES,
-        mqtt=await s.mqtt_settings(who),
-        mqtt_state=s.mqtt_state(who),
         connections=connections,
         **extra,
     )
@@ -67,7 +65,7 @@ async def _attempt(request: Request, who: Caller, work: Any, then: str) -> Respo
     return back(then)
 
 
-@router.post("/sensors/mqtt")
+@router.post("/settings/mqtt")
 @action("mqtt.write")
 async def set_mqtt(
     request: Request,
@@ -95,7 +93,7 @@ async def set_mqtt(
             body["password"] = current.password
         await s.set_mqtt(who, body)
 
-    return await _attempt(request, who, work(), "/sensors#mqtt")
+    return await _settings_attempt(request, who, work(), "/settings#mqtt")
 
 
 def _sensor_body(form: dict[str, str]) -> dict[str, Any]:
@@ -124,6 +122,19 @@ async def _form(request: Request) -> dict[str, str]:
     return {k: v for k, v in data.items() if isinstance(v, str) and k != "csrf"}
 
 
+async def _settings_attempt(request: Request, who: Caller, work: Any, then: str) -> Response:
+    """Run a change from the settings page; on a refusal, show it again with why."""
+    from .pages import _settings
+
+    try:
+        await work
+    except NeedsConfirmation:
+        raise
+    except AccountError as e:
+        return await _settings(request, who, 400, error=message(e))
+    return back(then)
+
+
 @router.post("/sensors")
 @action("sensor.write")
 async def add_sensor(request: Request, who: Logged) -> Response:
@@ -145,7 +156,7 @@ async def set_outdoor(request: Request, who: Logged) -> Response:
     )
 
 
-@router.post("/sensors/homeassistant")
+@router.post("/settings/homeassistant")
 @action("homeassistant.write")
 async def set_home_assistant(
     request: Request, who: Logged, url: Text, id: Text = "homeassistant", token: Text = ""
@@ -158,7 +169,7 @@ async def set_home_assistant(
             await s.set_secret(who, token_name, token.strip())
         await s.set_home_assistant(who, id, url, token_name)
 
-    return await _attempt(request, who, work(), f"/sensors/homeassistant/{id}")
+    return await _settings_attempt(request, who, work(), f"/sensors/homeassistant/{id}")
 
 
 @router.get("/sensors/homeassistant/{id}")

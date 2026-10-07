@@ -16,6 +16,38 @@
 {% endfor %}
 </section>
 
+<section id="homeassistant">
+<h2>Home Assistant</h2>
+<p>{{ _("Thermaestro reads the entities you choose, through Home Assistant's WebSocket API. Make a long-lived access token in Home Assistant (your profile, Security) and enter it here; it is kept in the secrets file.") }}</p>
+{% for id, p in connections.items() %}
+<p><a href="/sensors/homeassistant/{{ id | urlencode }}">{{ _("Choose entities from %(url)s", url=p.settings.url) }}</a> · {{ p.settings.entities | length }} {{ _("read now") }}</p>
+{% endfor %}
+{% set current = (connections.values() | first).settings if connections else {} %}
+<form method="post" action="/settings/homeassistant" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (connections.keys() | first) if connections else 'homeassistant' }}">
+  <label>{{ _("Address") }}
+    <input name="url" required placeholder="http://homeassistant.local:8123" value="{{ current.url | default('') }}"></label>
+  <label>{{ _("Long-lived access token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save and choose entities") }}</button>
+</form>
+</section>
+
+<section id="mqtt">
+<h2>{{ _("MQTT broker") }}</h2>
+<p>{{ _("State:") }} <strong>{{ _(mqtt_state.state) }}</strong>{% if mqtt_state.error %} – {{ mqtt_state.error }}{% endif %}</p>
+<form method="post" action="/settings/mqtt" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Address") }} <input name="host" required placeholder="192.0.2.30" value="{{ mqtt.host if mqtt else '' }}"></label>
+  <label>{{ _("Port") }} <input name="port" inputmode="numeric" value="{{ mqtt.port if mqtt else 1883 }}"></label>
+  <label>{{ _("User name") }} <input name="username" autocomplete="off" value="{{ mqtt.username or '' if mqtt else '' }}"></label>
+  <label>{{ _("Password") }} <small>{% if mqtt and mqtt.password %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="password" type="password" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" name="tls" value="1"{% if mqtt and mqtt.tls %} checked{% endif %}> TLS</label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
 <section>
 <h2>{{ _("Location") }}</h2>
 <p>{{ _("For forecasts and the sun. Coordinates with a decimal point, such as 59.33.") }}</p>
