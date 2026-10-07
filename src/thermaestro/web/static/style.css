@@ -182,6 +182,10 @@ dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-num
 .chart-tip tr.total td { border-top: 1px solid var(--line); font-weight: 600; }
 .chart-tip .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; }
 .band-legend .line-swatch { height: 0; border: none; border-top: 2px solid var(--fg); border-radius: 0; }
+.band-legend .line-swatch.red-blue { border-top: 3px solid #c8102e; box-shadow: 0.45rem 0 0 -0.05rem #1f6fc2; width: 0.45rem; margin-right: 0.45rem; }
+.band-legend .line-swatch.dotted { border-top: 2px dotted #2a9d8f; }
+.band-legend .line-swatch.wind { border-top-color: #7b3fbf; }
+.band-legend .line-swatch.dashed { border-top-style: dashed; }
 .band-legend span { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; border: 1px solid var(--line); }
 .u-legend, .u-legend th, .u-legend td { color: var(--fg); }
 p.description { color: var(--muted); max-width: 48rem; }

@@ -8,6 +8,14 @@
 <section id="forecast">
 <h2>{{ _("The forecast") }}</h2>
 {% if table %}
+<nav class="ranges view-switch" data-switch="weather" hidden aria-label="{{ _('View') }}">
+  <button type="button" data-view="chart" aria-pressed="true">{{ _("Chart") }}</button>
+  <button type="button" data-view="table" aria-pressed="false">{{ _("Table") }}</button>
+</nav>
+<div id="meteogram" class="price-chart" data-view-of="weather" data-show="chart" hidden
+     data-meteogram='{{ meteogram | tojson }}' data-decimal="{{ decimal }}" data-locale="{{ formats.tag }}"
+     data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}"></div>
+<div data-view-of="weather" data-show="table">
 <table class="values">
   <thead><tr><th>{{ _("At") }}</th>{% for q in shown %}<th class="num">{{ q | quantity }}{% if forecast[q].unit %} <small>{{ forecast[q].unit | unit }}</small>{% endif %}{% if forecast[q].derived %}*{% endif %}</th>{% endfor %}</tr></thead>
   <tbody>
@@ -20,6 +28,7 @@
   </tbody>
 </table>
 {% if any_derived %}<p class="hint">{{ _("* derived by Thermaestro from the provider's other values.") }}</p>{% endif %}
+</div>
 {% else %}
 <p class="hint">{{ _("No forecast yet: choose a main provider under Setup.") }} {% if can("settings.read") %}<a href="/setup/weather#choice">{{ _("Setup") }}</a>{% endif %}</p>
 {% endif %}

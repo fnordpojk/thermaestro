@@ -1,6 +1,9 @@
 """The weather page and API: providers, the register, the choice per quantity, the
 forecast as used, and the climate."""
 
+import html
+import json
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -144,6 +147,30 @@ async def test_choosing_a_provider_per_quantity(site: Site) -> None:
     assert "* derived by Thermaestro" in page
     assert refused.status_code == 400
     assert "no weather provider 'nowhere'" in refused.json()["error"]
+
+
+async def test_the_weather_graph_gets_the_forecast_and_the_sun(site: Site) -> None:
+    """The graph draws from the forecast in the page, each quantity with its provider, and
+    from whether the sun is up at each hour; the table stays for the switch."""
+    async with logged_in(site) as client:
+        await form(client, "/setup/weather", "/weather/choice", main="met")
+        page = (await client.get("/weather")).text
+    found = re.search(r"data-meteogram='([^']+)'", page)
+    assert found
+    graph = json.loads(html.unescape(found.group(1)))
+    temperature = graph["series"]["temperature"]
+    assert (temperature["name"], temperature["source"], temperature["unit"]) == (
+        "Temperature",
+        "MET Norway",
+        "degC",
+    )
+    start, end, value = temperature["values"][0]
+    assert end > start
+    assert value == 2.0
+    assert graph["series"]["dew_point"]["derived"] is True
+    assert len(graph["daylight"]) == 49
+    assert {up for _, up in graph["daylight"]} <= {True, False}
+    assert 'data-view-of="weather" data-show="table"' in page
 
 
 async def test_providers_follow_the_location(site: Site) -> None:

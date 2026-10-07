@@ -3,7 +3,7 @@ The providers and the choice per quantity are set under Setup → Weather, the l
 climate under Setup → House; their forms post here, each to an endpoint that does what its
 API counterpart does."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -11,7 +11,9 @@ from fastapi.responses import HTMLResponse, Response
 
 from ..auth import AccountError
 from ..cap.vocabulary import WEATHER
+from ..core import sun
 from ..core.weather import LEADS_H, SCORED
+from . import i18n, labels
 from .app import action, caller, services
 from .operations import Caller
 from .pages import Text, render
@@ -30,12 +32,14 @@ STEP_H = 3
 async def weather_page(request: Request, who: Logged) -> Response:
     s = services(request)
     forecast = await s.weather_forecast(who, 48)
+    location = await s.location(who)
+    register = s.weather_register(who)
     return render(
         request,
         "weather.html",
         who,
-        location=await s.location(who),
-        register=s.weather_register(who),
+        location=location,
+        register=register,
         table=_table(forecast, s.zone),
         forecast={f["quantity"]: f for f in forecast},
         shown=SHOWN,
@@ -43,7 +47,71 @@ async def weather_page(request: Request, who: Logged) -> Response:
         scores=_scores(await s.weather_scores(who)),
         leads=LEADS_H,
         scored=SCORED,
+        meteogram=_meteogram(forecast, register, location),
+        decimal=i18n.decimal_symbol(),
+        zone=i18n.zone_name(),
+        formats=i18n.formats.get(),
     )
+
+
+GRAPHED = (
+    "temperature",
+    "temperature.p10",
+    "temperature.p90",
+    "dew_point",
+    "precipitation",
+    "cloud_cover",
+    "wind_speed",
+    "wind_gust",
+    "wind_direction",
+    "irradiance.global",
+)
+"""What the weather graph draws, after Yr's meteogram."""
+
+
+def _meteogram(
+    forecast: list[dict[str, Any]], register: list[dict[str, Any]], location: Any
+) -> dict[str, Any]:
+    """The forecast for the graph: per quantity its values as [start, end, value] in
+    seconds, and where it comes from; and for each hour whether the sun is up."""
+    names = {p["key"]: p["label"] for p in register}
+    series = {}
+    for f in forecast:
+        if f["quantity"] not in GRAPHED or not f["values"]:
+            continue
+        series[f["quantity"]] = {
+            "name": labels.quantity(f["quantity"]),
+            "unit": f["unit"],
+            "source": names.get(f["source"], f["source"]),
+            "derived": f["derived"],
+            "fallback": f["fallback"],
+            "values": [
+                [
+                    datetime.fromisoformat(v["start"]).timestamp(),
+                    datetime.fromisoformat(v["end"]).timestamp(),
+                    v["value"],
+                ]
+                for v in f["values"]
+            ],
+        }
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+    daylight = []
+    if location is not None:
+        for n in range(49):
+            middle = start + timedelta(hours=n, minutes=30)
+            up = sun.cos_zenith(middle, location.latitude, location.longitude) > 0
+            daylight.append([middle.timestamp() - 1800, up])
+    return {
+        "series": series,
+        "daylight": daylight,
+        "texts": {
+            "derived": i18n._("derived"),
+            "fallback": i18n._("fallback"),
+            "per_hour": i18n._("mm per hour"),
+            "empty": i18n._("No forecast yet: choose a main provider under Setup."),
+            "sky": i18n._("Sky: drawn from the cloud cover, precipitation and the sun's height."),
+        },
+    }
 
 
 def _table(forecast: list[dict[str, Any]], zone: Any) -> list[tuple[datetime, dict[str, Any]]]:

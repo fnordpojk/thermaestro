@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 23:13+0200\n"
-"PO-Revision-Date: 2026-10-07 23:13+0200\n"
+"POT-Creation-Date: 2026-10-07 23:22+0200\n"
+"PO-Revision-Date: 2026-10-07 23:22+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -949,6 +949,9 @@ msgstr "Visas bland"
 msgid "Since"
 msgstr "Sedan"
 
+msgid "Sky: drawn from the cloud cover, precipitation and the sun's height."
+msgstr "Himlen: ritad utifrån molnighet, nederbörd och solens höjd."
+
 msgid "Someone home"
 msgstr "Någon hemma"
 
@@ -1466,6 +1469,9 @@ msgstr "senast hörd"
 
 msgid "missing"
 msgstr "saknas"
+
+msgid "mm per hour"
+msgstr "mm per timme"
 
 msgid "no"
 msgstr "nej"

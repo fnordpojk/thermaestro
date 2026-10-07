@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 23:13+0200\n"
+"POT-Creation-Date: 2026-10-07 23:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -915,6 +915,9 @@ msgstr ""
 msgid "Since"
 msgstr ""
 
+msgid "Sky: drawn from the cloud cover, precipitation and the sun's height."
+msgstr ""
+
 msgid "Someone home"
 msgstr ""
 
@@ -1407,6 +1410,9 @@ msgid "last heard"
 msgstr ""
 
 msgid "missing"
+msgstr ""
+
+msgid "mm per hour"
 msgstr ""
 
 msgid "no"
