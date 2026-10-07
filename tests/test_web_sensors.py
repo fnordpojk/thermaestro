@@ -327,6 +327,45 @@ async def test_rooms_from_home_assistants_areas(site: Site) -> None:
     assert sorted(s.room or "" for s in sensors.values()) == [kitchen, kitchen]
 
 
+async def test_a_home_assistant_sensor_placed_outdoors_is_an_outdoor_reference(
+    site: Site,
+) -> None:
+    fake = FakeHomeAssistant()
+    fake.set("sensor.ute", "-2.5", device_class="temperature", unit_of_measurement="°C")
+    async with running(fake) as url, logged_in(site) as client:
+        await form(
+            client,
+            "/setup/external",
+            "/settings/homeassistant",
+            id="homeassistant",
+            url=url,
+            token=TOKEN,
+        )
+        point = "ha/x.homeassistant.sensor.ute"
+        page = (
+            await client.get("/sensors/homeassistant/homeassistant/pick", params={"pick": point})
+        ).text
+        assert '<option value="place:outdoor">outdoors</option>' in page
+        made = await client.post(
+            "/sensors/homeassistant/homeassistant/sensors",
+            data={
+                "csrf": csrf_of(page),
+                "pick": "1",
+                "entity_1": "sensor.ute",
+                "point_1": point,
+                "quantity_1": "temperature",
+                "name_1": "North wall",
+                "room_1": "place:outdoor",
+            },
+        )
+        assert made.status_code == 303
+        sensors = (await client.get("/setup/sensors")).text
+    assert '<option value="north-wall">North wall</option>' in sensors
+    sensor = await site.services.db.get(Sensor, "north-wall")
+    assert sensor is not None
+    assert (sensor.placement, sensor.room) == ("outdoor", None)
+
+
 async def test_a_large_home_assistant_can_be_picked_from(site: Site) -> None:
     """A browser sends every field of a form: the list itself sends only the ticks, so
     hundreds of entities stay under the server's limit of 1000 fields."""

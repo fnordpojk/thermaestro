@@ -8,9 +8,27 @@
   --warn: #9a6700;
   --bad: #b3261e;
   --panel: #ffffff;
+  /* The charts' colors: the weather graph's, and the price stack's layers in order. */
+  --warm: #c8102e;
+  --cold: #1f6fc2;
+  --spread: rgba(200, 16, 46, 0.12);
+  --dew: #2a9d8f;
+  --rain: #4a90d9;
+  --wind: #7b3fbf;
+  --sun: #e0a100;
+  --sun-fill: rgba(224, 161, 0, 0.35);
+  --layer-0: #0b5c99;
+  --layer-1: #b8500b;
+  --layer-2: #00785a;
+  --layer-3: #9c4f80;
+  --layer-4: #a86a00;
+  --layer-5: #2a7fb0;
+  --layer-6: #6b6b6b;
+  --layer-vat: #8c8c8c;
   color-scheme: light;
 }
-/* Dark: when the device is, unless light was chosen; or whenever dark was chosen. */
+/* Dark: when the device is, unless light was chosen; or whenever dark was chosen. The
+   chart colors are lighter, to stand out from the dark background. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #17191b;
@@ -22,6 +40,22 @@
     --warn: #e0b04a;
     --bad: #ef9a9a;
     --panel: #1f2224;
+    --warm: #ff6b6b;
+    --cold: #6cb4ff;
+    --spread: rgba(225, 225, 225, 0.14);
+    --dew: #5fe0d0;
+    --rain: #63b3f5;
+    --wind: #c9a2ff;
+    --sun: #ffd24d;
+    --sun-fill: rgba(255, 210, 77, 0.5);
+    --layer-0: #3d8fd1;
+    --layer-1: #e07b3c;
+    --layer-2: #2fb38c;
+    --layer-3: #c77bb0;
+    --layer-4: #d6a33a;
+    --layer-5: #63b8e6;
+    --layer-6: #9a9a9a;
+    --layer-vat: #a6a6a6;
     color-scheme: dark;
   }
 }
@@ -35,6 +69,22 @@
   --warn: #e0b04a;
   --bad: #ef9a9a;
   --panel: #1f2224;
+  --warm: #ff6b6b;
+  --cold: #6cb4ff;
+  --spread: rgba(225, 225, 225, 0.14);
+  --dew: #5fe0d0;
+  --rain: #63b3f5;
+  --wind: #c9a2ff;
+  --sun: #ffd24d;
+  --sun-fill: rgba(255, 210, 77, 0.5);
+  --layer-0: #3d8fd1;
+  --layer-1: #e07b3c;
+  --layer-2: #2fb38c;
+  --layer-3: #c77bb0;
+  --layer-4: #d6a33a;
+  --layer-5: #63b8e6;
+  --layer-6: #9a9a9a;
+  --layer-vat: #a6a6a6;
   color-scheme: dark;
 }
 .theme-switch { text-decoration: none; color: var(--fg); font-size: 1.15rem; line-height: 1; padding: 0.2rem 0.35rem; border: 1px solid var(--line); border-radius: 4px; }
@@ -202,9 +252,9 @@ dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-num
 .chart-tip tr.total td { border-top: 1px solid var(--line); font-weight: 600; }
 .chart-tip .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; }
 .band-legend .line-swatch { height: 0; border: none; border-top: 2px solid var(--fg); border-radius: 0; }
-.band-legend .line-swatch.red-blue { border-top: 3px solid #c8102e; box-shadow: 0.45rem 0 0 -0.05rem #1f6fc2; width: 0.45rem; margin-right: 0.45rem; }
-.band-legend .line-swatch.dotted { border-top: 2px dotted #2a9d8f; }
-.band-legend .line-swatch.wind { border-top-color: #7b3fbf; }
+.band-legend .line-swatch.red-blue { border-top: 3px solid var(--warm); box-shadow: 0.45rem 0 0 -0.05rem var(--cold); width: 0.45rem; margin-right: 0.45rem; }
+.band-legend .line-swatch.dotted { border-top: 2px dotted var(--dew); }
+.band-legend .line-swatch.wind { border-top-color: var(--wind); }
 .band-legend .line-swatch.dashed { border-top-style: dashed; }
 .band-legend span { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; border: 1px solid var(--line); }
 .u-legend, .u-legend th, .u-legend td { color: var(--fg); }

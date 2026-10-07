@@ -123,6 +123,9 @@ class NibePlugin:
         self._tick = asyncio.Event()
         self._read_lock = asyncio.Lock()
         self._charge_started: float | None = None
+        self._meter_idle: dict[int, float] = {}
+        """Per heat meter: seconds of production for its purpose since it last changed."""
+        self._last_store: float | None = None
 
     # --- the plugin interface --------------------------------------------------------------
 
@@ -276,6 +279,7 @@ class NibePlugin:
 
     def _store(self, register: int, words_: tuple[int, int]) -> None:
         now = time.monotonic()
+        self._watch_meters(register, words_, now)
         if register == profile.PRIO:
             prio = words_[0] & 0xFF
             previous = self._samples.get(register)
@@ -286,6 +290,27 @@ class NibePlugin:
         self._samples[register] = Sample(words_, now)
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
+
+    def _watch_meters(self, register: int, words_: tuple[int, int], now: float) -> None:
+        """Count the production each heat meter should have counted since it last moved:
+        the time the compressor ran while the demand was the meter's purpose."""
+        if self._last_store is not None:
+            elapsed = min(now - self._last_store, 60.0)  # a gap in reading isn't production
+            prio = self._samples.get(profile.PRIO)
+            compressor = self._samples.get(profile.COMPRESSOR)
+            running = (
+                compressor is not None and compressor.words[0] & 0xFF == profile.COMPRESSOR_RUNNING
+            )
+            demand = profile.DEMAND.get(prio.words[0] & 0xFF) if prio is not None else None
+            if running and demand is not None:
+                for meter, purpose in profile.METERS.items():
+                    if purpose == demand and meter in self._samples:
+                        self._meter_idle[meter] = self._meter_idle.get(meter, 0.0) + elapsed
+        self._last_store = now
+        if register in profile.METERS:
+            previous = self._samples.get(register)
+            if previous is not None and previous.words != words_:
+                self._meter_idle[register] = 0.0
 
     def _pump(self) -> tuple[ModelMap, profile.Layout]:
         if self.model is None or self.layout is None:
@@ -444,7 +469,9 @@ class NibePlugin:
                 definition = model.register(register)
                 if definition.size is not None and definition.size.bits <= 16:
                     values[register] = decode(definition, *sample.words, high_word_first=True).value
-        return profile.Snapshot(values, self._charge_started, time.monotonic())
+        return profile.Snapshot(
+            values, self._charge_started, time.monotonic(), dict(self._meter_idle)
+        )
 
     def _unit(self, definition: profile.PointDef) -> str | None:
         if definition.enum is not None or self.model is None:

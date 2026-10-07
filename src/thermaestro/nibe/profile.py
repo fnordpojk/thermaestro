@@ -34,6 +34,7 @@ FIRMWARE = (43001, 44331)
 
 PRIO_HOT_WATER = 20
 COMPRESSOR_CHANGING = frozenset({40, 100})
+COMPRESSOR_RUNNING = 60
 CHARGE_SETTLE_S = 600.0
 """How long the charge sensor (BT6) reads low after a charge starts: water from the bottom
 of the tank passes it. Ten minutes for now; the real time is to be learned per tank."""
@@ -61,11 +62,40 @@ class Snapshot:
     values: Mapping[int, float | int | None]
     charge_started: float | None
     now: float
+    idle: Mapping[int, float] = field(default_factory=dict)
+    """For each heat meter: seconds the pump has produced for its purpose since the meter
+    last changed."""
+
+
+METERS = {
+    42437: "dhw",
+    42445: "dhw",
+    42439: "heating",
+    42447: "heating",
+    42441: "cooling",
+    42443: "pool",
+}
+"""The heat meters, and what they count: production for this demand."""
+METER_IDLE_S = 1800.0
+"""A meter that hasn't moved in this much production doesn't count on this pump: some
+answer with a value that never changes (an F1245's hot-water total, over several
+hot-water runs)."""
 
 
 Rule = Callable[[Snapshot], tuple[Quality, str] | None]
 """A validity rule: a quality and its reason where the value can't be fully trusted, or
 None where the rule has nothing to say."""
+
+
+def counting(register: int) -> Rule:
+    def rule(s: Snapshot) -> tuple[Quality, str] | None:
+        idle = s.idle.get(register, 0.0)
+        if idle >= METER_IDLE_S:
+            minutes = int(idle // 60)
+            return "unknown", f"hasn't changed in {minutes} min of {METERS[register]} production"
+        return None
+
+    return rule
 
 
 def no_flow(pump: int) -> Rule:
@@ -172,12 +202,24 @@ UNIT_POINTS = (
     ),
     PointDef("degree_minutes", 43005),
     PointDef("alarm", 45001),
-    PointDef("heat.produced{purpose=dhw,by=total}", 42437),
-    PointDef("heat.produced{purpose=heating,by=total}", 42439),
-    PointDef("heat.produced{purpose=cooling,by=compressor}", 42441),
-    PointDef("heat.produced{purpose=pool,by=compressor}", 42443),
-    PointDef("heat.produced{purpose=dhw,by=compressor}", 42445),
-    PointDef("heat.produced{purpose=heating,by=compressor}", 42447),
+    *(
+        PointDef(
+            path,
+            register,
+            rules=(counting(register),),
+            validity=(
+                f"unknown when it hasn't changed in {METER_IDLE_S / 60:.0f} min of production",
+            ),
+        )
+        for path, register in (
+            ("heat.produced{purpose=dhw,by=total}", 42437),
+            ("heat.produced{purpose=heating,by=total}", 42439),
+            ("heat.produced{purpose=cooling,by=compressor}", 42441),
+            ("heat.produced{purpose=pool,by=compressor}", 42443),
+            ("heat.produced{purpose=dhw,by=compressor}", 42445),
+            ("heat.produced{purpose=heating,by=compressor}", 42447),
+        )
+    ),
     PointDef(f"x.nibe.{WORD_SWAP}", WORD_SWAP),
     PointDef("x.nibe.47375", 47375),  # heating stop
     PointDef("x.nibe.47134", 47134),  # operating priority, hot water

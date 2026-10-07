@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 00:15+0200\n"
-"PO-Revision-Date: 2026-10-08 00:15+0200\n"
+"POT-Creation-Date: 2026-10-08 01:08+0200\n"
+"PO-Revision-Date: 2026-10-08 01:08+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -305,6 +305,9 @@ msgstr "Bedingungen"
 
 msgid "Confirm"
 msgstr "Bestätigen"
+
+msgid "Confirm and go ahead"
+msgstr "Bestätigen und fortfahren"
 
 msgid "Connect Home Assistant under External to choose its entities here."
 msgstr "Verbinden Sie Home Assistant unter Extern, um hier seine Entitäten zu wählen."
@@ -776,6 +779,13 @@ msgstr "Gemessen"
 
 msgid "Occupied"
 msgstr "Belegt"
+
+msgid ""
+"Only sensors placed outdoors are offered. For one already added, open its Change "
+"above and set Where to outdoors."
+msgstr ""
+"Nur draußen platzierte Sensoren werden angeboten. Für einen schon hinzugefügten: oben"
+" sein Ändern öffnen und Wo auf draußen setzen."
 
 msgid "Open"
 msgstr "Offen"
@@ -1536,9 +1546,6 @@ msgstr "mm pro Stunde"
 
 msgid "no"
 msgstr "nein"
-
-msgid "no room"
-msgstr "kein Raum"
 
 msgid "no room yet"
 msgstr "noch kein Raum"

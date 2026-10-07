@@ -46,6 +46,18 @@ class BadRequestOrigin(Exception):
     """An unsafe browser request without the CSRF token, or from another site."""
 
 
+STEP_UP_FIELD = "step_up_password"
+"""A form's field carrying the password entered again, with the form it was asked for."""
+
+
+class StepUpRefused(Exception):
+    """The password entered again, with a form, wasn't right."""
+
+    def __init__(self, why: str) -> None:
+        super().__init__(why)
+        self.why = why
+
+
 def action[F: Callable[..., Any]](name: str) -> Callable[[F], F]:
     """Names the operation an endpoint performs. Each one a page can do has an API
     endpoint with the same name; a test checks it."""
@@ -130,7 +142,33 @@ async def caller(request: Request) -> Caller:
     if found is None:
         raise NotLoggedIn
     await check_csrf(request, found)
+    await _step_up(request, found)
     return found
+
+
+async def _step_up(request: Request, found: Caller) -> None:
+    """A form sent again with the password it asked for: the password first, then the
+    form's own action, as if it had never been interrupted."""
+    if request.method != "POST" or found.session is None or not _is_form(request):
+        return
+    password = (await request.form()).get(STEP_UP_FIELD)
+    if not isinstance(password, str) or not password:
+        return
+    accounts = services(request).accounts
+    try:
+        await accounts.confirm(found.session, password, source=client_address(request))
+    except AccountError as e:
+        raise StepUpRefused(i18n._(str(e))) from None
+    # The session as it is now, confirmed, for the action that follows.
+    fresh = await accounts.session(request.cookies.get(SESSION_COOKIE, ""))
+    if fresh is not None:
+        found.session = fresh
+
+
+def _is_form(request: Request) -> bool:
+    return request.headers.get("content-type", "").startswith(
+        ("application/x-www-form-urlencoded", "multipart/form-data")
+    )
 
 
 async def anonymous(request: Request) -> Caller | None:
@@ -228,9 +266,15 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
     async def needs_confirmation(request: Request, e: Exception) -> Response:
         if request.url.path.startswith("/api/"):
             return JSONResponse({"error": str(e), "confirm": True}, status_code=403)
+        if request.method == "POST" and _is_form(request):
+            return await _ask_again(request, None)
         referer = request.headers.get("referer", "")
         back = "/" + referer.split("/", 3)[3] if referer.count("/") >= 3 else "/"
         return RedirectResponse(f"/confirm?next={_quote(local_path(back))}", status_code=303)
+
+    @app.exception_handler(StepUpRefused)
+    async def step_up_refused(request: Request, e: Exception) -> Response:
+        return await _ask_again(request, e.why if isinstance(e, StepUpRefused) else str(e))
 
     @app.exception_handler(Forbidden)
     async def forbidden(request: Request, e: Exception) -> Response:
@@ -283,6 +327,30 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
         return JSONResponse(app.openapi())
 
     return app
+
+
+async def _ask_again(request: Request, error: str | None) -> Response:
+    """The password page, carrying the form that asked for it: on submit, the form goes to
+    its own action again, with the password. What was typed into it stays in this page
+    only, which isn't kept (no-store)."""
+    from .pages import render
+
+    form = await request.form()
+    fields = [
+        (k, v)
+        for k, v in form.multi_items()
+        if k not in (CSRF_FIELD, STEP_UP_FIELD) and isinstance(v, str)
+    ]
+    action = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return render(
+        request,
+        "confirm.html",
+        await identify(request),
+        status_code=400 if error else 200,
+        next="/",
+        carry={"action": action, "fields": fields, "password": STEP_UP_FIELD},
+        error=error,
+    )
 
 
 def _quote(path: str) -> str:

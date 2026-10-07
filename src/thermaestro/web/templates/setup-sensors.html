@@ -67,6 +67,7 @@
 <section id="outdoor">
 <h2>{{ _("Outdoor references") }}</h2>
 <p>{{ _("Which outdoor sensor counts for each quantity: forecasts are checked against it, and the house model learns from it. Without one for temperature, the pump's own outdoor sensor is used.") }}</p>
+<p class="hint">{{ _("Only sensors placed outdoors are offered. For one already added, open its Change above and set Where to outdoors.") }}</p>
 <form method="post" action="/sensors/outdoor" class="grid">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   {% for q in outdoor_quantities %}

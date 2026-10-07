@@ -303,6 +303,26 @@
   load(24);
 })();
 
+// The colors: each click flips what's shown. Flipping back to the device's own colors
+// means "as the device" again, so there are never clicks that change nothing. Without
+// this code, the link cycles through the three, as the server sets them.
+(function () {
+  const root = document.documentElement;
+  const device = () => (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  for (const link of document.querySelectorAll("a.theme-switch")) {
+    const shown = root.dataset.theme === "auto" ? device() : root.dataset.theme;
+    link.textContent = shown === "dark" ? "☾" : "☀";
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const now = root.dataset.theme === "auto" ? device() : root.dataset.theme;
+      const wanted = now === "dark" ? "light" : "dark";
+      const mode = wanted === device() ? "auto" : wanted;
+      const next = encodeURIComponent(location.pathname + location.search);
+      location.href = `/theme/${mode}?next=${next}`;
+    });
+  }
+})();
+
 // A chart or its table: a pair of buttons, the choice remembered in this browser. Without
 // this code, the table shows and the chart stays hidden.
 (function () {
@@ -373,7 +393,9 @@ function priceChart(box) {
   const config = JSON.parse(box.dataset.chart || "{}");
   const compact = Boolean(box.dataset.compact);
   const f = pageFormats(box);
-  const COLORS = ["#0b5c99", "#b8500b", "#00785a", "#9c4f80", "#a86a00", "#2a7fb0", "#6b6b6b"];
+  // The layers' colors, from the page's theme: lighter in dark mode.
+  const color = (k, id) =>
+    id === "vat" ? cssColor("--layer-vat", "#8c8c8c") : cssColor(`--layer-${k % 7}`, "#0b5c99");
   let data = null;
 
   async function day(iso) {
@@ -529,7 +551,7 @@ function priceChart(box) {
         if (band.to === band.from) {
           return;
         }
-        ctx.fillStyle = band.id === "vat" ? "#8c8c8c" : COLORS[k % COLORS.length];
+        ctx.fillStyle = color(k, band.id);
         ctx.fillRect(left, y(band.to), right - left, y(band.from) - y(band.to));
         if (band.fallback && pattern) {
           ctx.fillStyle = pattern;
@@ -623,7 +645,7 @@ function priceChart(box) {
         const row = rows.insertRow();
         const swatch = document.createElement("span");
         swatch.className = "swatch";
-        swatch.style.background = id === "vat" ? "#8c8c8c" : COLORS[k % COLORS.length];
+        swatch.style.background = color(k, id);
         const name = row.insertCell();
         name.append(swatch, ` ${config.names[id] || id}${parts[id] && parts[id].fallback ? " *" : ""}`);
         const value = row.insertCell();
@@ -651,7 +673,7 @@ function priceChart(box) {
     ids.forEach((id, k) => {
       const item = document.createElement("li");
       const swatch = document.createElement("span");
-      swatch.style.background = id === "vat" ? "#8c8c8c" : COLORS[k % COLORS.length];
+      swatch.style.background = color(k, id);
       item.append(swatch, config.names[id] || id);
       legend.append(item);
     });
@@ -713,12 +735,17 @@ function meteogram(box) {
     day: "numeric",
     month: "short",
   });
-  const RED = "#c8102e";
-  const BLUE = "#1f6fc2";
-  const RAIN = "#4a90d9";
-  const WIND = "#7b3fbf";
-  const SUN = "#e0a100";
-  const DEW = "#2a9d8f";
+  // The colors, from the page's theme: lighter in dark mode, to stand out.
+  const theme = () => ({
+    warm: cssColor("--warm", "#c8102e"),
+    cold: cssColor("--cold", "#1f6fc2"),
+    spread: cssColor("--spread", "rgba(200, 16, 46, 0.12)"),
+    dew: cssColor("--dew", "#2a9d8f"),
+    rain: cssColor("--rain", "#4a90d9"),
+    wind: cssColor("--wind", "#7b3fbf"),
+    sun: cssColor("--sun", "#e0a100"),
+    sunFill: cssColor("--sun-fill", "rgba(224, 161, 0, 0.35)"),
+  });
   const HOUR = 3600;
 
   function hit(name, t) {
@@ -784,7 +811,7 @@ function meteogram(box) {
     cloud(ctx, cx, cy, 1, wet ? "#8a9096" : "#b8bcc0");
     if (wet) {
       const drops = perHour < 1 ? 1 : perHour < 3 ? 2 : 3;
-      ctx.strokeStyle = cold ? "#7aa7d6" : RAIN;
+      ctx.strokeStyle = cold ? cssColor("--cold", "#1f6fc2") : cssColor("--rain", "#4a90d9");
       ctx.lineWidth = 1.5;
       for (let i = 0; i < drops; i++) {
         const dx = cx - (drops - 1) * 4 + i * 8;
@@ -906,6 +933,7 @@ function meteogram(box) {
     const x = (t) => pad.left + ((t - start) / (end - start)) * (width - pad.left - pad.right);
     const fg = cssColor("--fg", "#1d1f21");
     const grid = cssColor("--line", "#d9dcde");
+    const c = theme();
     const muted = cssColor("--muted", "#5f6368");
     ctx.font = "12px system-ui, sans-serif";
 
@@ -1020,7 +1048,7 @@ function meteogram(box) {
     }
 
     // Precipitation, per hour, as bars.
-    ctx.fillStyle = RAIN;
+    ctx.fillStyle = c.rain;
     for (const [a, b, v] of rainBars) {
       if (v > 0) {
         ctx.fillRect(x(a) + 1, ry(v), Math.max(1, x(b) - x(a) - 2), top.y1 - ry(v));
@@ -1030,14 +1058,14 @@ function meteogram(box) {
     // The temperature's range, the dew point, and the temperature: red above zero, blue
     // below, as Yr draws it.
     if (lowPts.length && highPts.length) {
-      ctx.fillStyle = "rgba(200, 16, 46, 0.12)";
+      ctx.fillStyle = c.spread;
       ctx.beginPath();
       highPts.forEach(([t, v], i) => (i ? ctx.lineTo(x(t), ty(v)) : ctx.moveTo(x(t), ty(v))));
       [...lowPts].reverse().forEach(([t, v]) => ctx.lineTo(x(t), ty(v)));
       ctx.fill();
     }
     if (dewPts.length) {
-      ctx.strokeStyle = DEW;
+      ctx.strokeStyle = c.dew;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([2, 3]);
       line(ctx, dewPts, x, ty);
@@ -1046,8 +1074,8 @@ function meteogram(box) {
     ctx.lineWidth = 2.5;
     const zero = Math.min(Math.max(ty(0), top.y0), top.y1);
     for (const [color, y0, y1] of [
-      [RED, 0, zero],
-      [BLUE, zero, height],
+      [c.warm, 0, zero],
+      [c.cold, zero, height],
     ]) {
       ctx.save();
       ctx.beginPath();
@@ -1059,7 +1087,7 @@ function meteogram(box) {
     }
 
     // Wind and gusts.
-    ctx.strokeStyle = WIND;
+    ctx.strokeStyle = c.wind;
     ctx.lineWidth = 2;
     line(ctx, windPts, x, wy);
     ctx.setLineDash([5, 4]);
@@ -1069,8 +1097,8 @@ function meteogram(box) {
 
     // Sunlight.
     if (sunPts.length) {
-      ctx.fillStyle = "rgba(224, 161, 0, 0.35)";
-      ctx.strokeStyle = SUN;
+      ctx.fillStyle = c.sunFill;
+      ctx.strokeStyle = c.sun;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(x(sunPts[0][0]), sy(0));
@@ -1145,11 +1173,11 @@ function meteogram(box) {
     legend.className = "band-legend";
     const entries = [
       ["temperature", "line-swatch red-blue"],
-      ["precipitation", RAIN],
+      ["precipitation", c.rain],
       ["dew_point", "line-swatch dotted"],
       ["wind_speed", "line-swatch wind"],
       ["wind_gust", "line-swatch wind dashed"],
-      ["irradiance.global", SUN],
+      ["irradiance.global", c.sun],
     ];
     for (const [name, look] of entries) {
       const s = series[name];

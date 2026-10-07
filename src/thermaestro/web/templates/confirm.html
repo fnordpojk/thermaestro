@@ -4,6 +4,17 @@
 <section class="narrow">
 <h1>{{ _("Enter your password again") }}</h1>
 <p>{{ _("Changes to users, groups, secrets and plugins need your password within the last 15 minutes.") }}</p>
+{% if carry is defined and carry %}
+{# The change that asked for it goes ahead once the password is right. #}
+<form method="post" action="{{ carry.action }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for name, value in carry.fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">
+  {% endfor %}
+  <label>{{ _("Password") }}
+    <input name="{{ carry.password }}" type="password" autocomplete="current-password" required autofocus></label>
+  <button type="submit">{{ _("Confirm and go ahead") }}</button>
+</form>
+{% else %}
 <form method="post" action="/confirm">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="next" value="{{ next }}">
@@ -11,5 +22,6 @@
     <input name="password" type="password" autocomplete="current-password" required autofocus></label>
   <button type="submit">{{ _("Confirm") }}</button>
 </form>
+{% endif %}
 </section>
 {% endblock %}

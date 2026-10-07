@@ -215,9 +215,16 @@ async def add_home_assistant_sensors(request: Request, who: Logged, id: str) -> 
         quantity = form.get(f"quantity_{n}", "")
         room = form.get(f"room_{n}") or None
         new_room = None
-        if room and room.startswith("new:"):
+        placement = "room"
+        # A room's id, or "new:<name>" for a room to make, or "place:outdoor"; ids have
+        # no colon, so neither can be taken for a room.
+        if room == "place:outdoor":
+            room, placement = None, "outdoor"
+        elif room and room.startswith("new:"):
             new_room = room.removeprefix("new:")
             room = None
+        elif not room:
+            placement = "other"
         picks.append(
             {
                 "entity": form.get(f"entity_{n}", ""),
@@ -226,7 +233,7 @@ async def add_home_assistant_sensors(request: Request, who: Logged, id: str) -> 
                 "name": form.get(f"name_{n}", "").strip() or form.get(f"entity_{n}", ""),
                 "room": room,
                 "new_room": new_room,
-                "placement": "room" if room or new_room else form.get(f"placement_{n}") or "other",
+                "placement": placement,
             }
         )
     work = services(request).add_home_assistant_sensors(who, id, picks)

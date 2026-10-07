@@ -194,6 +194,22 @@ async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
     assert value(plugin, "dhw/temp.charge")[1] == "good"
 
 
+async def test_a_heat_meter_that_doesnt_count(
+    plugin: NibePlugin, stocked: SimPump, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A meter that stays the same through its purpose's production doesn't count on this
+    pump: its value is shown as unknown, with why, until it moves."""
+    monkeypatch.setattr(profile, "METER_IDLE_S", 1.0)
+    meter = "heat.produced{purpose=dhw,by=total}"
+    await until(lambda: value(plugin, meter)[1] == "good")
+    stocked.registers[43086] = 20  # hot water, with the compressor running
+    await until(lambda: value(plugin, meter)[1] == "unknown")
+    assert (value(plugin, meter)[2] or "").startswith("hasn't changed in ")
+    assert (value(plugin, meter)[2] or "").endswith(" of dhw production")
+    stocked.registers32[42437] += 10  # it counts after all
+    await until(lambda: value(plugin, meter)[1] == "good")
+
+
 async def test_it_conforms_and_writes_nothing(stocked: SimPump, gateway: Gateway) -> None:
     p = NibePlugin(
         settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5

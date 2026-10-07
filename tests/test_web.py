@@ -414,9 +414,6 @@ async def test_changes_to_users_need_a_recent_password(site: Site) -> None:
     async with admin(site) as client:
         site.clock.now += 16 * 60
         fields = {"name": "bo", "password": ADMIN_PASSWORD + " two", "groups": "Household"}
-        asked = await form(client, "/users", "/users", **fields)
-        assert asked.status_code == 303
-        assert asked.headers["location"].startswith("/confirm")
         token = csrf_of((await client.get("/users")).text)
         api = await client.post(
             "/api/v1/users",
@@ -425,15 +422,31 @@ async def test_changes_to_users_need_a_recent_password(site: Site) -> None:
         )
         assert api.status_code == 403
         assert api.json()["confirm"] is True
-        wrong = await form(client, "/confirm", "/confirm", password="wrong" * 4, next="/users")
+        # The page asks for the password, and carries the change it was asked for.
+        asked = await form(client, "/users", "/users", **fields)
+        assert asked.status_code == 200
+        assert 'action="/users"' in asked.text
+        assert '<input type="hidden" name="name" value="bo">' in asked.text
+        assert 'name="step_up_password"' in asked.text
+        carried = dict(
+            re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)">', asked.text)
+        )
+        assert carried["groups"] == "Household"
+        wrong = await client.post("/users", data={**carried, "step_up_password": "wrong" * 4})
         assert wrong.status_code == 400
+        assert "isn&#39;t right" in wrong.text
+        assert await site.services.accounts.user("bo") is None
+        again = dict(
+            re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)">', wrong.text)
+        )
+        done = await client.post("/users", data={**again, "step_up_password": ADMIN_PASSWORD})
+        assert (done.status_code, done.headers["location"]) == (303, "/users")
+        # A page without a form to carry still goes through /confirm and back.
+        site.clock.now += 16 * 60
         confirmed = await form(
             client, "/confirm", "/confirm", password=ADMIN_PASSWORD, next="/users"
         )
         assert confirmed.headers["location"] == "/users"
-        done = await form(client, "/users", "/users", **fields)
-        assert done.status_code == 303
-        assert done.headers["location"] == "/users"
     assert await site.services.accounts.user("bo") is not None
 
 

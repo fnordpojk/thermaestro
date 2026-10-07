@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 00:15+0200\n"
+"POT-Creation-Date: 2026-10-08 01:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -286,6 +286,9 @@ msgid "Conditions"
 msgstr ""
 
 msgid "Confirm"
+msgstr ""
+
+msgid "Confirm and go ahead"
 msgstr ""
 
 msgid "Connect Home Assistant under External to choose its entities here."
@@ -731,6 +734,11 @@ msgid "Observed"
 msgstr ""
 
 msgid "Occupied"
+msgstr ""
+
+msgid ""
+"Only sensors placed outdoors are offered. For one already added, open its"
+" Change above and set Where to outdoors."
 msgstr ""
 
 msgid "Open"
@@ -1451,9 +1459,6 @@ msgid "mm per hour"
 msgstr ""
 
 msgid "no"
-msgstr ""
-
-msgid "no room"
 msgstr ""
 
 msgid "no room yet"
