@@ -28,9 +28,10 @@ class Period:
 
 
 def day(
-    on: date, base: float = 50.0, zone: str = "Europe/Stockholm", sequence: int | None = None
+    on: date, base: float = 50.0, zone: str = "Europe/Brussels", sequence: int | None = None
 ) -> Period:
-    """A local day's quarters: every fourth price repeats the one before, as prices often do,
+    """A market day's quarters: the auction's day is Central European in every zone, as the
+    real API's answers show. Every fourth price repeats the one before, as prices often do,
     so the A03 curve leaves it out."""
     tz = ZoneInfo(zone)
     start = datetime.combine(on, time(0), tz).astimezone(UTC)

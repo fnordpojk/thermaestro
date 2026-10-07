@@ -126,7 +126,10 @@ class DayAheadPlugin(SeriesPlugin):
         return self._poll
 
     def _holds_tomorrow(self) -> bool:
-        zone = self.zone()
+        """Whether tomorrow's prices are all in: tomorrow as the market's day, which is
+        what each publication covers. Portugal's day ends an hour after the European
+        auction's, so its local tomorrow is never complete before the next auction."""
+        zone = ZoneInfo(self.publication().tz)
         today = datetime.fromtimestamp(self._clock(), zone).date()
         end = datetime.combine(today + timedelta(days=2), datetime.min.time(), zone)
         offered = self._offered()

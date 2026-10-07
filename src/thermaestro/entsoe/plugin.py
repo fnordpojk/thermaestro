@@ -10,9 +10,10 @@ Reading the answer:
 - several time series for one zone and day: the one with sequence 1 is the day-ahead
   coupling's (in DE-LU a second auction's prices are sequence 2), and where series of
   several resolutions cover the same time, the finest is used;
-- "No matching data found" (reason 999) is an answer, not a failure: nothing published.
+- "No matching data found" (reason 999) is an answer, not a failure: nothing published;
+- a day is the auction's (Central European) day, also in zones whose own day isn't.
 
-Built from the platform's documentation; it hasn't been run against the real API yet.
+Checked against the real API on 2026-10-07 (SE3, DE-LU, FI and PT).
 """
 
 import re

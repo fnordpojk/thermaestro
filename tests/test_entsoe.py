@@ -133,7 +133,7 @@ async def test_a_monday_takes_fridays_rate(tmp_path: Path) -> None:
 
 async def test_a_euro_zone_needs_no_rate(tmp_path: Path) -> None:
     helsinki = ZoneInfo("Europe/Helsinki")
-    fake = FakeEntsoE([day(date(2026, 10, 7), zone="Europe/Helsinki")], eic="10YFI-1--------U")
+    fake = FakeEntsoE([day(date(2026, 10, 7))], eic="10YFI-1--------U")
     clock = Clock(local(2026, 10, 7, 10, helsinki))
     async with plugin(fake, await secrets(tmp_path), clock, zone="FI") as (_, link, _):
         described = await link.describe(timeout=5)
@@ -209,6 +209,23 @@ async def test_nothing_published_is_stale_then_fresh(tmp_path: Path) -> None:
                     await asyncio.sleep(0.01)
             following.cancel()
             await asyncio.gather(following, return_exceptions=True)
+
+
+async def test_tomorrow_is_the_markets_day(tmp_path: Path) -> None:
+    # Portugal's day ends an hour after the auction's; tomorrow's prices are still all in.
+    lisbon = ZoneInfo("Europe/Lisbon")
+    fake = FakeEntsoE([day(date(2026, 10, 7)), day(date(2026, 10, 8))], eic="10YPT-REN------W")
+    clock = Clock(datetime(2026, 10, 7, 16, tzinfo=lisbon))
+    async with plugin(fake, await secrets(tmp_path), clock, zone="PT") as (p, link, health):
+        await link.describe(timeout=5)
+        async with asyncio.timeout(5):
+            while not health:
+                await asyncio.sleep(0.01)
+        assert health[-1].stale == ()
+        assert p._holds_tomorrow()
+        asked = len(fake.asked)
+        await asyncio.sleep(0.2)
+        assert len(fake.asked) == asked  # not asking again every few minutes
 
 
 async def test_no_prices_at_all_is_an_answer(tmp_path: Path) -> None:
