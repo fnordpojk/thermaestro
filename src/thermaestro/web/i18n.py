@@ -139,6 +139,9 @@ SHOWN_BY_VALUE = (
     mark("connecting"),
     mark("connected"),
     mark("failed"),
+    # Home Assistant discovery
+    mark("publishing"),
+    mark("sweeping"),
     # transport health
     mark("down"),
     mark("contended"),

@@ -281,6 +281,42 @@ async def test_the_mqtt_broker_settings(site: Site) -> None:
         )
 
 
+async def test_home_assistant_discovery_settings(site: Site) -> None:
+    async with logged_in(site) as client:
+        page = (await client.get("/settings")).text
+        assert 'action="/settings/discovery"' in page
+        assert "Set the MQTT broker above first." in page
+        off = (await client.get("/api/v1/discovery")).json()
+        assert (off["settings"]["enabled"], off["settings"]["id"], off["state"]) == (
+            False,
+            None,
+            "off",
+        )
+        saved = await form(
+            client, "/settings", "/settings/discovery", enabled="1", language="sv", prefix="ha"
+        )
+        assert saved.status_code == 303
+        on = (await client.get("/api/v1/discovery")).json()["settings"]
+        assert on["enabled"] is True
+        assert re.fullmatch(r"[0-9a-f]{8}", on["id"])  # made when first switched on
+        assert (on["language"], on["prefix"], on["base"], on["sensors"]) == (
+            "sv",
+            "ha",
+            "thermaestro",
+            False,
+        )
+        # Off again: the id stays, so what was published can be found and cleared.
+        await form(client, "/settings", "/settings/discovery", prefix="ha")
+        again = (await client.get("/api/v1/discovery")).json()["settings"]
+        assert (again["enabled"], again["id"]) == (False, on["id"])
+        token = csrf_of((await client.get("/settings")).text)
+        refused = await client.put(
+            "/api/v1/discovery", json={"prefix": "ha/#"}, headers={"x-csrf-token": token}
+        )
+        assert refused.status_code == 400
+    assert '"kind":"discovery"' in (site.state / "audit" / "audit.jsonl").read_text()
+
+
 async def test_a_viewer_sees_rooms_but_changes_nothing(site: Site) -> None:
     accounts = site.services.accounts
     viewer = await accounts.create_user("vic", ADMIN_PASSWORD + " too", ["Viewers"], by="cli")

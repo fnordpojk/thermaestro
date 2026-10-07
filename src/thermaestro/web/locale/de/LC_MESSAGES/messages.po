@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 06:25+0200\n"
-"PO-Revision-Date: 2026-10-07 06:25+0200\n"
+"POT-Creation-Date: 2026-10-07 17:26+0200\n"
+"PO-Revision-Date: 2026-10-07 17:26+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -18,6 +18,10 @@ msgstr ""
 #, python-format
 msgid "%(n)s d"
 msgstr "%(n)s T"
+
+#, python-format
+msgid "%(n)s entities, %(enabled)s enabled"
+msgstr "%(n)s Entitäten, %(enabled)s aktiviert"
 
 #, python-format
 msgid "%(n)s h"
@@ -144,6 +148,9 @@ msgstr "Luftstrom"
 
 msgid "Alarm"
 msgstr "Alarm"
+
+msgid "Also each sensor's own values"
+msgstr "Auch die eigenen Werte jedes Sensors"
 
 msgid "Amount per kWh"
 msgstr "Betrag pro kWh"
@@ -337,6 +344,9 @@ msgstr "Diffuses Sonnenlicht"
 msgid "Direct sunlight"
 msgstr "Direktes Sonnenlicht"
 
+msgid "Discovery prefix"
+msgstr "Discovery-Präfix"
+
 msgid "Diverter valve"
 msgstr "Umschaltventil"
 
@@ -356,6 +366,9 @@ msgstr ""
 
 msgid "Electrical power"
 msgstr "Elektrische Leistung"
+
+msgid "Electricity price"
+msgstr "Strompreis"
 
 msgid "Electricity used"
 msgstr "Verbrauchter Strom"
@@ -465,6 +478,12 @@ msgstr "Heizt"
 msgid "Holds until"
 msgstr "Reicht bis"
 
+msgid "Home Assistant discovery"
+msgstr "Erkennung in Home Assistant"
+
+msgid "Home Assistant may have them already."
+msgstr "Home Assistant hat sie womöglich schon."
+
 msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 
@@ -497,6 +516,9 @@ msgstr "Sprache"
 
 msgid "Language and formats"
 msgstr "Sprache und Formate"
+
+msgid "Language of the names"
+msgstr "Sprache der Namen"
 
 msgid "Last error:"
 msgstr "Letzter Fehler:"
@@ -582,6 +604,9 @@ msgstr "Name"
 
 msgid "Names"
 msgstr "Namen"
+
+msgid "Needs attention"
+msgstr "Braucht Aufmerksamkeit"
 
 msgid "New group"
 msgstr "Neue Gruppe"
@@ -718,6 +743,10 @@ msgstr ""
 msgid "Pinned to the overview"
 msgstr "An die Übersicht angeheftet"
 
+#, python-format
+msgid "Plugin %(name)s"
+msgstr "Plugin %(name)s"
+
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -759,6 +788,9 @@ msgstr "Anbieter"
 
 msgid "Providers"
 msgstr "Anbieter"
+
+msgid "Publish to Home Assistant"
+msgstr "An Home Assistant veröffentlichen"
 
 msgid "Published verification"
 msgstr "Veröffentlichte Verifikation"
@@ -850,6 +882,9 @@ msgstr "Angebotene Reihen"
 
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
+
+msgid "Set the MQTT broker above first."
+msgstr "Legen Sie zuerst oben den MQTT-Broker fest."
 
 msgid "Set the location first: forecasts are for a place."
 msgstr "Legen Sie zuerst den Standort fest: Vorhersagen gelten für einen Ort."
@@ -999,6 +1034,18 @@ msgstr "Dieses Plugin bietet keine Messpunkte."
 msgid "This value"
 msgstr "Dieser Wert"
 
+msgid ""
+"Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as "
+"devices: the rooms' and the outdoor values, the electricity price, the pump's values,"
+" and how the plugins are doing. The pump's settings and diagnostic values come "
+"disabled; enable those you want in Home Assistant. Nothing is accepted back."
+msgstr ""
+"Über den MQTT-Broker erscheinen Thermaestro und die Wärmepumpe in Home Assistant als "
+"Geräte: die Werte der Räume und von draußen, der Strompreis, die Werte der Pumpe und "
+"der Zustand der Plugins. Die Einstellungen und Diagnosewerte der Pumpe kommen "
+"deaktiviert; aktivieren Sie in Home Assistant die gewünschten. Nichts wird zurück "
+"angenommen."
+
 msgid "Time range"
 msgstr "Zeitraum"
 
@@ -1019,6 +1066,9 @@ msgstr "Temperatur oben"
 
 msgid "Topic"
 msgstr "Topic"
+
+msgid "Topic prefix"
+msgstr "Topic-Präfix"
 
 msgid "Total"
 msgstr "Gesamt"
@@ -1234,6 +1284,9 @@ msgstr "Zusatzheizung"
 msgid "all"
 msgstr "alle"
 
+msgid "as set in Home Assistant's MQTT integration"
+msgstr "wie in der MQTT-Integration von Home Assistant eingestellt"
+
 msgid "as the browser asks"
 msgstr "wie vom Browser gewünscht"
 
@@ -1443,6 +1496,9 @@ msgstr "Pool"
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"
 
+msgid "publishing"
+msgstr "veröffentlicht"
+
 msgid "radiator valves with an interface"
 msgstr "Heizkörperventile mit Schnittstelle"
 
@@ -1487,6 +1543,9 @@ msgstr "gestoppt"
 
 msgid "stopping"
 msgstr "hält an"
+
+msgid "sweeping"
+msgstr "räumt auf"
 
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
@@ -1559,6 +1618,9 @@ msgstr "läuft"
 
 msgid "waiting"
 msgstr "wartet"
+
+msgid "where the values go"
+msgstr "wohin die Werte gehen"
 
 msgid "wrong user name or password"
 msgstr "falscher Benutzername oder falsches Passwort"

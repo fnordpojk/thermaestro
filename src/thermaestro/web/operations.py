@@ -32,15 +32,17 @@ from ..auth import (
 from ..auth.permissions import PERMISSIONS
 from ..cap.messages import Described
 from ..core.audit import AuditLog
+from ..core.discovery import Publisher
 from ..core.host import PluginHost
-from ..core.mqtt import MqttInput
-from ..core.sensors import SITE, SensorHub
+from ..core.mqtt import MqttClient
+from ..core.sensors import SENSORS, SITE, SensorHub
 from ..core.series import Series
 from ..core.values import Key, Values, sample
 from ..core.weather import Weather
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
 from . import i18n, labels
+from .discovery_operations import DiscoveryOperations
 from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
 from .weather_operations import WeatherOperations
@@ -68,7 +70,7 @@ class Caller:
 
 
 @dataclass
-class Services(SensorOperations, PriceOperations, WeatherOperations):
+class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOperations):
     accounts: Accounts
     db: Database
     values: Values
@@ -81,9 +83,10 @@ class Services(SensorOperations, PriceOperations, WeatherOperations):
     zone: tzinfo = field(default=UTC)
     """The house's time zone, from the location; every time is shown in it."""
     sensors: SensorHub | None = None
-    mqtt: MqttInput | None = None
+    mqtt: MqttClient | None = None
     series: Series | None = None
     weather: Weather | None = None
+    discovery: Publisher | None = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)
@@ -155,6 +158,15 @@ class Services(SensorOperations, PriceOperations, WeatherOperations):
         latest = self.values.latest.get(Key(instance, path))
         return digits(point.resolution.value if point else None, latest.value if latest else None)
 
+    def label(self, instance: str, path: str) -> str:
+        """A point's name as the pages show it, in the current language."""
+        found = self.host.instances.get(instance) if self.host else None
+        return self._label(instance, found.described if found else None, path)
+
+    def shown_as(self, instance: str, path: str, given: str | None) -> str | None:
+        """A point's category: the household's choice, else its plugin's."""
+        return self._category(instance, path, given)
+
     def built_in_label(self, instance: str, path: str) -> str:
         found = self.host.instances.get(instance) if self.host else None
         return _label(found.described if found else None, path)
@@ -176,6 +188,8 @@ class Services(SensorOperations, PriceOperations, WeatherOperations):
     def _label(self, instance: str, described: Described | None, path: str) -> str:
         if instance == SITE:
             return self._site_label(path)
+        if instance == SENSORS:
+            return self._sensor_label(path)
         names = self.sensors.names if self.sensors else {}
         own = names.get(f"{instance}:{path}")
         if own:
@@ -283,6 +297,11 @@ class Services(SensorOperations, PriceOperations, WeatherOperations):
             room = self.sensors.rooms.get(node.removeprefix("room.")) if self.sensors else None
             place = room.name if room else node
         return f"{place} \N{MIDDLE DOT} {labels.quantity(quantity)}"
+
+    def _sensor_label(self, path: str) -> str:
+        id, _, quantity = path.rpartition("/")
+        sensor = self.sensors.sensors.get(id) if self.sensors else None
+        return f"{sensor.name if sensor else id} · {labels.quantity(quantity)}"
 
     def site(self, caller: Caller) -> dict[str, Any]:
         """Rooms and the outdoors, as the core derives them from the sensors."""

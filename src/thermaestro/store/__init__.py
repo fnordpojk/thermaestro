@@ -12,6 +12,7 @@ from .secrets import SecretStore
 from .settings import (
     SETTINGS,
     Climate,
+    Discovery,
     Display,
     EntsoE,
     HomeAssistant,
@@ -38,6 +39,7 @@ __all__ = [
     "VERSION",
     "Climate",
     "Database",
+    "Discovery",
     "Display",
     "EntsoE",
     "HomeAssistant",

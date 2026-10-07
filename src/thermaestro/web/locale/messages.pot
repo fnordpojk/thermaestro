@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 06:25+0200\n"
+"POT-Creation-Date: 2026-10-07 17:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,6 +19,10 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s d"
+msgstr ""
+
+#, python-format
+msgid "%(n)s entities, %(enabled)s enabled"
 msgstr ""
 
 #, python-format
@@ -133,6 +137,9 @@ msgid "Airflow"
 msgstr ""
 
 msgid "Alarm"
+msgstr ""
+
+msgid "Also each sensor's own values"
 msgstr ""
 
 msgid "Amount per kWh"
@@ -317,6 +324,9 @@ msgstr ""
 msgid "Direct sunlight"
 msgstr ""
 
+msgid "Discovery prefix"
+msgstr ""
+
 msgid "Diverter valve"
 msgstr ""
 
@@ -333,6 +343,9 @@ msgid ""
 msgstr ""
 
 msgid "Electrical power"
+msgstr ""
+
+msgid "Electricity price"
 msgstr ""
 
 msgid "Electricity used"
@@ -435,6 +448,12 @@ msgstr ""
 msgid "Holds until"
 msgstr ""
 
+msgid "Home Assistant discovery"
+msgstr ""
+
+msgid "Home Assistant may have them already."
+msgstr ""
+
 msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr ""
 
@@ -466,6 +485,9 @@ msgid "Language"
 msgstr ""
 
 msgid "Language and formats"
+msgstr ""
+
+msgid "Language of the names"
 msgstr ""
 
 msgid "Last error:"
@@ -549,6 +571,9 @@ msgid "Name"
 msgstr ""
 
 msgid "Names"
+msgstr ""
+
+msgid "Needs attention"
 msgstr ""
 
 msgid "New group"
@@ -674,6 +699,10 @@ msgstr ""
 msgid "Pinned to the overview"
 msgstr ""
 
+#, python-format
+msgid "Plugin %(name)s"
+msgstr ""
+
 msgid "Plugins"
 msgstr ""
 
@@ -714,6 +743,9 @@ msgid "Provider"
 msgstr ""
 
 msgid "Providers"
+msgstr ""
+
+msgid "Publish to Home Assistant"
 msgstr ""
 
 msgid "Published verification"
@@ -803,6 +835,9 @@ msgid "Series offered"
 msgstr ""
 
 msgid "Set password and log out everywhere"
+msgstr ""
+
+msgid "Set the MQTT broker above first."
 msgstr ""
 
 msgid "Set the location first: forecasts are for a place."
@@ -937,6 +972,14 @@ msgstr ""
 msgid "This value"
 msgstr ""
 
+msgid ""
+"Through the MQTT broker, Thermaestro and the heat pump appear in Home "
+"Assistant as devices: the rooms' and the outdoor values, the electricity "
+"price, the pump's values, and how the plugins are doing. The pump's "
+"settings and diagnostic values come disabled; enable those you want in "
+"Home Assistant. Nothing is accepted back."
+msgstr ""
+
 msgid "Time range"
 msgstr ""
 
@@ -956,6 +999,9 @@ msgid "Top temperature"
 msgstr ""
 
 msgid "Topic"
+msgstr ""
+
+msgid "Topic prefix"
 msgstr ""
 
 msgid "Total"
@@ -1149,6 +1195,9 @@ msgid "addition"
 msgstr ""
 
 msgid "all"
+msgstr ""
+
+msgid "as set in Home Assistant's MQTT integration"
 msgstr ""
 
 msgid "as the browser asks"
@@ -1360,6 +1409,9 @@ msgstr ""
 msgid "preselected from this browser"
 msgstr ""
 
+msgid "publishing"
+msgstr ""
+
 msgid "radiator valves with an interface"
 msgstr ""
 
@@ -1403,6 +1455,9 @@ msgid "stopped"
 msgstr ""
 
 msgid "stopping"
+msgstr ""
+
+msgid "sweeping"
 msgstr ""
 
 msgid ""
@@ -1473,6 +1528,9 @@ msgid "up"
 msgstr ""
 
 msgid "waiting"
+msgstr ""
+
+msgid "where the values go"
 msgstr ""
 
 msgid "wrong user name or password"

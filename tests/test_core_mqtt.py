@@ -8,7 +8,7 @@ import aiomqtt
 import pytest
 from amqtt.broker import Broker  # type: ignore[import-untyped]
 
-from thermaestro.core.mqtt import MqttInput
+from thermaestro.core.mqtt import MqttClient
 from thermaestro.core.sensors import SENSORS, SensorHub
 from thermaestro.core.values import Key, Values
 from thermaestro.store import Database, Mqtt, Room, SecretStore, Sensor
@@ -55,7 +55,7 @@ async def test_mqtt_sensors_are_read(broker: int, tmp_path: Path) -> None:
         values = Values(db)
         hub = SensorHub(db, values)
         await hub.load()
-        mqtt = MqttInput(db, SecretStore(tmp_path / "secrets.json"), hub)
+        mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub)
         task = asyncio.create_task(mqtt.run())
         try:
             await until(lambda: mqtt.state == "connected")
@@ -84,7 +84,7 @@ async def test_an_unreachable_broker_is_retried(tmp_path: Path) -> None:
         await db.put(Sensor(name="x", source="mqtt", topic="t/x", placement="other"), "x")
         hub = SensorHub(db, Values(db))
         await hub.load()
-        mqtt = MqttInput(db, SecretStore(tmp_path / "secrets.json"), hub, backoff_s=(0.05, 0.1))
+        mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub, backoff_s=(0.05, 0.1))
         task = asyncio.create_task(mqtt.run())
         try:
             await until(lambda: mqtt.state == "failed")
@@ -99,7 +99,7 @@ async def test_no_broker_no_client(tmp_path: Path) -> None:
     async with await Database.open(tmp_path / "t.db") as db:
         hub = SensorHub(db, Values(db))
         await hub.load()
-        mqtt = MqttInput(db, SecretStore(tmp_path / "secrets.json"), hub)
+        mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub)
         task = asyncio.create_task(mqtt.run())
         await asyncio.sleep(0.1)
         assert mqtt.state == "off"

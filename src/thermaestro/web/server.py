@@ -20,6 +20,7 @@ from ..auth import Accounts, SetupCode
 from ..store import StoreError
 from . import certificate
 from .app import create_app
+from .discovery_names import Names
 from .operations import Services
 
 if TYPE_CHECKING:
@@ -88,9 +89,11 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         mqtt=core.mqtt,
         series=core.host.series,
         weather=core.weather,
+        discovery=core.discovery,
     )
     await services.load_zone()
     app = create_app(services, await _csrf_key(core))
+    core.discovery.start(Names(services))
 
     listeners: list[tuple[socket.socket, uvicorn.Config]] = []
     try:

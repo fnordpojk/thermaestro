@@ -41,6 +41,20 @@ async def test_migrations_run_once(tmp_path: Path) -> None:
         assert await db.get(Location) == HOME
 
 
+async def test_the_brokers_old_discovery_switch_is_dropped(tmp_path: Path) -> None:
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path) as db:
+        await db.put(Mqtt(host="192.0.2.30"))
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute(
+            "UPDATE settings SET body = json_set(body, '$.discovery', json('true'))"
+            " WHERE kind = 'mqtt'"
+        )
+        raw.execute(f"PRAGMA user_version = {VERSION - 1}")
+    async with await Database.open(path) as db:
+        assert await db.get(Mqtt) == Mqtt(host="192.0.2.30")
+
+
 async def test_a_newer_database_is_refused(tmp_path: Path) -> None:
     path = tmp_path / "thermaestro.db"
     async with await Database.open(path):

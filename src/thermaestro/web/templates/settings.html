@@ -112,4 +112,29 @@
 </form>
 </section>
 
+<section id="discovery">
+<h2>{{ _("Home Assistant discovery") }}</h2>
+<p>{{ _("Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as devices: the rooms' and the outdoor values, the electricity price, the pump's values, and how the plugins are doing. The pump's settings and diagnostic values come disabled; enable those you want in Home Assistant. Nothing is accepted back.") }}</p>
+{% if not mqtt %}<p>{{ _("Set the MQTT broker above first.") }}</p>{% endif %}
+<p>{{ _("State:") }} <strong>{{ _(discovery_state.state) }}</strong></p>
+{% if discovery_state.devices %}
+<ul>
+  {% for d in discovery_state.devices %}<li>{{ d.name }}: {{ _("%(n)s entities, %(enabled)s enabled", n=d.entities, enabled=d.enabled) }}</li>{% endfor %}
+</ul>
+{% endif %}
+<form method="post" action="/settings/discovery" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="check"><input type="checkbox" name="enabled" value="1"{% if discovery.enabled %} checked{% endif %}> {{ _("Publish to Home Assistant") }}</label>
+  <label>{{ _("Language of the names") }}
+    <select name="language">{% for code, name in languages.items() %}<option value="{{ code }}"{% if code == discovery.language %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <label class="check"><input type="checkbox" name="sensors" value="1"{% if discovery.sensors %} checked{% endif %}> {{ _("Also each sensor's own values") }}
+    <small>{{ _("Home Assistant may have them already.") }}</small></label>
+  <label>{{ _("Discovery prefix") }} <small>{{ _("as set in Home Assistant's MQTT integration") }}</small>
+    <input name="prefix" required value="{{ discovery.prefix }}"></label>
+  <label>{{ _("Topic prefix") }} <small>{{ _("where the values go") }}</small>
+    <input name="base" required value="{{ discovery.base }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+
 {% endblock %}

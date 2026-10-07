@@ -313,6 +313,8 @@ async def _settings(
         fingerprint=s.fingerprint,
         mqtt=await s.mqtt_settings(who),
         mqtt_state=s.mqtt_state(who),
+        discovery=await s.discovery_settings(who),
+        discovery_state=s.discovery_state(who),
         connections={id: p for id, p in plugins.items() if p.plugin == "homeassistant"},
         tibber={id: p for id, p in sources.items() if p["plugin"] == "tibber"},
         entsoe={id: p for id, p in sources.items() if p["plugin"] == "entsoe"},

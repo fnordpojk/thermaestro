@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 06:25+0200\n"
-"PO-Revision-Date: 2026-10-07 06:25+0200\n"
+"POT-Creation-Date: 2026-10-07 17:26+0200\n"
+"PO-Revision-Date: 2026-10-07 17:26+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -18,6 +18,10 @@ msgstr ""
 #, python-format
 msgid "%(n)s d"
 msgstr "%(n)s d"
+
+#, python-format
+msgid "%(n)s entities, %(enabled)s enabled"
+msgstr "%(n)s entiteter, %(enabled)s aktiverade"
 
 #, python-format
 msgid "%(n)s h"
@@ -142,6 +146,9 @@ msgstr "Luftflöde"
 
 msgid "Alarm"
 msgstr "Larm"
+
+msgid "Also each sensor's own values"
+msgstr "Även varje sensors egna värden"
 
 msgid "Amount per kWh"
 msgstr "Belopp per kWh"
@@ -333,6 +340,9 @@ msgstr "Diffust solljus"
 msgid "Direct sunlight"
 msgstr "Direkt solljus"
 
+msgid "Discovery prefix"
+msgstr "Prefix för upptäckt"
+
 msgid "Diverter valve"
 msgstr "Växelventil"
 
@@ -351,6 +361,9 @@ msgstr ""
 
 msgid "Electrical power"
 msgstr "Elektrisk effekt"
+
+msgid "Electricity price"
+msgstr "Elpris"
 
 msgid "Electricity used"
 msgstr "Använd el"
@@ -457,6 +470,12 @@ msgstr "Värmer"
 msgid "Holds until"
 msgstr "Räcker till"
 
+msgid "Home Assistant discovery"
+msgstr "Upptäckt i Home Assistant"
+
+msgid "Home Assistant may have them already."
+msgstr "Home Assistant kan redan ha dem."
+
 msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr "Home Assistant erbjuder inget som Thermaestro kan använda."
 
@@ -489,6 +508,9 @@ msgstr "Språk"
 
 msgid "Language and formats"
 msgstr "Språk och format"
+
+msgid "Language of the names"
+msgstr "Namnens språk"
 
 msgid "Last error:"
 msgstr "Senaste fel:"
@@ -574,6 +596,9 @@ msgstr "Namn"
 
 msgid "Names"
 msgstr "Namn"
+
+msgid "Needs attention"
+msgstr "Behöver åtgärdas"
 
 msgid "New group"
 msgstr "Ny grupp"
@@ -706,6 +731,10 @@ msgstr ""
 msgid "Pinned to the overview"
 msgstr "Fäst på översikten"
 
+#, python-format
+msgid "Plugin %(name)s"
+msgstr "Tillägg %(name)s"
+
 msgid "Plugins"
 msgstr "Tillägg"
 
@@ -747,6 +776,9 @@ msgstr "Leverantör"
 
 msgid "Providers"
 msgstr "Leverantörer"
+
+msgid "Publish to Home Assistant"
+msgstr "Publicera till Home Assistant"
 
 msgid "Published verification"
 msgstr "Publicerad verifiering"
@@ -838,6 +870,9 @@ msgstr "Erbjudna serier"
 
 msgid "Set password and log out everywhere"
 msgstr "Sätt lösenord och logga ut överallt"
+
+msgid "Set the MQTT broker above first."
+msgstr "Ange MQTT-mäklaren ovan först."
 
 msgid "Set the location first: forecasts are for a place."
 msgstr "Ange platsen först: prognoser gäller en plats."
@@ -983,6 +1018,17 @@ msgstr "Det här tillägget erbjuder inga punkter."
 msgid "This value"
 msgstr "Det här värdet"
 
+msgid ""
+"Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as "
+"devices: the rooms' and the outdoor values, the electricity price, the pump's values,"
+" and how the plugins are doing. The pump's settings and diagnostic values come "
+"disabled; enable those you want in Home Assistant. Nothing is accepted back."
+msgstr ""
+"Via MQTT-mäklaren visas Thermaestro och värmepumpen som enheter i Home Assistant: "
+"rummens och utomhusvärdena, elpriset, pumpens värden och hur tilläggen mår. Pumpens "
+"inställningar och diagnostikvärden kommer avaktiverade; aktivera dem du vill ha i "
+"Home Assistant. Inget tas emot tillbaka."
+
 msgid "Time range"
 msgstr "Tidsintervall"
 
@@ -1003,6 +1049,9 @@ msgstr "Topptemperatur"
 
 msgid "Topic"
 msgstr "Ämne"
+
+msgid "Topic prefix"
+msgstr "Prefix för ämnen"
 
 msgid "Total"
 msgstr "Totalt"
@@ -1205,6 +1254,9 @@ msgstr "tillsats"
 
 msgid "all"
 msgstr "alla"
+
+msgid "as set in Home Assistant's MQTT integration"
+msgstr "som det är satt i Home Assistants MQTT-integration"
 
 msgid "as the browser asks"
 msgstr "som webbläsaren önskar"
@@ -1415,6 +1467,9 @@ msgstr "pool"
 msgid "preselected from this browser"
 msgstr "förvald från den här webbläsaren"
 
+msgid "publishing"
+msgstr "publicerar"
+
 msgid "radiator valves with an interface"
 msgstr "radiatorventiler med gränssnitt"
 
@@ -1459,6 +1514,9 @@ msgstr "stoppad"
 
 msgid "stopping"
 msgstr "stannar"
+
+msgid "sweeping"
+msgstr "rensar"
 
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
@@ -1531,6 +1589,9 @@ msgstr "igång"
 
 msgid "waiting"
 msgstr "väntar"
+
+msgid "where the values go"
+msgstr "dit värdena skickas"
 
 msgid "wrong user name or password"
 msgstr "fel användarnamn eller lösenord"

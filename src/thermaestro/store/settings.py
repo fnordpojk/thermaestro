@@ -62,8 +62,32 @@ class Mqtt(Setting):
     username: str | None = None
     password: SecretName | None = None
     tls: bool = False
-    discovery: bool = True
-    """Publish Home Assistant discovery messages."""
+
+
+TopicPath = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
+]
+"""MQTT topic levels, without wildcards."""
+
+
+class Discovery(Setting):
+    """Home Assistant MQTT discovery: Thermaestro, and each device it reads, as devices in
+    Home Assistant, over the MQTT broker. One per installation."""
+
+    kind = "discovery"
+
+    enabled: bool = False
+    prefix: TopicPath = "homeassistant"
+    """Home Assistant's discovery prefix, as set in its MQTT integration."""
+    base: TopicPath = "thermaestro"
+    """Where the values go: `<base>/<id>/…`."""
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{4,16}$")] | None = None
+    """This installation's part of every topic and unique id, made when discovery is
+    first switched on, so that two installations can share a broker."""
+    sensors: bool = False
+    """Also publish each sensor's own values. Home Assistant may have them already."""
+    language: Literal["en", "sv", "de"] = "en"
+    """The language of the names Home Assistant is given."""
 
 
 class NibeGateway(BaseModel):
@@ -389,6 +413,7 @@ SETTINGS: dict[str, type[Setting]] = {
     for m in (
         Location,
         Mqtt,
+        Discovery,
         Plugin,
         Sensor,
         Room,

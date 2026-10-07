@@ -184,6 +184,23 @@ async def set_mqtt(body: dict[str, Any], request: Request, who: Logged) -> dict[
     return (await services(request).set_mqtt(who, body)).model_dump(mode="json")
 
 
+@router.get("/discovery")
+@action("discovery.read")
+async def discovery(request: Request, who: Logged) -> dict[str, Any]:
+    """Home Assistant discovery: the setting, and what is published now."""
+    s = services(request)
+    found = await s.discovery_settings(who)
+    return {"settings": found.model_dump(mode="json"), **s.discovery_state(who)}
+
+
+@router.put("/discovery")
+@action("discovery.write")
+async def set_discovery(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """Switch it on or off (`enabled`), or change `prefix`, `base`, `sensors` or
+    `language`; the installation's `id` is made when first switched on."""
+    return (await services(request).set_discovery(who, body)).model_dump(mode="json")
+
+
 @router.put("/homeassistant/{id}")
 @action("homeassistant.write")
 async def set_home_assistant(

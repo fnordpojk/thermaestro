@@ -22,7 +22,7 @@ from ..store import (
 if TYPE_CHECKING:
     from ..core.audit import AuditLog
     from ..core.host import PluginHost
-    from ..core.mqtt import MqttInput
+    from ..core.mqtt import MqttClient
     from ..core.sensors import SensorHub
     from ..store import Database, SecretStore
     from .operations import Caller
@@ -49,7 +49,7 @@ class SensorOperations:
         secrets: SecretStore
         host: PluginHost | None
         sensors: SensorHub | None
-        mqtt: MqttInput | None
+        mqtt: MqttClient | None
 
         def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None: ...
 

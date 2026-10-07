@@ -18,6 +18,8 @@ class FakeHomeAssistant:
         self.states: dict[str, dict[str, Any]] = {}
         self.areas = {"living": "Living room", "bed": "Bedroom"}
         self.entity_areas: dict[str, str] = {}
+        self.registered: dict[str, dict[str, str]] = {}
+        """An entity's platform and unique id, where a test gives them."""
         self.subscribers: list[tuple[web.WebSocketResponse, int, list[str]]] = []
         self.subscribed: list[list[str]] = []
         self.forecasts: dict[str, list[dict[str, Any]]] = {}
@@ -75,7 +77,12 @@ class FakeHomeAssistant:
             ]
         elif kind == "config/entity_registry/list":
             result = [
-                {"entity_id": e, "area_id": self.entity_areas.get(e), "device_id": None}
+                {
+                    "entity_id": e,
+                    "area_id": self.entity_areas.get(e),
+                    "device_id": None,
+                    **self.registered.get(e, {"platform": "demo", "unique_id": e}),
+                }
                 for e in self.states
             ]
         elif kind == "config/device_registry/list":

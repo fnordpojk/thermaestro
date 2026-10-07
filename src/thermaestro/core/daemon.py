@@ -17,8 +17,9 @@ from ..cap.sockets import listen_tcp, listen_unix, unix_available
 from ..files import private_directory
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
+from .discovery import Publisher
 from .host import PluginHost
-from .mqtt import MqttInput
+from .mqtt import MqttClient
 from .plugins import Factory, discover
 from .sensors import SensorHub
 from .series import Series
@@ -45,8 +46,9 @@ class Core:
     values: Values
     host: PluginHost
     sensors: SensorHub
-    mqtt: MqttInput
+    mqtt: MqttClient
     weather: Weather
+    discovery: Publisher
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -78,9 +80,12 @@ async def run(
             factories=factories if factories is not None else discover(),
         )
         sensors = SensorHub(db, values)
-        mqtt = MqttInput(db, secrets, sensors)
+        mqtt = MqttClient(db, secrets, sensors)
         weather = Weather(db, series, values, host)
-        core = Core(layout, startup, db, secrets, audit, values, host, sensors, mqtt, weather)
+        discovery = Publisher(db, values, host, sensors, series, mqtt)
+        core = Core(
+            layout, startup, db, secrets, audit, values, host, sensors, mqtt, weather, discovery
+        )
         await _serve(core, stop, flush_s)
     finally:
         await db.close()

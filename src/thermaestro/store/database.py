@@ -150,6 +150,10 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (source, quantity, valid, lead)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 7: the broker's Home Assistant discovery switch became a setting of its own
+    """
+    UPDATE settings SET body = json_remove(body, '$.discovery') WHERE kind = 'mqtt';
+    """,
 )
 VERSION = len(MIGRATIONS)
 

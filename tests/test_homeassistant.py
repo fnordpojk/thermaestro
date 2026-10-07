@@ -180,10 +180,22 @@ async def test_nothing_chosen_reads_nothing(tmp_path: Path) -> None:
 
 async def test_entities_to_choose_from() -> None:
     fake = stocked()
+    # Thermaestro's own, from discovery: never offered back as a sensor.
+    fake.set(
+        "sensor.thermaestro_living_room_temperature",
+        "21.0",
+        device_class="temperature",
+        unit_of_measurement="°C",
+    )
+    fake.registered["sensor.thermaestro_living_room_temperature"] = {
+        "platform": "mqtt",
+        "unique_id": "thermaestro_abcd1234_site_room_living_temperature_123abc",
+    }
     async with running(fake) as url:
         found = await list_entities(url, TOKEN)
     by_id = {e.entity_id: e for e in found}
     assert "sensor.uptime" not in by_id
+    assert "sensor.thermaestro_living_room_temperature" not in by_id
     assert "light.hall" not in by_id
     assert by_id["sensor.bedroom_temperature"].quantity == "temperature"
     assert by_id["sensor.bedroom_temperature"].area == "Bedroom"

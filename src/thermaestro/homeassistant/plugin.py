@@ -226,12 +226,19 @@ async def list_entities(url: str, token: str) -> list[EntityInfo]:
     area_names = {a["area_id"]: a["name"] for a in areas or ()}
     device_areas = {d["id"]: d.get("area_id") for d in devices or ()}
     entity_areas: dict[str, str | None] = {}
+    ours = set()
     for entry in registry or ():
         area = entry.get("area_id") or device_areas.get(entry.get("device_id"))
         entity_areas[entry["entity_id"]] = area_names.get(area) if area else None
+        if entry.get("platform") == "mqtt" and str(entry.get("unique_id")).startswith(
+            "thermaestro_"
+        ):
+            ours.add(entry["entity_id"])  # Thermaestro's own, published by discovery
     out = []
     for state in states or ():
         entity_id = state["entity_id"]
+        if entity_id in ours:
+            continue
         attributes = state.get("attributes", {})
         domain = entity_id.split(".", 1)[0]
         device_class = attributes.get("device_class")

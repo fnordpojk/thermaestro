@@ -97,6 +97,29 @@ async def set_mqtt(
     return await _settings_attempt(request, who, work(), "/settings#mqtt")
 
 
+@router.post("/settings/discovery")
+@action("discovery.write")
+async def set_discovery(
+    request: Request,
+    who: Logged,
+    prefix: Text = "homeassistant",
+    base: Text = "thermaestro",
+    language: Text = "en",
+    enabled: Text = "",
+    sensors: Text = "",
+) -> Response:
+    body = {
+        "enabled": bool(enabled),
+        "prefix": prefix.strip(),
+        "base": base.strip(),
+        "language": language,
+        "sensors": bool(sensors),
+    }
+    return await _settings_attempt(
+        request, who, services(request).set_discovery(who, body), "/settings#discovery"
+    )
+
+
 def _sensor_body(form: dict[str, str]) -> dict[str, Any]:
     placement = form.get("placement") or "room"
     body: dict[str, Any] = {
