@@ -78,6 +78,8 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
             own_device="simple_thermostat",
         )
         assert made.status_code == 303
+        # A room without values isn't on the overview.
+        assert "<h2>Living room</h2>" not in (await client.get("/status/values")).text
         added = await form(
             client,
             "/setup/sensors",
@@ -107,6 +109,40 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
         sensor = await site.services.db.get(Sensor, "sofa")
         assert sensor is not None
         assert sensor.room is None
+
+
+async def test_room_cards_leave_out_what_is_derived(site: Site) -> None:
+    """Dew point and absolute humidity, worked out from a room's temperature and humidity,
+    are kept and in the API, but not on the overview's room card."""
+    async with logged_in(site) as client:
+        await form(client, "/setup/house", "/rooms", name="Hall")
+        for name, topic, quantity in (
+            ("Hall temp", "h/t", "temperature"),
+            ("Hall humidity", "h/h", "humidity"),
+        ):
+            await form(
+                client,
+                "/setup/sensors",
+                "/sensors",
+                name=name,
+                topic=topic,
+                quantity=quantity,
+                placement="room",
+                room="hall",
+            )
+        hub = site.services.sensors
+        assert hub is not None
+        hub.receive_mqtt("h/t", b"21.0")
+        hub.receive_mqtt("h/h", b"45")
+        status = (await client.get("/status/values")).text
+        api = (await client.get("/api/v1/site")).json()
+    card = status.split("<h2>Hall</h2>", 1)[1].split("</div>", 1)[0]
+    assert "Temperature" in card
+    assert "Humidity" in card
+    assert "Dew point" not in card
+    assert "Absolute humidity" not in card
+    quantities = {p["path"].rpartition("/")[2] for p in api["rooms"][0]["points"]}
+    assert {"dew_point", "absolute_humidity"} <= quantities
 
 
 async def test_bad_sensors_are_refused(site: Site) -> None:

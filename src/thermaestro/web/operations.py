@@ -58,6 +58,9 @@ TOPIC_OF_PLUGIN = {
     "open_meteo": "/setup/weather",
 }
 """Where under Setup each plugin is set up, for "Needs attention"."""
+ROOM_CARD_HIDDEN = ("absolute_humidity", "dew_point")
+"""Derived from a room's temperature and humidity: kept, charted and in the API, but more
+than the overview's room cards need."""
 """The longest stretch of samples one request returns."""
 
 
@@ -410,12 +413,16 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
         rooms = []
         for room_id, room in sorted(hub.rooms.items(), key=lambda r: r[1].name.lower()):
             node = f"room.{room_id}"
+            points = self._site_points(node)
             rooms.append(
                 {
                     "id": room_id,
                     "name": room.name,
                     "own_device": room.own_device,
-                    "points": self._site_points(node),
+                    "points": points,
+                    "shown": [
+                        p for p in points if p["path"].rpartition("/")[2] not in ROOM_CARD_HIDDEN
+                    ],
                 }
             )
         return {

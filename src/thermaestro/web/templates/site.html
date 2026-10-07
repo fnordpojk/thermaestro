@@ -1,5 +1,7 @@
 {% from "cells.html" import value_cell with context %}
-{% if site.rooms or site.outdoor or site.pinned %}
+{# Only rooms with values: a room's sensors are set under Setup → House. #}
+{% set rooms = site.rooms | selectattr("shown") | list %}
+{% if rooms or site.outdoor or site.pinned %}
 <section class="site">
   <div class="cards">
   {% if site.outdoor %}
@@ -22,18 +24,14 @@
     </table>
   </div>
   {% endfor %}
-  {% for room in site.rooms %}
+  {% for room in rooms %}
   <div class="card">
     <h2>{{ room.name }}</h2>
-    {% if room.points %}
     <table class="values">
-    {% for p in room.points %}
+    {% for p in room.shown %}
       <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p, yes_no=true) }}</tr>
     {% endfor %}
     </table>
-    {% else %}
-    <p class="hint">{{ _("No sensors in this room yet.") }}</p>
-    {% endif %}
   </div>
   {% endfor %}
   </div>
