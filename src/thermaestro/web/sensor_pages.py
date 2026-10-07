@@ -214,6 +214,10 @@ async def add_home_assistant_sensors(request: Request, who: Logged, id: str) -> 
     for n in picked:
         quantity = form.get(f"quantity_{n}", "")
         room = form.get(f"room_{n}") or None
+        new_room = None
+        if room and room.startswith("new:"):
+            new_room = room.removeprefix("new:")
+            room = None
         picks.append(
             {
                 "entity": form.get(f"entity_{n}", ""),
@@ -221,7 +225,8 @@ async def add_home_assistant_sensors(request: Request, who: Logged, id: str) -> 
                 "quantity": quantity,
                 "name": form.get(f"name_{n}", "").strip() or form.get(f"entity_{n}", ""),
                 "room": room,
-                "placement": "room" if room else form.get(f"placement_{n}") or "other",
+                "new_room": new_room,
+                "placement": "room" if room or new_room else form.get(f"placement_{n}") or "other",
             }
         )
     work = services(request).add_home_assistant_sensors(who, id, picks)
@@ -246,6 +251,20 @@ async def delete_sensor(request: Request, who: Logged, id: str) -> Response:
 
 
 # --- rooms, under House -------------------------------------------------------------------
+
+
+@router.post("/rooms/from-areas")
+@action("homeassistant.rooms")
+async def rooms_from_areas(request: Request, who: Logged, id: Text) -> Response:
+    data = await request.form()
+    areas = [a for a in data.getlist("areas") if isinstance(a, str) and a]
+    return await attempt(
+        request,
+        who,
+        services(request).rooms_from_areas(who, id, areas),
+        "house",
+        "/setup/house#rooms",
+    )
 
 
 @router.post("/rooms")

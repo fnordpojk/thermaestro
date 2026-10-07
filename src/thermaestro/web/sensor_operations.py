@@ -260,7 +260,9 @@ class SensorOperations:
         self, caller: "Caller", id: str, picks: list[dict[str, Any]]
     ) -> list[str]:
         """Read the picked entities, and make a sensor of each of their points:
-        `{"entity": ..., "point": ..., "quantity": ..., "name": ..., "room": ...}`."""
+        `{"entity": ..., "point": ..., "quantity": ..., "name": ..., "room": ...}`. Instead
+        of `room`, `new_room` names a room to make (from the entity's area), or to use where
+        one of that name exists."""
         self._require(caller, "settings.write")
         settings = await self._home_assistant(id)
         entities = list(settings.entities)
@@ -268,20 +270,53 @@ class SensorOperations:
             if pick["entity"] not in entities:
                 entities.append(pick["entity"])
         await self._put_home_assistant(caller, id, {**settings.model_dump(), "entities": entities})
+        new = {str(p["new_room"]) for p in picks if p.get("new_room") and not p.get("room")}
+        rooms = await self._rooms_named(caller, sorted(new))
         made = []
         for pick in picks:
-            placement = "room" if pick.get("room") else pick.get("placement", "other")
+            room = pick.get("room") or rooms.get(str(pick.get("new_room") or "").strip().lower())
+            placement = "room" if room else pick.get("placement", "other")
             body = {
                 "name": pick["name"],
                 "source": "point",
                 "point": f"{id}:{pick['point']}",
                 "quantity": pick["quantity"],
                 "placement": placement,
-                "room": pick.get("room") or None,
+                "room": room or None,
             }
             sensor_id, _ = await self.set_sensor(caller, None, body)
             made.append(sensor_id)
         return made
+
+    async def _rooms_named(self, caller: "Caller", names: list[str]) -> dict[str, str]:
+        """The room of each name, made where none has it; by name in lower case. A room made
+        this way is Thermaestro's own: renaming the area later doesn't change it."""
+        existing = {r.name.lower(): rid for rid, r in (await self.db.all(Room)).items()}
+        out = {}
+        for name in names:
+            key = name.strip().lower()
+            if not key:
+                continue
+            if key not in existing:
+                existing[key], _ = await self.set_room(caller, None, {"name": name.strip()})
+            out[key] = existing[key]
+        return out
+
+    async def home_assistant_areas(self, caller: "Caller", id: str) -> list[str]:
+        """The areas of Home Assistant's entities that aren't a room yet, by name."""
+        entities = await self.home_assistant_entities(caller, id)
+        rooms = {r.name.lower() for r in (await self.db.all(Room)).values()}
+        areas = {e.area.strip() for e in entities if e.area and e.area.strip()}
+        return sorted((a for a in areas if a.lower() not in rooms), key=str.lower)
+
+    async def rooms_from_areas(self, caller: "Caller", id: str, areas: list[str]) -> list[str]:
+        """Make a room of each area named, where it isn't one yet; the rooms' ids."""
+        self._require(caller, "settings.write")
+        offered = {a.lower() for a in await self.home_assistant_areas(caller, id)}
+        unknown = [a for a in areas if a.lower() not in offered]
+        if unknown:
+            raise AccountError(f"Home Assistant has no area {unknown[0]!r} without a room")
+        return list((await self._rooms_named(caller, areas)).values())
 
     async def _home_assistant(self, id: str) -> HomeAssistant:
         plugin = await self.db.get(Plugin, id)

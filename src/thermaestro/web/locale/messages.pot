@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 23:53+0200\n"
+"POT-Creation-Date: 2026-10-08 00:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -77,7 +77,14 @@ msgid ""
 "without it, more slowly."
 msgstr ""
 
-msgid "A room is suggested from the entity's area where a room has the same name."
+msgid ""
+"A room is suggested from the entity's area: the room of that name, or a "
+"new room made from the area."
+msgstr ""
+
+msgid ""
+"A room made from an area is Thermaestro's own: renaming or removing the "
+"area in Home Assistant later doesn't change it."
 msgstr ""
 
 msgid ""
@@ -159,6 +166,9 @@ msgid "Annual mean, °C"
 msgstr ""
 
 msgid "Area"
+msgstr ""
+
+msgid "Areas that aren't rooms yet"
 msgstr ""
 
 msgid "At"
@@ -444,6 +454,9 @@ msgstr ""
 msgid "From Home Assistant"
 msgstr ""
 
+msgid "From Home Assistant's areas"
+msgstr ""
+
 msgid "Gateway address"
 msgstr ""
 
@@ -588,6 +601,9 @@ msgstr ""
 msgid "Main provider"
 msgstr ""
 
+msgid "Make rooms of the ticked ones"
+msgstr ""
+
 msgid ""
 "Many national and global models through one service, sunlight included. "
 "Free for non-commercial use, which includes personal home automation."
@@ -627,6 +643,10 @@ msgid "New group"
 msgstr ""
 
 msgid "New password"
+msgstr ""
+
+#, python-format
+msgid "New room: %(name)s"
 msgstr ""
 
 msgid ""

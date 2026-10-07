@@ -56,7 +56,17 @@ async def _house(request: Request, who: Caller) -> dict[str, Any]:
                     (f"{instance_id}:{node.path}", s.node_label(who, instance_id, node.path))
                 )
     rooms = await s.room_settings(who)
+    areas: dict[str, list[str]] = {}
+    for id, p in plugins.items() if who.principal.allows("settings.write") else ():
+        if p.plugin != HA_PLUGIN:
+            continue
+        try:
+            async with asyncio.timeout(HA_WAIT_S):
+                areas[id] = await s.home_assistant_areas(who, id)
+        except (AccountError, TimeoutError):
+            continue  # the page doesn't wait for a Home Assistant that isn't answering
     return {
+        "areas": {id: names for id, names in areas.items() if names},
         "location": await s.location(who),
         "zones": time_zones(),
         "climate": await s.climate(who),

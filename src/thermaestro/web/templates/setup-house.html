@@ -92,5 +92,18 @@
 {% endfor %}
 <h3>{{ _("Add a room") }}</h3>
 {{ room_form(none, none) }}
+
+{% for id, names in areas.items() %}
+<h3>{{ _("From Home Assistant's areas") }}</h3>
+<p class="hint">{{ _("A room made from an area is Thermaestro's own: renaming or removing the area in Home Assistant later doesn't change it.") }}</p>
+<form method="post" action="/rooms/from-areas" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ id }}">
+  <fieldset><legend>{{ _("Areas that aren't rooms yet") }}</legend>
+  {% for name in names %}<label class="check"><input type="checkbox" name="areas" value="{{ name }}"> {{ name }}</label>{% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Make rooms of the ticked ones") }}</button>
+</form>
+{% endfor %}
 </section>
 {% endblock %}

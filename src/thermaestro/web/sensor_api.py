@@ -33,7 +33,16 @@ class Pick(BaseModel):
     quantity: str
     name: str
     room: str | None = None
+    new_room: str | None = Field(
+        None,
+        description="instead of `room`: a room's name, made where no room has it (such as"
+        " the entity's area)",
+    )
     placement: str = "other"
+
+
+class Areas(BaseModel):
+    areas: list[str] = Field(description="Home Assistant's area names, each to become a room")
 
 
 @router.get("/site")
@@ -230,3 +239,20 @@ async def add_home_assistant_sensors(
         who, id, [p.model_dump() for p in picks]
     )
     return {"sensors": made}
+
+
+@router.get("/homeassistant/{id}/areas")
+@action("homeassistant.areas")
+async def home_assistant_areas(id: str, request: Request, who: Logged) -> list[str]:
+    """The areas of Home Assistant's entities that aren't a room yet."""
+    return await services(request).home_assistant_areas(who, id)
+
+
+@router.post("/homeassistant/{id}/rooms", status_code=201)
+@action("homeassistant.rooms")
+async def rooms_from_areas(
+    id: str, body: Areas, request: Request, who: Logged
+) -> dict[str, list[str]]:
+    """A room of each area. Once made, a room is Thermaestro's own: renaming or removing
+    the area in Home Assistant doesn't change it."""
+    return {"rooms": await services(request).rooms_from_areas(who, id, body.areas)}

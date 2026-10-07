@@ -4,6 +4,7 @@ import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -263,6 +264,67 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
         "bedroom",
     )
     assert TOKEN not in (site.state / "audit" / "audit.jsonl").read_text()
+
+
+async def test_rooms_from_home_assistants_areas(site: Site) -> None:
+    """An area with no room yet is offered as a new room, in the picker and under House;
+    a room made so is Thermaestro's own, and the pages say so."""
+    fake = FakeHomeAssistant()
+    for entity, area in (("sensor.k1", "kitchen"), ("sensor.k2", "kitchen"), ("sensor.b", "bed")):
+        fake.set(entity, "20.0", device_class="temperature", unit_of_measurement="°C")
+        fake.entity_areas[entity] = area
+    fake.set("sensor.h", "20.0", device_class="temperature", unit_of_measurement="°C")
+    fake.entity_areas["sensor.h"] = "hall"
+    fake.areas = {"kitchen": "Kitchen", "bed": "Bedroom", "hall": "Hall"}
+    async with running(fake) as url, logged_in(site) as client:
+        await form(
+            client,
+            "/setup/external",
+            "/settings/homeassistant",
+            id="homeassistant",
+            url=url,
+            token=TOKEN,
+        )
+        points = [f"ha/x.homeassistant.sensor.{e}" for e in ("k1", "k2")]
+        page = (
+            await client.get("/sensors/homeassistant/homeassistant/pick", params={"pick": points})
+        ).text
+        assert page.count('<option value="new:Kitchen" selected>New room: Kitchen</option>') == 2
+        assert "renaming or removing the area in Home Assistant later" in page
+        rows = {
+            m.group(2): m.group(1) for m in re.finditer(r'name="point_(\d+)" value="([^"]+)"', page)
+        }
+        fields: dict[str, Any] = {"csrf": csrf_of(page), "pick": list(rows.values())}
+        for point, n in rows.items():
+            fields |= {
+                f"entity_{n}": point.removeprefix("ha/x.homeassistant."),
+                f"point_{n}": point,
+                f"quantity_{n}": "temperature",
+                f"name_{n}": point[-2:],
+                f"room_{n}": "new:Kitchen",
+            }
+        made = await client.post("/sensors/homeassistant/homeassistant/sensors", data=fields)
+        assert made.status_code == 303
+        house = (await client.get("/setup/house")).text
+        assert 'name="areas" value="Bedroom"' in house  # not rooms yet
+        assert 'name="areas" value="Hall"' in house
+        assert 'name="areas" value="Kitchen"' not in house  # a room now
+        assert "renaming or removing the area in Home Assistant later" in house
+        refused = await form(
+            client, "/setup/house", "/rooms/from-areas", id="homeassistant", areas="Attic"
+        )
+        assert refused.status_code == 400
+        done = await form(
+            client, "/setup/house", "/rooms/from-areas", id="homeassistant", areas="Hall"
+        )
+        assert done.status_code == 303
+        areas = (await client.get("/api/v1/homeassistant/homeassistant/areas")).json()
+    assert areas == ["Bedroom"]
+    rooms = await site.services.db.all(Room)
+    assert sorted(r.name for r in rooms.values()) == ["Hall", "Kitchen"]
+    kitchen = next(id for id, r in rooms.items() if r.name == "Kitchen")
+    sensors = await site.services.db.all(Sensor)
+    assert sorted(s.room or "" for s in sensors.values()) == [kitchen, kitchen]
 
 
 async def test_a_large_home_assistant_can_be_picked_from(site: Site) -> None:

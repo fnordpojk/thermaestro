@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 23:53+0200\n"
-"PO-Revision-Date: 2026-10-07 23:53+0200\n"
+"POT-Creation-Date: 2026-10-08 00:01+0200\n"
+"PO-Revision-Date: 2026-10-08 00:01+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -79,8 +79,19 @@ msgstr ""
 "kinkig med USB-minnen: sådana som är större än 4 GB, eller tillverkade under ungefär "
 "de senaste 15 åren, godtas ofta inte. Allt fungerar utan den, fast långsammare."
 
-msgid "A room is suggested from the entity's area where a room has the same name."
-msgstr "Ett rum föreslås från entitetens område där ett rum har samma namn."
+msgid ""
+"A room is suggested from the entity's area: the room of that name, or a new room made"
+" from the area."
+msgstr ""
+"Ett rum föreslås från entitetens område: rummet med det namnet, eller ett nytt rum "
+"gjort av området."
+
+msgid ""
+"A room made from an area is Thermaestro's own: renaming or removing the area in Home "
+"Assistant later doesn't change it."
+msgstr ""
+"Ett rum som gjorts av ett område är Thermaestros eget: att byta namn på eller ta bort"
+" området i Home Assistant senare ändrar det inte."
 
 msgid ""
 "A simple thermostat cuts the room off at its own setting. Where Thermaestro steers "
@@ -168,6 +179,9 @@ msgstr "Årsmedel, °C"
 
 msgid "Area"
 msgstr "Område"
+
+msgid "Areas that aren't rooms yet"
+msgstr "Områden som inte är rum än"
 
 msgid "At"
 msgstr "Tid"
@@ -468,6 +482,9 @@ msgstr "Från"
 msgid "From Home Assistant"
 msgstr "Från Home Assistant"
 
+msgid "From Home Assistant's areas"
+msgstr "Från Home Assistants områden"
+
 msgid "Gateway address"
 msgstr "Gatewayens adress"
 
@@ -612,6 +629,9 @@ msgstr "MQTT-broker"
 msgid "Main provider"
 msgstr "Huvudleverantör"
 
+msgid "Make rooms of the ticked ones"
+msgstr "Gör rum av de ikryssade"
+
 msgid ""
 "Many national and global models through one service, sunlight included. Free for non-"
 "commercial use, which includes personal home automation."
@@ -654,6 +674,10 @@ msgstr "Ny grupp"
 
 msgid "New password"
 msgstr "Nytt lösenord"
+
+#, python-format
+msgid "New room: %(name)s"
+msgstr "Nytt rum: %(name)s"
 
 msgid ""
 "Newest first. `thermaestro audit verify` on the host checks that no line was changed "

@@ -2,7 +2,8 @@
 {% block title %}Home Assistant{% endblock %}
 {% block main %}
 <h1>{{ _("Choose from Home Assistant") }}</h1>
-<p>{{ _("A room is suggested from the entity's area where a room has the same name.") }} <a href="/setup/house#rooms">{{ _("Rooms") }}</a></p>
+<p>{{ _("A room is suggested from the entity's area: the room of that name, or a new room made from the area.") }} <a href="/setup/house#rooms">{{ _("Rooms") }}</a></p>
+<p class="hint">{{ _("A room made from an area is Thermaestro's own: renaming or removing the area in Home Assistant later doesn't change it.") }}</p>
 {% if picks %}
 <form method="post" action="/sensors/homeassistant/{{ id | urlencode }}/sensors">
   <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -21,6 +22,8 @@
         <td><input name="name_{{ n }}" maxlength="64" value="{{ e.name }}{% if e.points | length > 1 %} – {{ quantity | quantity }}{% endif %}"></td>
         <td><select name="room_{{ n }}">
             <option value="">{{ _("no room") }}</option>
+            {% set area = (e.area or "").strip() %}
+            {% if area and not suggested_room.get(e.entity_id) %}<option value="new:{{ area }}" selected>{{ _("New room: %(name)s", name=area) }}</option>{% endif %}
             {% for rid, room in rooms.items() %}<option value="{{ rid }}"{% if suggested_room.get(e.entity_id) == rid %} selected{% endif %}>{{ room.name }}</option>{% endfor %}
           </select></td>
       </tr>
