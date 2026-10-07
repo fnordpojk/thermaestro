@@ -412,6 +412,56 @@ class Publication(Model):
     tz: str
 
 
+class Step(Model):
+    """A provider's time step up to a lead time: MET Norway gives hours to about 54 h,
+    then 6 hours."""
+
+    step: Duration
+    until: Duration | None = None
+    """The lead time this step lasts to; None: to the horizon."""
+
+
+class ForecastModel(Model):
+    """A weather model behind a forecast."""
+
+    name: str
+    grid_km: Annotated[float, Field(gt=0)] | None = None
+    area: str | None = None
+    """Where this model is used, where the provider combines several."""
+
+
+class Access(Model):
+    key: Knowledge[bool] = Knowledge[bool]()
+    """Whether a key or token is needed."""
+    rate_limit: Knowledge[str] = Knowledge[str]()
+    requirements: Knowledge[tuple[str, ...]] = Knowledge[tuple[str, ...]]()
+    """Such as an identifying User-Agent, or honoring Expires and If-Modified-Since."""
+
+
+class Terms(Model):
+    license: Knowledge[str] = Knowledge[str]()
+    attribution: Knowledge[str] = Knowledge[str]()
+    """The text the user interface must show with the data."""
+    conditions: Knowledge[tuple[str, ...]] = Knowledge[tuple[str, ...]]()
+    """Such as non-commercial use only, or share-alike."""
+    storing_allowed: Knowledge[bool] = Knowledge[bool]()
+    """Whether forecasts may be kept, as scoring them needs."""
+
+
+class Provider(Model):
+    """Who a plugin's series come from, and on what terms: the capability register's
+    part per plugin (protocol 0.2)."""
+
+    name: str
+    operator: Knowledge[str] = Knowledge[str]()
+    coverage: Knowledge[str] = Knowledge[str]()
+    """Where it applies, and what happens outside it."""
+    access: Access = Access()
+    terms: Terms = Terms()
+    verification: Knowledge[str] = Knowledge[str]()
+    """Published verification of its forecasts, where there is any."""
+
+
 class SeriesInfo(Model):
     """A series a plugin offers: a layer of the price stack, a grid rule or a forecast."""
 
@@ -426,6 +476,18 @@ class SeriesInfo(Model):
     area: str | None = None
     publication: Publication | None = None
     horizon: Duration | None = None
+    # protocol 0.2: the capability register's part per series
+    quantity: str | None = None
+    """For a forecast: the quantity (`temperature`, `dew_point`, `irradiance.global`)."""
+    derived: bool = False
+    """Computed by the plugin from other quantities, not given by the provider."""
+    steps: tuple[Step, ...] = ()
+    """The time steps by lead time, where they vary."""
+    models: Knowledge[tuple[ForecastModel, ...]] = Knowledge[tuple[ForecastModel, ...]]()
+    updates: Knowledge[Duration] = Knowledge[Duration]()
+    """How often the provider publishes a new forecast."""
+    percentiles: tuple[int, ...] = ()
+    """Percentiles given beside the value, such as (10, 90)."""
 
 
 class Interval(Model):

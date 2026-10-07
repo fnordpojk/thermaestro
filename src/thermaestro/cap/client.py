@@ -28,6 +28,10 @@ from .messages import (
     Message,
     Op,
     Read,
+    SeriesData,
+    SeriesGet,
+    SeriesSubscribe,
+    SeriesUpdate,
     Subscribe,
     Unsubscribe,
     Update,
@@ -156,6 +160,17 @@ class Link:
         )
         return Subscription(self, message)
 
+    async def series_get(
+        self, series: str, start: datetime, end: datetime, *, timeout: float = TIMEOUT_S
+    ) -> SeriesData:
+        reply = await self.request(
+            SeriesGet(id=self.next_id(), series=series, start=start, end=end), timeout
+        )
+        return _expect(SeriesData, "series.get", reply)
+
+    def series_subscribe(self, series: str) -> "SeriesSubscription":
+        return SeriesSubscription(self, SeriesSubscribe(id=self.next_id(), series=series))
+
     async def request(self, message: Message, timeout: float = TIMEOUT_S) -> Message:
         """Send a request and return the first message with its id."""
         async with self._exchange(message) as replies:
@@ -234,6 +249,36 @@ class Subscription:
             raise RuntimeError("use the subscription in `async with`")
         reply = await Link._next(self._replies, timeout)
         return _expect(Update, "subscribe", reply)
+
+
+class SeriesSubscription:
+    """New and revised intervals of one series, as published; leaving its `async with`
+    unsubscribes."""
+
+    def __init__(self, link: Link, message: SeriesSubscribe) -> None:
+        self._link = link
+        self.message = message
+        self._context: contextlib.AbstractAsyncContextManager[asyncio.Queue[object]] | None = None
+        self._replies: asyncio.Queue[object] | None = None
+
+    async def __aenter__(self) -> Self:
+        self._context = self._link._exchange(self.message)
+        self._replies = await self._context.__aenter__()
+        return self
+
+    async def __aexit__(
+        self, t: type[BaseException] | None, e: BaseException | None, tb: TracebackType | None
+    ) -> None:
+        with contextlib.suppress(Closed):
+            await self._link._endpoint.send(Unsubscribe(id=self.message.id))
+        if self._context is not None:
+            await self._context.__aexit__(t, e, tb)
+
+    async def next(self, timeout: float = TIMEOUT_S) -> SeriesUpdate:
+        if self._replies is None:
+            raise RuntimeError("use the subscription in `async with`")
+        reply = await Link._next(self._replies, timeout)
+        return _expect(SeriesUpdate, "series.subscribe", reply)
 
 
 def _expect[M](kind: type[M], request: str, reply: Message) -> M:

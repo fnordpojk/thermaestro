@@ -18,13 +18,18 @@ from .model import (
     Path,
     PluginName,
     Point,
+    Provider,
     RuleRecord,
     SeriesInfo,
     Value,
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.1"
+VERSION = "0.2"
+"""0.2 added the capability register: `Described.provider` and the forecast fields of
+`SeriesInfo`, announced by the `forecast` feature. 0.1 peers still talk to 0.2 ones."""
+FEATURES = ("subscribe", "forecast")
+"""What this side of the protocol understands."""
 
 RequestId = Annotated[int, Field(ge=0)]
 
@@ -70,6 +75,8 @@ class Described(Model):
     points: tuple[Point, ...] = ()
     levers: tuple[Lever, ...] = ()
     series: tuple[SeriesInfo, ...] = ()
+    provider: Provider | None = None
+    """Who the series come from and on what terms (protocol 0.2)."""
     removed: tuple[Path, ...] = ()
 
 

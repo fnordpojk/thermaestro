@@ -18,7 +18,16 @@ from thermaestro.core import AuditLog
 from thermaestro.core.host import Instance, PluginHost, State
 from thermaestro.core.values import Values
 from thermaestro.store import Database, Plugin, SecretStore
-from thermaestro.web import Services, api, create_app, pages, sensor_api, sensor_pages
+from thermaestro.web import (
+    Services,
+    api,
+    create_app,
+    pages,
+    price_api,
+    price_pages,
+    sensor_api,
+    sensor_pages,
+)
 from thermaestro.web.app import TELEMETRY_OFF
 
 ADMIN_PASSWORD = "correct horse battery staple"
@@ -80,6 +89,8 @@ def routes(app: FastAPI) -> list[APIRoute]:
         *pages.router.routes,
         *sensor_api.router.routes,
         *sensor_pages.router.routes,
+        *price_api.router.routes,
+        *price_pages.router.routes,
     ]
     return [r for r in (*app.routes, *included) if isinstance(r, APIRoute)]
 
@@ -502,6 +513,7 @@ PAGES = [
     "/audit",
     "/sensors",
     "/rooms",
+    "/prices",
     "/confirm",
 ]
 

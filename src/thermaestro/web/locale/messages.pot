@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 02:38+0200\n"
+"POT-Creation-Date: 2026-10-07 03:17+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -68,7 +68,13 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+msgid "Add a fixed amount"
+msgstr ""
+
 msgid "Add a room"
+msgstr ""
+
+msgid "Add a series"
 msgstr ""
 
 msgid "Add a user"
@@ -93,6 +99,9 @@ msgid "Airflow"
 msgstr ""
 
 msgid "Alarm"
+msgstr ""
+
+msgid "Amount per kWh"
 msgstr ""
 
 msgid "Area"
@@ -141,6 +150,9 @@ msgid ""
 "the last 15 minutes."
 msgstr ""
 
+msgid "Charged on"
+msgstr ""
+
 msgid "Charging temperature"
 msgstr ""
 
@@ -183,6 +195,9 @@ msgid "Control port"
 msgstr ""
 
 msgid "Copy it now: it is shown only this once."
+msgstr ""
+
+msgid "Covers"
 msgstr ""
 
 msgid "Create and log in"
@@ -303,6 +318,9 @@ msgstr ""
 msgid "Heating"
 msgstr ""
 
+msgid "Holds until"
+msgstr ""
+
 msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr ""
 
@@ -343,6 +361,12 @@ msgid "Last used"
 msgstr ""
 
 msgid "Latitude"
+msgstr ""
+
+msgid "Layer"
+msgstr ""
+
+msgid "Layers"
 msgstr ""
 
 msgid "Light"
@@ -407,7 +431,16 @@ msgstr ""
 msgid "No administrator exists yet."
 msgstr ""
 
+msgid "No layers yet."
+msgstr ""
+
 msgid "No plugin instances."
+msgstr ""
+
+msgid "No plugin offers prices yet; the Tibber and ENTSO-E plugins come next."
+msgstr ""
+
+msgid "No prices for this day yet."
 msgstr ""
 
 msgid "No rooms yet."
@@ -466,6 +499,9 @@ msgstr ""
 msgid "Password"
 msgstr ""
 
+msgid "Per 15 minutes"
+msgstr ""
+
 msgid ""
 "Pick what Thermaestro should read. Each picked value becomes a sensor; a "
 "room is suggested from the entity's area where a room has the same name."
@@ -495,7 +531,13 @@ msgstr ""
 msgid "Power to the grid"
 msgstr ""
 
+msgid "Prices"
+msgstr ""
+
 msgid "Protocol"
+msgstr ""
+
+msgid "Rate in percent"
 msgstr ""
 
 msgid "Read port"
@@ -523,6 +565,9 @@ msgid "Revoke"
 msgstr ""
 
 msgid "Rights"
+msgstr ""
+
+msgid "Role"
 msgstr ""
 
 msgid "Room"
@@ -557,6 +602,12 @@ msgstr ""
 msgid "Sensors:"
 msgstr ""
 
+msgid "Series"
+msgstr ""
+
+msgid "Series offered"
+msgstr ""
+
 msgid "Set password and log out everywhere"
 msgstr ""
 
@@ -573,6 +624,9 @@ msgid "Since"
 msgstr ""
 
 msgid "Someone home"
+msgstr ""
+
+msgid "Source"
 msgstr ""
 
 msgid "Speed"
@@ -649,10 +703,22 @@ msgstr ""
 msgid "Times are in the house's time zone."
 msgstr ""
 
+msgid "Today"
+msgstr ""
+
+msgid "Tomorrow"
+msgstr ""
+
 msgid "Top temperature"
 msgstr ""
 
 msgid "Topic"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Unit"
 msgstr ""
 
 msgid "User"
@@ -689,6 +755,12 @@ msgid "What"
 msgstr ""
 
 msgid "What it belongs to"
+msgstr ""
+
+msgid ""
+"What one more kWh costs is a stack of layers: the spot price, the "
+"supplier's adders, taxes and grid fees, and VAT. Thermaestro adds them "
+"per 15 minutes, and refuses a stack that counts something twice."
 msgstr ""
 
 msgid "What the rights allow"
@@ -840,6 +912,9 @@ msgstr ""
 msgid "everything, including rights added later"
 msgstr ""
 
+msgid "excluded"
+msgstr ""
+
 msgid "failed"
 msgstr ""
 
@@ -862,6 +937,9 @@ msgid "implausible"
 msgstr ""
 
 msgid "in a room"
+msgstr ""
+
+msgid "included"
 msgstr ""
 
 msgid "last heard"

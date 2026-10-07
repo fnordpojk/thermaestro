@@ -18,10 +18,11 @@ from enum import StrEnum
 from typing import Any
 
 from ..cap import Closed, Endpoint, Link, Message, pair, serve
-from ..cap.messages import Described, DeviceEvent, ForeignWrite, Health, Hello
+from ..cap.messages import FEATURES, Described, DeviceEvent, ForeignWrite, Health, Hello
 from ..store import Database, Plugin, SecretStore
 from .audit import AuditLog
 from .plugins import Factory, PluginContext
+from .series import Series
 from .values import Values
 
 log = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ class PluginHost:
         values: Values,
         audit: AuditLog,
         factories: Mapping[str, Factory],
+        series: Series | None = None,
         backoff_s: tuple[float, float] = (1.0, 60.0),
         timeout_s: float = 10.0,
         describe_timeout_s: float = 60.0,
@@ -69,6 +71,7 @@ class PluginHost:
         self._db = db
         self._secrets = secrets
         self.values = values
+        self.series = series
         self._audit = audit
         self._factories = factories
         self._backoff = backoff_s
@@ -125,7 +128,7 @@ class PluginHost:
         link = Link(endpoint, on_event=on_event)
         link.start()
         try:
-            hello = await link.hello(timeout=self._timeout)
+            hello = await link.hello(timeout=self._timeout, features=FEATURES)
             instance = next(
                 (
                     i
@@ -191,7 +194,7 @@ class PluginHost:
         link = Link(core, on_event=lambda m: self._event(instance, m))
         link.start()
         try:
-            instance.hello = await link.hello(timeout=self._timeout)
+            instance.hello = await link.hello(timeout=self._timeout, features=FEATURES)
             await self._session(instance, link)
         except Closed:
             pass
@@ -215,6 +218,21 @@ class PluginHost:
                 "version": instance.hello.plugin_version if instance.hello else None,
             },
         )
+        followed = None
+        if self.series is not None and instance.described.series:
+            followed = asyncio.create_task(
+                self.series.follow(instance.id, link, instance.described.series)
+            )
+        try:
+            await self._points(instance, link)
+        finally:
+            if followed is not None:
+                followed.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Closed):
+                    await followed
+
+    async def _points(self, instance: Instance, link: Link) -> None:
+        assert instance.described is not None  # noqa: S101 - described before this
         points = [p.path for p in instance.described.points]
         if not points:
             await link.done.wait()

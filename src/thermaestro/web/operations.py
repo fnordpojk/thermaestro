@@ -35,10 +35,12 @@ from ..core.audit import AuditLog
 from ..core.host import PluginHost
 from ..core.mqtt import MqttInput
 from ..core.sensors import SITE, SensorHub
+from ..core.series import Series
 from ..core.values import Key, Values, sample
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
 from . import i18n, labels
+from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
 
 HISTORY_MAX_S = 31 * 86_400.0
@@ -64,7 +66,7 @@ class Caller:
 
 
 @dataclass
-class Services(SensorOperations):
+class Services(SensorOperations, PriceOperations):
     accounts: Accounts
     db: Database
     values: Values
@@ -78,6 +80,7 @@ class Services(SensorOperations):
     """The house's time zone, from the location; every time is shown in it."""
     sensors: SensorHub | None = None
     mqtt: MqttInput | None = None
+    series: Series | None = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)

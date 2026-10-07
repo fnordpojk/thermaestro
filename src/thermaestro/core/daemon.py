@@ -21,6 +21,7 @@ from .host import PluginHost
 from .mqtt import MqttInput
 from .plugins import Factory, discover
 from .sensors import SensorHub
+from .series import Series
 from .values import Values
 
 log = logging.getLogger(__name__)
@@ -65,11 +66,13 @@ async def run(
         secrets = SecretStore(layout.secrets)
         audit = AuditLog(layout.audit)
         values = Values(db)
+        series = Series(db)
         host = PluginHost(
             db=db,
             secrets=secrets,
             values=values,
             audit=audit,
+            series=series,
             factories=factories if factories is not None else discover(),
         )
         sensors = SensorHub(db, values)

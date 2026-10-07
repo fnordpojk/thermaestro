@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 02:38+0200\n"
-"PO-Revision-Date: 2026-10-07 02:38+0200\n"
+"POT-Creation-Date: 2026-10-07 03:17+0200\n"
+"PO-Revision-Date: 2026-10-07 03:17+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -75,8 +75,14 @@ msgstr "Absolute Luftfeuchte"
 msgid "Add"
 msgstr "Hinzufügen"
 
+msgid "Add a fixed amount"
+msgstr "Festen Betrag hinzufügen"
+
 msgid "Add a room"
 msgstr "Raum hinzufügen"
+
+msgid "Add a series"
+msgstr "Reihe hinzufügen"
 
 msgid "Add a user"
 msgstr "Benutzer hinzufügen"
@@ -101,6 +107,9 @@ msgstr "Luftstrom"
 
 msgid "Alarm"
 msgstr "Alarm"
+
+msgid "Amount per kWh"
+msgstr "Betrag pro kWh"
 
 msgid "Area"
 msgstr "Bereich"
@@ -150,6 +159,9 @@ msgstr ""
 "Änderungen an Benutzern, Gruppen, Geheimnissen und Plugins erfordern Ihr Passwort "
 "innerhalb der letzten 15 Minuten."
 
+msgid "Charged on"
+msgstr "Erhoben auf"
+
 msgid "Charging temperature"
 msgstr "Ladetemperatur"
 
@@ -195,6 +207,9 @@ msgstr "Steuerport"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopieren Sie es jetzt: Es wird nur dieses eine Mal angezeigt."
+
+msgid "Covers"
+msgstr "Enthält"
 
 msgid "Create and log in"
 msgstr "Anlegen und anmelden"
@@ -317,6 +332,9 @@ msgstr "Erzeugte Wärme"
 msgid "Heating"
 msgstr "Heizt"
 
+msgid "Holds until"
+msgstr "Reicht bis"
+
 msgid "Home Assistant offers nothing Thermaestro can use."
 msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 
@@ -358,6 +376,12 @@ msgstr "Zuletzt verwendet"
 
 msgid "Latitude"
 msgstr "Breitengrad"
+
+msgid "Layer"
+msgstr "Schicht"
+
+msgid "Layers"
+msgstr "Schichten"
 
 msgid "Light"
 msgstr "Licht"
@@ -423,8 +447,19 @@ msgstr "NibeGW (einfach)"
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
 
+msgid "No layers yet."
+msgstr "Noch keine Schichten."
+
 msgid "No plugin instances."
 msgstr "Keine Plugin-Instanzen."
+
+msgid "No plugin offers prices yet; the Tibber and ENTSO-E plugins come next."
+msgstr ""
+"Noch bietet kein Plugin Preise an; die Plugins für Tibber und ENTSO-E kommen als "
+"Nächstes."
+
+msgid "No prices for this day yet."
+msgstr "Noch keine Preise für diesen Tag."
 
 msgid "No rooms yet."
 msgstr "Noch keine Räume."
@@ -482,6 +517,9 @@ msgstr "PM2,5"
 msgid "Password"
 msgstr "Passwort"
 
+msgid "Per 15 minutes"
+msgstr "Je Viertelstunde"
+
 msgid ""
 "Pick what Thermaestro should read. Each picked value becomes a sensor; a room is "
 "suggested from the entity's area where a room has the same name."
@@ -513,8 +551,14 @@ msgstr "Leistung aus dem Netz"
 msgid "Power to the grid"
 msgstr "Leistung ins Netz"
 
+msgid "Prices"
+msgstr "Preise"
+
 msgid "Protocol"
 msgstr "Protokoll"
+
+msgid "Rate in percent"
+msgstr "Satz in Prozent"
 
 msgid "Read port"
 msgstr "Leseport"
@@ -542,6 +586,9 @@ msgstr "Widerrufen"
 
 msgid "Rights"
 msgstr "Rechte"
+
+msgid "Role"
+msgstr "Rolle"
 
 msgid "Room"
 msgstr "Raum"
@@ -577,6 +624,12 @@ msgstr ""
 msgid "Sensors:"
 msgstr "Sensoren:"
 
+msgid "Series"
+msgstr "Reihe"
+
+msgid "Series offered"
+msgstr "Angebotene Reihen"
+
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
 
@@ -594,6 +647,9 @@ msgstr "Seit"
 
 msgid "Someone home"
 msgstr "Jemand zu Hause"
+
+msgid "Source"
+msgstr "Quelle"
 
 msgid "Speed"
 msgstr "Drehzahl"
@@ -678,11 +734,23 @@ msgstr "Zeitzone"
 msgid "Times are in the house's time zone."
 msgstr "Zeiten gelten in der Zeitzone des Hauses."
 
+msgid "Today"
+msgstr "Heute"
+
+msgid "Tomorrow"
+msgstr "Morgen"
+
 msgid "Top temperature"
 msgstr "Temperatur oben"
 
 msgid "Topic"
 msgstr "Topic"
+
+msgid "Total"
+msgstr "Gesamt"
+
+msgid "Unit"
+msgstr "Einheit"
 
 msgid "User"
 msgstr "Benutzer"
@@ -719,6 +787,16 @@ msgstr "Was"
 
 msgid "What it belongs to"
 msgstr "Wozu er gehört"
+
+msgid ""
+"What one more kWh costs is a stack of layers: the spot price, the supplier's adders, "
+"taxes and grid fees, and VAT. Thermaestro adds them per 15 minutes, and refuses a "
+"stack that counts something twice."
+msgstr ""
+"Was eine weitere kWh kostet, ist ein Stapel aus Schichten: der Spotpreis, die "
+"Aufschläge des Lieferanten, Steuern und Netzentgelte, und die Mehrwertsteuer. "
+"Thermaestro addiert sie je Viertelstunde und lehnt einen Stapel ab, der etwas doppelt"
+" zählt."
 
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
@@ -874,6 +952,9 @@ msgstr "eingegeben; leer lassen, um ihn zu behalten"
 msgid "everything, including rights added later"
 msgstr "alles, auch später hinzugefügte Rechte"
 
+msgid "excluded"
+msgstr "nicht enthalten"
+
 msgid "failed"
 msgstr "fehlgeschlagen"
 
@@ -897,6 +978,9 @@ msgstr "unplausibel"
 
 msgid "in a room"
 msgstr "in einem Raum"
+
+msgid "included"
+msgstr "enthalten"
 
 msgid "last heard"
 msgstr "zuletzt gehört"

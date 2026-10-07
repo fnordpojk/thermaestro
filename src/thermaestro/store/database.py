@@ -119,6 +119,24 @@ MIGRATIONS: tuple[str, ...] = (
     ALTER TABLE users ADD COLUMN preferences TEXT NOT NULL DEFAULT '{}'
         CHECK (json_valid(preferences));
     """,
+    # 5: series: prices, rules and forecasts, interval by interval, the latest revision
+    """
+    CREATE TABLE intervals (
+        instance TEXT NOT NULL,
+        series TEXT NOT NULL,
+        start REAL NOT NULL,
+        end REAL NOT NULL,
+        value REAL NOT NULL,
+        unit TEXT NOT NULL,
+        vat TEXT NOT NULL,
+        status TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        published REAL,
+        source TEXT,
+        why TEXT,
+        PRIMARY KEY (instance, series, start)
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 
