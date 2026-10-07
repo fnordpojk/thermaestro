@@ -794,3 +794,12 @@ async def test_a_point_page_shows_its_description(site: Site) -> None:
     async with admin(site) as client:
         page = (await client.get("/points/pump/hp1/outdoor.temp")).text
     assert '<p class="description">Current outdoor temperature</p>' in page
+
+
+def test_values_are_shown_in_sentence_case() -> None:
+    from thermaestro.web import labels
+
+    assert labels.value("idle") == "Idle"  # a standard value
+    assert labels.value("Auto") == "Auto"  # the pump's own
+    assert labels.value("on") == "On"
+    assert labels.value("hot water") == "Hot water"

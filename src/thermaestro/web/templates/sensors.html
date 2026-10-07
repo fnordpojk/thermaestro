@@ -19,9 +19,9 @@
     {% set quality = _(r.quality) ~ (": " ~ r.why if r.why else "") %}
     <td class="num value quality-{{ quality_color(r.quality) }}" title="{{ quality }}">
       {%- if r.value is none -%}–
-      {%- elif r.value is sameas true or r.value is sameas false -%}{{ _("on") if r.value else _("off") }}
+      {%- elif r.value is sameas true or r.value is sameas false -%}{{ ("on" if r.value else "off") | value_label }}
       {%- elif r.value is number -%}{{ r.value | num(r.digits) }}
-      {%- else -%}{{ r.value }}{%- endif -%}
+      {%- else -%}{{ r.value | value_label }}{%- endif -%}
       <span class="hidden"> ({{ quality }})</span></td>
     {% else %}
     <td class="num value quality-grey" title="{{ _('no value yet') }}">–</td>

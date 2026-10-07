@@ -59,6 +59,8 @@ VALUES = {
     "stopping": mark("stopping"),
     "on": mark("on"),
     "off": mark("off"),
+    "yes": mark("yes"),
+    "no": mark("no"),
 }
 
 NODES = {
@@ -108,7 +110,10 @@ def node(kind: str | None, path: str, label: str | None) -> str | None:
 
 
 def value(text: str) -> str:
-    return i18n._(VALUES[text]) if text in VALUES else text
+    """A value as shown: translated where it is a standard one, and in sentence case
+    whatever its source, so "idle" and the pump's own "Auto" look alike."""
+    shown = i18n._(VALUES[text]) if text in VALUES else text
+    return shown[:1].upper() + shown[1:]
 
 
 QUANTITIES = {
