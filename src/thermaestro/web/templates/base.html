@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang }}">
+<html lang="{{ lang }}" data-theme="{{ theme }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +26,7 @@
     <a href="/system"{% if path.startswith("/system") or path in ("/users", "/audit") %} aria-current="page"{% endif %}>{{ _("System") }}</a>
     {% endif %}
   </nav>
+  {% include "theme-switch.html" %}
   <div class="me">
     <a href="/account">{{ who.principal.user.name }}</a>
     <form method="post" action="/logout">
@@ -39,6 +40,7 @@
     <li>{% if code == lang %}<strong>{{ name }}</strong>{% else %}<a href="/lang/{{ code }}?next={{ path | urlencode }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}</li>
   {% endfor %}
   </ul>
+  {% include "theme-switch.html" %}
   {% endif %}
 </header>
 <main>

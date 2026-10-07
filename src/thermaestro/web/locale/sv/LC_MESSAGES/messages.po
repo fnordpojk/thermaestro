@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 23:22+0200\n"
-"PO-Revision-Date: 2026-10-07 23:22+0200\n"
+"POT-Creation-Date: 2026-10-07 23:53+0200\n"
+"PO-Revision-Date: 2026-10-07 23:53+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -271,6 +271,15 @@ msgstr "Klocka"
 
 msgid "Cloud cover"
 msgstr "Molnighet"
+
+msgid "Colors: as the device"
+msgstr "Färger: som enheten"
+
+msgid "Colors: dark"
+msgstr "Färger: mörka"
+
+msgid "Colors: light"
+msgstr "Färger: ljusa"
 
 msgid "Compressor"
 msgstr "Kompressor"

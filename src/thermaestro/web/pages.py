@@ -86,6 +86,7 @@ def render(
             "lang": i18n.current.get(),
             "languages": i18n.NAMES,
             "path": request.url.path,
+            "theme": _theme(request),
             "can": (lambda right: who is not None and who.principal.allows(right)),
             "error": None,
             "notice": None,
@@ -104,6 +105,15 @@ def render(
         )
     response.headers["cache-control"] = "no-store"
     return response
+
+
+THEMES = ("auto", "light", "dark")
+"""As the device is set, or always light, or always dark; remembered per browser."""
+
+
+def _theme(request: Request) -> str:
+    chosen = request.cookies.get("theme", "auto")
+    return chosen if chosen in THEMES else "auto"
 
 
 def back(path: str) -> RedirectResponse:
@@ -209,6 +219,15 @@ async def confirm(request: Request, who: Logged, password: Text, next: Text = "/
                 error=_message(e),
             )
     return back(local_path(next))
+
+
+@router.get("/theme/{mode}")
+async def theme(mode: str, next: str = "/") -> Response:
+    """Remembers light, dark or the device's own in this browser."""
+    response = back(local_path(next))
+    if mode in THEMES:
+        response.set_cookie("theme", mode, max_age=400 * 86_400, path="/", samesite="lax")
+    return response
 
 
 @router.get("/lang/{code}")

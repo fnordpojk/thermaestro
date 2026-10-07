@@ -149,7 +149,15 @@ async def test_everything_else_needs_a_login(site: Site) -> None:
         checked = 0
         for route in routes(site.app):
             path = re.sub(r"\{[^}]+\}", "x", route.path)
-            if path in ("/login", "/setup", "/health", "/lang/x", "/api/v1/login", "/api/v1/setup"):
+            if path in (
+                "/login",
+                "/setup",
+                "/health",
+                "/lang/x",
+                "/theme/x",
+                "/api/v1/login",
+                "/api/v1/setup",
+            ):
                 continue
             for method in route.methods or ():
                 answer = await client.request(method, path)
@@ -526,6 +534,27 @@ PAGES = [
 ]
 
 
+async def test_the_colors_are_chosen_per_browser(site: Site) -> None:
+    """As the device by default; light or dark once chosen, set on the page itself so it
+    never shows in the other colors first, before login too."""
+    async with admin(site) as client:
+        page = (await client.get("/")).text
+        assert '<html lang="en" data-theme="auto">' in page
+        assert 'href="/theme/light?next=/"' in page
+        chosen = await client.get("/theme/dark", params={"next": "/prices"})
+        assert (chosen.status_code, chosen.headers["location"]) == (303, "/prices")
+        page = (await client.get("/prices")).text
+        assert 'data-theme="dark"' in page
+        assert 'href="/theme/auto?next=/prices"' in page
+        away = await client.get("/theme/light", params={"next": "https://example.com/"})
+        assert away.headers["location"] == "/"
+    async with site.client() as anonymous:
+        anonymous.cookies.set("theme", "light")
+        login = (await anonymous.get("/login")).text
+    assert 'data-theme="light"' in login
+    assert 'class="theme-switch"' in login
+
+
 async def test_old_pages_lead_to_their_new_places(site: Site) -> None:
     async with admin(site) as client:
         for old, new in (
@@ -589,7 +618,7 @@ async def test_numbers_follow_the_language(site: Site) -> None:
         chosen = await client.get("/lang/de?next=/status/values", follow_redirects=True)
     assert "4,5 \N{DEGREE SIGN}C" in swedish.text
     assert "4,5 \N{DEGREE SIGN}C" in chosen.text
-    assert '<html lang="de">' in (await _page(site, "/login", lang="de"))
+    assert '<html lang="de"' in (await _page(site, "/login", lang="de"))
 
 
 async def _page(site: Site, path: str, lang: str) -> str:

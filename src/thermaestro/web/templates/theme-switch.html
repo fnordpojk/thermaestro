@@ -1,0 +1,6 @@
+{# Colors: as the device is set, light, or dark; each click the next, remembered in this browser. #}
+{% set names = {"auto": _("Colors: as the device"), "light": _("Colors: light"), "dark": _("Colors: dark")} %}
+{% set next_theme = {"auto": "light", "light": "dark", "dark": "auto"}[theme] %}
+<a class="theme-switch" href="/theme/{{ next_theme }}?next={{ path | urlencode }}" title="{{ names[theme] }}" aria-label="{{ names[theme] }}">
+  {%- if theme == "light" %}&#9728;{% elif theme == "dark" %}&#9790;{% else %}&#9680;{% endif -%}
+</a>
