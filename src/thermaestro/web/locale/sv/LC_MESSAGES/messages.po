@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 23:00+0200\n"
-"PO-Revision-Date: 2026-10-07 23:00+0200\n"
+"POT-Creation-Date: 2026-10-07 23:13+0200\n"
+"PO-Revision-Date: 2026-10-07 23:13+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -236,6 +236,9 @@ msgstr "Tas ut på"
 msgid "Charging temperature"
 msgstr "Laddningstemperatur"
 
+msgid "Chart"
+msgstr "Diagram"
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr "Kontrollerat mot %(series)s: samma i alla %(n)s kvartar."
@@ -384,6 +387,9 @@ msgstr "Använd el"
 msgid "Energy"
 msgstr "Energi"
 
+msgid "Energy tax"
+msgstr "Energiskatt"
+
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, and "
 "`thermaestro setup-code` prints it. It works once, for 60 minutes."
@@ -461,6 +467,12 @@ msgstr "Hämta det från Open-Meteos arkiv"
 
 msgid "Given"
 msgstr "Ges"
+
+msgid "Grid fee"
+msgstr "Nätavgift"
+
+msgid "Grid fee by time of day"
+msgstr "Nätavgift efter tid på dygnet"
 
 msgid "Group"
 msgstr "Grupp"
@@ -554,6 +566,9 @@ msgstr "Lager"
 
 msgid "Layers"
 msgstr "Lager"
+
+msgid "Levy"
+msgstr "Avgift"
 
 msgid "License"
 msgstr "Licens"
@@ -943,6 +958,9 @@ msgstr "Källa"
 msgid "Speed"
 msgstr "Hastighet"
 
+msgid "Spot price"
+msgstr "Spotpris"
+
 msgid "Stale after (minutes)"
 msgstr "Inaktuell efter (minuter)"
 
@@ -958,8 +976,14 @@ msgstr "Tillstånd:"
 msgid "Steps"
 msgstr "Steg"
 
+msgid "Subsidy"
+msgstr "Stöd"
+
 msgid "Sunlight"
 msgstr "Solljus"
+
+msgid "Supplier"
+msgstr "Elhandlare"
 
 msgid "Supply temperature"
 msgstr "Framledningstemperatur"
@@ -973,6 +997,9 @@ msgstr ""
 
 msgid "System"
 msgstr "System"
+
+msgid "Table"
+msgstr "Tabell"
 
 msgid "Temperature"
 msgstr "Temperatur"
@@ -1102,6 +1129,9 @@ msgstr "Användarnamn"
 msgid "Users"
 msgstr "Användare"
 
+msgid "VAT"
+msgstr "Moms"
+
 msgid "VOC (ppb)"
 msgstr "VOC (ppb)"
 
@@ -1113,6 +1143,9 @@ msgstr "Värde"
 
 msgid "Ventilation"
 msgstr "Ventilation"
+
+msgid "View"
+msgstr "Visning"
 
 msgid "Water"
 msgstr "Vatten"

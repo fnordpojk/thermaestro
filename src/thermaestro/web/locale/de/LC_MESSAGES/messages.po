@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 23:00+0200\n"
-"PO-Revision-Date: 2026-10-07 23:00+0200\n"
+"POT-Creation-Date: 2026-10-07 23:13+0200\n"
+"PO-Revision-Date: 2026-10-07 23:13+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -240,6 +240,9 @@ msgstr "Erhoben auf"
 msgid "Charging temperature"
 msgstr "Ladetemperatur"
 
+msgid "Chart"
+msgstr "Diagramm"
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr "Geprüft gegen %(series)s: gleich in allen %(n)s Viertelstunden."
@@ -389,6 +392,9 @@ msgstr "Verbrauchter Strom"
 msgid "Energy"
 msgstr "Energie"
 
+msgid "Energy tax"
+msgstr "Stromsteuer"
+
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, and "
 "`thermaestro setup-code` prints it. It works once, for 60 minutes."
@@ -469,6 +475,12 @@ msgstr "Aus dem Archiv von Open-Meteo holen"
 
 msgid "Given"
 msgstr "Geliefert"
+
+msgid "Grid fee"
+msgstr "Netzentgelt"
+
+msgid "Grid fee by time of day"
+msgstr "Netzentgelt nach Tageszeit"
 
 msgid "Group"
 msgstr "Gruppe"
@@ -562,6 +574,9 @@ msgstr "Schicht"
 
 msgid "Layers"
 msgstr "Schichten"
+
+msgid "Levy"
+msgstr "Umlage"
 
 msgid "License"
 msgstr "Lizenz"
@@ -953,6 +968,9 @@ msgstr "Quelle"
 msgid "Speed"
 msgstr "Drehzahl"
 
+msgid "Spot price"
+msgstr "Spotpreis"
+
 msgid "Stale after (minutes)"
 msgstr "Veraltet nach (Minuten)"
 
@@ -968,8 +986,14 @@ msgstr "Zustand:"
 msgid "Steps"
 msgstr "Schritte"
 
+msgid "Subsidy"
+msgstr "Förderung"
+
 msgid "Sunlight"
 msgstr "Sonnenlicht"
+
+msgid "Supplier"
+msgstr "Stromanbieter"
 
 msgid "Supply temperature"
 msgstr "Vorlauftemperatur"
@@ -983,6 +1007,9 @@ msgstr ""
 
 msgid "System"
 msgstr "System"
+
+msgid "Table"
+msgstr "Tabelle"
 
 msgid "Temperature"
 msgstr "Temperatur"
@@ -1115,6 +1142,9 @@ msgstr "Benutzername"
 msgid "Users"
 msgstr "Benutzer"
 
+msgid "VAT"
+msgstr "MwSt."
+
 msgid "VOC (ppb)"
 msgstr "VOC (ppb)"
 
@@ -1126,6 +1156,9 @@ msgstr "Wert"
 
 msgid "Ventilation"
 msgstr "Lüftung"
+
+msgid "View"
+msgstr "Ansicht"
 
 msgid "Water"
 msgstr "Wasser"

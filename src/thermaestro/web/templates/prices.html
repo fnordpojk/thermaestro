@@ -3,12 +3,26 @@
 {% block main %}
 <h1>{{ _("Prices") }} {% if can("settings.read") %}<small><a href="/setup/prices">{{ _("Setup") }}</a></small>{% endif %}</h1>
 
+{# What's wrong, and what was checked, shows in both views. #}
+{% for day, stack in days %}
+{% set first_day = loop.first %}
+{% for problem in stack.problems if first_day %}<p class="error">{{ problem }}</p>{% endfor %}
+{% for warning in stack.warnings if first_day %}<p class="hint">{{ warning }}</p>{% endfor %}
+{% for c in stack.checks if not c.differing %}<p class="hint">{{ _("Today") if first_day else _("Tomorrow") }}: {{ _("Checked against %(series)s: the same in all %(n)s quarters.", series=c.series, n=c.compared) }}</p>{% endfor %}
+{% endfor %}
+
+<nav class="ranges view-switch" data-switch="prices" hidden aria-label="{{ _('View') }}">
+  <button type="button" data-view="chart" aria-pressed="true">{{ _("Chart") }}</button>
+  <button type="button" data-view="table" aria-pressed="false">{{ _("Table") }}</button>
+</nav>
+<div id="price-chart" class="price-chart" data-view-of="prices" data-show="chart" hidden
+     data-source="/api/v1/prices" data-chart='{{ chart | tojson }}' data-decimal="{{ decimal }}" data-locale="{{ formats.tag }}"
+     data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}"></div>
+
+<div data-view-of="prices" data-show="table">
 {% for day, stack in days %}
 <section>
 <h2>{{ _("Today") if loop.first else _("Tomorrow") }} <small>{{ day.isoformat() }}</small></h2>
-{% for problem in stack.problems %}<p class="error">{{ problem }}</p>{% endfor %}
-{% for warning in stack.warnings %}<p class="hint">{{ warning }}</p>{% endfor %}
-{% for c in stack.checks if not c.differing %}<p class="hint">{{ _("Checked against %(series)s: the same in all %(n)s quarters.", series=c.series, n=c.compared) }}</p>{% endfor %}
 {% if stack.slots and stack.slots | selectattr("total") | list %}
 <details{% if loop.first %} open{% endif %}>
   <summary>{{ _("Per 15 minutes") }} ({{ stack.unit }})</summary>
@@ -32,6 +46,7 @@
 {% endif %}
 </section>
 {% endfor %}
+</div>
 
 <section>
 <h2>{{ _("Series offered") }}</h2>

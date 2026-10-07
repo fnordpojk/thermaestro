@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 23:00+0200\n"
+"POT-Creation-Date: 2026-10-07 23:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -224,6 +224,9 @@ msgstr ""
 msgid "Charging temperature"
 msgstr ""
 
+msgid "Chart"
+msgstr ""
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr ""
@@ -365,6 +368,9 @@ msgstr ""
 msgid "Energy"
 msgstr ""
 
+msgid "Energy tax"
+msgstr ""
+
 msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, "
 "and `thermaestro setup-code` prints it. It works once, for 60 minutes."
@@ -436,6 +442,12 @@ msgid "Get it from Open-Meteo's archive"
 msgstr ""
 
 msgid "Given"
+msgstr ""
+
+msgid "Grid fee"
+msgstr ""
+
+msgid "Grid fee by time of day"
 msgstr ""
 
 msgid "Group"
@@ -529,6 +541,9 @@ msgid "Layer"
 msgstr ""
 
 msgid "Layers"
+msgstr ""
+
+msgid "Levy"
 msgstr ""
 
 msgid "License"
@@ -909,6 +924,9 @@ msgstr ""
 msgid "Speed"
 msgstr ""
 
+msgid "Spot price"
+msgstr ""
+
 msgid "Stale after (minutes)"
 msgstr ""
 
@@ -924,7 +942,13 @@ msgstr ""
 msgid "Steps"
 msgstr ""
 
+msgid "Subsidy"
+msgstr ""
+
 msgid "Sunlight"
+msgstr ""
+
+msgid "Supplier"
 msgstr ""
 
 msgid "Supply temperature"
@@ -936,6 +960,9 @@ msgid ""
 msgstr ""
 
 msgid "System"
+msgstr ""
+
+msgid "Table"
 msgstr ""
 
 msgid "Temperature"
@@ -1051,6 +1078,9 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
+msgid "VAT"
+msgstr ""
+
 msgid "VOC (ppb)"
 msgstr ""
 
@@ -1061,6 +1091,9 @@ msgid "Value"
 msgstr ""
 
 msgid "Ventilation"
+msgstr ""
+
+msgid "View"
 msgstr ""
 
 msgid "Water"

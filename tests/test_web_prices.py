@@ -1,5 +1,8 @@
 """The prices page and API: layers, VAT, the stack per day, and the series offered."""
 
+import html
+import json
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -125,6 +128,39 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
         tomorrow = (datetime.now(STOCKHOLM) + timedelta(days=1)).date().isoformat()
         empty = (await client.get("/api/v1/prices", params={"day": tomorrow})).json()
         assert all(slot["total"] is None for slot in empty["slots"])
+
+
+async def test_the_price_chart_and_its_table(site: Site) -> None:
+    """The chart takes its days from the API and names each layer by its role; the table
+    stays in the page for when the chart is switched off, or there's no script."""
+    async with logged_in(site) as client:
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
+        )
+        await form(
+            client,
+            "/setup/prices",
+            "/prices/layers",
+            source="fixed",
+            role="tax.energy",
+            value="0.360",
+            unit="SEK/kWh",
+            vat="excl",
+        )
+        page = (await client.get("/prices")).text
+    chart = re.search(r"data-chart='([^']+)'", page)
+    assert chart
+    config = json.loads(html.unescape(chart.group(1)))
+    assert config["names"] == {
+        "energy-spot": "Spot price \N{MIDDLE DOT} tibber",
+        "tax-energy": "Energy tax",
+        "vat": "VAT",
+    }
+    today = datetime.now(STOCKHOLM).date()
+    assert config["days"] == [today.isoformat(), (today + timedelta(days=1)).isoformat()]
+    assert 'data-source="/api/v1/prices"' in page
+    assert 'data-view-of="prices" data-show="table"' in page
+    assert "Per 15 minutes" in page
 
 
 async def test_a_double_count_is_shown_not_summed(site: Site) -> None:

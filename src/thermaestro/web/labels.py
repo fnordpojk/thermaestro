@@ -226,6 +226,23 @@ def duration(code: str | None) -> str:
     return " ".join(parts)
 
 
+ROLES = {
+    "energy.spot": mark("Spot price"),
+    "energy.supplier": mark("Supplier"),
+    "tax.energy": mark("Energy tax"),
+    "grid.transfer": mark("Grid fee"),
+    "grid.tou": mark("Grid fee by time of day"),
+    "levy": mark("Levy"),
+    "subsidy": mark("Subsidy"),
+    "vat": mark("VAT"),
+}
+"""A price layer's role, in words, for the price chart's legend."""
+
+
+def role(name: str) -> str:
+    return i18n._(ROLES[name]) if name in ROLES else name
+
+
 OWN_DEVICES = {
     "unknown": mark("not said yet"),
     "none": mark("nothing of its own"),
