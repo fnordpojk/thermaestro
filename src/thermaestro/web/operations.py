@@ -8,6 +8,7 @@ entering the password, so it needs no step-up of its own.
 """
 
 import json
+import math
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, date, tzinfo
@@ -104,6 +105,9 @@ class Services(SensorOperations):
                         "path": point.path,
                         "label": self._label(id, described, point.path),
                         "unit": point.unit,
+                        "digits": digits(
+                            point.resolution.value, envelope.value if envelope else None
+                        ),
                         "value": None if envelope is None else envelope.value,
                         "quality": "unknown" if envelope is None else envelope.quality,
                         "why": None if envelope is None else envelope.why,
@@ -128,6 +132,14 @@ class Services(SensorOperations):
         caller.principal.require("points.read")
         found = self.host.instances.get(instance) if self.host else None
         return self._label(instance, found.described if found else None, path)
+
+    def point_digits(self, instance: str, path: str) -> int:
+        """The decimals a point's values are shown with, for its chart."""
+        found = self.host.instances.get(instance) if self.host else None
+        described = found.described if found else None
+        point = next((p for p in described.points if p.path == path), None) if described else None
+        latest = self.values.latest.get(Key(instance, path))
+        return digits(point.resolution.value if point else None, latest.value if latest else None)
 
     def built_in_label(self, instance: str, path: str) -> str:
         found = self.host.instances.get(instance) if self.host else None
@@ -200,6 +212,7 @@ class Services(SensorOperations):
                     "path": key.point,
                     "label": labels.quantity(quantity),
                     "unit": envelope.unit,
+                    "digits": digits(None, envelope.value),
                     "value": envelope.value,
                     "quality": envelope.quality,
                     "why": envelope.why,
@@ -218,6 +231,7 @@ class Services(SensorOperations):
             if reading is not None:
                 out[id] = {
                     "value": reading.value,
+                    "digits": digits(None, reading.value),
                     "quality": reading.quality,
                     "why": reading.why,
                     "t": reading.t,
@@ -412,6 +426,17 @@ class Services(SensorOperations):
         caller.principal.require("audit.read")
         limit = max(1, min(limit, 2000))
         return _tail(self.audit.path, limit)
+
+
+def digits(resolution: float | None, value: object) -> int:
+    """How many decimals a value is shown with: as many as its point's resolution has
+    (1 for whole numbers, 0.1 for tenths), else none for a whole number and one for
+    anything else."""
+    if resolution is not None and resolution > 0:
+        return 0 if resolution >= 1 else min(3, max(0, round(-math.log10(resolution))))
+    if isinstance(value, int) or (isinstance(value, float) and value.is_integer()):
+        return 0
+    return 1
 
 
 def _label(described: Described | None, path: str) -> str:

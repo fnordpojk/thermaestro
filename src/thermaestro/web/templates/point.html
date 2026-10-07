@@ -11,7 +11,7 @@
   <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>
   <button type="button" data-hours="168">{{ _("7 days") }}</button>
 </nav>
-<div id="chart" data-source="{{ source }}" data-decimal="{{ decimal }}" data-locale="{{ formats.tag }}"
+<div id="chart" data-source="{{ source }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
      data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
      data-empty="{{ _('No values in this period.') }}" data-failed="{{ _('The values could not be loaded.') }}"></div>
 <p class="hint">{{ _("Only values of good quality are drawn; gaps are times the value wasn't valid.") }}</p>

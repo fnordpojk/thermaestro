@@ -530,6 +530,7 @@ async def test_status_shows_values_with_their_quality(site: Site) -> None:
         status = (await client.get("/api/v1/status")).json()
     assert "4.5 \N{DEGREE SIGN}C" in page
     assert 'title="not_connected: sensor not connected"' in page  # the why, on the value
+    assert re.search(r">\s*30\s*<span", page)  # a whole number, not 30.0 (x.fake.prio)
     assert "Outdoor temperature" in page  # names for people
     assert "Climate system 1 \N{MIDDLE DOT} Supply temperature" in page
     assert 'title="hp1/cs1/supply.temp"' in page  # the path, for whoever needs it

@@ -28,6 +28,7 @@
     return;
   }
   const decimal = chart.dataset.decimal || ".";
+  const digits = Number(chart.dataset.digits || 1);
   let plot = null;
 
   // Numbers as the page's language writes them (the server passes its decimal sign,
@@ -36,7 +37,7 @@
     if (value === null || value === undefined) {
       return "–";
     }
-    const text = (Math.round(value * 10) / 10).toFixed(1);
+    const text = value.toFixed(digits);
     return text.replace(".", decimal);
   }
 

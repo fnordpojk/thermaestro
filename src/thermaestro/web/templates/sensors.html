@@ -20,7 +20,7 @@
     <td class="num value quality-{{ quality_color(r.quality) }}" title="{{ quality }}">
       {%- if r.value is none -%}–
       {%- elif r.value is sameas true or r.value is sameas false -%}{{ _("on") if r.value else _("off") }}
-      {%- elif r.value is number -%}{{ r.value | num }}
+      {%- elif r.value is number -%}{{ r.value | num(r.digits) }}
       {%- else -%}{{ r.value }}{%- endif -%}
       <span class="hidden"> ({{ quality }})</span></td>
     {% else %}

@@ -3,7 +3,7 @@
 <td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
   {%- if p.value is none -%}–
   {%- elif p.value is sameas true or p.value is sameas false -%}{{ _("yes") if p.value else _("no") }}
-  {%- elif p.value is number -%}{{ p.value | num }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
+  {%- elif p.value is number -%}{{ p.value | num(p.digits) }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
   {%- else -%}{{ p.value }}{%- endif -%}
   <span class="hidden"> ({{ quality }})</span>
 </td>
