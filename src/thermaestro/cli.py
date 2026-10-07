@@ -9,7 +9,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +54,24 @@ def main(argv: list[str] | None = None) -> int:
         help="what Thermaestro reads, through its API; an API token in THERMAESTRO_TOKEN",
     )
     status.add_argument("--url", default="http://127.0.0.1:8080", help="the web UI's address")
+    probe = commands.add_parser(
+        "probe",
+        help="read a Nibe pump through its gateway, writing nothing to it; makes a report"
+        " and a bus capture to send with a new model or a bug",
+    )
+    probe.add_argument("host", help="the gateway's address")
+    probe.add_argument("--protocol", choices=["nibegw", "thermaestro-gw"], default="nibegw")
+    probe.add_argument(
+        "--key-file", type=Path, help="Thermaestro gateway protocol: a file with its 64-digit key"
+    )
+    probe.add_argument("--read-port", type=int, default=9999)
+    probe.add_argument("--control-port", type=int, default=10090)
+    probe.add_argument(
+        "--local-port", type=int, default=0, help="where to listen for the gateway; 0 picks one"
+    )
+    probe.add_argument("--model", help="the model, if the pump's own name isn't recognized")
+    probe.add_argument("--minutes", type=float, default=5.0, help="how long to capture the bus")
+    probe.add_argument("--out", type=Path, default=Path(), help="the directory to write to")
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
         return _logset(args.model, args.output)
@@ -63,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(
         level=args.log_level, format="%(levelname)s %(name)s: %(message)s", stream=sys.stderr
     )
+    if args.command == "probe":
+        return _probe(args)
     layout = Layout.from_environment()
     try:
         layout = load_startup(layout.startup).layout(layout)
@@ -91,6 +111,70 @@ def _logset(model_name: str, output: Path) -> int:
     registers = [r for r in profile.LOG_SET if r in model]
     output.write_bytes(logset.render(model, registers, day=date.today()))
     sys.stdout.write(f"wrote {output}: {len(registers)} registers\n")
+    return 0
+
+
+def _probe(args: argparse.Namespace) -> int:
+    from .nibe.probe import PSK_NAME, ProbeFailed, probe
+    from .store import NibeGateway
+
+    psk = None
+    if args.key_file is not None:
+        try:
+            psk = bytes.fromhex(args.key_file.read_text().strip())
+        except (OSError, ValueError) as e:
+            sys.stderr.write(f"the key file can't be read as 64 hex digits: {e}\n")
+            return 2
+        if len(psk) != 32:
+            sys.stderr.write("the key is 64 hex digits\n")
+            return 2
+    if args.protocol == "thermaestro-gw" and psk is None:
+        sys.stderr.write("the Thermaestro gateway protocol needs --key-file\n")
+        return 2
+    gateway = NibeGateway(
+        host=args.host,
+        protocol=args.protocol,
+        read_port=args.read_port,
+        control_port=args.control_port,
+        local_port=args.local_port,
+        psk=PSK_NAME if psk is not None else None,
+        model=args.model,
+    )
+
+    def say(text: str) -> None:
+        sys.stdout.write(f"{text}\n")
+        sys.stdout.flush()
+
+    try:
+        result = asyncio.run(probe(gateway, psk=psk, seconds=args.minutes * 60, progress=say))
+    except ProbeFailed as e:
+        sys.stderr.write(f"{e}\n")
+        return 2
+    except OSError as e:
+        sys.stderr.write(f"the gateway can't be reached: {e.strerror or e}\n")
+        return 2
+    report = result.report
+    pump = report["pump"]
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
+    args.out.mkdir(parents=True, exist_ok=True)
+    report_path = args.out / f"probe-{pump['model']}-{stamp}.json"
+    capture_path = args.out / f"probe-{pump['model']}-{stamp}-capture.jsonl"
+    report_path.write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
+    header = {"made": report["made"], **pump, "protocol": report["transport"]["protocol"]}
+    capture_path.write_text(result.capture.text(header))
+    points = report["points"]
+    good = sum(1 for p in points if p["quality"] == "good")
+    say("Nothing was written to the pump.")
+    say(
+        f"{good} of {len(points)} points read with a good value;"
+        f" {len(report['missing'])} of Thermaestro's points aren't in this model's map;"
+        f" {len(report['levers'])} levers offered, {len(report['levers_missing'])} not."
+    )
+    say(f"Wrote {report_path} and {capture_path}.")
+    say(
+        "The capture holds everything on the bus, other devices' traffic too."
+        " Look through both files before sending them."
+    )
     return 0
 
 

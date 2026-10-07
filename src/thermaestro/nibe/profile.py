@@ -5,7 +5,7 @@ The profile names registers; the model's register map says whether the model has
 and how to decode them. A point whose register the model lacks isn't described.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..cap.model import (
@@ -251,9 +251,9 @@ class Layout:
     points: dict[str, PointDef] = field(default_factory=dict)
 
 
-def layout(model: ModelMap, systems: list[int]) -> Layout:
-    """The nodes and points a model has, with climate systems `systems` (1 always)."""
-    out = Layout(systems=sorted(set(systems) | {1}))
+def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
+    """Thermaestro's points, by node (None for the unit) and node kind, with climate
+    systems `systems`; which of them a pump has depends on its model's map."""
     groups: list[tuple[str | None, str, tuple[PointDef, ...]]] = [
         (None, "unit", UNIT_POINTS),
         ("dhw", "dhw_tank", DHW_POINTS),
@@ -261,11 +261,17 @@ def layout(model: ModelMap, systems: list[int]) -> Layout:
         ("brine", "brine_circuit", BRINE_POINTS),
         ("addition", "addition", ADDITION_POINTS),
     ]
-    for number in out.systems:
+    for number in sorted(set(systems)):
         system = SYSTEMS[number - 1]
         system_defs = system_points(system) + (list(CS1_POINTS) if number == 1 else [])
         groups.append((f"cs{number}", "climate_system", tuple(system_defs)))
-    for node, kind, defs in groups:
+    return groups
+
+
+def layout(model: ModelMap, systems: list[int]) -> Layout:
+    """The nodes and points a model has, with climate systems `systems` (1 always)."""
+    out = Layout(systems=sorted(set(systems) | {1}))
+    for node, kind, defs in definitions(out.systems):
         present = [p for p in defs if p.register in model]
         if not present:
             continue
@@ -283,6 +289,10 @@ def detectable(model: ModelMap) -> list[System]:
 
 def unit(register_unit: str) -> str | None:
     return UNITS.get(register_unit, register_unit) or None
+
+
+LEVERS = ("cs1/heating.offset", "dhw/mode", "dhw/block", "dhw/boost_once", "alarm.reset")
+"""Every lever `levers` can offer, below the unit, where a model's map has its registers."""
 
 
 def levers(model: ModelMap, points: Mapping[str, PointDef]) -> list[Lever]:

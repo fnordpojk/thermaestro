@@ -32,12 +32,12 @@ import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from importlib import metadata
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
 import aiomqtt
 
+from .. import version
 from ..cap.model import Envelope, Node, Point
 from ..cap.vocabulary import STATES, bare
 from ..store import Database, Discovery, Location, PriceLayer, Vat
@@ -338,13 +338,6 @@ def digits_of(point: Point | None) -> int | None:
     if resolution is None or resolution <= 0:
         return None
     return 0 if resolution >= 1 else min(3, max(0, round(-math.log10(resolution))))
-
-
-def version() -> str:
-    try:
-        return metadata.version("thermaestro")
-    except metadata.PackageNotFoundError:
-        return "0.0.0"
 
 
 class Publisher:

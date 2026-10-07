@@ -457,6 +457,14 @@ class NibePlugin:
             return standard.unit
         return profile.unit(self.model.register(definition.register).unit)
 
+    @property
+    def problem(self) -> str | None:
+        """Why the pump couldn't be identified, once that is known."""
+        f = self._identified
+        if not f.done() or f.cancelled() or f.exception() is None:
+            return None
+        return str(f.exception())
+
     # --- describing ------------------------------------------------------------------------
 
     def describe(self, id: int | None = None) -> Described:

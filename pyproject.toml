@@ -98,6 +98,9 @@ select = [
 # A request's timeout becomes its ttl at the gateway and a cancel when it runs out, so
 # a write given up on never reaches the pump; cancelling the call from outside can't.
 "src/thermaestro/nibe/transport/*" = ["ASYNC109"]
+# The probe's read-only transport keeps the transport interface's signature, and waits
+# for the plugin's values the way the tests do, with a deadline.
+"src/thermaestro/nibe/probe.py" = ["ASYNC109", "ASYNC110"]
 # "A byte within this time" is what the simulated pump waits for.
 "gateway/tests/simpump.py" = ["ASYNC109"]
 
