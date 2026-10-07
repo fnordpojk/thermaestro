@@ -9,6 +9,7 @@
 <h2>{{ _("Today") if loop.first else _("Tomorrow") }} <small>{{ day.isoformat() }}</small></h2>
 {% for problem in stack.problems %}<p class="error">{{ problem }}</p>{% endfor %}
 {% for warning in stack.warnings %}<p class="hint">{{ warning }}</p>{% endfor %}
+{% for c in stack.checks if not c.differing %}<p class="hint">{{ _("Checked against %(series)s: the same in all %(n)s quarters.", series=c.series, n=c.compared) }}</p>{% endfor %}
 {% if stack.slots and stack.slots | selectattr("total") | list %}
 <details{% if loop.first %} open{% endif %}>
   <summary>{{ _("Per 15 minutes") }} ({{ stack.unit }})</summary>
@@ -20,11 +21,12 @@
       <tr>
         <td class="when">{{ slot.start.timestamp() | when }}</td>
         <td class="num"><strong>{{ slot.total | num(3) if slot.total is not none else "–" }}</strong></td>
-        {% for part in slot.parts %}<td class="num">{{ part.value | num(3) if part.value is not none else "–" }}</td>{% endfor %}
+        {% for part in slot.parts %}<td class="num"{% if part.fallback %} title="{{ _('from %(series)s', series=part.fallback) }}"{% endif %}>{{ part.value | num(3) if part.value is not none else "–" }}{% if part.fallback %}*{% endif %}</td>{% endfor %}
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  {% if stack.slots | map(attribute="parts") | sum(start=[]) | selectattr("fallback") | list %}<p class="hint">{{ _("* from a fallback series, where the layer's own has no price.") }}</p>{% endif %}
 </details>
 {% elif not stack.problems %}
 <p class="hint">{{ _("No prices for this day yet.") }}</p>
@@ -42,7 +44,20 @@
   <tr>
     <td>{{ id }}</td>
     <td><code>{{ layer.role }}</code></td>
-    <td>{% if layer.source == "series" %}{{ layer.plugin }} · {{ layer.series }}{% else %}{{ layer.value | num(4) }} {{ layer.unit }}{% endif %}</td>
+    <td>{% if layer.source == "series" %}{{ layer.plugin }} · {{ layer.series }}
+      {% set others = offered | selectattr("role", "equalto", layer.role) | selectattr("unit", "equalto", layer.unit) | rejectattr("instance", "equalto", layer.plugin) | list %}
+      {% if others or layer.fallbacks %}
+      <form method="post" action="/prices/layers/{{ id | urlencode }}/fallbacks" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label>{{ _("Fallback") }}
+          <select name="fallbacks">
+            <option value="">{{ _("none") }}</option>
+            {% for o in others %}{% set ref = o.instance ~ ":" ~ o.series %}<option value="{{ ref }}"{% if ref in layer.fallbacks %} selected{% endif %}>{{ o.instance }} · {{ o.series }}</option>{% endfor %}
+          </select></label>
+        <button type="submit">{{ _("Save") }}</button>
+      </form>
+      {% endif %}
+    {% else %}{{ layer.value | num(4) }} {{ layer.unit }}{% endif %}</td>
     <td>{{ _("included") if layer.vat == "incl" else _("excluded") }}</td>
     <td><form method="post" action="/prices/layers/{{ id | urlencode }}/delete">
       <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -112,7 +127,7 @@
   </tbody>
 </table>
 {% else %}
-<p class="hint">{{ _("No plugin offers prices yet; the Tibber and ENTSO-E plugins come next.") }}</p>
+<p class="hint">{{ _("No source offers prices yet. Add Tibber or ENTSO-E in the settings.") }} <a href="/settings#prices">{{ _("Settings") }}</a></p>
 {% endif %}
 </section>
 {% endblock %}

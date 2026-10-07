@@ -47,6 +47,7 @@ def _environment() -> jinja2.Environment:
     env.filters["num"] = i18n.number
     env.filters["when"] = i18n.when
     env.filters["unit"] = i18n.unit
+    env.filters["country"] = i18n.country
     env.filters["value_label"] = labels.value
     env.globals["quality_color"] = labels.quality_color
     env.filters["quantity"] = labels.quantity
@@ -292,9 +293,11 @@ async def _settings(
     location = await s.location(who)
     plugins = await s.plugins(who)
     pumps = {id: p for id, p in plugins.items() if p.plugin == "nibe"}
+    from ..entsoe.zones import ZONES
     from ..nibe.maps import load
 
     models = sorted(load("bus").models)
+    sources = await s.price_sources(who)
     return render(
         request,
         "settings.html",
@@ -308,6 +311,9 @@ async def _settings(
         mqtt=await s.mqtt_settings(who),
         mqtt_state=s.mqtt_state(who),
         connections={id: p for id, p in plugins.items() if p.plugin == "homeassistant"},
+        tibber={id: p for id, p in sources.items() if p["plugin"] == "tibber"},
+        entsoe={id: p for id, p in sources.items() if p["plugin"] == "entsoe"},
+        bidding_zones=ZONES,
         **extra,
     )
 

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from test_core_series import SPOT, TOTAL, quarters
+from test_core_series import OTHER_SPOT, SPOT, TOTAL, quarters
 from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, Clock, Site, csrf_of, form
 
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
@@ -147,3 +147,91 @@ async def test_series_and_their_freshness(site: Site) -> None:
     assert spot["freshness"] in ("fresh", "stale")
     total = next(o for o in offered if o["series"] == "home/price.total")
     assert total["freshness"] == "empty"
+
+
+async def test_price_sources_in_the_settings(site: Site) -> None:
+    async with logged_in(site) as client:
+        page = (await client.get("/settings")).text
+        assert "SE3 \N{EN DASH} Sweden" in page
+        await form(client, "/settings", "/settings/tibber", token="tibber-token-1")
+        await form(client, "/settings", "/settings/entsoe", zone="SE3", token="entsoe-token-1")
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert sources["tibber"]["settings"] == {"token": "tibber.token", "home": None}
+        assert sources["entsoe"]["settings"] == {
+            "token": "entsoe.token",
+            "zone": "SE3",
+            "currency": "SEK",  # the zone's own
+        }
+        secret = await site.services.secrets.get("entsoe.token")
+        assert secret is not None
+        assert secret.get_secret_value() == "entsoe-token-1"
+        # Saved again without a token: the one entered is kept.
+        await form(client, "/settings", "/settings/entsoe", zone="SE4", currency="eur")
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert (
+            sources["entsoe"]["settings"]["zone"],
+            sources["entsoe"]["settings"]["currency"],
+        ) == (
+            "SE4",
+            "EUR",
+        )
+        refused = await client.post(
+            "/settings/entsoe",
+            data={"csrf": csrf_of((await client.get("/settings")).text), "zone": "XX9"},
+        )
+        assert refused.status_code == 400
+        assert "no bidding zone" in refused.text
+        assert "tibber-token-1" not in (await client.get("/settings")).text
+
+
+async def test_a_fallback_and_the_check_against_tibber(site: Site) -> None:
+    series = site.services.series
+    assert series is not None
+    series.describe("entsoe", [OTHER_SPOT])
+    today = datetime.now(STOCKHOLM).replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = (today + timedelta(days=1)).replace(tzinfo=None).replace(tzinfo=STOCKHOLM)
+    n = len(slots(tomorrow.date(), STOCKHOLM))
+    await series.put("entsoe", quarters("spot", tomorrow, n, 0.61))
+    n_today = len(slots(today.date(), STOCKHOLM))
+    await series.put(
+        "tibber", quarters(TOTAL.id, today, n_today, round(1.25 * 0.59016 + 0.1248, 6), vat="incl")
+    )
+    async with logged_in(site) as client:
+        await form(client, "/prices", "/prices/layers", source="series", offered="tibber:se3/spot")
+        await form(
+            client,
+            "/prices",
+            "/prices/layers",
+            source="fixed",
+            role="energy.supplier",
+            value="0.0998",
+            unit="SEK/kWh",
+            vat="excl",
+        )
+        await client.post(
+            "/prices/vat",
+            data={
+                "csrf": csrf_of((await client.get("/prices")).text),
+                "rate": "25",
+                "applies_to": ["energy-spot", "energy-supplier"],
+            },
+        )
+        page = (await client.get("/prices")).text
+        assert 'action="/prices/layers/energy-spot/fallbacks"' in page
+        await form(
+            client, "/prices", "/prices/layers/energy-spot/fallbacks", fallbacks="entsoe:spot"
+        )
+        layers = (await client.get("/api/v1/prices/layers")).json()
+        assert layers["energy-spot"]["fallbacks"] == ["entsoe:spot"]
+        today_stack = (await client.get("/api/v1/prices")).json()
+        [checked] = today_stack["checks"]
+        assert (checked["series"], checked["differing"]) == ("tibber:home/price.total", 0)
+        assert checked["compared"] == n_today
+        page = (await client.get("/prices")).text
+        assert "Checked against tibber:home/price.total" in page
+        later = (
+            await client.get("/api/v1/prices", params={"day": tomorrow.date().isoformat()})
+        ).json()
+        spot = later["slots"][0]["parts"][0]
+        assert (spot["layer"], spot["fallback"]) == ("energy-spot", "entsoe:spot")
+        assert spot["value"] == pytest.approx(1.25 * 0.61)

@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:34+0200\n"
-"PO-Revision-Date: 2026-10-07 03:34+0200\n"
+"POT-Creation-Date: 2026-10-07 03:58+0200\n"
+"PO-Revision-Date: 2026-10-07 03:58+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -14,6 +14,9 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+msgid "* from a fallback series, where the layer's own has no price."
+msgstr "* från en reservserie, där lagrets egen serie saknar pris."
 
 msgid "0 picks a free one"
 msgstr "0 väljer en ledig"
@@ -122,6 +125,9 @@ msgstr "Tillbaka till givarna"
 msgid "Back to the status"
 msgstr "Tillbaka till status"
 
+msgid "Bidding zone"
+msgstr "Elområde"
+
 msgid "Brine circuit"
 msgstr "Köldbärarkrets"
 
@@ -163,6 +169,10 @@ msgstr "Tas ut på"
 
 msgid "Charging temperature"
 msgstr "Laddningstemperatur"
+
+#, python-format
+msgid "Checked against %(series)s: the same in all %(n)s quarters."
+msgstr "Kontrollerat mot %(series)s: samma i alla %(n)s kvartar."
 
 #, python-format
 msgid "Choose entities from %(url)s"
@@ -217,8 +227,22 @@ msgstr "Skapa den första med installationskoden."
 msgid "Create token"
 msgstr "Skapa token"
 
+msgid "Currency"
+msgstr "Valuta"
+
 msgid "Dates"
 msgstr "Datum"
+
+msgid ""
+"Day-ahead spot prices for every European bidding zone, from the ENTSO-E Transparency "
+"Platform. You need a security token of your own: register on the platform, then ask "
+"its helpdesk for access to the API. Prices in euros are converted at the ECB's "
+"reference rates."
+msgstr ""
+"Spotpriser för nästa dygn för varje europeiskt elområde, från ENTSO-E:s "
+"transparensplattform. Du behöver en egen säkerhetstoken: registrera dig på "
+"plattformen och be sedan dess support om tillgång till API:et. Priser i euro räknas "
+"om med ECB:s referenskurser."
 
 msgid "Days it lasts"
 msgstr "Giltig antal dagar"
@@ -287,6 +311,9 @@ msgstr "Frånluftstemperatur"
 
 msgid "Expires"
 msgstr "Upphör"
+
+msgid "Fallback"
+msgstr "Reserv"
 
 msgid "Fan speed"
 msgstr "Fläkthastighet"
@@ -451,9 +478,6 @@ msgstr "Inga lager än."
 msgid "No plugin instances."
 msgstr "Inga tilläggsinstanser."
 
-msgid "No plugin offers prices yet; the Tibber and ENTSO-E plugins come next."
-msgstr "Inget tillägg erbjuder priser än; tilläggen för Tibber och ENTSO-E kommer härnäst."
-
 msgid "No prices for this day yet."
 msgstr "Inga priser för den här dagen än."
 
@@ -465,6 +489,9 @@ msgstr "Inga givare i det här rummet än."
 
 msgid "No sensors yet."
 msgstr "Inga givare än."
+
+msgid "No source offers prices yet. Add Tibber or ENTSO-E in the settings."
+msgstr "Ingen källa erbjuder priser ännu. Lägg till Tibber eller ENTSO-E i inställningarna."
 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
@@ -511,6 +538,9 @@ msgstr "Lösenord"
 msgid "Per 15 minutes"
 msgstr "Per kvart"
 
+msgid "Personal access token"
+msgstr "Personlig åtkomsttoken"
+
 msgid ""
 "Pick what Thermaestro should read. Each picked value becomes a sensor; a room is "
 "suggested from the entity's area where a room has the same name."
@@ -544,6 +574,9 @@ msgstr "Effekt från nätet"
 
 msgid "Power to the grid"
 msgstr "Effekt till nätet"
+
+msgid "Price sources"
+msgstr "Priskällor"
 
 msgid "Prices"
 msgstr "Priser"
@@ -601,6 +634,9 @@ msgstr "Spara och välj entiteter"
 
 msgid "Save and connect"
 msgstr "Spara och anslut"
+
+msgid "Security token"
+msgstr "Säkerhetstoken"
 
 msgid "Sensor"
 msgstr "Givare"
@@ -813,6 +849,14 @@ msgstr "Var"
 msgid "Where it's shown"
 msgstr "Var det visas"
 
+msgid ""
+"Where the spot price, and your supplier's price, come from. Each source offers its "
+"prices on the prices page, where the stack is built. Tokens are kept in the secrets "
+"file."
+msgstr ""
+"Varifrån spotpriset och din elhandlares pris kommer. Varje källa erbjuder sina priser"
+" på prissidan, där prisstapeln byggs. Token sparas i hemlighetsfilen."
+
 msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
 msgstr "Där värdet inte var giltigt ritas det senaste giltiga vidare i grått."
 
@@ -838,6 +882,15 @@ msgstr "Skrivport"
 
 msgid "You don't have the right to do that."
 msgstr "Du har inte rätt att göra det."
+
+msgid ""
+"Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. "
+"Make a personal access token at developer.tibber.com. Thermaestro asks Tibber for "
+"prices only, never for your name, address or consumption."
+msgstr ""
+"Ditt hems priser per 15 minuter: spotpriset och vad Tibber tar betalt med moms. Skapa"
+" en personlig åtkomsttoken på developer.tibber.com. Thermaestro frågar Tibber bara "
+"efter priser, aldrig efter ditt namn, din adress eller förbrukning."
 
 msgid "Your new token"
 msgstr "Din nya token"
@@ -949,6 +1002,9 @@ msgstr "tomt: som pumpen anger den"
 msgid "empty: the payload is the number"
 msgstr "tomt: meddelandet är talet"
 
+msgid "empty: the zone's own"
+msgstr "tomt: elområdets egen"
+
 msgid "enter or replace secrets (never read them back)"
 msgstr "ange eller byta hemligheter (aldrig läsa dem igen)"
 
@@ -966,6 +1022,10 @@ msgstr "ingår inte"
 
 msgid "failed"
 msgstr "misslyckades"
+
+#, python-format
+msgid "from %(series)s"
+msgstr "från %(series)s"
 
 msgid "gives the formats"
 msgstr "ger formaten"

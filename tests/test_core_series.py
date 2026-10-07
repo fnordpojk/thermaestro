@@ -228,6 +228,10 @@ async def test_the_owners_se3_stack_from_its_parts(db: Database) -> None:
     assert stack.unit == "SEK/kWh"
     assert len(stack.slots) == 96
     assert stack.slots[0].total == pytest.approx(1.702, abs=0.001)
+    # Tibber's total covers the spot price, the supplier's adders and VAT on both.
+    [checked] = stack.checks
+    assert (checked.series, checked.layers) == ("tibber:home/price.total", ["spot", "supplier"])
+    assert (checked.compared, checked.differing) == (96, 0)
 
 
 async def test_the_owners_se3_stack_from_tibbers_total(db: Database) -> None:
@@ -305,3 +309,96 @@ async def test_a_missing_layer_is_a_warning_and_a_gap_shows(db: Database) -> Non
     assert "no layer for tax.energy" in stack.warnings
     assert "some layers exclude VAT, and no VAT is set" in stack.warnings
     assert all(s.total is None and s.missing == ["spot"] for s in stack.slots)  # no prices that day
+
+
+OTHER_SPOT = SeriesInfo(
+    id="spot",
+    kind="price",
+    role="energy.spot",
+    covers=Knowledge(value=(), known="documented"),
+    unit="SEK/kWh",
+    vat="excl",
+    resolution="PT15M",
+)
+
+
+def spot_layer(**kw: object) -> PriceLayer:
+    return PriceLayer.model_validate(
+        {
+            "role": "energy.spot",
+            "source": "series",
+            "plugin": "tibber",
+            "series": SPOT.id,
+            "unit": "SEK/kWh",
+            "vat": "excl",
+            **kw,
+        }
+    )
+
+
+async def test_a_fallback_stands_in_where_the_series_has_no_price(db: Database) -> None:
+    series = await stocked(db)
+    series.describe("entsoe", [OTHER_SPOT])
+    # The other source has the 29th and the 30th; the first only the 29th.
+    await series.put("entsoe", quarters("spot", local(2026, 9, 29), 192, 0.6))
+    layers = {"spot": spot_layer(fallbacks=("entsoe:spot",))}
+    first = await assemble(layers, None, series, date(2026, 9, 29), STOCKHOLM)
+    assert first.problems == []
+    assert {p.fallback for s in first.slots for p in s.parts} == {None}
+    assert first.slots[0].total == pytest.approx(0.59016)
+    assert first.checks == []  # a fallback is part of the stack, not a check on it
+    second = await assemble(layers, None, series, date(2026, 9, 30), STOCKHOLM)
+    assert all(s.total == pytest.approx(0.6) for s in second.slots)
+    assert {p.fallback for s in second.slots for p in s.parts} == {"entsoe:spot"}
+
+
+async def test_another_sources_spot_price_checks_the_first(db: Database) -> None:
+    series = await stocked(db)
+    series.describe("entsoe", [OTHER_SPOT])
+    await series.put("entsoe", quarters("spot", local(2026, 9, 29), 48, 0.59))
+    await series.put("entsoe", quarters("spot", local(2026, 9, 29, 12), 48, 0.6))
+    stack = await assemble({"spot": spot_layer()}, None, series, date(2026, 9, 29), STOCKHOLM)
+    [checked] = stack.checks
+    # 0.59 is within 1 % of 0.59016; 0.6 isn't.
+    assert (checked.series, checked.compared, checked.differing) == ("entsoe:spot", 96, 48)
+    assert checked.at == local(2026, 9, 29, 12)
+
+
+async def test_a_fallback_of_another_kind_is_refused(db: Database) -> None:
+    series = await stocked(db)
+    euros = OTHER_SPOT.model_copy(update={"unit": "EUR/kWh"})
+    series.describe("entsoe", [euros])
+    stack = await assemble(
+        {"spot": spot_layer(fallbacks=("entsoe:spot", "nowhere:spot", f"tibber:{TOTAL.id}"))},
+        None,
+        series,
+        date(2026, 9, 29),
+        STOCKHOLM,
+    )
+    assert stack.problems == [
+        "layer spot: entsoe:spot is in EUR/kWh, VAT excl; the layer in SEK/kWh, VAT excl",
+        "layer spot: no series nowhere:spot to fall back on",
+        "layer spot: tibber:home/price.total isn't the same price"
+        " (energy.supplier, not energy.spot)",
+    ]
+
+
+async def test_a_stack_that_disagrees_with_tibber_says_so(db: Database) -> None:
+    series = await stocked(db)
+    layers = {
+        "spot": spot_layer(),
+        # VAT forgotten on the supplier's adder: 0.0998 instead of 0.1248 with VAT.
+        "supplier": PriceLayer(
+            role="energy.supplier", source="fixed", value=0.0998, unit="SEK/kWh", vat="incl"
+        ),
+    }
+    stack = await assemble(
+        layers, Vat(rate=0.25, applies_to=("spot",)), series, date(2026, 9, 29), STOCKHOLM
+    )
+    [checked] = stack.checks
+    assert (checked.compared, checked.differing) == (96, 96)
+    assert checked.largest == pytest.approx(0.025, abs=0.0001)
+    assert (
+        "tibber:home/price.total differs from the stack's spot + supplier in 96 of 96 quarters,"
+        " by up to 0.0250 SEK/kWh"
+    ) in stack.warnings

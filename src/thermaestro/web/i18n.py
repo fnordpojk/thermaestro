@@ -83,6 +83,11 @@ def regions(language: str) -> list[tuple[str, str]]:
     return sorted(out, key=lambda pair: pair[1])
 
 
+def country(code: str) -> str:
+    """A country's name in the language in use."""
+    return str(Locale.parse(current.get()).territories.get(code, code))
+
+
 def browser_region(accept_language: str | None) -> str | None:
     """The country of the browser's first language, as in en-SE."""
     first = (accept_language or "").split(",")[0].split(";")[0].strip()

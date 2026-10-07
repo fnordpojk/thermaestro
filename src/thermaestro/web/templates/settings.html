@@ -58,6 +58,45 @@
 </form>
 </section>
 
+<section id="prices">
+<h2>{{ _("Price sources") }}</h2>
+<p>{{ _("Where the spot price, and your supplier's price, come from. Each source offers its prices on the prices page, where the stack is built. Tokens are kept in the secrets file.") }} <a href="/prices">{{ _("Prices") }}</a></p>
+{% for id, src in (tibber | dictsort) + (entsoe | dictsort) %}
+<p><strong>{{ id }}</strong> · {{ _(src.state) }}{% if src.plugin == "entsoe" %} · {{ src.settings.zone }}, {{ src.settings.currency }}{% endif %}
+  {% if src.needs_user_action %}<br><span class="error">{{ src.needs_user_action }}</span>{% elif src.error %}<br><span class="hint">{{ src.error }}</span>{% endif %}</p>
+{% endfor %}
+
+<h3>Tibber</h3>
+<p>{{ _("Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. Make a personal access token at developer.tibber.com. Thermaestro asks Tibber for prices only, never for your name, address or consumption.") }}</p>
+{% set current = (tibber.values() | first) if tibber else none %}
+<form method="post" action="/settings/tibber" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (tibber.keys() | first) if tibber else 'tibber' }}">
+  <label>{{ _("Personal access token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+
+<h3>ENTSO-E</h3>
+<p>{{ _("Day-ahead spot prices for every European bidding zone, from the ENTSO-E Transparency Platform. You need a security token of your own: register on the platform, then ask its helpdesk for access to the API. Prices in euros are converted at the ECB's reference rates.") }}</p>
+{% set current = (entsoe.values() | first) if entsoe else none %}
+<form method="post" action="/settings/entsoe" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (entsoe.keys() | first) if entsoe else 'entsoe' }}">
+  {% set chosen = current.settings.zone if current else "" %}
+  <label>{{ _("Bidding zone") }}
+    <select name="zone" required>
+      <option value=""{% if not chosen %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for code, z in bidding_zones.items() %}<option value="{{ code }}"{% if code == chosen %} selected{% endif %}>{{ code }} – {{ z.country | country }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Currency") }} <small>{{ _("empty: the zone's own") }}</small>
+    <input name="currency" maxlength="3" placeholder="SEK" value="{{ current.settings.currency if current else '' }}"></label>
+  <label>{{ _("Security token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
+    <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+</section>
+
 <section id="mqtt">
 <h2>{{ _("MQTT broker") }}</h2>
 <p>{{ _("State:") }} <strong>{{ _(mqtt_state.state) }}</strong>{% if mqtt_state.error %} – {{ mqtt_state.error }}{% endif %}</p>

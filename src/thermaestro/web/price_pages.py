@@ -105,6 +105,78 @@ async def delete_layer(request: Request, who: Logged, id: str) -> Response:
     return await _attempt(request, who, services(request).delete_price_layer(who, id))
 
 
+@router.post("/prices/layers/{id}/fallbacks")
+@action("price_layer.write")
+async def set_fallbacks(
+    request: Request,
+    who: Logged,
+    id: str,
+    fallbacks: Annotated[list[str] | None, Form()] = None,
+) -> Response:
+    return await _attempt(
+        request, who, services(request).set_fallbacks(who, id, list(fallbacks or []))
+    )
+
+
+# --- the sources, on the settings page ----------------------------------------------------
+
+
+@router.post("/settings/tibber")
+@action("price_source.write")
+async def set_tibber(
+    request: Request, who: Logged, id: Text = "tibber", token: Text = ""
+) -> Response:
+    from .sensor_pages import _settings_attempt
+
+    s = services(request)
+    current = (await s.price_sources(who)).get(id)
+    token_name = f"{id.lower()}.token"
+
+    async def work() -> None:
+        if not token and current is None:
+            raise AccountError("enter the Tibber token")
+        if token:
+            await s.set_secret(who, token_name, token.strip())
+        home = current["settings"].get("home") if current else None
+        await s.set_price_source(who, "tibber", id, {"token": token_name, "home": home})
+
+    return await _settings_attempt(request, who, work(), "/settings#prices")
+
+
+@router.post("/settings/entsoe")
+@action("price_source.write")
+async def set_entsoe(
+    request: Request,
+    who: Logged,
+    zone: Text,
+    id: Text = "entsoe",
+    token: Text = "",
+    currency: Text = "",
+) -> Response:
+    from ..entsoe.zones import ZONES
+    from .sensor_pages import _settings_attempt
+
+    s = services(request)
+    current = (await s.price_sources(who)).get(id)
+    token_name = f"{id.lower()}.token"
+
+    async def work() -> None:
+        if zone not in ZONES:
+            raise AccountError(f"no bidding zone {zone!r}")
+        if not token and current is None:
+            raise AccountError("enter the ENTSO-E token")
+        if token:
+            await s.set_secret(who, token_name, token.strip())
+        settings = {
+            "token": token_name,
+            "zone": zone,
+            "currency": currency.strip().upper() or ZONES[zone].currency,
+        }
+        await s.set_price_source(who, "entsoe", id, settings)
+
+    return await _settings_attempt(request, who, work(), "/settings#prices")
+
+
 @router.post("/prices/vat")
 @action("vat.write")
 async def set_vat(

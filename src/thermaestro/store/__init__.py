@@ -12,6 +12,7 @@ from .secrets import SecretStore
 from .settings import (
     SETTINGS,
     Display,
+    EntsoE,
     HomeAssistant,
     Location,
     Mqtt,
@@ -23,6 +24,7 @@ from .settings import (
     Room,
     Sensor,
     Setting,
+    Tibber,
     Vat,
 )
 from .startup import Startup, load_startup
@@ -32,6 +34,7 @@ __all__ = [
     "VERSION",
     "Database",
     "Display",
+    "EntsoE",
     "HomeAssistant",
     "Layout",
     "Location",
@@ -47,6 +50,7 @@ __all__ = [
     "Setting",
     "Startup",
     "StoreError",
+    "Tibber",
     "Transaction",
     "Vat",
     "load_startup",

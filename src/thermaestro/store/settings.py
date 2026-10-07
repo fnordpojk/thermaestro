@@ -106,7 +106,40 @@ class HomeAssistant(BaseModel):
     """The entities to read; nothing else is."""
 
 
-PLUGIN_SETTINGS: dict[str, type[BaseModel]] = {"nibe": NibeGateway, "homeassistant": HomeAssistant}
+class Tibber(BaseModel):
+    """A Tibber account: the settings of a `tibber` plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    token: SecretName
+    """A personal access token from developer.tibber.com, in the secrets file."""
+    home: str | None = None
+    """Tibber's id of the home whose prices to take; None: the first with a contract."""
+
+
+Zone = Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}[A-Z0-9-]{0,8}$")]
+
+
+class EntsoE(BaseModel):
+    """A bidding zone's day-ahead prices from the ENTSO-E Transparency Platform: the
+    settings of an `entsoe` plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    token: SecretName
+    """The user's own security token for the platform's API, in the secrets file."""
+    zone: Zone
+    """The bidding zone, such as SE3 or DE-LU."""
+    currency: Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")] = "EUR"
+    """The currency to give prices in; other than EUR, converted at the ECB's rates."""
+
+
+PLUGIN_SETTINGS: dict[str, type[BaseModel]] = {
+    "nibe": NibeGateway,
+    "homeassistant": HomeAssistant,
+    "tibber": Tibber,
+    "entsoe": EntsoE,
+}
 """The settings model of each plugin that has one, checked whenever settings load."""
 
 
@@ -239,6 +272,10 @@ class Display(Setting):
     """Points shown on the overview's cards, in the order pinned."""
 
 
+SeriesRef = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,64}:\S{1,128}$")]
+"""A series of a plugin instance, `<instance>:<series>`, such as `entsoe:spot`."""
+
+
 class PriceLayer(Setting):
     """One layer of the import price: a series a plugin offers, or a fixed amount."""
 
@@ -249,6 +286,9 @@ class PriceLayer(Setting):
     plugin: Id | None = None
     """The plugin instance offering the series."""
     series: str | None = None
+    fallbacks: tuple[SeriesRef, ...] = ()
+    """Series of the same kind that stand in, in order, where this one has no price: a
+    second source of the spot price, for a day the first one doesn't publish."""
     value: float | None = None
     unit: str
     vat: Literal["incl", "excl"]
@@ -259,6 +299,8 @@ class PriceLayer(Setting):
             raise ValueError("a series layer names the plugin and the series")
         if self.source == "fixed" and self.value is None:
             raise ValueError("a fixed layer gives its value")
+        if self.source == "fixed" and self.fallbacks:
+            raise ValueError("only a series layer has fallbacks")
         return self
 
 

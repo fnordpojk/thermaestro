@@ -69,9 +69,7 @@ async def test_an_import_draft_fills_the_settings_in_one_transaction(tmp_path: P
             ),
             "pump",
         )
-        t.put(
-            Plugin(plugin="tibber", settings={"home_index": 0, "token": "tibber.token"}), "tibber"
-        )
+        t.put(Plugin(plugin="tibber", settings={"token": "tibber.token"}), "tibber")
         t.put(Mqtt(host="192.0.2.20", username="nibepi", password="mqtt.password"))
         for id, topic in (("living", "home/living/temperature"), ("hall", "home/hall/temperature")):
             t.put(Sensor(name=id, source="mqtt", topic=topic, room="living"), id)

@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 03:34+0200\n"
-"PO-Revision-Date: 2026-10-07 03:34+0200\n"
+"POT-Creation-Date: 2026-10-07 03:58+0200\n"
+"PO-Revision-Date: 2026-10-07 03:58+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -14,6 +14,9 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+msgid "* from a fallback series, where the layer's own has no price."
+msgstr "* aus einer Ersatzreihe, wo die eigene Reihe der Ebene keinen Preis hat."
 
 msgid "0 picks a free one"
 msgstr "0 wählt einen freien"
@@ -123,6 +126,9 @@ msgstr "Zurück zu den Sensoren"
 msgid "Back to the status"
 msgstr "Zurück zum Status"
 
+msgid "Bidding zone"
+msgstr "Gebotszone"
+
 msgid "Brine circuit"
 msgstr "Solekreis"
 
@@ -164,6 +170,10 @@ msgstr "Erhoben auf"
 
 msgid "Charging temperature"
 msgstr "Ladetemperatur"
+
+#, python-format
+msgid "Checked against %(series)s: the same in all %(n)s quarters."
+msgstr "Geprüft gegen %(series)s: gleich in allen %(n)s Viertelstunden."
 
 #, python-format
 msgid "Choose entities from %(url)s"
@@ -220,8 +230,22 @@ msgstr "Legen Sie ihn mit dem Einrichtungscode an."
 msgid "Create token"
 msgstr "Token erstellen"
 
+msgid "Currency"
+msgstr "Währung"
+
 msgid "Dates"
 msgstr "Datum"
+
+msgid ""
+"Day-ahead spot prices for every European bidding zone, from the ENTSO-E Transparency "
+"Platform. You need a security token of your own: register on the platform, then ask "
+"its helpdesk for access to the API. Prices in euros are converted at the ECB's "
+"reference rates."
+msgstr ""
+"Day-Ahead-Spotpreise für jede europäische Gebotszone, von der "
+"ENTSO-E-Transparenzplattform. Sie brauchen ein eigenes Sicherheitstoken: registrieren"
+" Sie sich auf der Plattform und bitten Sie dann deren Helpdesk um Zugang zur API. "
+"Preise in Euro werden mit den Referenzkursen der EZB umgerechnet."
 
 msgid "Days it lasts"
 msgstr "Gültigkeit in Tagen"
@@ -292,6 +316,9 @@ msgstr "Ablufttemperatur"
 
 msgid "Expires"
 msgstr "Läuft ab"
+
+msgid "Fallback"
+msgstr "Ersatz"
 
 msgid "Fan speed"
 msgstr "Lüfterdrehzahl"
@@ -456,11 +483,6 @@ msgstr "Noch keine Schichten."
 msgid "No plugin instances."
 msgstr "Keine Plugin-Instanzen."
 
-msgid "No plugin offers prices yet; the Tibber and ENTSO-E plugins come next."
-msgstr ""
-"Noch bietet kein Plugin Preise an; die Plugins für Tibber und ENTSO-E kommen als "
-"Nächstes."
-
 msgid "No prices for this day yet."
 msgstr "Noch keine Preise für diesen Tag."
 
@@ -472,6 +494,11 @@ msgstr "Noch keine Sensoren in diesem Raum."
 
 msgid "No sensors yet."
 msgstr "Noch keine Sensoren."
+
+msgid "No source offers prices yet. Add Tibber or ENTSO-E in the settings."
+msgstr ""
+"Noch bietet keine Quelle Preise an. Fügen Sie Tibber oder ENTSO-E in den "
+"Einstellungen hinzu."
 
 msgid "No values in this period."
 msgstr "Keine Werte in diesem Zeitraum."
@@ -518,6 +545,9 @@ msgstr "Passwort"
 msgid "Per 15 minutes"
 msgstr "Je Viertelstunde"
 
+msgid "Personal access token"
+msgstr "Persönliches Zugriffstoken"
+
 msgid ""
 "Pick what Thermaestro should read. Each picked value becomes a sensor; a room is "
 "suggested from the entity's area where a room has the same name."
@@ -551,6 +581,9 @@ msgstr "Leistung aus dem Netz"
 
 msgid "Power to the grid"
 msgstr "Leistung ins Netz"
+
+msgid "Price sources"
+msgstr "Preisquellen"
 
 msgid "Prices"
 msgstr "Preise"
@@ -608,6 +641,9 @@ msgstr "Speichern und Entitäten auswählen"
 
 msgid "Save and connect"
 msgstr "Speichern und verbinden"
+
+msgid "Security token"
+msgstr "Sicherheitstoken"
 
 msgid "Sensor"
 msgstr "Sensor"
@@ -825,6 +861,15 @@ msgstr "Wo"
 msgid "Where it's shown"
 msgstr "Wo es angezeigt wird"
 
+msgid ""
+"Where the spot price, and your supplier's price, come from. Each source offers its "
+"prices on the prices page, where the stack is built. Tokens are kept in the secrets "
+"file."
+msgstr ""
+"Woher der Spotpreis und der Preis Ihres Stromanbieters kommen. Jede Quelle bietet "
+"ihre Preise auf der Preisseite an, wo der Preisstapel aufgebaut wird. Tokens werden "
+"in der Geheimnisdatei aufbewahrt."
+
 msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
 msgstr "Wo der Wert nicht gültig war, wird der letzte gültige in Grau weitergezeichnet."
 
@@ -851,6 +896,16 @@ msgstr "Schreibport"
 
 msgid "You don't have the right to do that."
 msgstr "Dazu haben Sie nicht das Recht."
+
+msgid ""
+"Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. "
+"Make a personal access token at developer.tibber.com. Thermaestro asks Tibber for "
+"prices only, never for your name, address or consumption."
+msgstr ""
+"Die Preise Ihres Zuhauses pro 15 Minuten: der Spotpreis und was Tibber mit "
+"Mehrwertsteuer berechnet. Erstellen Sie ein persönliches Zugriffstoken auf "
+"developer.tibber.com. Thermaestro fragt Tibber nur nach Preisen, nie nach Ihrem "
+"Namen, Ihrer Adresse oder Ihrem Verbrauch."
 
 msgid "Your new token"
 msgstr "Ihr neues Token"
@@ -964,6 +1019,9 @@ msgstr "leer: wie die Pumpe es meldet"
 msgid "empty: the payload is the number"
 msgstr "leer: die Nachricht ist die Zahl"
 
+msgid "empty: the zone's own"
+msgstr "leer: die der Zone"
+
 msgid "enter or replace secrets (never read them back)"
 msgstr "Geheimnisse eingeben oder ersetzen (nie wieder auslesen)"
 
@@ -981,6 +1039,10 @@ msgstr "nicht enthalten"
 
 msgid "failed"
 msgstr "fehlgeschlagen"
+
+#, python-format
+msgid "from %(series)s"
+msgstr "aus %(series)s"
 
 msgid "gives the formats"
 msgstr "bestimmt die Formate"

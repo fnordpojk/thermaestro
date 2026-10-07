@@ -34,8 +34,10 @@ dependencies = [
 thermaestro = "thermaestro.cli:main"
 
 [project.entry-points."thermaestro.plugins"]
+entsoe = "thermaestro.entsoe.plugin:create"
 homeassistant = "thermaestro.homeassistant.plugin:create"
 nibe = "thermaestro.nibe.plugin:create"
+tibber = "thermaestro.tibber.plugin:create"
 
 [project.urls]
 Repository = "https://github.com/fnordpojk/thermaestro"

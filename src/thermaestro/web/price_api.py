@@ -47,13 +47,52 @@ async def prices(
                 "total": slot.total,
                 "missing": slot.missing,
                 "parts": [
-                    {"layer": p.layer, "role": p.role, "value": p.value, "vat_added": p.vat_added}
+                    {
+                        "layer": p.layer,
+                        "role": p.role,
+                        "value": p.value,
+                        "vat_added": p.vat_added,
+                        "fallback": p.fallback,
+                    }
                     for p in slot.parts
                 ],
             }
             for slot in stack.slots
         ],
+        "checks": [
+            {
+                "series": c.series,
+                "layers": c.layers,
+                "compared": c.compared,
+                "differing": c.differing,
+                "largest": c.largest,
+                "at": c.at.isoformat() if c.at else None,
+            }
+            for c in stack.checks
+        ],
     }
+
+
+@router.get("/prices/sources")
+@action("price_sources.read")
+async def sources(request: Request, who: Logged) -> dict[str, Any]:
+    """The price plugins' instances, with their settings and how they are doing."""
+    return await services(request).price_sources(who)
+
+
+@router.put("/prices/sources/{id}")
+@action("price_source.write")
+async def set_source(
+    id: str, body: dict[str, Any], request: Request, who: Logged
+) -> dict[str, Any]:
+    """Add or change a price source: `{"plugin": "tibber", "settings": {"token": ...}}`;
+    the token is a secret's name, entered through the secrets API."""
+    plugin = body.get("plugin")
+    settings = body.get("settings")
+    if not isinstance(plugin, str) or not isinstance(settings, dict):
+        raise AccountError("give the plugin and its settings")
+    setting = await services(request).set_price_source(who, plugin, id, settings)
+    return setting.model_dump(mode="json")
 
 
 @router.get("/prices/layers")
