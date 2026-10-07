@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "cells.html" import parts_table with context %}
+{% block title %}{{ _("Pump") }}{% endblock %}
+{% block main %}
+<h1>{{ _("Pump") }} {% if can("settings.read") %}<small><a href="/setup/pump">{{ _("Setup") }}</a></small>{% endif %}</h1>
+<nav class="tabs" aria-label="{{ _('Pump') }}">
+  <a href="/pump"{% if show == "everyday" %} aria-current="page"{% endif %}>{{ _("Everyday") }}</a>
+  <a href="/pump?show=config"{% if show == "config" %} aria-current="page"{% endif %}>{{ _("Settings read from the pump") }}</a>
+  <a href="/pump?show=diagnostic"{% if show == "diagnostic" %} aria-current="page"{% endif %}>{{ _("Diagnostic values") }}</a>
+</nav>
+{% for device in devices %}
+<section class="device">
+  <h2>{{ device.name }}</h2>
+  <p class="hint">{{ device.identity.vendor }} {{ device.identity.model }}{% if device.identity.firmware %} · {{ _("firmware %(version)s", version=device.identity.firmware) }}{% endif %}
+    · <span class="state state-{{ device.state }}">{{ _(device.state) }}</span>
+    {% if device.health and device.health.last_traffic %} · {{ _("last heard") }} {{ device.health.last_traffic }}{% endif %}</p>
+  {{ parts_table(device, none if show == "everyday" else show, observed=true) }}
+</section>
+{% else %}
+<p class="notice">{{ _("No pump yet.") }} {% if can("plugins.manage") %}<a href="/setup/pump">{{ _("Add the pump's connection under Setup.") }}</a>{% endif %}</p>
+{% endfor %}
+{% endblock %}

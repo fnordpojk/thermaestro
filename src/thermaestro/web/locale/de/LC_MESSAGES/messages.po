@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 22:48+0200\n"
-"PO-Revision-Date: 2026-10-07 22:48+0200\n"
+"POT-Creation-Date: 2026-10-07 23:00+0200\n"
+"PO-Revision-Date: 2026-10-07 23:00+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -153,6 +153,9 @@ msgstr "Luftstrom"
 
 msgid "Alarm"
 msgstr "Alarm"
+
+msgid "All the pump's values"
+msgstr "Alle Werte der Pumpe"
 
 msgid "Also each sensor's own values"
 msgstr "Auch die eigenen Werte jedes Sensors"
@@ -399,6 +402,9 @@ msgstr "Geben Sie Ihr Passwort erneut ein"
 
 msgid "Entity"
 msgstr "Entität"
+
+msgid "Everyday"
+msgstr "Alltägliche"
 
 msgid "Exhaust air temperature"
 msgstr "Ablufttemperatur"
@@ -668,6 +674,9 @@ msgstr ""
 "Noch kein Anbieter. Mehrere können nebeneinander laufen, um sie vor der Wahl an "
 "diesem Haus zu vergleichen."
 
+msgid "No pump yet."
+msgstr "Noch keine Pumpe."
+
 msgid "No rooms yet."
 msgstr "Noch keine Räume."
 
@@ -917,11 +926,8 @@ msgstr "Richten Sie den MQTT-Broker unter Extern ein, um hier MQTT-Sensoren hinz
 msgid "Setpoint"
 msgstr "Sollwert"
 
-msgid "Settings and diagnostic values"
-msgstr "Einstellungen und Diagnosewerte"
-
-msgid "Settings read from the device"
-msgstr "Vom Gerät gelesene Einstellungen"
+msgid "Settings read from the pump"
+msgstr "Aus der Pumpe gelesene Einstellungen"
 
 msgid "Setup"
 msgstr "Einrichtung"
@@ -1048,9 +1054,6 @@ msgstr ""
 "Zertifizierungsstelle, daher warnt der Browser davor. Vergleichen Sie seinen "
 "SHA-256-Fingerabdruck mit dem, den der Browser anzeigt:"
 
-msgid "This plugin offers no points."
-msgstr "Dieses Plugin bietet keine Messpunkte."
-
 msgid "This value"
 msgstr "Dieser Wert"
 
@@ -1123,9 +1126,6 @@ msgstr "Wert"
 
 msgid "Ventilation"
 msgstr "Lüftung"
-
-msgid "Waiting for the plugin to describe its device…"
-msgstr "Warten, bis das Plugin sein Gerät beschreibt…"
 
 msgid "Water"
 msgstr "Wasser"
@@ -1410,6 +1410,10 @@ msgstr "fehlgeschlagen"
 
 msgid "fallback"
 msgstr "Ersatz"
+
+#, python-format
+msgid "firmware %(version)s"
+msgstr "Firmware %(version)s"
 
 msgid "found to be false"
 msgstr "als falsch befunden"

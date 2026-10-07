@@ -15,7 +15,8 @@
   <a class="brand" href="/">Thermaestro</a>
   {% if who %}
   <nav>
-    {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Overview") }}</a>{% endif %}
+    {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Overview") }}</a>
+    <a href="/pump"{% if path == "/pump" %} aria-current="page"{% endif %}>{{ _("Pump") }}</a>{% endif %}
     {% if can("settings.read") %}
     <a href="/prices"{% if path == "/prices" %} aria-current="page"{% endif %}>{{ _("Prices") }}</a>
     <a href="/weather"{% if path == "/weather" %} aria-current="page"{% endif %}>{{ _("Weather") }}</a>

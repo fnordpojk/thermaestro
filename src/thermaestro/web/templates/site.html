@@ -1,13 +1,4 @@
-{% macro value_cell(p) %}
-{% set quality = _(p.quality) ~ (": " ~ p.why if p.why else "") %}
-<td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
-  {%- if p.value is none -%}–
-  {%- elif p.value is sameas true or p.value is sameas false -%}{{ ("yes" if p.value else "no") | value_label }}
-  {%- elif p.value is number -%}{{ p.value | num(p.digits) }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
-  {%- else -%}{{ p.value | value_label }}{%- endif -%}
-  <span class="hidden"> ({{ quality }})</span>
-</td>
-{% endmacro %}
+{% from "cells.html" import value_cell with context %}
 {% if site.rooms or site.outdoor or site.pinned %}
 <section class="site">
   <div class="cards">
@@ -16,7 +7,7 @@
     <h2>{{ _("Outdoors") }}</h2>
     <table class="values">
     {% for p in site.outdoor %}
-      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p, yes_no=true) }}</tr>
     {% endfor %}
     </table>
   </div>
@@ -26,7 +17,7 @@
     <h2>{{ card.name }}</h2>
     <table class="values">
     {% for p in card.points %}
-      <tr><td><a href="/points/{{ p.instance | urlencode }}/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+      <tr><td><a href="/points/{{ p.instance | urlencode }}/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p, yes_no=true) }}</tr>
     {% endfor %}
     </table>
   </div>
@@ -37,7 +28,7 @@
     {% if room.points %}
     <table class="values">
     {% for p in room.points %}
-      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}</tr>
+      <tr><td><a href="/points/site/{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p, yes_no=true) }}</tr>
     {% endfor %}
     </table>
     {% else %}

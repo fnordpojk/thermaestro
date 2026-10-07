@@ -223,17 +223,33 @@ async def language(code: str, next: str = "/") -> Response:
 # --- status ------------------------------------------------------------------------------
 
 
+def _overview(request: Request, who: Caller) -> dict[str, Any]:
+    s = services(request)
+    return {
+        "instances": s.status(who),
+        "site": s.site(who),
+        "devices": s.devices(who),
+        "attention": s.attention(who),
+    }
+
+
 @router.get("/")
 async def status_page(request: Request, who: Logged) -> Response:
-    s = services(request)
-    return render(request, "status.html", who, instances=s.status(who), site=s.site(who))
+    return render(request, "status.html", who, **_overview(request, who))
 
 
 @router.get("/status/values")
 async def status_values(request: Request, who: Logged) -> Response:
-    """The values table alone, which the status page reloads every few seconds."""
-    s = services(request)
-    return render(request, "values.html", who, instances=s.status(who), site=s.site(who))
+    """The values alone, which the overview reloads every few seconds."""
+    return render(request, "values.html", who, **_overview(request, who))
+
+
+@router.get("/pump")
+async def pump_page(request: Request, who: Logged, show: str = "everyday") -> Response:
+    """The pump's values by part: the everyday ones, its settings, or its diagnostics."""
+    if show not in ("everyday", "config", "diagnostic"):
+        show = "everyday"
+    return render(request, "pump.html", who, devices=services(request).devices(who), show=show)
 
 
 @router.get("/points/{instance}/{point:path}")
@@ -580,6 +596,7 @@ async def health_page(request: Request, who: Logged) -> Response:
         "health.html",
         who,
         instances=s.status(who),
+        devices={d["instance"] for d in s.devices(who)},
         fingerprint=s.fingerprint,
     )
 

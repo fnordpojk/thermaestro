@@ -1,32 +1,31 @@
-{% from "points-table.html" import points_table with context %}
+{% from "cells.html" import parts_table with context %}
+{% if attention %}
+<section class="attention" aria-label="{{ _('Needs attention') }}">
+  <h2>{{ _("Needs attention") }}</h2>
+  <ul>
+  {% for a in attention %}
+    <li><strong>{{ a.id }}</strong> <span class="state state-{{ a.state }}">{{ _(a.state) }}</span>{% if a.why %}: {{ a.why }}{% endif %}
+      {% if can("settings.read") %}<a href="{{ a.topic }}">{{ _("Setup") if a.topic.startswith("/setup") else _("System") }}</a>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% include "site.html" %}
-{% for instance in instances %}
-{% set primary = instance.points | selectattr("category", "none") | list %}
-<section class="instance">
-  <h2>{{ instance.id }} <small>{{ instance.plugin }}</small>
-    <span class="state state-{{ instance.state }}">{{ _(instance.state) }}</span></h2>
-  {% if instance.health and instance.health.needs_user_action %}
-  <p class="error">{{ instance.health.needs_user_action }}</p>
-  {% endif %}
-  {% if instance.last_error and instance.state != "up" %}
-  <p class="error">{{ _("Last error:") }} {{ instance.last_error }}</p>
-  {% endif %}
-  {% if primary %}
-  <p class="legend hint">
-    <span class="quality-green">{{ _("good") }}</span>
-    <span class="quality-yellow">{{ _("uncertain") }}</span>
-    <span class="quality-red">{{ _("implausible") }}</span>
-    <span class="quality-grey">{{ _("no usable value") }}</span>
-    · {{ _("Point at a value to see why.") }}
-  </p>
-  {{ points_table(instance.id, primary) }}
-  {% if primary | length < instance.points | length %}
-  <p class="hint"><a href="/system/health#{{ instance.id | urlencode }}">{{ _("Settings and diagnostic values") }}</a></p>
-  {% endif %}
-  {% elif instance.state == "up" %}
-  <p>{{ _("This plugin offers no points.") }}</p>
-  {% else %}
-  <p>{{ _("Waiting for the plugin to describe its device…") }}</p>
-  {% endif %}
+{% for device in devices %}
+<section class="device card">
+  <h2>{{ device.name }}</h2>
+  <div class="parts">
+  {{ parts_table(device) }}
+  </div>
+  <p class="hint"><a href="/pump">{{ _("All the pump's values") }}</a></p>
 </section>
 {% endfor %}
+{% if devices or site.rooms or site.outdoor %}
+<p class="legend hint">
+  <span class="quality-green">{{ _("good") }}</span>
+  <span class="quality-yellow">{{ _("uncertain") }}</span>
+  <span class="quality-red">{{ _("implausible") }}</span>
+  <span class="quality-grey">{{ _("no usable value") }}</span>
+  · {{ _("Point at a value to see why.") }}
+</p>
+{% endif %}

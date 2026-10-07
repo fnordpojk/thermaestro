@@ -124,6 +124,18 @@ td.value { white-space: nowrap; cursor: help; }
 .card { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--panel); }
 .card h2 { font-size: 1.05rem; margin: 0.25rem 0; }
 .card table { margin: 0; }
+.attention { border: 1px solid var(--bad); border-left-width: 4px; border-radius: 6px; padding: 0.25rem 0.75rem; background: var(--panel); }
+.attention h2 { font-size: 1rem; margin: 0.4rem 0; color: var(--bad); }
+.attention ul { margin: 0 0 0.4rem; padding-left: 1.2rem; }
+.attention li a { margin-left: 0.5rem; }
+section.device.card { margin: 1rem 0; padding: 0.5rem 1rem; }
+.parts { display: grid; gap: 0.25rem 1.5rem; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); align-items: start; }
+.part h3 { font-size: 0.95rem; color: var(--muted); margin: 0.6rem 0 0.1rem; }
+.part table { margin: 0; }
+section.device > h2 { margin-bottom: 0.2rem; }
+table.detail { table-layout: fixed; }
+table.detail th:nth-child(1) { width: 50%; }
+table.detail th:nth-child(2) { width: 22%; }
 dl.rights { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
 dl.rights dd { margin: 0; }
 .hidden {

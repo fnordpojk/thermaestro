@@ -1,0 +1,31 @@
+{# A value as shown everywhere: colored by its quality, the reason on hover. #}
+{% macro value_cell(p, yes_no=false) %}
+{% set quality = _(p.quality) ~ (": " ~ p.why if p.why else "") %}
+<td class="num value quality-{{ quality_color(p.quality) }}" title="{{ quality }}">
+  {%- if p.value is none -%}–
+  {%- elif p.value is sameas true or p.value is sameas false -%}{{ (("yes" if p.value else "no") if yes_no else ("on" if p.value else "off")) | value_label }}
+  {%- elif p.value is number -%}{{ p.value | num(p.digits) }}{% if p.unit %} {{ p.unit | unit }}{% endif %}
+  {%- else -%}{{ p.value | value_label }}{%- endif -%}
+  <span class="hidden"> ({{ quality }})</span>
+</td>
+{% endmacro %}
+
+{# A device's parts, each with its points of one category (none: the everyday ones): the
+   device's own first, then each part's. #}
+{% macro parts_table(device, category=none, observed=false) %}
+{% for part in device.parts %}
+{% if category %}{% set shown = part.points | selectattr("category", "equalto", category) | list %}
+{% else %}{% set shown = part.points | selectattr("category", "none") | list %}{% endif %}
+{% if shown %}
+<div class="part">
+  {% if part.name %}<h3>{{ part.name }}</h3>{% endif %}
+  <table class="values{% if observed %} detail{% endif %}">
+  {% if observed %}<thead><tr><th>{{ _("Point") }}</th><th class="num">{{ _("Value") }}</th><th class="when">{{ _("Observed") }}</th></tr></thead>{% endif %}
+  {% for p in shown %}
+    <tr><td><a href="/points/{{ device.instance | urlencode }}/{{ p.path }}" title="{{ p.path }}">{{ p.label }}</a></td>{{ value_cell(p) }}{% if observed %}<td class="when">{{ p.t | when }}</td>{% endif %}</tr>
+  {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endfor %}
+{% endmacro %}

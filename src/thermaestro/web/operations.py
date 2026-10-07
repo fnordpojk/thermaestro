@@ -48,6 +48,16 @@ from .sensor_operations import SensorOperations
 from .weather_operations import WeatherOperations
 
 HISTORY_MAX_S = 31 * 86_400.0
+TOPIC_OF_PLUGIN = {
+    "nibe": "/setup/pump",
+    "homeassistant": "/setup/external",
+    "tibber": "/setup/prices",
+    "entsoe": "/setup/prices",
+    "met_norway": "/setup/weather",
+    "smhi": "/setup/weather",
+    "open_meteo": "/setup/weather",
+}
+"""Where under Setup each plugin is set up, for "Needs attention"."""
 """The longest stretch of samples one request returns."""
 
 
@@ -134,6 +144,75 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
                     "last_error": instance.last_error,
                     "health": None if health is None else health.model_dump(mode="json"),
                     "points": points,
+                }
+            )
+        return out
+
+    def devices(self, caller: Caller) -> list[dict[str, Any]]:
+        """Each identified device, such as a heat pump, with its points by the part they
+        belong to: the device itself first, then its parts in the order described."""
+        caller.principal.require("points.read")
+        names = self.sensors.names if self.sensors else {}
+        out = []
+        for item in self.status(caller):
+            found = self.host.instances.get(item["id"]) if self.host else None
+            described = found.described if found else None
+            for node in described.nodes if described else ():
+                identity = node.identity
+                if identity is None:
+                    continue
+                shown = node.label or identity.model
+                if not shown.lower().startswith(identity.vendor.lower()):
+                    shown = f"{identity.vendor} {shown}"
+                order = [n.path for n in described.nodes] if described else []
+                parts: dict[str, list[dict[str, Any]]] = {}
+                for p in item["points"]:
+                    if not p["path"].startswith(f"{node.path}/"):
+                        continue
+                    where = p["path"].rpartition("/")[0]
+                    own = {**p, "label": p["label"].rpartition(" \N{MIDDLE DOT} ")[2]}
+                    parts.setdefault(where, []).append(own)
+                ranked = sorted(parts, key=lambda w: order.index(w) if w in order else len(order))
+                out.append(
+                    {
+                        "instance": item["id"],
+                        "node": node.path,
+                        "name": names.get(f"{item['id']}:{node.path}") or shown,
+                        "identity": identity.model_dump(mode="json"),
+                        "state": item["state"],
+                        "health": item["health"],
+                        "last_error": item["last_error"],
+                        "parts": [
+                            {
+                                "node": where,
+                                "name": None
+                                if where == node.path
+                                else self.node_label(caller, item["id"], where),
+                                "points": parts[where],
+                            }
+                            for where in ranked
+                        ],
+                    }
+                )
+        return out
+
+    def attention(self, caller: Caller) -> list[dict[str, Any]]:
+        """The plugins that are down or ask for something, with where to set them up: what
+        Home Assistant's "Needs attention" counts too."""
+        out = []
+        for item in self.status(caller):
+            health = item["health"] or {}
+            asks = health.get("needs_user_action")
+            down = item["state"] != "up" or health.get("state", "up") != "up"
+            if not (asks or down or health.get("stale")):
+                continue
+            out.append(
+                {
+                    "id": item["id"],
+                    "plugin": item["plugin"],
+                    "state": item["state"],
+                    "why": asks or item["last_error"] or None,
+                    "topic": TOPIC_OF_PLUGIN.get(item["plugin"], "/system/health"),
                 }
             )
         return out

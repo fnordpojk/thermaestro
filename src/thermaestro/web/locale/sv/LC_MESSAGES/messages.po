@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 22:48+0200\n"
-"PO-Revision-Date: 2026-10-07 22:48+0200\n"
+"POT-Creation-Date: 2026-10-07 23:00+0200\n"
+"PO-Revision-Date: 2026-10-07 23:00+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -149,6 +149,9 @@ msgstr "Luftflöde"
 
 msgid "Alarm"
 msgstr "Larm"
+
+msgid "All the pump's values"
+msgstr "Alla pumpens värden"
 
 msgid "Also each sensor's own values"
 msgstr "Även varje sensors egna värden"
@@ -393,6 +396,9 @@ msgstr "Ange ditt lösenord igen"
 
 msgid "Entity"
 msgstr "Entitet"
+
+msgid "Everyday"
+msgstr "Vardagliga"
 
 msgid "Exhaust air temperature"
 msgstr "Frånluftstemperatur"
@@ -660,6 +666,9 @@ msgstr ""
 "Ingen leverantör än. Flera kan köras sida vid sida, för att jämföra dem vid det här "
 "huset innan du väljer."
 
+msgid "No pump yet."
+msgstr "Ingen pump än."
+
 msgid "No rooms yet."
 msgstr "Inga rum än."
 
@@ -907,11 +916,8 @@ msgstr "Ställ in MQTT-mäklaren under Externt för att lägga till MQTT-givare 
 msgid "Setpoint"
 msgstr "Börvärde"
 
-msgid "Settings and diagnostic values"
-msgstr "Inställningar och diagnostiska värden"
-
-msgid "Settings read from the device"
-msgstr "Inställningar lästa från enheten"
+msgid "Settings read from the pump"
+msgstr "Inställningar lästa från pumpen"
 
 msgid "Setup"
 msgstr "Inställningar"
@@ -1036,9 +1042,6 @@ msgstr ""
 "certifikatutfärdare, så webbläsaren varnar för det. Jämför dess SHA-256-fingeravtryck"
 " med det som webbläsaren visar:"
 
-msgid "This plugin offers no points."
-msgstr "Det här tillägget erbjuder inga punkter."
-
 msgid "This value"
 msgstr "Det här värdet"
 
@@ -1110,9 +1113,6 @@ msgstr "Värde"
 
 msgid "Ventilation"
 msgstr "Ventilation"
-
-msgid "Waiting for the plugin to describe its device…"
-msgstr "Väntar på att tillägget ska beskriva sin enhet…"
 
 msgid "Water"
 msgstr "Vatten"
@@ -1386,6 +1386,10 @@ msgstr "misslyckades"
 
 msgid "fallback"
 msgstr "reserv"
+
+#, python-format
+msgid "firmware %(version)s"
+msgstr "programvara %(version)s"
 
 msgid "found to be false"
 msgstr "befunnet felaktigt"

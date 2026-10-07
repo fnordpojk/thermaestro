@@ -571,7 +571,9 @@ async def test_status_shows_values_with_their_quality(site: Site) -> None:
     assert 'title="not_connected: sensor not connected"' in page  # the why, on the value
     assert re.search(r">\s*30\s*<span", page)  # a whole number, not 30.0 (x.fake.prio)
     assert "Outdoor temperature" in page  # names for people
-    assert "Climate system 1 \N{MIDDLE DOT} Supply temperature" in page
+    # The pump's values by the part they belong to.
+    assert "<h2>Fake FP-1</h2>" in page
+    assert re.search(r"<h3>Climate system 1</h3>.*Supply temperature", page, re.S)
     assert 'title="hp1/cs1/supply.temp"' in page  # the path, for whoever needs it
     assert "quality-grey" in page
     assert "quality-green" in page
@@ -758,7 +760,7 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
         saved = await form(client, "/account", "/account/preferences", language="en", region="SE")
         assert saved.status_code == 303
         # The browser asks for German; the user's choice wins.
-        page = await client.get("/status/values", headers={"accept-language": "de-DE"})
+        page = await client.get("/pump", headers={"accept-language": "de-DE"})
         assert "4,5 \N{DEGREE SIGN}C" in page.text
         assert "Observed" in page.text  # English
         assert re.search(r"\d{4}-\d{2}-\d{2}, \d{2}:\d{2}", page.text)  # ISO, 24 h
@@ -773,7 +775,7 @@ async def test_each_user_keeps_their_language_and_formats(site: Site) -> None:
             headers={"x-csrf-token": token},
         )
         assert changed.json() == {"language": "sv", "decimal": "point"}
-        page = await client.get("/status/values")
+        page = await client.get("/pump")
         assert "4.5 \N{DEGREE SIGN}C" in page.text
         assert "Uppmätt" in page.text
         refused = await client.put(
@@ -835,6 +837,26 @@ async def test_a_point_page_shows_its_description(site: Site) -> None:
     assert '<p class="description">Current outdoor temperature</p>' in page
 
 
+async def test_the_overview_lists_devices_and_what_needs_attention(site: Site) -> None:
+    """A plugin with no values isn't listed; one that is down, or asks for something, is
+    under "Needs attention", with a link to where it's set up."""
+    _with_a_pump(site)
+    host = site.services.host
+    assert host is not None
+    setting = Plugin(plugin="tibber", settings={"token": "tibber.token"})
+    host.instances["tibber"] = Instance("tibber", setting, state=State.UP)
+    async with admin(site) as client:
+        calm = (await client.get("/status/values")).text
+        host.instances["tibber"].state = State.RESTARTING
+        host.instances["tibber"].last_error = "the token was refused"
+        troubled = (await client.get("/status/values")).text
+    assert "tibber" not in calm
+    assert "Needs attention" not in calm
+    assert "Needs attention" in troubled
+    assert "the token was refused" in troubled
+    assert 'href="/setup/prices"' in troubled
+
+
 async def test_named_values_are_charted_as_bands(site: Site) -> None:
     """A demand or a switch has no line to draw: its chart is bands over time, with the
     value names in the page's language."""
@@ -885,8 +907,11 @@ async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> N
     instance.described = instance.described.model_copy(update={"points": points})
     async with admin(site) as client:
         status = (await client.get("/status/values")).text
-        diagnostics = (await client.get("/system/health")).text
+        everyday = (await client.get("/pump")).text
+        settings = (await client.get("/pump", params={"show": "config"})).text
     assert "hp1/x.fake.prio" not in status
     assert "Outdoor temperature" in status
-    assert 'href="/system/health#pump"' in status
-    assert "hp1/x.fake.prio" in diagnostics
+    assert 'href="/pump"' in status
+    assert "hp1/x.fake.prio" not in everyday
+    assert "hp1/x.fake.prio" in settings
+    assert "Outdoor temperature" not in settings

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 22:48+0200\n"
+"POT-Creation-Date: 2026-10-07 23:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,6 +140,9 @@ msgid "Airflow"
 msgstr ""
 
 msgid "Alarm"
+msgstr ""
+
+msgid "All the pump's values"
 msgstr ""
 
 msgid "Also each sensor's own values"
@@ -371,6 +374,9 @@ msgid "Enter your password again"
 msgstr ""
 
 msgid "Entity"
+msgstr ""
+
+msgid "Everyday"
 msgstr ""
 
 msgid "Exhaust air temperature"
@@ -630,6 +636,9 @@ msgid ""
 "house before choosing."
 msgstr ""
 
+msgid "No pump yet."
+msgstr ""
+
 msgid "No rooms yet."
 msgstr ""
 
@@ -873,10 +882,7 @@ msgstr ""
 msgid "Setpoint"
 msgstr ""
 
-msgid "Settings and diagnostic values"
-msgstr ""
-
-msgid "Settings read from the device"
+msgid "Settings read from the pump"
 msgstr ""
 
 msgid "Setup"
@@ -990,9 +996,6 @@ msgid ""
 " browser shows:"
 msgstr ""
 
-msgid "This plugin offers no points."
-msgstr ""
-
 msgid "This value"
 msgstr ""
 
@@ -1058,9 +1061,6 @@ msgid "Value"
 msgstr ""
 
 msgid "Ventilation"
-msgstr ""
-
-msgid "Waiting for the plugin to describe its device…"
 msgstr ""
 
 msgid "Water"
@@ -1327,6 +1327,10 @@ msgid "failed"
 msgstr ""
 
 msgid "fallback"
+msgstr ""
+
+#, python-format
+msgid "firmware %(version)s"
 msgstr ""
 
 msgid "found to be false"

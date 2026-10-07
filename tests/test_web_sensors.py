@@ -177,7 +177,7 @@ async def test_names_replace_built_in_ones(site: Site) -> None:
             next="/",
         )
         status = (await client.get("/status/values")).text
-        assert "Floor heating \N{MIDDLE DOT} Supply temperature" in status
+        assert re.search(r"<h3>Floor heating</h3>.*Supply temperature", status, re.S)
         assert ">Ute<" in status
         assert (await site.services.db.get(Names)).names == {  # type: ignore[union-attr]
             "pump:hp1/cs1": "Floor heating",
@@ -398,7 +398,7 @@ async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> No
         status = (await client.get("/status/values")).text
         assert "<h2>Hot water</h2>" in status  # a card named after what it belongs to
         assert "Top temperature" in status
-        # Moved to the diagnostics: off the status page's table, onto the diagnostics page.
+        # Moved to the diagnostics: off the overview, onto the pump page's diagnostics.
         await form(
             client,
             "/points/pump/hp1/outdoor.temp",
@@ -409,7 +409,8 @@ async def test_pinned_points_get_cards_and_categories_can_move(site: Site) -> No
         )
         status = (await client.get("/status/values")).text
         assert 'title="hp1/outdoor.temp"' not in status
-        assert 'title="hp1/outdoor.temp"' in (await client.get("/system/health")).text
+        diagnostics = await client.get("/pump", params={"show": "diagnostic"})
+        assert 'title="hp1/outdoor.temp"' in diagnostics.text
         shown = (await client.get("/api/v1/display")).json()
         assert shown == {
             "categories": {"pump:hp1/outdoor.temp": "diagnostic"},

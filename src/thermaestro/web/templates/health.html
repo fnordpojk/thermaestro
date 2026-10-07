@@ -32,22 +32,13 @@
 </table>
 </section>
 
-{% for i in instances %}
-{% set settings = i.points | selectattr("category", "equalto", "config") | list %}
-{% set technical = i.points | selectattr("category", "equalto", "diagnostic") | list %}
-{% if settings or technical %}
+{# A device's values are on its own page; the other plugins' (such as the entities read from
+   Home Assistant, before they become sensors) are here. #}
+{% for i in instances if i.id not in devices and i.points %}
 <section id="{{ i.id }}">
 <h2>{{ i.id }} <small>{{ i.plugin }}</small></h2>
-{% if settings %}
-<h3>{{ _("Settings read from the device") }}</h3>
-{{ points_table(i.id, settings) }}
-{% endif %}
-{% if technical %}
-<h3>{{ _("Diagnostic values") }}</h3>
-{{ points_table(i.id, technical) }}
-{% endif %}
+{{ points_table(i.id, i.points) }}
 </section>
-{% endif %}
 {% endfor %}
 
 <section id="certificate">
