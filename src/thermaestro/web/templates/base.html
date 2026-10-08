@@ -15,7 +15,8 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="/"><img class="on-light" src="/static/logo/lockup.svg" alt="Thermaestro" width="194" height="72"><img class="on-dark" src="/static/logo/lockup-white.svg" alt="Thermaestro" width="194" height="72"></a>
+  {# The logo is in the page, so there's nothing to wait for when a page loads. #}
+  <a class="brand" href="/">{% include "logo/lockup-ink.svg" %}</a>
   {% if who %}
   <nav>
     {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Overview") }}</a>
