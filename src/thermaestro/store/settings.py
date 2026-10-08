@@ -5,7 +5,7 @@ setting never holds a secret, only the name of its entry in the secrets file, so
 settings dump, export or log line can carry one.
 """
 
-from typing import Annotated, ClassVar, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
@@ -408,6 +408,15 @@ class Climate(Setting):
         return self
 
 
+class PluginState(Setting):
+    """What an in-process plugin keeps across restarts, as it chooses; one per instance,
+    under the instance's id. Not a setting anyone changes: the plugin writes it."""
+
+    kind = "plugin_state"
+
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
 SETTINGS: dict[str, type[Setting]] = {
     m.kind: m
     for m in (
@@ -424,5 +433,6 @@ SETTINGS: dict[str, type[Setting]] = {
         Vat,
         WeatherChoice,
         Climate,
+        PluginState,
     )
 }

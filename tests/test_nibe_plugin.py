@@ -210,6 +210,54 @@ async def test_a_heat_meter_that_doesnt_count(
     await until(lambda: value(plugin, meter)[1] == "good")
 
 
+class KeptState:
+    """A plugin store that lives as long as the test: what a restart keeps."""
+
+    def __init__(self) -> None:
+        self.data: dict[str, Any] = {}
+        self.saves = 0
+
+    async def load(self) -> dict[str, Any]:
+        return dict(self.data)
+
+    async def save(self, data: dict[str, Any]) -> None:
+        self.data = data
+        self.saves += 1
+
+
+async def test_a_meters_count_outlives_a_restart(
+    stocked: SimPump, gateway: Gateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The count is kept, and holds after a restart if the meter still reads the same;
+    a meter that moved meanwhile starts over."""
+    monkeypatch.setattr(profile, "METER_IDLE_S", 1.0)
+    monkeypatch.setattr("thermaestro.nibe.plugin.METER_SAVE_S", 0.1)
+    kept = KeptState()
+    meter = "heat.produced{purpose=dhw,by=total}"
+
+    def made() -> NibePlugin:
+        return NibePlugin(
+            settings(gateway),
+            transport_settings={"plain_settings": FAST_PLAIN},
+            identify_timeout_s=5,
+            health_interval_s=0.5,
+            state=kept,  # type: ignore[arg-type]
+        )
+
+    stocked.registers[43086] = 20  # hot water, with the compressor running
+    async with running_plugin(made()) as p:
+        await until(lambda: value(p, meter)[1] == "unknown")
+        await until(lambda: kept.data.get("meters", {}).get("42437", {}).get("idle", 0) >= 1.0)
+    stocked.registers[43086] = 10  # idle: no production after the restart
+    async with running_plugin(made()) as p:
+        await until(lambda: value(p, meter)[2] != "not read yet")
+        assert value(p, meter)[1] == "unknown"  # the count held
+    stocked.registers32[42437] += 10  # it moved while Thermaestro was down
+    async with running_plugin(made()) as p:
+        await until(lambda: value(p, meter)[2] != "not read yet")
+        assert value(p, meter)[1] == "good"
+
+
 async def test_it_conforms_and_writes_nothing(stocked: SimPump, gateway: Gateway) -> None:
     p = NibePlugin(
         settings(gateway), transport_settings={"plain_settings": FAST_PLAIN}, identify_timeout_s=5

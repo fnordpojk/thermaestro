@@ -45,7 +45,7 @@ from ..cap.model import (
     Range,
 )
 from ..cap.vocabulary import point as standard_point
-from ..core.plugins import PluginContext
+from ..core.plugins import PluginContext, PluginStore
 from ..store import NibeGateway, SecretStore
 from . import profile
 from .maps import ModelMap, Register, RegisterMap, Status, decode, load, words
@@ -60,6 +60,8 @@ LOG_SET = 0x68
 READ_TIMEOUT_S = 5.0
 PUSHED_FRESHNESS_S = 30.0
 POLLED_FRESHNESS_S = 900.0
+METER_SAVE_S = 60.0
+"""How often the heat meters' counts are kept, at most, for a restart."""
 COUNTERS = ("heat.produced", "elec.used")
 """Points that only count up, and start over from 0 at their register's size."""
 
@@ -98,8 +100,10 @@ class NibePlugin:
         identify_timeout_s: float = 40.0,
         health_interval_s: float = 10.0,
         read_timeout_s: float = READ_TIMEOUT_S,
+        state: PluginStore | None = None,
     ) -> None:
         self.gateway = gateway
+        self._state = state
         self._secrets = secrets
         self.maps = maps or load("bus")
         self._connect = connect_fn
@@ -126,12 +130,18 @@ class NibePlugin:
         self._meter_idle: dict[int, float] = {}
         """Per heat meter: seconds of production for its purpose since it last changed."""
         self._last_store: float | None = None
+        self._restored: dict[int, tuple[tuple[int, int], float]] = {}
+        """Per heat meter, as kept before a restart: its words then, and its count."""
+        self._saved_at = 0.0
+        self._last_saved: dict[str, Any] = {}
+        self._saving: asyncio.Task[None] | None = None
 
     # --- the plugin interface --------------------------------------------------------------
 
     async def events(self, send: Send) -> None:
         if self._transport is not None or self._identified.done():
             raise RuntimeError("a Nibe plugin instance serves one connection")
+        await self._restore()
         try:
             self._transport = await self._connect_transport()
         except Exception as e:
@@ -309,8 +319,42 @@ class NibePlugin:
         self._last_store = now
         if register in profile.METERS:
             previous = self._samples.get(register)
-            if previous is not None and previous.words != words_:
+            if previous is None:
+                # The count kept before a restart holds if the meter still reads the same.
+                kept = self._restored.pop(register, None)
+                if kept is not None and kept[0] == words_:
+                    self._meter_idle[register] = kept[1]
+            elif previous.words != words_:
                 self._meter_idle[register] = 0.0
+        if self._state is not None and now - self._saved_at >= METER_SAVE_S:
+            self._save_meters(now)
+
+    async def _restore(self) -> None:
+        if self._state is None:
+            return
+        try:
+            kept = (await self._state.load()).get("meters", {})
+            self._restored = {
+                int(register): ((int(m["words"][0]), int(m["words"][1])), float(m["idle"]))
+                for register, m in kept.items()
+            }
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            log.warning("the kept heat meter counts couldn't be read, so they start over: %s", e)
+
+    def _save_meters(self, now: float) -> None:
+        """Keep each heat meter's count for a restart, at most once a minute."""
+        if self._saving is not None and not self._saving.done():
+            return
+        meters = {
+            str(register): {"words": list(self._samples[register].words), "idle": round(idle, 1)}
+            for register, idle in self._meter_idle.items()
+            if register in self._samples
+        }
+        self._saved_at = now
+        if not meters or meters == self._last_saved or self._state is None:
+            return  # nothing new: no write, which on a Pi's SD card counts
+        self._last_saved = meters
+        self._saving = asyncio.get_running_loop().create_task(self._state.save({"meters": meters}))
 
     def _pump(self) -> tuple[ModelMap, profile.Layout]:
         if self.model is None or self.layout is None:
@@ -659,4 +703,8 @@ def _missing(path: str, now: datetime, why: str) -> Envelope:
 
 def create(context: PluginContext) -> NibePlugin:
     """The entry point: a plugin instance from its settings."""
-    return NibePlugin(NibeGateway.model_validate(dict(context.settings)), secrets=context.secrets)
+    return NibePlugin(
+        NibeGateway.model_validate(dict(context.settings)),
+        secrets=context.secrets,
+        state=context.state,
+    )

@@ -21,7 +21,7 @@ from ..cap import Closed, Endpoint, Link, Message, pair, serve
 from ..cap.messages import FEATURES, Described, DeviceEvent, ForeignWrite, Health, Hello
 from ..store import Database, Plugin, SecretStore
 from .audit import AuditLog
-from .plugins import Factory, PluginContext
+from .plugins import Factory, PluginContext, PluginStore
 from .series import Series
 from .values import Values
 
@@ -187,7 +187,12 @@ class PluginHost:
             await asyncio.sleep(pause)
 
     async def _run_in_process(self, instance: Instance, factory: Factory) -> None:
-        context = PluginContext(instance.id, instance.setting.settings, self._secrets)
+        context = PluginContext(
+            instance.id,
+            instance.setting.settings,
+            self._secrets,
+            PluginStore(self._db, instance.id),
+        )
         plugin = factory(context)
         core, plugin_side = pair()
         served = asyncio.create_task(serve(plugin_side, plugin))
