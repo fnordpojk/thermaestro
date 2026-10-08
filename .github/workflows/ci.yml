@@ -27,6 +27,35 @@ jobs:
         run: uv run python scripts/make-testvectors.py --check
       - run: uv run pytest
 
+  image:
+    runs-on: ubuntu-24.04
+    env:
+      THERMAESTRO_SOURCE: .
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and start it as compose.yaml does, from this commit
+        run: docker compose up --detach --build --wait --wait-timeout 180
+      - name: It answers, as its own user, and offers a setup code
+        run: |
+          curl -fsS http://127.0.0.1:8080/health
+          curl -kfsS https://127.0.0.1:8443/health
+          test "$(docker compose exec -T thermaestro id -u)" = 10001
+          docker compose logs thermaestro | grep -q "No administrator yet"
+      - name: The backup in docs/docker.md works
+        run: |
+          docker compose stop
+          docker compose cp thermaestro:/data ./backup
+          test -s backup/thermaestro.db
+      - name: It builds from GitHub, as compose.yaml does by default
+        run: |
+          export THERMAESTRO_SOURCE="https://github.com/${GITHUB_REPOSITORY}.git#${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          docker compose build
+      - name: Its log
+        if: always()
+        run: docker compose logs
+
   licenses:
     runs-on: ubuntu-24.04
     steps:
