@@ -1003,6 +1003,14 @@ async def test_named_values_are_charted_as_bands(site: Site) -> None:
     assert '"dhw": "Varmvatten"' in swedish
 
 
+def test_a_difference_is_shown_in_celsius_and_kept_in_kelvin() -> None:
+    from thermaestro.core.discovery import HA_UNITS
+    from thermaestro.web import i18n
+
+    assert i18n.unit("K") == "\N{DEGREE SIGN}C"  # on the pages
+    assert HA_UNITS.get("K", "K") == "K"  # to Home Assistant
+
+
 def test_values_are_shown_in_sentence_case() -> None:
     from thermaestro.web import labels
 

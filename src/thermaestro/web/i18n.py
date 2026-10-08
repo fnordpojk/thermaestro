@@ -263,8 +263,10 @@ UNITS = {
     "m3": "m\N{SUPERSCRIPT THREE}",
     "W/m2": "W/m\N{SUPERSCRIPT TWO}",
     "deg": "\N{DEGREE SIGN}",
+    "K": "\N{DEGREE SIGN}C",
 }
-"""Unit codes as written for people; the API keeps the codes."""
+"""Unit codes as written for people; the API keeps the codes. A difference (K) is shown as
+°C, as the pump's own delta-T settings beside it are; the API and Home Assistant keep K."""
 
 
 def unit(code: str | None) -> str:
