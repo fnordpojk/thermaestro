@@ -35,10 +35,14 @@ dependencies = [
 thermaestro = "thermaestro.cli:main"
 
 [project.entry-points."thermaestro.plugins"]
+energy_charts = "thermaestro.energy_charts.plugin:create"
 entsoe = "thermaestro.entsoe.plugin:create"
 homeassistant = "thermaestro.homeassistant.plugin:create"
 met_norway = "thermaestro.met_norway.plugin:create"
 nibe = "thermaestro.nibe.plugin:create"
+nordic_sites = "thermaestro.nordic_sites.plugin:create"
+octopus_agile = "thermaestro.octopus_agile.plugin:create"
+omie = "thermaestro.omie.plugin:create"
 open_meteo = "thermaestro.open_meteo.plugin:create"
 smhi = "thermaestro.smhi.plugin:create"
 tibber = "thermaestro.tibber.plugin:create"

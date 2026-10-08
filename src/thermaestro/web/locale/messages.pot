@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 04:08+0200\n"
+"POT-Creation-Date: 2026-10-08 21:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -423,6 +423,11 @@ msgid "Energy tax"
 msgstr ""
 
 msgid ""
+"Energy-Charts' prices for this zone are for private and internal use "
+"only: not for external or commercial purposes."
+msgstr ""
+
+msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, "
 "and `thermaestro setup-code` prints it. It works once, for 60 minutes."
 msgstr ""
@@ -493,6 +498,13 @@ msgid "Get it from Open-Meteo's archive"
 msgstr ""
 
 msgid "Given"
+msgstr ""
+
+msgid ""
+"Great Britain left the European day-ahead market, and no source gives its"
+" auction's price without an account. For a household on Octopus Energy's "
+"Agile tariff, its half-hourly unit rate is the price to plan with; add it"
+" as a layer once it is here."
 msgstr ""
 
 msgid "Grid fee"
@@ -733,7 +745,9 @@ msgstr ""
 msgid "No source offers prices yet."
 msgstr ""
 
-msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
+msgid ""
+"No source offers prices yet. Choose your bidding zone's spot price source"
+" above."
 msgstr ""
 
 msgid "No values in this period."
@@ -984,6 +998,9 @@ msgstr ""
 msgid "Setup code"
 msgstr ""
 
+msgid "Show its sources"
+msgstr ""
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr ""
 
@@ -1061,6 +1078,12 @@ msgid ""
 "them."
 msgstr ""
 
+msgid ""
+"The day-ahead price of your bidding zone. Thermaestro suggests a source "
+"for the zone, and one to stand in on a day the first has no prices; every"
+" zone of a country takes its prices from the same source."
+msgstr ""
+
 msgid "The forecast"
 msgstr ""
 
@@ -1126,6 +1149,11 @@ msgid ""
 "price, the pump's values, and how the plugins are doing. The pump's "
 "settings and diagnostic values come disabled; enable those you want in "
 "Home Assistant. Nothing is accepted back."
+msgstr ""
+
+msgid ""
+"Tibber sells electricity here. If you are a Tibber customer, enter your "
+"Tibber token below: your own prices from Tibber then come first."
 msgstr ""
 
 msgid ""
@@ -1462,6 +1490,10 @@ msgstr ""
 msgid "ethylene glycol, about 30 %%"
 msgstr ""
 
+#, python-format
+msgid "every %(step)s"
+msgstr ""
+
 msgid "everything, including rights added later"
 msgstr ""
 
@@ -1731,5 +1763,8 @@ msgid "wrong user name or password"
 msgstr ""
 
 msgid "yes"
+msgstr ""
+
+msgid "your token"
 msgstr ""
 

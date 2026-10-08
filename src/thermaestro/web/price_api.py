@@ -95,6 +95,29 @@ async def set_source(
     return setting.model_dump(mode="json")
 
 
+@router.get("/prices/spot")
+@action("price_sources.read")
+async def spot(request: Request, who: Logged) -> dict[str, Any]:
+    """Where the spot price comes from, as plugin names, and the bidding zone."""
+    return await services(request).spot_choice(who)
+
+
+@router.put("/prices/spot")
+@action("price_source.write")
+async def set_spot(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """Take a bidding zone's spot price from a source, with another standing in:
+    `{"zone": "NO1", "source": "energy_charts", "fallback": "nordic_sites"}`, and
+    optionally `"currency"`. The sources a zone has are those Setup → Prices offers."""
+    zone, source = body.get("zone"), body.get("source")
+    fallback, currency = body.get("fallback"), body.get("currency")
+    if not isinstance(zone, str) or not isinstance(source, str):
+        raise AccountError("give the zone and the source")
+    if not isinstance(fallback, str | None) or not isinstance(currency, str | None):
+        raise AccountError("the fallback and the currency are names")
+    id, layer = await services(request).choose_spot(who, zone, source, fallback, currency)
+    return {"id": id, **layer.model_dump(mode="json")}
+
+
 @router.get("/prices/layers")
 @action("price_layers.read")
 async def layers(request: Request, who: Logged) -> dict[str, Any]:

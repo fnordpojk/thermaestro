@@ -228,6 +228,88 @@ async def test_price_sources_in_the_settings(site: Site) -> None:
         assert "tibber-token-1" not in (await client.get("/setup/prices")).text
 
 
+async def test_the_spot_source_is_picked_by_the_zone(site: Site) -> None:
+    async with logged_in(site) as client:
+        page = (await client.get("/setup/prices", params={"zone": "NO1"})).text
+        assert 'value="energy_charts" checked' in page
+        assert '<option value="nordic_sites" selected>hvakosterstrommen.no</option>' in page
+        assert "for private and internal use only" in page
+        assert "Tibber sells electricity here" in page
+        saved = await form(
+            client,
+            "/setup/prices?zone=NO1",
+            "/settings/spot",
+            zone="NO1",
+            source="energy_charts",
+            fallback="nordic_sites",
+        )
+        assert saved.status_code == 303
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        for plugin in ("energy_charts", "nordic_sites"):
+            assert sources[plugin]["settings"] == {"zone": "NO1", "currency": "NOK"}
+        layer = (await client.get("/api/v1/prices/layers")).json()["energy-spot"]
+        assert (layer["plugin"], layer["series"], layer["unit"]) == (
+            "energy_charts",
+            "spot",
+            "NOK/kWh",
+        )
+        assert layer["fallbacks"] == ["nordic_sites:spot"]
+        assert (await client.get("/api/v1/prices/spot")).json() == {
+            "zone": "NO1",
+            "source": "energy_charts",
+            "fallback": "nordic_sites",
+        }
+        # Saved and shown again: what is set up is what the form shows.
+        page = (await client.get("/setup/prices")).text
+        assert '<option value="NO1" selected>' in page
+        # Moved to Sweden through the API: one source, and the one no longer used goes.
+        token = csrf_of(page)
+        moved = await client.put(
+            "/api/v1/prices/spot",
+            json={"zone": "SE3", "source": "nordic_sites"},
+            headers={"x-csrf-token": token},
+        )
+        assert moved.status_code == 200
+        assert moved.json()["fallbacks"] == []
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert "energy_charts" not in sources
+        assert sources["nordic_sites"]["settings"] == {"zone": "SE3", "currency": "SEK"}
+        refused = await client.put(
+            "/api/v1/prices/spot",
+            json={"zone": "SE3", "source": "energy_charts"},
+            headers={"x-csrf-token": token},
+        )
+        assert refused.status_code == 400
+        assert "isn't a source of SE3's prices" in refused.text
+
+
+async def test_entsoe_stands_in_last_and_follows_the_zone(site: Site) -> None:
+    async with logged_in(site) as client:
+        await form(client, "/setup/prices", "/settings/entsoe", zone="SE3", token="entsoe-token-1")
+        await form(
+            client, "/setup/prices?zone=DK1", "/settings/spot", zone="DK1", source="energy_charts"
+        )
+        layer = (await client.get("/api/v1/prices/layers")).json()["energy-spot"]
+        assert layer["fallbacks"] == ["entsoe:spot"]
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert sources["entsoe"]["settings"] == {
+            "token": "entsoe.token",
+            "zone": "DK1",
+            "currency": "DKK",
+        }
+
+
+async def test_octopus_agile_by_region(site: Site) -> None:
+    async with logged_in(site) as client:
+        page = (await client.get("/setup/prices")).text
+        assert "C \N{EN DASH} London" in page
+        await form(client, "/setup/prices", "/settings/octopus_agile", region="c")
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert sources["octopus_agile"]["settings"] == {"region": "C"}
+        refused = await form(client, "/setup/prices", "/settings/octopus_agile", region="I")
+        assert refused.status_code == 400
+
+
 async def test_a_fallback_and_the_check_against_tibber(site: Site) -> None:
     series = site.services.series
     assert series is not None

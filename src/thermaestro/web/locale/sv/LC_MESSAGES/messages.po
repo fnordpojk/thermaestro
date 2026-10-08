@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 02:28+0200\n"
+"POT-Creation-Date: 2026-10-08 21:53+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -449,6 +449,13 @@ msgid "Energy tax"
 msgstr "Energiskatt"
 
 msgid ""
+"Energy-Charts' prices for this zone are for private and internal use only: not for "
+"external or commercial purposes."
+msgstr ""
+"Energy-Charts priser för det här elområdet är bara för privat och internt bruk: inte "
+"för externa eller kommersiella ändamål."
+
+msgid ""
 "Enter the setup code from the host. It is in Thermaestro's log at start, and "
 "`thermaestro setup-code` prints it. It works once, for 60 minutes."
 msgstr ""
@@ -525,6 +532,16 @@ msgstr "Hämta det från Open-Meteos arkiv"
 
 msgid "Given"
 msgstr "Ges"
+
+msgid ""
+"Great Britain left the European day-ahead market, and no source gives its auction's "
+"price without an account. For a household on Octopus Energy's Agile tariff, its half-"
+"hourly unit rate is the price to plan with; add it as a layer once it is here."
+msgstr ""
+"Storbritannien har lämnat den europeiska dagen före-marknaden, och ingen källa ger "
+"dess auktionspris utan konto. För ett hushåll med Octopus Energys Agile-avtal är "
+"avtalets pris per halvtimme det pris att planera efter; lägg till det som ett lager "
+"när det finns här."
 
 msgid "Grid fee"
 msgstr "Nätavgift"
@@ -770,8 +787,8 @@ msgstr "Inga givare än."
 msgid "No source offers prices yet."
 msgstr "Ingen källa erbjuder priser än."
 
-msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
-msgstr "Ingen källa erbjuder priser än. Lägg till Tibber eller ENTSO-E ovan."
+msgid "No source offers prices yet. Choose your bidding zone's spot price source above."
+msgstr "Ingen källa ger priser än. Välj källa för ditt elområdes spotpris ovan."
 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
@@ -1027,6 +1044,9 @@ msgstr "Inställningar"
 msgid "Setup code"
 msgstr "Installationskod"
 
+msgid "Show its sources"
+msgstr "Visa dess källor"
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr "Visas bara; Thermaestro planerar inte med den."
 
@@ -1106,6 +1126,15 @@ msgid ""
 msgstr ""
 "Årsmedeltemperaturen och hur långt den varmaste månadens medel ligger från den "
 "kallastes. Thermaestro uppskattar kallvattnets temperatur utifrån dem."
+
+msgid ""
+"The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone,"
+" and one to stand in on a day the first has no prices; every zone of a country takes "
+"its prices from the same source."
+msgstr ""
+"Dagen före-priset i ditt elområde. Thermaestro föreslår en källa för området, och en "
+"reserv för en dag då den första saknar priser; alla elområden i ett land tar sina "
+"priser från samma källa."
 
 msgid "The forecast"
 msgstr "Prognosen"
@@ -1187,6 +1216,13 @@ msgstr ""
 "rummens och utomhusvärdena, elpriset, pumpens värden och hur tilläggen mår. Pumpens "
 "inställningar och diagnostikvärden kommer avaktiverade; aktivera dem du vill ha i "
 "Home Assistant. Inget tas emot tillbaka."
+
+msgid ""
+"Tibber sells electricity here. If you are a Tibber customer, enter your Tibber token "
+"below: your own prices from Tibber then come first."
+msgstr ""
+"Tibber säljer el här. Är du kund hos Tibber, ange din Tibber-token nedan: dina egna "
+"priser från Tibber kommer då först."
 
 msgid ""
 "Tick what Thermaestro should read. Each picked value becomes a sensor; names and "
@@ -1531,6 +1567,10 @@ msgstr "etanol, omkring 28 %%"
 msgid "ethylene glycol, about 30 %%"
 msgstr "etylenglykol, omkring 30 %%"
 
+#, python-format
+msgid "every %(step)s"
+msgstr "var %(step)s"
+
 msgid "everything, including rights added later"
 msgstr "allt, även rättigheter som läggs till senare"
 
@@ -1803,3 +1843,10 @@ msgstr "fel användarnamn eller lösenord"
 
 msgid "yes"
 msgstr "ja"
+
+msgid "your token"
+msgstr "din token"
+
+#~ msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
+#~ msgstr "Ingen källa erbjuder priser än. Lägg till Tibber eller ENTSO-E ovan."
+

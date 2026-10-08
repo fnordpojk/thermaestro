@@ -125,13 +125,22 @@ class DayAheadPlugin(SeriesPlugin):
             return (due - now).total_seconds() + jitter
         return self._poll
 
+    def market_end(self, today: date) -> datetime:
+        """Where the prices published on `today` (in the publication's time zone) end:
+        the next local midnight but one, for the European auction."""
+        zone = ZoneInfo(self.publication().tz)
+        return datetime.combine(today + timedelta(days=2), datetime.min.time(), zone)
+
     def _holds_tomorrow(self) -> bool:
         """Whether tomorrow's prices are all in: tomorrow as the market's day, which is
-        what each publication covers. Portugal's day ends an hour after the European
-        auction's, so its local tomorrow is never complete before the next auction."""
+        what each publication covers, or as the zone's own day where that ends first.
+        Portugal's day ends an hour after the European auction's, so its local tomorrow
+        is never complete before the next auction; Finland's ends an hour before, and a
+        source that gives whole local days can't give the auction's last hour until then."""
         zone = ZoneInfo(self.publication().tz)
         today = datetime.fromtimestamp(self._clock(), zone).date()
-        end = datetime.combine(today + timedelta(days=2), datetime.min.time(), zone)
+        local = datetime.combine(today + timedelta(days=2), datetime.min.time(), self.zone())
+        end = min(self.market_end(today), local)
         offered = self._offered()
         return bool(offered) and all(
             (until := self.held.known_until(s)) is not None and until >= end for s in offered

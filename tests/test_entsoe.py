@@ -17,7 +17,7 @@ from thermaestro.cap.conformance import run
 from thermaestro.cap.messages import Health
 from thermaestro.cap.model import Interval
 from thermaestro.core.series import Key, Series
-from thermaestro.entsoe.ecb import Rates
+from thermaestro.ecb import Rates
 from thermaestro.entsoe.plugin import EntsoEPlugin
 from thermaestro.store import Database, EntsoE, SecretStore
 

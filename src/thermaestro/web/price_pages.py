@@ -150,7 +150,7 @@ async def set_entsoe(
     token: Text = "",
     currency: Text = "",
 ) -> Response:
-    from ..entsoe.zones import ZONES
+    from ..zones import ZONES
 
     s = services(request)
     current = (await s.price_sources(who)).get(id)
@@ -171,6 +171,31 @@ async def set_entsoe(
         await s.set_price_source(who, "entsoe", id, settings)
 
     return await attempt(request, who, work(), "prices", "/setup/prices#sources")
+
+
+@router.post("/settings/spot")
+@action("price_source.write")
+async def set_spot(
+    request: Request,
+    who: Logged,
+    zone: Text,
+    source: Text,
+    fallback: Text = "",
+    currency: Text = "",
+) -> Response:
+    work = services(request).choose_spot(who, zone, source, fallback or None, currency or None)
+    return await attempt(request, who, work, "prices", f"/setup/prices?zone={zone}#spot")
+
+
+@router.post("/settings/octopus_agile")
+@action("price_source.write")
+async def set_octopus_agile(
+    request: Request, who: Logged, region: Text, id: Text = "octopus_agile"
+) -> Response:
+    work = services(request).set_price_source(
+        who, "octopus_agile", id, {"region": region.strip().upper()}
+    )
+    return await attempt(request, who, work, "prices", "/setup/prices#sources")
 
 
 @router.post("/prices/vat")

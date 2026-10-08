@@ -5,9 +5,13 @@ from datetime import date
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
+from pydantic import BaseModel
+
 from ..auth import AccountError
 from ..core.prices import Stack, assemble
-from ..store import Plugin, PriceLayer, Vat
+from ..spotsources import choices
+from ..store import EntsoE, OctopusAgile, Plugin, PriceLayer, SpotZone, Tibber, Vat
+from ..zones import ZONES
 from .sensor_operations import ID, slug
 
 if TYPE_CHECKING:
@@ -19,7 +23,36 @@ if TYPE_CHECKING:
     from ..store import Database
     from .operations import Caller
 
-PRICE_PLUGINS = ("tibber", "entsoe")
+PRICE_PLUGINS = ("tibber", "entsoe", "energy_charts", "nordic_sites", "omie", "octopus_agile")
+NO_ACCOUNT = ("energy_charts", "nordic_sites", "omie")
+"""Spot price sources set up by the bidding zone alone, and removed when no longer used."""
+
+
+def _source_settings(plugin: str, settings: dict[str, Any]) -> None:
+    """Refuse settings the price plugin would refuse when it starts."""
+    from ..nordic_sites.plugin import SITES
+    from ..omie.plugin import COLUMN
+    from .operations import _validated
+
+    models: dict[str, type[BaseModel]] = {
+        "tibber": Tibber,
+        "entsoe": EntsoE,
+        "energy_charts": SpotZone,
+        "nordic_sites": SpotZone,
+        "omie": SpotZone,
+        "octopus_agile": OctopusAgile,
+    }
+    _validated(models[plugin], settings, "the price source")
+    zone = settings.get("zone")
+    if zone is None:
+        return
+    area = ZONES.get(str(zone))
+    if (
+        area is None
+        or (plugin == "nordic_sites" and area.country not in SITES)
+        or (plugin == "omie" and zone not in COLUMN)
+    ):
+        raise AccountError(f"{plugin} has no prices for {zone!r}")
 
 
 class PriceOperations:
@@ -156,6 +189,7 @@ class PriceOperations:
         existing = await self.db.get(Plugin, id)
         if existing is not None and existing.plugin != plugin:
             raise AccountError(f"{id!r} is already a {existing.plugin} instance")
+        _source_settings(plugin, settings)
         setting = _validated(Plugin, {"plugin": plugin, "settings": settings}, "the price source")
         await self.db.put(setting, id)
         await self.audit.record(
@@ -167,6 +201,110 @@ class PriceOperations:
         if self.host is not None:
             await self.host.apply(id)
         return setting
+
+    async def choose_spot(
+        self,
+        caller: "Caller",
+        zone: str,
+        source: str,
+        fallback: str | None = None,
+        currency: str | None = None,
+    ) -> tuple[str, PriceLayer]:
+        """Take a bidding zone's spot price from `source`, with `fallback` standing in on a
+        day it has no price, and ENTSO-E after both where a token is entered. Both are
+        plugin names, from those `spotsources.choices` offers for the zone. Sources that
+        need no account are set up for the zone, and removed once no longer used; one with
+        a token keeps it. The stack's spot layer then takes from them."""
+        self._require(caller, "plugins.manage", step_up=True)
+        area = ZONES.get(zone)
+        if area is None:
+            raise AccountError(f"no bidding zone {zone!r}")
+        chosen_currency = (currency or "").strip().upper() or area.currency
+        if len(chosen_currency) != 3 or not chosen_currency.isalpha():
+            raise AccountError("a currency is three letters, such as EUR")
+        sources = await self.price_sources(caller)
+        has = {p["plugin"]: id for id, p in sorted(sources.items(), reverse=True)}
+        offered = {
+            c.plugin: c for c in choices(zone, tibber="tibber" in has, entsoe="entsoe" in has)
+        }
+        if source not in offered:
+            raise AccountError(f"{source!r} isn't a source of {zone}'s prices")
+        if fallback and (fallback not in offered or fallback == source):
+            raise AccountError(f"{fallback!r} can't stand in for {source!r} in {zone}")
+        used = [source, *([fallback] if fallback else [])]
+        if "entsoe" in has and "entsoe" not in used:
+            used.append("entsoe")
+        settings = {"zone": zone, "currency": chosen_currency}
+        refs = []
+        for plugin in used:
+            if plugin in NO_ACCOUNT:
+                id = has.get(plugin, plugin)
+                if sources.get(id, {}).get("settings") != settings:
+                    await self.set_price_source(caller, plugin, id, settings)
+            elif plugin == "entsoe":
+                id = has[plugin]
+                current = dict(sources[id]["settings"])
+                if {k: current.get(k) for k in settings} != settings:
+                    await self.set_price_source(caller, plugin, id, {**current, **settings})
+            else:
+                id = has[plugin]
+            refs.append(f"{id}:{offered[plugin].series}")
+        for id, p in sources.items():
+            if p["plugin"] in NO_ACCOUNT and p["plugin"] not in used:
+                await self._remove_price_source(caller, id, p["plugin"])
+        unit = next(
+            (
+                o["unit"]
+                for o in self.offered_series(caller)
+                if f"{o['instance']}:{o['series']}" == refs[0]
+            ),
+            f"{chosen_currency}/kWh",
+        )
+        instance, _, series = refs[0].partition(":")
+        layers = await self.db.all(PriceLayer)
+        current_id = next((id for id, layer in layers.items() if layer.role == "energy.spot"), None)
+        body = {
+            "role": "energy.spot",
+            "source": "series",
+            "plugin": instance,
+            "series": series,
+            "fallbacks": refs[1:],
+            "unit": unit,
+            "vat": "excl",
+        }
+        return await self.set_price_layer(caller, current_id, body)
+
+    async def spot_choice(self, caller: "Caller") -> dict[str, str | None]:
+        """Where the stack's spot layer takes its price from, as plugin names, and the
+        bidding zone they are set up for."""
+        caller.principal.require("settings.read")
+        sources = await self.price_sources(caller)
+        layers = await self.db.all(PriceLayer)
+        layer = next(
+            (x for x in layers.values() if x.role == "energy.spot" and x.source == "series"), None
+        )
+        if layer is None:
+            return {"zone": None, "source": None, "fallback": None}
+        ids = [layer.plugin or "", *(ref.partition(":")[0] for ref in layer.fallbacks)]
+        known = [sources[i] for i in ids if i in sources]
+        zones = [s["settings"].get("zone") for s in known if s["settings"].get("zone")]
+        plugins = [sources[i]["plugin"] if i in sources else None for i in ids]
+        return {
+            "zone": zones[0] if zones else None,
+            "source": plugins[0],
+            "fallback": plugins[1] if len(plugins) > 1 else None,
+        }
+
+    async def _remove_price_source(self, caller: "Caller", id: str, plugin: str) -> None:
+        await self.db.delete(Plugin, id)
+        await self.audit.record(
+            caller.principal.name,
+            "plugin.delete",
+            source=caller.source,
+            details={"instance": id, "plugin": plugin},
+        )
+        if self.host is not None:
+            await self.host.apply(id)
 
     async def set_fallbacks(self, caller: "Caller", id: str, fallbacks: list[str]) -> PriceLayer:
         """The series that stand in for a layer's own, in order."""

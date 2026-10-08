@@ -154,6 +154,7 @@ class Tibber(BaseModel):
 
 
 Zone = Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}[A-Z0-9-]{0,8}$")]
+Currency = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 
 
 class EntsoE(BaseModel):
@@ -166,8 +167,30 @@ class EntsoE(BaseModel):
     """The user's own security token for the platform's API, in the secrets file."""
     zone: Zone
     """The bidding zone, such as SE3 or DE-LU."""
-    currency: Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")] = "EUR"
+    currency: Currency = "EUR"
     """The currency to give prices in; other than EUR, converted at the ECB's rates."""
+
+
+class SpotZone(BaseModel):
+    """A bidding zone's day-ahead prices from a source that needs no account: the settings
+    of an `energy_charts`, `nordic_sites` or `omie` plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    zone: Zone
+    currency: Currency = "EUR"
+    """The currency to give prices in; other than EUR, converted at the ECB's rates."""
+
+
+class OctopusAgile(BaseModel):
+    """Octopus Energy's Agile tariff in Great Britain: the settings of an `octopus_agile`
+    plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    region: Annotated[str, StringConstraints(pattern=r"^[A-HJ-NP]$")]
+    """The grid supply point group, a letter from A to P (there is no I or O): the
+    region's prices differ by its network charges."""
 
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]

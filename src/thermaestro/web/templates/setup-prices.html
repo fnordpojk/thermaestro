@@ -5,10 +5,42 @@
 <section id="sources">
 <h2>{{ _("Price sources") }}</h2>
 <p>{{ _("Where the spot price, and your supplier's price, come from. Tokens are kept in the secrets file.") }}</p>
-{% for id, src in (tibber | dictsort) + (entsoe | dictsort) %}
-<p><strong>{{ id }}</strong> · {{ _(src.state) }}{% if src.plugin == "entsoe" %} · {{ src.settings.zone }}, {{ src.settings.currency }}{% endif %}
+{% for id, src in sources | dictsort %}
+<p><strong>{{ id }}</strong> · {{ _(src.state) }}{% if src.settings.get("zone") %} · {{ src.settings.zone }}, {{ src.settings.currency }}{% elif src.settings.get("region") in octopus_regions %} · {{ octopus_regions[src.settings.region] }}{% endif %}
   {% if src.needs_user_action %}<br><span class="error">{{ src.needs_user_action }}</span>{% elif src.error %}<br><span class="hint">{{ src.error }}</span>{% endif %}</p>
 {% endfor %}
+
+<h3 id="spot">{{ _("Spot price") }}</h3>
+<p>{{ _("The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone, and one to stand in on a day the first has no prices; every zone of a country takes its prices from the same source.") }}</p>
+<form method="get" action="/setup/prices" class="grid">
+  <label>{{ _("Bidding zone") }}
+    <select name="zone" required>
+      <option value=""{% if not spot_zone %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for code, z in bidding_zones.items() %}<option value="{{ code }}"{% if code == spot_zone %} selected{% endif %}>{{ code }} – {{ z.country | country }}</option>{% endfor %}
+    </select></label>
+  <button type="submit">{{ _("Show its sources") }}</button>
+</form>
+{% if spot_zone %}
+{% if tibber_hint %}<p class="hint">{{ _("Tibber sells electricity here. If you are a Tibber customer, enter your Tibber token below: your own prices from Tibber then come first.") }}</p>{% endif %}
+<form method="post" action="/settings/spot" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="zone" value="{{ spot_zone }}">
+  <fieldset><legend>{{ _("Source") }}</legend>
+  {% for c in spot_choices %}
+    <label class="check"><input type="radio" name="source" value="{{ c.plugin }}"{% if c.plugin == spot_source %} checked{% endif %}> {{ source_names[c.plugin] }} · {{ _("every %(step)s", step=c.resolution | duration) }}{% if c.token %} · {{ _("your token") }}{% endif %}
+      {% if c.private %}<br><small class="error">{{ _("Energy-Charts' prices for this zone are for private and internal use only: not for external or commercial purposes.") }}</small>{% endif %}</label>
+  {% endfor %}
+  </fieldset>
+  <label>{{ _("Fallback") }}
+    <select name="fallback">
+      <option value="">{{ _("none") }}</option>
+      {% for c in spot_choices %}<option value="{{ c.plugin }}"{% if c.plugin == spot_fallback %} selected{% endif %}>{{ source_names[c.plugin] }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Currency") }} <small>{{ _("empty: the zone's own") }}</small>
+    <input name="currency" maxlength="3" placeholder="{{ bidding_zones[spot_zone].currency }}"></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endif %}
 
 <h3>Tibber</h3>
 <p>{{ _("Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. Make a personal access token at developer.tibber.com. Thermaestro asks Tibber for prices only, never for your name, address or consumption.") }}</p>
@@ -37,6 +69,21 @@
     <input name="currency" maxlength="3" placeholder="SEK" value="{{ current.settings.currency if current else '' }}"></label>
   <label>{{ _("Security token") }} <small>{% if current %}{{ _("entered; leave empty to keep it") }}{% endif %}</small>
     <input name="token" type="password" autocomplete="off"{% if not current %} required{% endif %}></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+
+<h3>Octopus Agile</h3>
+<p>{{ _("Great Britain left the European day-ahead market, and no source gives its auction's price without an account. For a household on Octopus Energy's Agile tariff, its half-hourly unit rate is the price to plan with; add it as a layer once it is here.") }}</p>
+{% set current = (octopus.values() | first) if octopus else none %}
+<form method="post" action="/settings/octopus_agile" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ (octopus.keys() | first) if octopus else 'octopus_agile' }}">
+  {% set chosen = current.settings.region if current else "" %}
+  <label>{{ _("Region") }}
+    <select name="region" required>
+      <option value=""{% if not chosen %} selected{% endif %} disabled>{{ _("Choose…") }}</option>
+      {% for letter, name in octopus_regions.items() %}<option value="{{ letter }}"{% if letter == chosen %} selected{% endif %}>{{ letter }} – {{ name }}</option>{% endfor %}
+    </select></label>
   <button type="submit">{{ _("Save") }}</button>
 </form>
 </section>
@@ -121,7 +168,7 @@
 {% if offered %}
 {% include "series-offered.html" %}
 {% else %}
-<p class="hint">{{ _("No source offers prices yet. Add Tibber or ENTSO-E above.") }}</p>
+<p class="hint">{{ _("No source offers prices yet. Choose your bidding zone's spot price source above.") }}</p>
 {% endif %}
 </section>
 {% endblock %}

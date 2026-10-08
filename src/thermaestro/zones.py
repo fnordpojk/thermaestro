@@ -1,6 +1,6 @@
-"""The bidding zones with day-ahead prices on the ENTSO-E Transparency Platform: each
-zone's EIC code, its country, the currency used there, and its time zone (where its days
-begin and end)."""
+"""The bidding zones of the European day-ahead market, as the price sources name them:
+each zone's EIC code (ENTSO-E's name for it), its country, the currency used there, and
+its time zone (where its days begin and end)."""
 
 from dataclasses import dataclass
 

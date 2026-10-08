@@ -17,7 +17,6 @@ Checked against the real API on 2026-10-07 (SE3, DE-LU, FI and PT).
 """
 
 import re
-import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -26,6 +25,7 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
+from .. import ecb
 from ..cap.model import (
     Access,
     Interval,
@@ -38,13 +38,10 @@ from ..cap.model import (
 from ..core.plugins import PluginContext
 from ..dayahead import DayAheadPlugin, Refused, SourceError
 from ..store import EntsoE, SecretStore
-from .ecb import SOURCE as ECB_SOURCE
-from .ecb import Rates
-from .zones import ZONES
+from ..zones import ZONES
 
 URL = "https://web-api.tp.entsoe.eu/api"
 DOCS = "ENTSO-E Transparency Platform API documentation, read 2026-10-07"
-RATES_FRESH_S = 6 * 3600.0
 SEQUENCE_FIRST = ("DE-LU", "AT")
 """Zones whose answer also holds another auction's prices, so sequence 1 is asked for."""
 
@@ -69,7 +66,7 @@ class EntsoEPlugin(DayAheadPlugin):
         *,
         secrets: SecretStore | None = None,
         url: str = URL,
-        rates: Rates | None = None,
+        rates: ecb.Rates | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -79,8 +76,7 @@ class EntsoEPlugin(DayAheadPlugin):
         self.area = ZONES[settings.zone]
         self._secrets = secrets
         self._url = url
-        self.rates = rates or Rates()
-        self._rates_loaded: float | None = None
+        self.converter = ecb.Converter(rates)
 
     # --- what ENTSO-E supplies --------------------------------------------------------------
 
@@ -111,16 +107,14 @@ class EntsoEPlugin(DayAheadPlugin):
         converted = self.settings.currency != "EUR"
         attribution = "Day-ahead prices: ENTSO-E Transparency Platform"
         if converted:
-            attribution += f"; converted to {self.settings.currency} at the {ECB_SOURCE}"
+            attribution += f"; converted to {self.settings.currency} at the {ecb.SOURCE}"
         conditions = [
             "Energy prices aren't on the platform's list of data free to reuse under CC-BY"
             " 4.0; its Terms of Use apply, and the power exchanges that produce the prices"
             " may hold rights in them",
         ]
         if converted:
-            conditions.append(
-                "The ECB's rates are for information only; a price converted with them must say so"
-            )
+            conditions.append(ecb.CONDITION)
         return Provider(
             name="ENTSO-E Transparency Platform",
             operator=Knowledge(value="ENTSO-E", known="documented", basis=DOCS),
@@ -179,7 +173,8 @@ class EntsoEPlugin(DayAheadPlugin):
             raise SourceError("ENTSO-E: too many requests")
         if status != 200:
             raise SourceError(f"ENTSO-E answered HTTP {status}: {_reason(body)}")
-        return await self._intervals(session, _parse(body, self.area.eic))
+        rows = _choose(_parse(body, self.area.eic))
+        return await self.converter.intervals(session, rows, self.settings.currency, self.zone())
 
     async def _token(self) -> str:
         if self._secrets is None:
@@ -188,56 +183,6 @@ class EntsoEPlugin(DayAheadPlugin):
         if secret is None:
             raise Refused(f"the token {self.settings.token!r} isn't in the secrets")
         return secret.get_secret_value()
-
-    async def _intervals(
-        self, session: aiohttp.ClientSession, blocks: list[_Block]
-    ) -> list[Interval]:
-        chosen = _choose(blocks)
-        currency = self.settings.currency
-        zone = self.zone()
-        out = []
-        for start, end, eur_mwh in chosen:
-            value = eur_mwh / 1000
-            extra: dict[str, Any] = {}
-            if currency != "EUR":
-                day = start.astimezone(zone).date()
-                rate = await self._rate(session, day, currency)
-                value *= rate[1]
-                extra = {
-                    "source": "calculated",
-                    "why": f"converted from EUR at the ECB's rate of {rate[0]}: {rate[1]}",
-                }
-            out.append(
-                Interval.model_validate(
-                    {
-                        "series": "spot",
-                        "start": start,
-                        "end": end,
-                        "value": round(value, 6),
-                        "unit": f"{currency}/kWh",
-                        "vat": "excl",
-                        "status": "final",
-                        **extra,
-                    }
-                )
-            )
-        return out
-
-    async def _rate(
-        self, session: aiohttp.ClientSession, day: date, currency: str
-    ) -> tuple[date, float]:
-        old = self._rates_loaded is None or time.monotonic() - self._rates_loaded > RATES_FRESH_S
-        found = None if old else self.rates.for_day(day, currency)
-        if found is None:
-            try:
-                await self.rates.load(session)
-            except aiohttp.ClientError as e:
-                raise SourceError(f"the ECB can't be reached ({type(e).__name__})") from None
-            self._rates_loaded = time.monotonic()
-            found = self.rates.for_day(day, currency)
-        if found is None:
-            raise SourceError(f"the ECB has no {currency} rate for {day}'s prices")
-        return found
 
 
 # --- the answer ------------------------------------------------------------------------------

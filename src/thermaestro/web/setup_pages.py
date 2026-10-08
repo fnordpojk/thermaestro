@@ -124,13 +124,44 @@ async def _sensors(request: Request, who: Caller) -> dict[str, Any]:
 
 
 async def _prices(request: Request, who: Caller) -> dict[str, Any]:
-    from ..entsoe.zones import ZONES
+    from ..nordic_sites.plugin import SITES
+    from ..octopus_agile.plugin import REGIONS
+    from ..spotsources import TIBBER_COUNTRIES, choices
+    from ..zones import ZONES
 
     s = services(request)
     sources = await s.price_sources(who)
+    has = {p["plugin"] for p in sources.values()}
+    spot = await s.spot_choice(who)
+    asked = request.query_params.get("zone")
+    zone = asked if asked in ZONES else spot["zone"]
+    country = ZONES[zone].country if zone else None
+    offered = choices(zone, tibber="tibber" in has, entsoe="entsoe" in has) if zone else []
+    plugins = [c.plugin for c in offered]
+    same = zone == spot["zone"]
+    source = spot["source"] if same and spot["source"] in plugins else None
+    fallback = spot["fallback"] if same and spot["fallback"] in plugins else None
+    if source is None and plugins:
+        source, fallback = plugins[0], plugins[1] if len(plugins) > 1 else None
+    names = {
+        "energy_charts": "Energy-Charts",
+        "entsoe": "ENTSO-E",
+        "omie": "OMIE",
+        "tibber": "Tibber",
+        "nordic_sites": SITES[country].host.removeprefix("www.") if country in SITES else "",
+    }
     return {
+        "sources": sources,
         "tibber": {id: p for id, p in sources.items() if p["plugin"] == "tibber"},
         "entsoe": {id: p for id, p in sources.items() if p["plugin"] == "entsoe"},
+        "octopus": {id: p for id, p in sources.items() if p["plugin"] == "octopus_agile"},
+        "spot_zone": zone,
+        "spot_choices": offered,
+        "spot_source": source,
+        "spot_fallback": fallback,
+        "source_names": names,
+        "tibber_hint": country in TIBBER_COUNTRIES and "tibber" not in has,
+        "octopus_regions": REGIONS,
         "bidding_zones": ZONES,
         "offered": s.offered_series(who),
         "layers": await s.price_layers(who),
