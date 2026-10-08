@@ -14,7 +14,7 @@ from thermaestro_gateway.server import Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
-from thermaestro.cap.messages import Described
+from thermaestro.cap.messages import Described, DeviceEvent
 from thermaestro.core import discover
 from thermaestro.nibe import logset, profile
 from thermaestro.nibe.maps import load
@@ -94,10 +94,13 @@ async def plugin(stocked: SimPump, gateway: Gateway) -> AsyncIterator[NibePlugin
 
 
 @contextlib.asynccontextmanager
-async def running_plugin(p: NibePlugin) -> AsyncIterator[NibePlugin]:
+async def running_plugin(
+    p: NibePlugin, events: list[object] | None = None
+) -> AsyncIterator[NibePlugin]:
+    """The plugin served, as the core would; `events` collects what it sends unasked."""
     core, plugin_side = pair()
     served = asyncio.create_task(serve(plugin_side, p))
-    link = Link(core)
+    link = Link(core, on_event=events.append if events is not None else None)
     link.start()
     try:
         await link.hello(timeout=5)
@@ -208,6 +211,72 @@ async def test_a_heat_meter_that_doesnt_count(
     assert (value(plugin, meter)[2] or "").endswith(" of dhw production")
     stocked.registers32[42437] += 10  # it counts after all
     await until(lambda: value(plugin, meter)[1] == "good")
+
+
+async def test_the_brines_delta_t_and_its_warning(stocked: SimPump, gateway: Gateway) -> None:
+    """The brine's delta-T, worked out; and a warning near the pump's own low brine-out
+    limit while the compressor runs, which ends a little above it, said once each way."""
+    stocked.registers.update({40015: 30, 40016: -20, 43439: 50, 47381: -80})  # 3.0, -2.0 °C
+    events: list[object] = []
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.1,
+    )
+
+    def warnings() -> list[DeviceEvent]:
+        return [e for e in events if isinstance(e, DeviceEvent) and e.code == "brine.out.low"]
+
+    async def brine_out(raw: int) -> None:
+        stocked.registers[40016] = raw
+        await until(lambda: value(p, "brine/brine.out.temp")[0] == raw / 10)
+        await asyncio.sleep(0.3)  # a few health rounds, where the warning is judged
+
+    async with running_plugin(p, events):
+        await until(lambda: value(p, "brine/brine.delta_t")[0] == 5.0)
+        assert value(p, "brine/brine.delta_t") == (5.0, "good", None)
+        await until(lambda: value(p, "brine/x.nibe.47381")[0] == -8.0)  # the pump's own
+        assert "hp1/brine/heat.extracted.power" not in {x.path for x in p.describe().points}
+        await brine_out(-20)
+        assert warnings() == []  # -2.0 is far from -8.0
+        await brine_out(-62)  # -6.2 °C: within 2 °C of the limit
+        [warning] = warnings()
+        assert warning.active is True
+        assert "-6.2 °C" in warning.text
+        assert "(-8.0 °C)" in warning.text
+        await brine_out(-57)  # -5.7: above the limit + 2, not yet + 2.5
+        assert len(warnings()) == 1
+        await brine_out(-50)  # -5.0: clear
+        assert [w.active for w in warnings()] == [True, False]
+        stocked.registers[43439] = 0  # the brine pump stands still
+        await until(lambda: value(p, "brine/brine.delta_t")[1] == "no_flow")
+
+
+async def test_the_heat_taken_from_the_ground(stocked: SimPump, gateway: Gateway) -> None:
+    """With a brine flow entered: power from the flow, scaled by the pump's speed, times
+    what the brine carries per kelvin, times the delta-T; and it adds up."""
+    stocked.registers.update({40015: 30, 40016: -10, 43439: 50})  # delta-T 4.0 K
+    p = NibePlugin(
+        settings(gateway, brine_flow=40.0, brine_flow_at=100, brine_mix="ethanol28"),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.5,
+    )
+    async with running_plugin(p) as running:
+        power = "brine/heat.extracted.power"
+        await until(lambda: value(running, power)[0] not in (None, 0.0))
+        # 40 L/min at 100 %, so 20 at 50 %: 20/60 L/s * 4.08 kJ/(L K) * 4 K = 5.44 kW.
+        assert value(running, power)[0] == pytest.approx(5.44, abs=0.01)
+        assert (
+            value(running, power)[2] == "estimated from 40 L/min at 100 % and the brine's delta-T"
+        )
+        assert running.envelope(f"hp1/{power}").source == "estimated"
+        # It adds up (shown to 0.1 kWh, which takes a while at 5 kW).
+        await until(lambda: running._extracted_kwh > 0)
+        assert value(running, "brine/heat.extracted")[1] == "good"
+        stocked.registers[43439] = 0
+        await until(lambda: value(running, power)[0] == 0.0)
 
 
 class KeptState:

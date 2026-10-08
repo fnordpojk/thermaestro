@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 01:39+0200\n"
-"PO-Revision-Date: 2026-10-08 01:39+0200\n"
+"POT-Creation-Date: 2026-10-08 02:28+0200\n"
+"PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
 "Language-Team: \n"
@@ -48,6 +48,9 @@ msgstr "* aus einer Ersatzreihe, wo die eigene Reihe der Ebene keinen Preis hat.
 msgid "0 picks a free one"
 msgstr "0 wählt einen freien"
 
+msgid "1 year"
+msgstr "1 Jahr"
+
 msgid "12 hours (11:30 PM)"
 msgstr "12 Stunden (11:30 PM)"
 
@@ -56,6 +59,9 @@ msgstr "24 Stunden"
 
 msgid "24 hours (23:30)"
 msgstr "24 Stunden (23:30)"
+
+msgid "30 days"
+msgstr "30 Tage"
 
 msgid "6 hours"
 msgstr "6 Stunden"
@@ -210,14 +216,26 @@ msgstr ""
 msgid "Bidding zone"
 msgstr "Gebotszone"
 
+msgid "Brine"
+msgstr "Sole"
+
 msgid "Brine circuit"
 msgstr "Solekreis"
+
+msgid "Brine delta-T"
+msgstr "Sole-Delta-T"
+
+msgid "Brine flow, liters a minute"
+msgstr "Soledurchfluss, Liter pro Minute"
 
 msgid "Brine in"
 msgstr "Sole ein"
 
 msgid "Brine out"
 msgstr "Sole aus"
+
+msgid "Brine, for the heat taken from the ground"
+msgstr "Sole, für die dem Boden entzogene Wärme"
 
 msgid "Browser"
 msgstr "Browser"
@@ -532,6 +550,12 @@ msgstr "Zustand"
 
 msgid "Heat demand"
 msgstr "Wärmebedarf"
+
+msgid "Heat from the ground"
+msgstr "Wärme aus dem Boden"
+
+msgid "Heat from the ground, total"
+msgstr "Wärme aus dem Boden, gesamt"
 
 msgid "Heat produced"
 msgstr "Erzeugte Wärme"
@@ -1099,6 +1123,15 @@ msgstr "Das Klima des Standorts"
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
 
+msgid ""
+"The pump doesn't measure the brine flow. With a flow from the installation (its "
+"papers, or the installer's setting), Thermaestro estimates the heat taken from the "
+"ground, scaling the flow by the brine pump's speed."
+msgstr ""
+"Die Pumpe misst den Soledurchfluss nicht. Mit einem Durchfluss aus der Installation "
+"(ihren Unterlagen oder der Einstellung des Installateurs) schätzt Thermaestro die dem"
+" Boden entzogene Wärme, den Durchfluss nach der Drehzahl der Solepumpe skaliert."
+
 msgid "The pump's connection"
 msgstr "Verbindung zur Pumpe"
 
@@ -1415,6 +1448,10 @@ msgstr "mindestens 15 Zeichen"
 msgid "at least 15 characters; a sentence is easy to remember"
 msgstr "mindestens 15 Zeichen; ein Satz ist leicht zu merken"
 
+#, python-format
+msgid "at the brine pump's speed, %%"
+msgstr "bei der Drehzahl der Solepumpe, %%"
+
 msgid "change the installation's settings"
 msgstr "die Einstellungen der Installation ändern"
 
@@ -1455,6 +1492,9 @@ msgstr "ausgefallen"
 msgid "e.g. backup script"
 msgstr "z. B. Sicherungsskript"
 
+msgid "each day: lowest, mean and highest"
+msgstr "jeder Tag: niedrigster, mittlerer und höchster Wert"
+
 msgid "elsewhere"
 msgstr "anderswo"
 
@@ -1463,6 +1503,9 @@ msgstr "leer: 60"
 
 msgid "empty: as the pump reports it"
 msgstr "leer: wie die Pumpe es meldet"
+
+msgid "empty: no estimate"
+msgstr "leer: keine Schätzung"
 
 msgid "empty: the payload is the number"
 msgstr "leer: die Nachricht ist die Zahl"
@@ -1478,6 +1521,14 @@ msgstr "geben Sie Ihr Passwort erneut ein, um diese Änderung vorzunehmen"
 
 msgid "entered; leave empty to keep it"
 msgstr "eingegeben; leer lassen, um ihn zu behalten"
+
+#, python-format
+msgid "ethanol, about 28 %%"
+msgstr "Ethanol, etwa 28 %%"
+
+#, python-format
+msgid "ethylene glycol, about 30 %%"
+msgstr "Ethylenglykol, etwa 30 %%"
 
 msgid "everything, including rights added later"
 msgstr "alles, auch später hinzugefügte Rechte"
@@ -1517,6 +1568,9 @@ msgstr "gut"
 msgid "heating"
 msgstr "Heizung"
 
+msgid "highest"
+msgstr "höchster"
+
 msgid "hot water"
 msgstr "Warmwasser"
 
@@ -1534,6 +1588,12 @@ msgstr "enthalten"
 
 msgid "last heard"
 msgstr "zuletzt gehört"
+
+msgid "lowest"
+msgstr "niedrigster"
+
+msgid "mean"
+msgstr "Mittel"
 
 msgid "missing"
 msgstr "fehlt"
@@ -1600,6 +1660,10 @@ msgstr "Pool"
 
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"
+
+#, python-format
+msgid "propylene glycol, about 30 %%"
+msgstr "Propylenglykol, etwa 30 %%"
 
 msgid "publishing"
 msgstr "veröffentlicht"
@@ -1723,6 +1787,9 @@ msgstr "läuft"
 
 msgid "waiting"
 msgstr "wartet"
+
+msgid "warning"
+msgstr "Warnung"
 
 msgid "where the values go"
 msgstr "wohin die Werte gehen"

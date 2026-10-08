@@ -11,8 +11,12 @@
   <button type="button" data-hours="6">{{ _("6 hours") }}</button>
   <button type="button" data-hours="24" aria-pressed="true">{{ _("24 hours") }}</button>
   <button type="button" data-hours="168">{{ _("7 days") }}</button>
+  {% if kind == "number" %}
+  <button type="button" data-days="30" title="{{ _('each day: lowest, mean and highest') }}">{{ _("30 days") }}</button>
+  <button type="button" data-days="365" title="{{ _('each day: lowest, mean and highest') }}">{{ _("1 year") }}</button>
+  {% endif %}
 </nav>
-<div id="chart" data-source="{{ source }}" data-kind="{{ kind }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
+<div id="chart" data-source="{{ source }}" data-daily="{{ daily }}" data-lowest="{{ _('lowest') }}" data-mean="{{ _('mean') }}" data-highest="{{ _('highest') }}" data-kind="{{ kind }}" data-decimal="{{ decimal }}" data-digits="{{ digits }}" data-locale="{{ formats.tag }}"
      data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
      data-labels='{{ state_labels | tojson }}' data-hour-text="{{ hour_text }}" data-minute-text="{{ minute_text }}"
      data-invalid="{{ _('not valid') }}"

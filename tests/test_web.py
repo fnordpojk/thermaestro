@@ -899,6 +899,58 @@ async def test_the_overview_lists_devices_and_what_needs_attention(site: Site) -
     assert 'href="/setup/prices"' in troubled
 
 
+async def test_a_devices_own_warning_needs_attention(site: Site) -> None:
+    """A device event that is on (such as brine out near the pump's own limit) is under
+    "Needs attention" until the plugin says it's over."""
+    from datetime import UTC, datetime
+
+    from thermaestro.cap.messages import DeviceEvent
+
+    _with_a_pump(site)
+    host = site.services.host
+    assert host is not None
+    event = DeviceEvent(
+        t=datetime.now(UTC), unit="hp1", code="brine.out.low", text="Brine out is -6.2 °C"
+    )
+    host._event(host.instances["pump"], event)
+    async with admin(site) as client:
+        warned = (await client.get("/status/values")).text
+        host._event(host.instances["pump"], event.model_copy(update={"active": False}))
+        calm = (await client.get("/status/values")).text
+    assert "Brine out is -6.2 °C" in warned
+    assert 'class="state state-warning"' in warned
+    assert "Needs attention" not in calm
+
+
+async def test_each_days_range_and_the_brine_settings(site: Site) -> None:
+    _with_a_pump(site)
+    await site.services.values.flush()
+    async with admin(site) as client:
+        days = (await client.get("/api/v1/daily/pump/hp1/outdoor.temp", params={"days": 7})).json()
+        chart = (await client.get("/points/pump/hp1/outdoor.temp")).text
+        saved = await form(
+            client,
+            "/setup/pump",
+            "/settings/pump",
+            id="pump",
+            host="192.0.2.20",
+            protocol="nibegw",
+            brine_flow="38,5",
+            brine_flow_at="100",
+            brine_mix="propylene_glycol30",
+        )
+        assert saved.status_code == 303, saved.text
+        pump = (await client.get("/setup/pump")).text
+    assert [(d["min"], d["max"]) for d in days] == [(4.5, 4.5)]
+    assert 'data-daily="/api/v1/daily/pump/hp1/outdoor.temp"' in chart
+    assert 'data-days="365"' in chart
+    setting = await site.services.db.get(Plugin, "pump")
+    assert setting is not None
+    brine = {k: setting.settings[k] for k in ("brine_flow", "brine_flow_at", "brine_mix")}
+    assert brine == {"brine_flow": 38.5, "brine_flow_at": 100, "brine_mix": "propylene_glycol30"}
+    assert 'name="brine_flow" inputmode="decimal" value="38.5"' in pump
+
+
 async def test_the_price_and_weather_at_a_glance(site: Site) -> None:
     """The overview's small charts sit between its two reloading parts, drawn once; only
     for those who may see the prices and the weather."""

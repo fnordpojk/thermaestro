@@ -23,5 +23,18 @@
     </select></label>
   <label>{{ _("Key (pre-shared)") }} <small>{% if s.psk | default(none) %}{{ _("entered; leave empty to keep it") }}{% else %}{{ _("64 hex digits, for the Thermaestro gateway") }}{% endif %}</small>
     <input name="psk" type="password" autocomplete="off" spellcheck="false"></label>
+  <fieldset class="wide"><legend>{{ _("Brine, for the heat taken from the ground") }}</legend>
+    <p class="hint">{{ _("The pump doesn't measure the brine flow. With a flow from the installation (its papers, or the installer's setting), Thermaestro estimates the heat taken from the ground, scaling the flow by the brine pump's speed.") }}</p>
+    <label>{{ _("Brine flow, liters a minute") }} <small>{{ _("empty: no estimate") }}</small>
+      <input name="brine_flow" inputmode="decimal" value="{{ s.brine_flow if s.brine_flow is defined and s.brine_flow is not none else '' }}"></label>
+    <label>{{ _("at the brine pump's speed, %%") }}
+      <input name="brine_flow_at" inputmode="numeric" value="{{ s.brine_flow_at | default(100) }}"></label>
+    <label>{{ _("Brine") }}
+      <select name="brine_mix">
+        {% for code, name in (("ethanol28", _("ethanol, about 28 %%")), ("propylene_glycol30", _("propylene glycol, about 30 %%")), ("ethylene_glycol30", _("ethylene glycol, about 30 %%"))) %}
+        <option value="{{ code }}"{% if s.brine_mix | default("ethanol28") == code %} selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select></label>
+  </fieldset>
   {% if can("plugins.manage") %}<button type="submit">{{ _("Save and connect") }}</button>{% endif %}
 </form>

@@ -847,7 +847,7 @@ class Publisher:
             for id, instance in self._host.instances.items():
                 out[key("status", id)] = (str(instance.state), None)
                 health = instance.health
-                attention = attention or instance.state != State.UP
+                attention = attention or instance.state != State.UP or bool(instance.active)
                 if health is not None:
                     attention = attention or bool(
                         health.state != "up" or health.needs_user_action or health.stale

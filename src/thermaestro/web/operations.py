@@ -11,7 +11,7 @@ import json
 import math
 from collections.abc import Collection
 from dataclasses import dataclass, field
-from datetime import UTC, date, tzinfo
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -218,6 +218,18 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
                     "topic": TOPIC_OF_PLUGIN.get(item["plugin"], "/system/health"),
                 }
             )
+        # A device's own warnings, such as brine out near the pump's own alarm limit.
+        for id, instance in sorted((self.host.instances if self.host else {}).items()):
+            for event in instance.active.values():
+                out.append(
+                    {
+                        "id": id,
+                        "plugin": instance.setting.plugin,
+                        "state": "warning",
+                        "why": event.text,
+                        "topic": "/pump",
+                    }
+                )
         return out
 
     def point_label(self, caller: Caller, instance: str, path: str) -> str:
@@ -476,6 +488,21 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
             raise AccountError("a history request covers up to 31 days")
         samples = await self.values.history(Key(instance, point), start, end)
         return [{"t": s.t, "value": s.value, "text": s.text, "quality": s.quality} for s in samples]
+
+    async def daily(
+        self, caller: Caller, instance: str, point: str, days: int
+    ) -> list[dict[str, Any]]:
+        """Each of the last `days` days' lowest, mean and highest good value."""
+        caller.principal.require("points.read")
+        now = datetime.now(self.zone)
+        first = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        rows = await self.values.daily(
+            Key(instance, point), first.timestamp(), now.timestamp() + 1, self.zone
+        )
+        return [
+            {"day": d.isoformat(), "min": low, "mean": mean, "max": high}
+            for d, low, mean, high in rows
+        ]
 
     # --- settings ------------------------------------------------------------------------
 

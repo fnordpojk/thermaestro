@@ -52,6 +52,9 @@ class Instance:
     last_error: str | None = None
     events: deque[Message] = field(default_factory=lambda: deque(maxlen=50))
     """Device events and foreign writes, newest last."""
+    active: dict[tuple[str, str], DeviceEvent] = field(default_factory=dict)
+    """The device events that are on now, by unit and code: a warning stays until the
+    plugin says it's over, however many events came since."""
 
 
 class PluginHost:
@@ -257,6 +260,12 @@ class PluginHost:
             instance.health = message
         elif isinstance(message, DeviceEvent | ForeignWrite):
             instance.events.append(message)
+            if isinstance(message, DeviceEvent):
+                key = (message.unit, message.code)
+                if message.active:
+                    instance.active[key] = message
+                else:
+                    instance.active.pop(key, None)
         elif isinstance(message, Described) and instance.described is not None:
             instance.described = _merge(instance.described, message)
 

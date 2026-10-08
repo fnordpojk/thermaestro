@@ -11,6 +11,7 @@ import logging
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from datetime import date, datetime, tzinfo
 
 from ..cap.model import Envelope, Point
 from ..store import Database, Transaction
@@ -111,6 +112,42 @@ class Values:
                 (key.instance, key.point, start, end),
             )
             return [Sample(*row) for row in rows]
+
+        return await self._db.run(read)
+
+    async def daily(
+        self, key: Key, start: float, end: float, zone: tzinfo
+    ) -> list[tuple[date, float, float, float]]:
+        """Each local day's lowest, mean and highest good value, from the 15-minute
+        aggregates where the samples were folded into them and the samples since."""
+
+        def read(t: Transaction) -> list[tuple[date, float, float, float]]:
+            days: dict[date, list[float]] = {}  # low, sum, n, high
+
+            def add(at: float, low: float, total: float, n: float, high: float) -> None:
+                d = datetime.fromtimestamp(at, zone).date()
+                found = days.get(d)
+                if found is None:
+                    days[d] = [low, total, n, high]
+                else:
+                    found[0] = min(found[0], low)
+                    found[1] += total
+                    found[2] += n
+                    found[3] = max(found[3], high)
+
+            for slot, low, mean, high, n in t.execute(
+                "SELECT slot, min, mean, max, n FROM history_15m"
+                " WHERE instance = ? AND point = ? AND slot >= ? AND slot < ?",
+                (key.instance, key.point, start, end),
+            ):
+                add(slot, low, mean * n, n, high)
+            for at, value in t.execute(
+                "SELECT t, value FROM history WHERE instance = ? AND point = ? AND t >= ?"
+                " AND t < ? AND quality = 'good' AND value IS NOT NULL",
+                (key.instance, key.point, start, end),
+            ):
+                add(at, value, value, 1, value)
+            return [(d, v[0], v[1] / v[2], v[3]) for d, v in sorted(days.items())]
 
         return await self._db.run(read)
 

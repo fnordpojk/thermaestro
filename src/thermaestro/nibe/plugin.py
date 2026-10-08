@@ -23,6 +23,7 @@ from ..cap.messages import (
     Act,
     Describe,
     Described,
+    DeviceEvent,
     Error,
     Fate,
     Health,
@@ -135,6 +136,10 @@ class NibePlugin:
         self._saved_at = 0.0
         self._last_saved: dict[str, Any] = {}
         self._saving: asyncio.Task[None] | None = None
+        self._extracted_kwh = 0.0
+        """The estimated heat taken from the ground, kWh, while Thermaestro runs."""
+        self._integrated_at: float | None = None
+        self._brine_warned = False
 
     # --- the plugin interface --------------------------------------------------------------
 
@@ -156,6 +161,8 @@ class NibePlugin:
             poller = asyncio.create_task(self._poll(send))
             while True:
                 await send(self._health())
+                if (event := self._brine_warning()) is not None:
+                    await send(event)
                 await asyncio.sleep(self._health_interval)
         except Exception as e:
             if not self._identified.done():
@@ -298,6 +305,8 @@ class NibePlugin:
             elif previous is None or previous.words[0] & 0xFF != profile.PRIO_HOT_WATER:
                 self._charge_started = now
         self._samples[register] = Sample(words_, now)
+        if register in (profile.BRINE_IN, profile.BRINE_OUT, profile.BRINE_PUMP_SPEED):
+            self._integrate(now)
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
 
@@ -333,16 +342,18 @@ class NibePlugin:
         if self._state is None:
             return
         try:
-            kept = (await self._state.load()).get("meters", {})
+            data = await self._state.load()
             self._restored = {
                 int(register): ((int(m["words"][0]), int(m["words"][1])), float(m["idle"]))
-                for register, m in kept.items()
+                for register, m in data.get("meters", {}).items()
             }
+            self._extracted_kwh = float(data.get("brine_kwh", 0.0))
         except (KeyError, TypeError, ValueError, AttributeError) as e:
-            log.warning("the kept heat meter counts couldn't be read, so they start over: %s", e)
+            log.warning("what was kept couldn't be read, so the counts start over: %s", e)
 
     def _save_meters(self, now: float) -> None:
-        """Keep each heat meter's count for a restart, at most once a minute."""
+        """Keep the heat meters' counts and the heat taken from the ground for a restart,
+        at most once a minute."""
         if self._saving is not None and not self._saving.done():
             return
         meters = {
@@ -350,11 +361,53 @@ class NibePlugin:
             for register, idle in self._meter_idle.items()
             if register in self._samples
         }
+        data: dict[str, Any] = {"meters": meters, "brine_kwh": round(self._extracted_kwh, 3)}
         self._saved_at = now
-        if not meters or meters == self._last_saved or self._state is None:
+        if data == self._last_saved or self._state is None:
             return  # nothing new: no write, which on a Pi's SD card counts
-        self._last_saved = meters
-        self._saving = asyncio.get_running_loop().create_task(self._state.save({"meters": meters}))
+        self._last_saved = data
+        self._saving = asyncio.get_running_loop().create_task(self._state.save(data))
+
+    def _brine_warning(self) -> DeviceEvent | None:
+        """A warning when brine out comes within `BRINE_WARNING_K` of the pump's own low
+        brine-out alarm limit while the compressor runs, before the pump's alarm; it ends
+        a little above that, so it doesn't flicker. None when nothing changed."""
+        if self.layout is None:
+            return None
+        values = self._snapshot().values
+        brine_out = values.get(profile.BRINE_OUT)
+        limit = values.get(profile.BRINE_OUT_LIMIT)
+        compressor = values.get(profile.COMPRESSOR)
+        if brine_out is None or limit is None:
+            return None
+        running = compressor is not None and int(compressor) == profile.COMPRESSOR_RUNNING
+        if not self._brine_warned and running and brine_out <= limit + profile.BRINE_WARNING_K:
+            self._brine_warned = True
+        elif self._brine_warned and brine_out > limit + profile.BRINE_WARNING_CLEAR_K:
+            self._brine_warned = False
+        else:
+            return None
+        return DeviceEvent(
+            t=_now(),
+            unit=profile.UNIT,
+            code="brine.out.low",
+            text=(
+                f"Brine out is {brine_out:.1f} °C, within {profile.BRINE_WARNING_K:g} °C of the"
+                f" pump's own low brine-out alarm limit ({limit:.1f} °C)"
+            ),
+            active=self._brine_warned,
+        )
+
+    def _integrate(self, now: float) -> None:
+        """Add up the estimated heat taken from the ground, between readings."""
+        last, self._integrated_at = self._integrated_at, now
+        if self.gateway.brine_flow is None or last is None or self.layout is None:
+            return
+        brine = self._brine()
+        if isinstance(brine, str) or brine[2] == 0:
+            return
+        hours = min(now - last, 60.0) / 3600  # a gap in reading isn't counted
+        self._extracted_kwh += max(0.0, self._extraction_kw(*brine)) * hours
 
     def _pump(self) -> tuple[ModelMap, profile.Layout]:
         if self.model is None or self.layout is None:
@@ -448,7 +501,79 @@ class NibePlugin:
             return None
         return self.layout.points.get(path[len(prefix) :])
 
+    def _derived(self, path: str) -> profile.Derived | None:
+        """A point worked out from the pump's values: the brine's delta-T always; the
+        heat taken from the ground only with a brine flow entered."""
+        prefix = f"{profile.UNIT}/"
+        if self.layout is None or not path.startswith(prefix):
+            return None
+        found = self.layout.derived.get(path[len(prefix) :])
+        if found is None or (found.source == "estimated" and self.gateway.brine_flow is None):
+            return None
+        return found
+
+    def _brine(self) -> tuple[float, float, float] | str:
+        """Brine in, brine out and the brine pump's speed, or why there are none."""
+        values = self._snapshot().values
+        found = [values.get(r) for r in (profile.BRINE_IN, profile.BRINE_OUT)]
+        speed = values.get(profile.BRINE_PUMP_SPEED)
+        if any(r not in self._samples for r in profile.BRINE_DERIVED[0].inputs):
+            return "not read yet"
+        if found[0] is None or found[1] is None or speed is None:
+            return "a brine sensor gives no value"
+        return float(found[0]), float(found[1]), float(speed)
+
+    def _extraction_kw(self, brine_in: float, brine_out: float, speed: float) -> float:
+        """The heat taken from the ground now: the entered flow scaled by the brine pump's
+        speed, times what a liter of the brine carries per kelvin, times the delta-T."""
+        flow = self.gateway.brine_flow or 0.0
+        liters_per_s = flow * speed / self.gateway.brine_flow_at / 60
+        return liters_per_s * profile.BRINE_HEAT[self.gateway.brine_mix] * (brine_in - brine_out)
+
+    def _derived_envelope(self, path: str, d: profile.Derived) -> Envelope:
+        now = _now()
+        brine = self._brine()
+        if isinstance(brine, str):
+            return _missing(path, now, brine)
+        brine_in, brine_out, speed = brine
+        t = max(self._samples[r].t for r in d.inputs)
+        observed = now - timedelta(seconds=time.monotonic() - t)
+        quality: Quality = "good"
+        why: str | None = None
+        value: float
+        if d.source == "estimated":
+            why = (
+                f"estimated from {self.gateway.brine_flow:g} L/min at "
+                f"{self.gateway.brine_flow_at} % and the brine's delta-T"
+            )
+        if d.path.endswith("heat.extracted"):
+            value = round(self._extracted_kwh, 1)
+        elif d.path.endswith("power"):
+            # A brine pump standing still takes no heat from the ground.
+            value = 0.0 if speed == 0 else round(self._extraction_kw(brine_in, brine_out, speed), 2)
+        else:
+            value = round(brine_in - brine_out, 1)
+            if speed == 0:
+                # No flow: the two sensors measure standing brine, as their own values say.
+                quality, why = "no_flow", f"pump {profile.BRINE_PUMP_SPEED} = 0"
+            elif (verdict := profile.compressor_changing(self._snapshot())) is not None:
+                quality, why = verdict
+        return Envelope(
+            point=path,
+            value=value,
+            unit=d.unit,
+            t_observed=observed,
+            t_received=observed,
+            quality=quality,
+            source=d.source,
+            resolution=d.resolution,
+            why=why,
+        )
+
     def envelope(self, path: str) -> Envelope:
+        derived = self._derived(path)
+        if derived is not None:
+            return self._derived_envelope(path, derived)
         definition = self._definition(path)
         now = _now()
         if definition is None or self.model is None:
@@ -571,6 +696,18 @@ class NibePlugin:
                 Node(path=f"{unit}/{path}", kind=kind, presence=self._presence(path, kind))
             )
         points = [self._point(d) for d in layout.points.values()]
+        points += [
+            Point(
+                path=f"{unit}/{d.path}",
+                unit=d.unit,
+                wraps_at=None,
+                resolution=Knowledge(value=d.resolution, known="documented"),
+                delivery=Delivery(how="on_change"),
+                validity=d.validity,
+            )
+            for d in layout.derived.values()
+            if self._derived(f"{unit}/{d.path}") is not None
+        ]
         levers = profile.levers(model, layout.points)
         return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
 

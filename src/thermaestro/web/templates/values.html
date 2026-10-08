@@ -8,7 +8,8 @@
   <ul>
   {% for a in attention %}
     <li><strong>{{ a.id }}</strong> <span class="state state-{{ a.state }}">{{ _(a.state) }}</span>{% if a.why %}: {{ a.why }}{% endif %}
-      {% if can("settings.read") %}<a href="{{ a.topic }}">{{ _("Setup") if a.topic.startswith("/setup") else _("System") }}</a>{% endif %}</li>
+      {% if a.topic == "/pump" %}<a href="/pump">{{ _("Pump") }}</a>
+      {% elif can("settings.read") %}<a href="{{ a.topic }}">{{ _("Setup") if a.topic.startswith("/setup") else _("System") }}</a>{% endif %}</li>
   {% endfor %}
   </ul>
 </section>

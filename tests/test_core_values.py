@@ -109,3 +109,25 @@ async def test_old_samples_fold_into_15_minute_aggregates(db: Database) -> None:
 
     await values.prune(raw_days=14, aggregate_days=1, now=now)
     assert await db.run(rows) == []
+
+
+async def test_each_days_lowest_mean_and_highest(db: Database) -> None:
+    """From the aggregates for older days and the samples for recent ones, by the house's
+    local day: a sample at 23:30 UTC is the next day in Stockholm."""
+    from zoneinfo import ZoneInfo
+
+    values = Values(db, heartbeat_s=60)
+    for at, v in [(0, -3.0), (3600, -1.0)]:  # 12:00 and 13:00 UTC on the 15th
+        values.add("pump", env(v, s(at)))
+    await values.flush()
+    await values.prune(raw_days=14, aggregate_days=400, now=T0.timestamp() + 15 * 86_400)
+    later = T0 + timedelta(days=20)
+    values.add("pump", env(2.0, later - T0))  # 12:00 UTC on 4 February: a sample still
+    values.add("pump", env(-6.0, later - T0 + timedelta(hours=11, minutes=30)))  # 23:30 UTC
+    await values.flush()
+    days = await values.daily(KEY, 0, 2e9, ZoneInfo("Europe/Stockholm"))
+    assert [(d.isoformat(), low, round(mean, 2), high) for d, low, mean, high in days] == [
+        ("2026-01-15", -3.0, -2.0, -1.0),
+        ("2026-02-04", 2.0, 2.0, 2.0),
+        ("2026-02-05", -6.0, -6.0, -6.0),
+    ]

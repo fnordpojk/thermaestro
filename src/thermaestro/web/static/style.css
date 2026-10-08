@@ -148,6 +148,8 @@ form.inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; 
 label { display: block; }
 label.check { display: inline-flex; gap: 0.25rem; align-items: center; margin-right: 0.75rem; }
 fieldset { border: 1px solid var(--line); padding: 0.5rem; }
+form.grid fieldset.wide { grid-column: 1 / -1; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: end; }
+form.grid fieldset.wide p { grid-column: 1 / -1; margin: 0; }
 input, select, button {
   font: inherit;
   color: inherit;
@@ -216,7 +218,7 @@ tr.outcome-failed td, tr.outcome-refused td { color: var(--bad); }
 
 .state { font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 3px; border: 1px solid currentColor; vertical-align: middle; }
 .state-up { color: var(--good); }
-.state-starting, .state-waiting { color: var(--warn); }
+.state-starting, .state-waiting, .state-warning { color: var(--warn); }
 .state-restarting, .state-stopped { color: var(--bad); }
 dl.counters { display: grid; grid-template-columns: auto auto; gap: 0 0.75rem; margin: 0.25rem 0; }
 dl.counters dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }

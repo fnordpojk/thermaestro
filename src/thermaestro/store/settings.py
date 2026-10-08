@@ -109,6 +109,12 @@ class NibeGateway(BaseModel):
     model: str | None = None
     """The pump model as the register map names it (`F1245`). Without it, the model is
     taken from the product information the pump sends every 15 s."""
+    brine_flow: Annotated[float, Field(gt=0, le=500)] | None = None
+    """The brine flow in liters a minute, at `brine_flow_at` percent of the brine pump's
+    speed, as the installation measured or set it. With it, Thermaestro estimates the heat
+    taken from the ground; the pump doesn't measure the flow."""
+    brine_flow_at: Annotated[int, Field(ge=1, le=100)] = 100
+    brine_mix: Literal["ethanol28", "propylene_glycol30", "ethylene_glycol30"] = "ethanol28"
 
     @model_validator(mode="after")
     def _protocol_has_key(self) -> Self:

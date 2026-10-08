@@ -290,6 +290,7 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
     who.principal.require("points.read")
     s = services(request)
     source = f"/api/v1/history/{quote(instance, safe='')}/{quote(point, safe='/')}"
+    daily = f"/api/v1/daily/{quote(instance, safe='')}/{quote(point, safe='/')}"
     node = point.rpartition("/")[0] or None
     return render(
         request,
@@ -310,6 +311,7 @@ async def point_page(request: Request, who: Logged, instance: str, point: str) -
         node_built_in=s.node_label(who, instance, node, built_in=True) if node else "",
         names=await s.names(who),
         source=source,
+        daily=daily,
         decimal=i18n.decimal_symbol(),
         zone=i18n.zone_name(),
         formats=i18n.formats.get(),
@@ -369,6 +371,9 @@ async def set_pump(
     local_port: Text = "0",
     model: Text = "",
     psk: Text = "",
+    brine_flow: Text = "",
+    brine_flow_at: Text = "100",
+    brine_mix: Text = "ethanol28",
 ) -> Response:
     s = services(request)
     id = id.strip() or "pump"
@@ -384,6 +389,9 @@ async def set_pump(
         "control_port": control_port,
         "local_port": local_port,
         "model": model.strip() or None,
+        "brine_flow": brine_flow.strip().replace(",", ".") or None,
+        "brine_flow_at": brine_flow_at,
+        "brine_mix": brine_mix,
     }
     if psk or had_key or protocol == "thermaestro-gw":
         body["psk"] = key_name

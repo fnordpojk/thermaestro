@@ -131,6 +131,20 @@ async def history(
     return await services(request).history(who, instance, point, start, end)
 
 
+@router.get("/daily/{instance}/{point:path}")
+@action("history.daily")
+async def daily(
+    request: Request,
+    who: Logged,
+    instance: str,
+    point: str,
+    days: Annotated[int, Query(ge=1, le=400)] = 30,
+) -> list[dict[str, Any]]:
+    """Each day's lowest, mean and highest good value, in the house's time zone: kept
+    for as long as the history's aggregates are, 400 days by default."""
+    return await services(request).daily(who, instance, point, days)
+
+
 # --- settings ----------------------------------------------------------------------------
 
 

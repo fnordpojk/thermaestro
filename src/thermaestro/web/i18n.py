@@ -142,6 +142,8 @@ SHOWN_BY_VALUE = (
     # Home Assistant discovery
     mark("publishing"),
     mark("sweeping"),
+    # a device's own warning, under "Needs attention"
+    mark("warning"),
     # transport health
     mark("down"),
     mark("contended"),

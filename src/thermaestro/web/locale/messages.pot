@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 01:39+0200\n"
+"POT-Creation-Date: 2026-10-08 02:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,6 +50,9 @@ msgstr ""
 msgid "0 picks a free one"
 msgstr ""
 
+msgid "1 year"
+msgstr ""
+
 msgid "12 hours (11:30 PM)"
 msgstr ""
 
@@ -57,6 +60,9 @@ msgid "24 hours"
 msgstr ""
 
 msgid "24 hours (23:30)"
+msgstr ""
+
+msgid "30 days"
 msgstr ""
 
 msgid "6 hours"
@@ -194,13 +200,25 @@ msgstr ""
 msgid "Bidding zone"
 msgstr ""
 
+msgid "Brine"
+msgstr ""
+
 msgid "Brine circuit"
+msgstr ""
+
+msgid "Brine delta-T"
+msgstr ""
+
+msgid "Brine flow, liters a minute"
 msgstr ""
 
 msgid "Brine in"
 msgstr ""
 
 msgid "Brine out"
+msgstr ""
+
+msgid "Brine, for the heat taken from the ground"
 msgstr ""
 
 msgid "Browser"
@@ -497,6 +515,12 @@ msgid "Health"
 msgstr ""
 
 msgid "Heat demand"
+msgstr ""
+
+msgid "Heat from the ground"
+msgstr ""
+
+msgid "Heat from the ground, total"
 msgstr ""
 
 msgid "Heat produced"
@@ -1042,6 +1066,13 @@ msgstr ""
 msgid "The next 48 hours"
 msgstr ""
 
+msgid ""
+"The pump doesn't measure the brine flow. With a flow from the "
+"installation (its papers, or the installer's setting), Thermaestro "
+"estimates the heat taken from the ground, scaling the flow by the brine "
+"pump's speed."
+msgstr ""
+
 msgid "The pump's connection"
 msgstr ""
 
@@ -1329,6 +1360,10 @@ msgstr ""
 msgid "at least 15 characters; a sentence is easy to remember"
 msgstr ""
 
+#, python-format
+msgid "at the brine pump's speed, %%"
+msgstr ""
+
 msgid "change the installation's settings"
 msgstr ""
 
@@ -1369,6 +1404,9 @@ msgstr ""
 msgid "e.g. backup script"
 msgstr ""
 
+msgid "each day: lowest, mean and highest"
+msgstr ""
+
 msgid "elsewhere"
 msgstr ""
 
@@ -1376,6 +1414,9 @@ msgid "empty: 60"
 msgstr ""
 
 msgid "empty: as the pump reports it"
+msgstr ""
+
+msgid "empty: no estimate"
 msgstr ""
 
 msgid "empty: the payload is the number"
@@ -1391,6 +1432,14 @@ msgid "enter your password again to make this change"
 msgstr ""
 
 msgid "entered; leave empty to keep it"
+msgstr ""
+
+#, python-format
+msgid "ethanol, about 28 %%"
+msgstr ""
+
+#, python-format
+msgid "ethylene glycol, about 30 %%"
 msgstr ""
 
 msgid "everything, including rights added later"
@@ -1431,6 +1480,9 @@ msgstr ""
 msgid "heating"
 msgstr ""
 
+msgid "highest"
+msgstr ""
+
 msgid "hot water"
 msgstr ""
 
@@ -1447,6 +1499,12 @@ msgid "included"
 msgstr ""
 
 msgid "last heard"
+msgstr ""
+
+msgid "lowest"
+msgstr ""
+
+msgid "mean"
 msgstr ""
 
 msgid "missing"
@@ -1513,6 +1571,10 @@ msgid "pool"
 msgstr ""
 
 msgid "preselected from this browser"
+msgstr ""
+
+#, python-format
+msgid "propylene glycol, about 30 %%"
 msgstr ""
 
 msgid "publishing"
@@ -1634,6 +1696,9 @@ msgid "up"
 msgstr ""
 
 msgid "waiting"
+msgstr ""
+
+msgid "warning"
 msgstr ""
 
 msgid "where the values go"

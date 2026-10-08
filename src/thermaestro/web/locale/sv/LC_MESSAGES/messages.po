@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 01:39+0200\n"
-"PO-Revision-Date: 2026-10-08 01:39+0200\n"
+"POT-Creation-Date: 2026-10-08 02:28+0200\n"
+"PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
 "Language-Team: \n"
@@ -48,6 +48,9 @@ msgstr "* från en reservserie, där lagrets egen serie saknar pris."
 msgid "0 picks a free one"
 msgstr "0 väljer en ledig"
 
+msgid "1 year"
+msgstr "1 år"
+
 msgid "12 hours (11:30 PM)"
 msgstr "12 timmar (11:30 PM)"
 
@@ -56,6 +59,9 @@ msgstr "24 timmar"
 
 msgid "24 hours (23:30)"
 msgstr "24 timmar (23:30)"
+
+msgid "30 days"
+msgstr "30 dagar"
 
 msgid "6 hours"
 msgstr "6 timmar"
@@ -208,14 +214,26 @@ msgstr ""
 msgid "Bidding zone"
 msgstr "Elområde"
 
+msgid "Brine"
+msgstr "Köldbärare"
+
 msgid "Brine circuit"
 msgstr "Köldbärarkrets"
+
+msgid "Brine delta-T"
+msgstr "Köldbärarens delta-T"
+
+msgid "Brine flow, liters a minute"
+msgstr "Köldbärarflöde, liter per minut"
 
 msgid "Brine in"
 msgstr "Köldbärare in"
 
 msgid "Brine out"
 msgstr "Köldbärare ut"
+
+msgid "Brine, for the heat taken from the ground"
+msgstr "Köldbärare, för värmen som tas ur marken"
 
 msgid "Browser"
 msgstr "Webbläsare"
@@ -526,6 +544,12 @@ msgstr "Hälsa"
 
 msgid "Heat demand"
 msgstr "Värmebehov"
+
+msgid "Heat from the ground"
+msgstr "Värme från marken"
+
+msgid "Heat from the ground, total"
+msgstr "Värme från marken, totalt"
 
 msgid "Heat produced"
 msgstr "Producerad värme"
@@ -1089,6 +1113,15 @@ msgstr "Platsens klimat"
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
 
+msgid ""
+"The pump doesn't measure the brine flow. With a flow from the installation (its "
+"papers, or the installer's setting), Thermaestro estimates the heat taken from the "
+"ground, scaling the flow by the brine pump's speed."
+msgstr ""
+"Pumpen mäter inte köldbärarflödet. Med ett flöde från installationen (dess papper "
+"eller installatörens inställning) uppskattar Thermaestro värmen som tas ur marken, "
+"med flödet skalat efter köldbärarpumpens hastighet."
+
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"
 
@@ -1393,6 +1426,10 @@ msgstr "minst 15 tecken"
 msgid "at least 15 characters; a sentence is easy to remember"
 msgstr "minst 15 tecken; en mening är lätt att komma ihåg"
 
+#, python-format
+msgid "at the brine pump's speed, %%"
+msgstr "vid köldbärarpumpens hastighet, %%"
+
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
 
@@ -1433,6 +1470,9 @@ msgstr "nere"
 msgid "e.g. backup script"
 msgstr "t.ex. säkerhetskopieringsskript"
 
+msgid "each day: lowest, mean and highest"
+msgstr "varje dag: lägsta, medel och högsta"
+
 msgid "elsewhere"
 msgstr "någon annanstans"
 
@@ -1441,6 +1481,9 @@ msgstr "tomt: 60"
 
 msgid "empty: as the pump reports it"
 msgstr "tomt: som pumpen anger den"
+
+msgid "empty: no estimate"
+msgstr "tomt: ingen uppskattning"
 
 msgid "empty: the payload is the number"
 msgstr "tomt: meddelandet är talet"
@@ -1456,6 +1499,14 @@ msgstr "ange ditt lösenord igen för att göra den här ändringen"
 
 msgid "entered; leave empty to keep it"
 msgstr "angiven; lämna tomt för att behålla den"
+
+#, python-format
+msgid "ethanol, about 28 %%"
+msgstr "etanol, omkring 28 %%"
+
+#, python-format
+msgid "ethylene glycol, about 30 %%"
+msgstr "etylenglykol, omkring 30 %%"
 
 msgid "everything, including rights added later"
 msgstr "allt, även rättigheter som läggs till senare"
@@ -1495,6 +1546,9 @@ msgstr "god"
 msgid "heating"
 msgstr "värme"
 
+msgid "highest"
+msgstr "högsta"
+
 msgid "hot water"
 msgstr "varmvatten"
 
@@ -1512,6 +1566,12 @@ msgstr "ingår"
 
 msgid "last heard"
 msgstr "senast hörd"
+
+msgid "lowest"
+msgstr "lägsta"
+
+msgid "mean"
+msgstr "medel"
 
 msgid "missing"
 msgstr "saknas"
@@ -1578,6 +1638,10 @@ msgstr "pool"
 
 msgid "preselected from this browser"
 msgstr "förvald från den här webbläsaren"
+
+#, python-format
+msgid "propylene glycol, about 30 %%"
+msgstr "propylenglykol, omkring 30 %%"
 
 msgid "publishing"
 msgstr "publicerar"
@@ -1701,6 +1765,9 @@ msgstr "igång"
 
 msgid "waiting"
 msgstr "väntar"
+
+msgid "warning"
+msgstr "varning"
 
 msgid "where the values go"
 msgstr "dit värdena skickas"

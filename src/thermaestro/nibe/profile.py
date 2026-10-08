@@ -29,6 +29,8 @@ PRIO = 43086
 COMPRESSOR = 43427
 SUPPLY_PUMP_SPEED = 43437
 BRINE_PUMP_SPEED = 43439
+BRINE_OUT_LIMIT = 47381
+"""The pump's own low brine-out alarm limit (°C, factory -8)."""
 WORD_SWAP = 48852
 FIRMWARE = (43001, 44331)
 
@@ -272,6 +274,68 @@ BRINE_POINTS = (
     ),
     PointDef("brine/pump.state", 43433, enum=PUMP_STATE),
     PointDef("brine/pump.speed", BRINE_PUMP_SPEED),
+    # The pump's own: its low brine-out alarm limit, and the delta-T it holds the brine
+    # pump to (the set point it works to, a fixed one, and which of them it uses).
+    PointDef(f"brine/x.nibe.{BRINE_OUT_LIMIT}", BRINE_OUT_LIMIT),
+    PointDef("brine/x.nibe.44911", 44911),
+    PointDef("brine/x.nibe.49192", 49192),
+    PointDef("brine/x.nibe.49193", 49193),
+)
+
+BRINE_IN, BRINE_OUT = 40015, 40016
+BRINE_WARNING_K = 2.0
+"""How close to the pump's own low brine-out limit Thermaestro warns, while the
+compressor runs: before the pump's alarm."""
+BRINE_WARNING_CLEAR_K = 2.5
+"""Where the warning ends again, a little above where it starts, so it doesn't flicker."""
+
+BRINE_HEAT = {
+    "ethanol28": 4.08,
+    "propylene_glycol30": 3.92,
+    "ethylene_glycol30": 3.82,
+}
+"""What a liter of brine carries per kelvin, kJ/(L·K), at about 0 °C: CoolProp 8.0's
+incompressible-fluid fits (MEA, MPG, MEG) to Melinder's property tables. The mixes
+differ by a few percent, much less than an entered flow's uncertainty."""
+
+
+@dataclass(frozen=True, slots=True)
+class Derived:
+    """A point Thermaestro works out from the pump's own values."""
+
+    path: str
+    inputs: tuple[int, ...]
+    unit: str
+    resolution: float
+    source: Source
+    validity: tuple[str, ...] = ()
+
+
+BRINE_DERIVED = (
+    Derived(
+        "brine/brine.delta_t",
+        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
+        "K",
+        0.1,
+        "calculated",
+        ("brine in less brine out; no_flow when the brine pump stands still",),
+    ),
+    Derived(
+        "brine/heat.extracted.power",
+        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
+        "kW",
+        0.01,
+        "estimated",
+        ("from the entered brine flow, scaled by the brine pump's speed, and the delta-T",),
+    ),
+    Derived(
+        "brine/heat.extracted",
+        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
+        "kWh",
+        0.1,
+        "estimated",
+        ("the estimated power, added up while Thermaestro runs",),
+    ),
 )
 
 ADDITION_POINTS = (PointDef("addition/power", 43084),)
@@ -291,6 +355,8 @@ class Layout:
     nodes: dict[str, str] = field(default_factory=dict)
     """Path below the unit to node kind."""
     points: dict[str, PointDef] = field(default_factory=dict)
+    derived: dict[str, Derived] = field(default_factory=dict)
+    """Points worked out from the pump's values, where it has their inputs."""
 
 
 def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
@@ -321,6 +387,10 @@ def layout(model: ModelMap, systems: list[int]) -> Layout:
             out.nodes[node] = kind
         for p in present:
             out.points[p.path] = p
+    if "brine" in out.nodes:
+        for d in BRINE_DERIVED:
+            if all(r in model for r in d.inputs):
+                out.derived[d.path] = d
     return out
 
 

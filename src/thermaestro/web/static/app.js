@@ -175,6 +175,54 @@
     plot = new uPlot(options, [times, values, held], chart);
   }
 
+  // Over weeks and months, each day as its lowest to highest, a band, with its mean: what
+  // a winter did to the brine, say, rather than every reading.
+  async function loadDaily(days) {
+    let rows;
+    try {
+      const response = await fetch(`${chart.dataset.daily}?days=${days}`, { credentials: "same-origin" });
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      rows = await response.json();
+    } catch (e) {
+      message(chart.dataset.failed);
+      return;
+    }
+    if (!rows.length) {
+      message(chart.dataset.empty);
+      return;
+    }
+    // Noon of each day, in the house's zone near enough for a day-wide band.
+    const times = rows.map((r) => Date.parse(`${r.day}T12:00:00Z`) / 1000);
+    const accent = getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#b5462a";
+    const muted = getComputedStyle(document.body).getPropertyValue("--muted").trim() || "#5f6368";
+    const options = {
+      width: chart.clientWidth || 800,
+      height: 320,
+      series: [
+        { value: (u, v) => (v === null ? "–" : day(v)) },
+        { label: chart.dataset.lowest, value: (u, v) => format(v), stroke: muted, width: 1 },
+        { label: chart.dataset.mean, value: (u, v) => format(v), stroke: accent, width: 2 },
+        { label: chart.dataset.highest, value: (u, v) => format(v), stroke: muted, width: 1 },
+      ],
+      bands: [{ series: [3, 1], fill: "rgba(128, 128, 128, 0.18)" }],
+      axes: [
+        { values: (u, values) => values.map(day), ...axisStyle() },
+        { values: (u, values) => values.map(format), ...axisStyle() },
+      ],
+    };
+    if (plot) {
+      plot.destroy();
+    }
+    chart.textContent = "";
+    plot = new uPlot(
+      options,
+      [times, rows.map((r) => r.min), rows.map((r) => r.mean), rows.map((r) => r.max)],
+      chart,
+    );
+  }
+
   // Named values (a demand, a pump's state, a switch) can't be a line: each is a band over
   // the time it held, as Home Assistant draws such entities, with its total time below.
   const named = JSON.parse(chart.dataset.labels || "{}");
@@ -292,7 +340,11 @@
       for (const other of document.querySelectorAll(".ranges button")) {
         other.setAttribute("aria-pressed", String(other === button));
       }
-      load(Number(button.dataset.hours));
+      if (button.dataset.days) {
+        loadDaily(Number(button.dataset.days));
+      } else {
+        load(Number(button.dataset.hours));
+      }
     });
   }
   window.addEventListener("resize", () => {
