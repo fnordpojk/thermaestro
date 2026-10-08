@@ -30,7 +30,8 @@ def test_nothing_unlisted_is_vendored() -> None:
 
 
 def test_the_pages_load_only_vendored_or_own_files() -> None:
-    own = {p.name for p in (WEB / "static").iterdir() if p.is_file()}
+    static = WEB / "static"
+    own = {p.relative_to(static).as_posix() for p in static.rglob("*") if p.is_file()}
     for template in (WEB / "templates").glob("*.html"):
         for src in re.findall(r'(?:src|href)="(/static/[^"]+)"', template.read_text()):
             name = src.removeprefix("/static/")
