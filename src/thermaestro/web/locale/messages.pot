@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 21:53+0200\n"
+"POT-Creation-Date: 2026-10-08 22:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -454,6 +454,9 @@ msgid "Fallback"
 msgstr ""
 
 msgid "Fallback, while the chosen one has nothing"
+msgstr ""
+
+msgid "Fallbacks, in this order"
 msgstr ""
 
 msgid "Fan speed"
@@ -1098,6 +1101,13 @@ msgstr ""
 msgid ""
 "The gateway that connects Thermaestro to a Nibe pump's bus: its address, "
 "and the protocol it speaks."
+msgstr ""
+
+#, python-format
+msgid ""
+"The layer %(layer)s already includes the spot price, so the source chosen"
+" here isn't added to the stack. Its prices are kept current beside it, "
+"and can take that layer's place under Layers."
 msgstr ""
 
 msgid "The location's climate"

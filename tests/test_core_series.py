@@ -280,7 +280,10 @@ async def test_a_stack_counted_wrong_is_refused(db: Database) -> None:
     twice = await assemble(
         {"spot": spot, "tibber": total}, None, series, date(2026, 9, 29), STOCKHOLM
     )
-    assert twice.problems == ["energy.spot is counted twice: in spot and in tibber"]
+    assert twice.problems == [
+        "energy.spot is counted twice, in the layers spot and tibber:"
+        " remove one under Setup → Prices"
+    ]
     assert twice.slots == []
     on_vat = await assemble(
         {"tibber": total},

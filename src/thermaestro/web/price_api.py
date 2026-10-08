@@ -107,7 +107,9 @@ async def spot(request: Request, who: Logged) -> dict[str, Any]:
 async def set_spot(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
     """Take a bidding zone's spot price from a source, with another standing in:
     `{"zone": "NO1", "source": "energy_charts", "fallback": "nordic_sites"}`, and
-    optionally `"currency"`. The sources a zone has are those Setup → Prices offers."""
+    optionally `"currency"`. The sources a zone has are those Setup → Prices offers.
+    Where a layer already includes the spot price (a supplier's total), the stack is
+    left as it is and the answer names that layer: `{"included_in": "energy-supplier"}`."""
     zone, source = body.get("zone"), body.get("source")
     fallback, currency = body.get("fallback"), body.get("currency")
     if not isinstance(zone, str) or not isinstance(source, str):
@@ -115,6 +117,8 @@ async def set_spot(body: dict[str, Any], request: Request, who: Logged) -> dict[
     if not isinstance(fallback, str | None) or not isinstance(currency, str | None):
         raise AccountError("the fallback and the currency are names")
     id, layer = await services(request).choose_spot(who, zone, source, fallback, currency)
+    if layer is None:
+        return {"included_in": id}  # a layer already includes the spot price
     return {"id": id, **layer.model_dump(mode="json")}
 
 

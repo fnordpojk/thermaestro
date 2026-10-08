@@ -143,6 +143,7 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
     fallback = spot["fallback"] if same and spot["fallback"] in plugins else None
     if source is None and plugins:
         source, fallback = plugins[0], plugins[1] if len(plugins) > 1 else None
+    layers = await s.price_layers(who)
     names = {
         "energy_charts": "Energy-Charts",
         "entsoe": "ENTSO-E",
@@ -162,11 +163,12 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
         "spot_source": source,
         "spot_fallback": fallback,
         "source_names": names,
+        "spot_included_in": s.spot_included_in(who, layers),
         "tibber_hint": country in TIBBER_COUNTRIES and "tibber" not in has,
         "octopus_regions": REGIONS,
         "bidding_zones": ZONES,
         "offered": s.offered_series(who),
-        "layers": await s.price_layers(who),
+        "layers": layers,
         "vat": await s.vat(who),
         "fixed_roles": FIXED_ROLES,
     }

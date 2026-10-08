@@ -127,7 +127,10 @@ def check(
         units.add(unit)
         for role in roles:
             if role in counted:
-                problems.append(f"{role} is counted twice: in {counted[role]} and in {id}")
+                problems.append(
+                    f"{role} is counted twice, in the layers {counted[role]} and {id}:"
+                    " remove one under Setup → Prices"
+                )
             else:
                 counted[role] = id
         if vat is not None and _charged(vat, id, layer) and (layer.vat == "incl" or "vat" in roles):

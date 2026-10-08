@@ -15,7 +15,7 @@ from simspump import SimSPump
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
 from thermaestro.cap.messages import Described
-from thermaestro.nibe import sprofile
+from thermaestro.nibe import profile, sprofile
 from thermaestro.nibe.maps import load
 from thermaestro.nibe.plugin import IDENTIFICATION, NibePlugin
 from thermaestro.store import NibeGateway
@@ -183,7 +183,11 @@ async def test_the_valves_position_is_measured(plugin: NibePlugin, spump: SimSPu
     spump.registers[32196] = 1  # QN10: hot water
     await until(lambda: value(plugin, "diverter")[0] == "dhw")
     assert value(plugin, "demand")[0] == "dhw"
-    assert value(plugin, "cs1/supply.temp") == (35.1, "good", "diverter to dhw")
+    assert value(plugin, "cs1/supply.temp") == (
+        35.1,
+        "good",
+        "the water goes to the hot-water tank now, not to the heating",
+    )
     await until(lambda: value(plugin, "dhw/temp.charge")[1] == "transitional")
 
 
@@ -191,7 +195,7 @@ async def test_flow_rules(plugin: NibePlugin, spump: SimSPump) -> None:
     spump.registers[31102] = 0  # GP1 stopped
     spump.registers[31104] = 0  # GP2 stopped
     await until(lambda: value(plugin, "cs1/supply.temp")[1] == "no_flow")
-    assert value(plugin, "cs1/supply.temp")[2] == "pump 31102 = 0"
+    assert value(plugin, "cs1/supply.temp")[2] == profile.SUPPLY_STOPPED
     await until(lambda: value(plugin, "brine/brine.in.temp")[1] == "no_flow")
     assert value(plugin, "brine/brine.delta_t")[1] == "no_flow"
 

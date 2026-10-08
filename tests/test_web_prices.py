@@ -177,7 +177,8 @@ async def test_a_double_count_is_shown_not_summed(site: Site) -> None:
         )
         today = (await client.get("/api/v1/prices")).json()
         assert today["problems"] == [
-            "energy.spot is counted twice: in energy-spot and in energy-supplier"
+            "energy.spot is counted twice, in the layers energy-spot and energy-supplier:"
+            " remove one under Setup → Prices"
         ]
         assert today["slots"] == []
         assert "energy.spot is counted twice" in (await client.get("/prices")).text
@@ -302,6 +303,54 @@ async def test_entsoe_stands_in_last_and_follows_the_zone(site: Site) -> None:
             "zone": "DK1",
             "currency": "DKK",
         }
+
+
+async def test_every_spot_source_stands_in(site: Site) -> None:
+    series = site.services.series
+    assert series is not None
+    series.describe("entsoe", [OTHER_SPOT])
+    async with logged_in(site) as client:
+        await form(client, "/setup/prices", "/settings/tibber", token="tibber-token-1")
+        await form(client, "/setup/prices", "/settings/entsoe", zone="SE3", token="entsoe-token-1")
+        await form(
+            client, "/setup/prices?zone=SE3", "/settings/spot", zone="SE3", source="nordic_sites"
+        )
+        layer = (await client.get("/api/v1/prices/layers")).json()["energy-spot"]
+        assert layer["plugin"] == "nordic_sites"
+        # ENTSO-E after the chosen ones, then Tibber's spot price.
+        assert layer["fallbacks"] == ["entsoe:spot", "tibber:se3/spot"]
+        page = (await client.get("/setup/prices")).text
+        assert 'name="fallbacks" value="entsoe:spot" checked' in page
+        assert 'name="fallbacks" value="tibber:se3/spot" checked' in page
+
+
+async def test_a_supplier_total_keeps_the_stack(site: Site) -> None:
+    async with logged_in(site) as client:
+        await form(
+            client,
+            "/setup/prices",
+            "/prices/layers",
+            source="series",
+            offered="tibber:home/price.total",
+        )
+        saved = await form(
+            client, "/setup/prices?zone=NO1", "/settings/spot", zone="NO1", source="energy_charts"
+        )
+        assert saved.status_code == 303
+        layers = (await client.get("/api/v1/prices/layers")).json()
+        assert sorted(layers) == ["energy-supplier"]
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert sources["energy_charts"]["settings"]["zone"] == "NO1"
+        page = (await client.get("/setup/prices")).text
+        assert "The layer energy-supplier already includes the spot price" in page
+        assert '<option value="NO1" selected>' in page
+        answer = await client.put(
+            "/api/v1/prices/spot",
+            json={"zone": "NO1", "source": "energy_charts"},
+            headers={"x-csrf-token": csrf_of(page)},
+        )
+        assert answer.json() == {"included_in": "energy-supplier"}
+        assert (await client.get("/api/v1/prices")).json()["problems"] == []
 
 
 async def test_octopus_agile_by_region(site: Site) -> None:

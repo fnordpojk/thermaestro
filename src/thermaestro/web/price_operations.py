@@ -209,12 +209,16 @@ class PriceOperations:
         source: str,
         fallback: str | None = None,
         currency: str | None = None,
-    ) -> tuple[str, PriceLayer]:
+    ) -> tuple[str, PriceLayer | None]:
         """Take a bidding zone's spot price from `source`, with `fallback` standing in on a
-        day it has no price, and ENTSO-E after both where a token is entered. Both are
+        day it has no price, then ENTSO-E where a token is entered, then every other spot
+        price on offer in the same unit (Tibber's, for a Tibber customer). Both are
         plugin names, from those `spotsources.choices` offers for the zone. Sources that
         need no account are set up for the zone, and removed once no longer used; one with
-        a token keeps it. The stack's spot layer then takes from them."""
+        a token keeps it. The stack's spot layer then takes from them, and its id and
+        setting are returned. Where another layer already includes the spot price (a
+        supplier's total), the stack is left as it is, and that layer's id is returned
+        with no setting: the sources are kept current beside it."""
         self._require(caller, "plugins.manage", step_up=True)
         area = ZONES.get(zone)
         if area is None:
@@ -252,16 +256,27 @@ class PriceOperations:
         for id, p in sources.items():
             if p["plugin"] in NO_ACCOUNT and p["plugin"] not in used:
                 await self._remove_price_source(caller, id, p["plugin"])
+        offered_now = self.offered_series(caller)
         unit = next(
-            (
-                o["unit"]
-                for o in self.offered_series(caller)
-                if f"{o['instance']}:{o['series']}" == refs[0]
-            ),
+            (o["unit"] for o in offered_now if f"{o['instance']}:{o['series']}" == refs[0]),
             f"{chosen_currency}/kWh",
         )
+        # Every other spot price on offer in the same unit stands in after the chosen ones.
+        refs += [
+            ref
+            for o in offered_now
+            if o["role"] == "energy.spot"
+            and not o["covers"]
+            and (o["unit"], o["vat"]) == (unit, "excl")
+            and (ref := f"{o['instance']}:{o['series']}") not in refs
+            and o["instance"] in sources
+            and sources[o["instance"]]["plugin"] not in NO_ACCOUNT
+        ]
         instance, _, series = refs[0].partition(":")
         layers = await self.db.all(PriceLayer)
+        including = self.spot_included_in(caller, layers)
+        if including is not None:
+            return including, None
         current_id = next((id for id, layer in layers.items() if layer.role == "energy.spot"), None)
         body = {
             "role": "energy.spot",
@@ -274,9 +289,27 @@ class PriceOperations:
         }
         return await self.set_price_layer(caller, current_id, body)
 
+    def spot_included_in(self, caller: "Caller", layers: dict[str, PriceLayer]) -> str | None:
+        """The layer other than the spot layer whose series already includes the spot
+        price, such as a supplier's total; None if there is none."""
+        covers = {
+            f"{o['instance']}:{o['series']}": set(o["covers"]) for o in self.offered_series(caller)
+        }
+        return next(
+            (
+                id
+                for id, layer in sorted(layers.items())
+                if layer.role != "energy.spot"
+                and layer.source == "series"
+                and "energy.spot" in covers.get(f"{layer.plugin}:{layer.series}", set())
+            ),
+            None,
+        )
+
     async def spot_choice(self, caller: "Caller") -> dict[str, str | None]:
         """Where the stack's spot layer takes its price from, as plugin names, and the
-        bidding zone they are set up for."""
+        bidding zone they are set up for. With no spot layer, the zone the sources are
+        set up for, if any."""
         caller.principal.require("settings.read")
         sources = await self.price_sources(caller)
         layers = await self.db.all(PriceLayer)
@@ -284,7 +317,10 @@ class PriceOperations:
             (x for x in layers.values() if x.role == "energy.spot" and x.source == "series"), None
         )
         if layer is None:
-            return {"zone": None, "source": None, "fallback": None}
+            zoned = [
+                s["settings"]["zone"] for _, s in sorted(sources.items()) if "zone" in s["settings"]
+            ]
+            return {"zone": zoned[0] if zoned else None, "source": None, "fallback": None}
         ids = [layer.plugin or "", *(ref.partition(":")[0] for ref in layer.fallbacks)]
         known = [sources[i] for i in ids if i in sources]
         zones = [s["settings"].get("zone") for s in known if s["settings"].get("zone")]

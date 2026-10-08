@@ -15,7 +15,9 @@ from .. import durations
 from ..cap.model import Lever
 from .maps import ModelMap
 from .profile import (
+    BRINE_STOPPED,
     METER_IDLE_S,
+    SUPPLY_STOPPED,
     Family,
     PointDef,
     System,
@@ -46,8 +48,8 @@ SYSTEMS = (System(1, 30005, None, offset=40030),)
 
 compressor_changing = changing(COMPRESSOR, COMPRESSOR_STATE, frozenset())
 """The status is off or on, so nothing is transitional by it."""
-FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED),)
-BRINE_RULES = (no_flow(BRINE_PUMP_SPEED),)
+FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED, SUPPLY_STOPPED),)
+BRINE_RULES = (no_flow(BRINE_PUMP_SPEED, BRINE_STOPPED),)
 
 UNIT_POINTS = (
     PointDef("outdoor.temp", 30001),

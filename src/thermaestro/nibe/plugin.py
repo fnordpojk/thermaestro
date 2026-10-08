@@ -613,7 +613,7 @@ class NibePlugin:
             value = round(brine_in - brine_out, 1)
             if speed == 0:
                 # No flow: the two sensors measure standing brine, as their own values say.
-                quality, why = "no_flow", f"pump {self.family.brine_pump_speed} = 0"
+                quality, why = "no_flow", profile.BRINE_STOPPED
             elif (verdict := self.family.compressor_changing(self._snapshot())) is not None:
                 quality, why = verdict
         return Envelope(

@@ -102,10 +102,16 @@ def counting(register: int, purpose: str) -> Rule:
     return rule
 
 
-def no_flow(pump: int) -> Rule:
+SUPPLY_STOPPED = "the heating medium pump (GP1) is stopped, so the water at the sensor stands still"
+BRINE_STOPPED = "the brine pump (GP2) is stopped, so the brine at the sensor stands still"
+
+
+def no_flow(pump: int, why: str) -> Rule:
+    """No flow while the circulation pump `pump` stands still; `why` says which."""
+
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
         if s.values.get(pump) == 0:
-            return "no_flow", f"pump {pump} = 0"
+            return "no_flow", why
         return None
 
     return rule
@@ -134,7 +140,8 @@ def diverted(register: int, hot_water: int) -> Rule:
 
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
         if s.values.get(register) == hot_water:
-            return "good", "diverter to dhw"  # true, but it describes the charge, not the heating
+            # True, but it describes the charge, not the heating.
+            return "good", "the water goes to the hot-water tank now, not to the heating"
         return None
 
     return rule
@@ -179,8 +186,8 @@ SYSTEMS = (
     System(8, 40159, 48572),
 )
 
-FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED), compressor_changing)
-BRINE_RULES = (no_flow(BRINE_PUMP_SPEED), compressor_changing)
+FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED, SUPPLY_STOPPED), compressor_changing)
+BRINE_RULES = (no_flow(BRINE_PUMP_SPEED, BRINE_STOPPED), compressor_changing)
 
 
 def system_points(system: System) -> list[PointDef]:

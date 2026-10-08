@@ -12,6 +12,7 @@
 
 <h3 id="spot">{{ _("Spot price") }}</h3>
 <p>{{ _("The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone, and one to stand in on a day the first has no prices; every zone of a country takes its prices from the same source.") }}</p>
+{% if spot_included_in %}<p class="hint">{{ _("The layer %(layer)s already includes the spot price, so the source chosen here isn't added to the stack. Its prices are kept current beside it, and can take that layer's place under Layers.", layer=spot_included_in) }}</p>{% endif %}
 <form method="get" action="/setup/prices" class="grid">
   <label>{{ _("Bidding zone") }}
     <select name="zone" required>
@@ -103,11 +104,10 @@
       {% if others or layer.fallbacks %}
       <form method="post" action="/prices/layers/{{ id | urlencode }}/fallbacks" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <label>{{ _("Fallback") }}
-          <select name="fallbacks">
-            <option value="">{{ _("none") }}</option>
-            {% for o in others %}{% set ref = o.instance ~ ":" ~ o.series %}<option value="{{ ref }}"{% if ref in layer.fallbacks %} selected{% endif %}>{{ o.instance }} · {{ o.series }}</option>{% endfor %}
-          </select></label>
+        <fieldset><legend>{{ _("Fallbacks, in this order") }}</legend>
+          {% for ref in layer.fallbacks %}<label class="check"><input type="checkbox" name="fallbacks" value="{{ ref }}" checked> {{ ref | replace(":", " · ") }}</label>{% endfor %}
+          {% for o in others %}{% set ref = o.instance ~ ":" ~ o.series %}{% if ref not in layer.fallbacks %}<label class="check"><input type="checkbox" name="fallbacks" value="{{ ref }}"> {{ o.instance }} · {{ o.series }}</label>{% endif %}{% endfor %}
+        </fieldset>
         <button type="submit">{{ _("Save") }}</button>
       </form>
       {% endif %}
