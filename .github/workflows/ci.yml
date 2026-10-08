@@ -48,6 +48,13 @@ jobs:
           docker compose stop
           docker compose cp thermaestro:/data ./backup
           test -s backup/thermaestro.db
+      - name: The move in docs/docker.md works
+        run: |
+          (umask 077; tar -C backup -czf state.tar.gz .)
+          docker compose down --volumes
+          docker compose run --rm -T --no-deps --entrypoint tar thermaestro -xzpf - -C /data < state.tar.gz
+          docker compose up --detach --wait --wait-timeout 180
+          test "$(docker compose exec -T thermaestro stat -c %u /data/thermaestro.db)" = 10001
       - name: It builds from GitHub, as compose.yaml does by default
         run: |
           export THERMAESTRO_SOURCE="https://github.com/${GITHUB_REPOSITORY}.git#${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"

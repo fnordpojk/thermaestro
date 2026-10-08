@@ -60,6 +60,35 @@ docker compose cp thermaestro:/data ./thermaestro-backup
 docker compose start
 ```
 
+## Moving an existing installation in
+
+An installation's state directory, from a Raspberry Pi (`/var/lib/thermaestro`) or another Docker host, or one run from a clone, goes into the volume before Thermaestro's first start there.
+
+1. Stop the old installation, and leave it stopped: two running copies would publish the same Home Assistant topics. On the old machine, pack its state directory, readable only by you, since it holds the secrets:
+
+   ```
+   umask 077
+   tar -C <the state directory> -czf thermaestro-state.tar.gz .
+   ```
+
+2. Copy the file beside `compose.yaml` on the new machine, and there:
+
+   ```
+   docker compose build
+   docker compose run --rm -T --no-deps --entrypoint tar thermaestro -xzpf - -C /data < thermaestro-state.tar.gz
+   docker compose up -d
+   rm thermaestro-state.tar.gz
+   ```
+
+   The files are unpacked inside the container, as its own user, so they are that user's from the start, as Thermaestro requires. (`docker compose cp` would make them root's.)
+
+After the move:
+- **Addresses ending in `.local`**, such as `homeassistant.local`, don't resolve inside the container. Use an IP address or a name your DNS knows.
+- **Everyone logs in again** at the new address; users and passwords came along.
+- **The database is brought up to the new version** at the first start, so the old installation, if older, can't use it again.
+
+## Removing it
+
 `docker compose down` removes the container and keeps the volume; `docker compose down -v` deletes the volume too, and with it everything Thermaestro knew.
 
 ## The pump
