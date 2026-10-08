@@ -11,6 +11,7 @@ model. The compressor's status is only off or on. Levers aren't offered yet.
 
 from collections.abc import Iterable, Mapping
 
+from .. import durations
 from ..cap.model import Lever
 from .maps import ModelMap
 from .profile import (
@@ -60,7 +61,7 @@ UNIT_POINTS = (
             register,
             rules=(counting(register, METERS[register]),),
             validity=(
-                f"unknown when it hasn't changed in {METER_IDLE_S / 60:.0f} min of production",
+                f"unknown when it hasn't changed in {durations.text(METER_IDLE_S)} of production",
             ),
         )
         for path, register in (

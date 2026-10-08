@@ -13,6 +13,7 @@ from typing import Literal, Protocol
 
 import aiomqtt
 
+from .. import durations
 from ..store import Database, Mqtt, SecretStore
 from .sensors import SensorHub
 
@@ -84,7 +85,9 @@ class MqttClient:
                 failures += 1
                 self.state, self.error = "failed", str(e)
                 pause = min(self._backoff[1], self._backoff[0] * 2 ** (failures - 1))
-                log.warning("MQTT broker %s: %s; trying again in %.0f s", setting.host, e, pause)
+                log.warning(
+                    "MQTT broker %s: %s; trying again in %s", setting.host, e, durations.text(pause)
+                )
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._reload.wait(), pause)
 

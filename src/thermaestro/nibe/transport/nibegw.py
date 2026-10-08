@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from thermaestro_gateway import nibe
 from thermaestro_gateway.protocol import Stage
 
+from thermaestro import durations
 from thermaestro.nibe.transport.base import (
     FateKind,
     LinkHealth,
@@ -197,7 +198,9 @@ class PlainClient:
             while not pending.answer.done():
                 if time.monotonic() >= deadline:
                     raise ReadFailed(
-                        register, f"no answer within {timeout:g} s", tuple(pending.stages)
+                        register,
+                        f"no answer within {durations.text(timeout)}",
+                        tuple(pending.stages),
                     )
                 async with self._read_slot:
                     pending.delivered.clear()
@@ -264,7 +267,8 @@ class PlainClient:
                         )
                     return outcome(
                         WriteResult.UNKNOWN,
-                        f"not seen on the bus within {timeout:g} s; the gateway may still send it",
+                        f"not seen on the bus within {durations.text(timeout)};"
+                        " the gateway may still send it",
                     )
                 if not pending.taken:
                     return outcome(WriteResult.NOT_TAKEN, "the pump NAKed the frame")

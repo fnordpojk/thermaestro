@@ -150,7 +150,7 @@ async def test_calibration_and_staleness(db: Database) -> None:
     clock.now += 601
     hub.tick()
     sensor = values.latest[Key(SENSORS, "hall/temperature")]
-    assert (sensor.quality, sensor.why) == ("stale", "no report for 601 s")
+    assert (sensor.quality, sensor.why) == ("stale", "no report for 10 min 1 s")
     assert site(values, "room.hall/temperature") == (None, "unknown", "no sensor with a good value")
     hub.receive_mqtt("t/hall", b"garbage")
     assert values.latest[Key(SENSORS, "hall/temperature")].quality == "unknown"

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from .. import durations
 from ..cap import Message, Send
 from ..cap.messages import (
     Act,
@@ -675,7 +676,8 @@ class NibePlugin:
                     break
         freshness = PUSHED_FRESHNESS_S if definition.register in self.pushed else POLLED_FRESHNESS_S
         if quality == "good" and time.monotonic() - sample.t > freshness:
-            quality, why = "stale", f"last read {int(time.monotonic() - sample.t)} s ago"
+            age = durations.text(int(time.monotonic() - sample.t))
+            quality, why = "stale", f"last read {age} ago"
         return Envelope(
             point=path,
             value=value,

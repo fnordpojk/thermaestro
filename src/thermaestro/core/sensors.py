@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from .. import durations
 from ..cap.model import Envelope, Quality
 from ..cap.vocabulary import QUANTITIES, STATES
 from ..store import Database, Display, Names, Outdoor, Room, Sensor
@@ -200,9 +201,9 @@ class SensorHub:
         if reading is None:
             return None
         if reading.quality == "good" and self._stale(id, reading):
-            age = int(self._clock() - reading.received)
+            age = durations.text(int(self._clock() - reading.received))
             return Reading(
-                reading.value, "stale", f"no report for {age} s", reading.t, reading.received
+                reading.value, "stale", f"no report for {age}", reading.t, reading.received
             )
         return reading
 

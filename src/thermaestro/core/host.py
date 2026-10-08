@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from .. import durations
 from ..cap import Closed, Endpoint, Link, Message, pair, serve
 from ..cap.messages import FEATURES, Described, DeviceEvent, ForeignWrite, Health, Hello
 from ..store import Database, Plugin, SecretStore
@@ -179,7 +180,10 @@ class PluginHost:
             instance.state = State.RESTARTING
             pause = min(self._backoff[1], self._backoff[0] * 2 ** (instance.failures - 1))
             log.warning(
-                "plugin instance %s stopped (%s); restarting in %.0f s", instance.id, error, pause
+                "plugin instance %s stopped (%s); restarting in %s",
+                instance.id,
+                error,
+                durations.text(pause),
             )
             await self._audit.record(
                 f"plugin:{instance.setting.plugin}",

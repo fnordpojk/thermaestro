@@ -23,6 +23,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from .. import durations
 from . import vocabulary
 from .carrier import Closed, Endpoint
 from .client import CapError, Link, UnexpectedReply
@@ -122,7 +123,9 @@ class _Suite:
             self.findings.append(Finding(name, str(e)))
             return False
         except TimeoutError:
-            self.findings.append(Finding(name, f"no answer within {self.timeout_s} s"))
+            self.findings.append(
+                Finding(name, f"no answer within {durations.text(self.timeout_s)}")
+            )
             return False
         except (CapError, UnexpectedReply) as e:
             self.findings.append(Finding(name, f"answered with {e}"))

@@ -28,7 +28,7 @@ from typing import Any
 from thermaestro_gateway import nibe
 from thermaestro_gateway.protocol import Origin
 
-from .. import version
+from .. import durations, version
 from ..cap import Link, pair, serve
 from ..cap.messages import Described
 from ..store import NibeGateway, SecretStore
@@ -199,7 +199,7 @@ async def probe(
             assert model is not None  # noqa: S101 - described means identified
             progress(f"Identified the pump: {model.name}, firmware {plugin.firmware}.")
             detection = await _detection(transports[0], plugin, detection_read_s)
-            progress(f"Reading and capturing the bus for {seconds / 60:g} minutes.")
+            progress(f"Reading and capturing the bus for {durations.text(seconds)}.")
             started = time.monotonic()
             while (left := seconds - (time.monotonic() - started)) > 0:
                 await asyncio.sleep(min(60.0, left))

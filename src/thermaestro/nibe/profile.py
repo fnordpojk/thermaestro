@@ -9,6 +9,7 @@ has them and how to decode them. A point whose register the model lacks isn't de
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 
+from .. import durations
 from ..cap.model import (
     CompetingFeature,
     Implementation,
@@ -94,8 +95,8 @@ def counting(register: int, purpose: str) -> Rule:
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
         idle = s.idle.get(register, 0.0)
         if idle >= METER_IDLE_S:
-            minutes = int(idle // 60)
-            return "unknown", f"hasn't changed in {minutes} min of {purpose} production"
+            span = durations.text(idle // 60 * 60)
+            return "unknown", f"hasn't changed in {span} of {purpose} production"
         return None
 
     return rule
@@ -225,7 +226,7 @@ UNIT_POINTS = (
             register,
             rules=(counting(register, METERS[register]),),
             validity=(
-                f"unknown when it hasn't changed in {METER_IDLE_S / 60:.0f} min of production",
+                f"unknown when it hasn't changed in {durations.text(METER_IDLE_S)} of production",
             ),
         )
         for path, register in (

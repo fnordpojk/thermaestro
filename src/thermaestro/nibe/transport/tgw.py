@@ -29,6 +29,7 @@ from enum import Enum
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
 
+from thermaestro import durations
 from thermaestro.nibe.transport.base import (
     FateKind,
     LinkHealth,
@@ -362,7 +363,7 @@ class TgwClient:
         deadline = time.monotonic() + timeout
         frame = nibe.read_request(register)
         stages: list[StageEvent] = []
-        why = f"no answer within {timeout:g} s"
+        why = f"no answer within {durations.text(timeout)}"
         while time.monotonic() < deadline:
             try:
                 request = await self._run(nibe.READ_TOKEN, frame, deadline)
@@ -711,7 +712,7 @@ class TgwClient:
                 and self._last_health is not None
                 and now - self._last_health > health_s
             ):
-                self._lose_session(f"no HEALTH for {health_s} s", gone=False)
+                self._lose_session(f"no HEALTH for {durations.text(health_s)}", gone=False)
                 continue
             if now - self._last_tx >= self.settings.lease_s / 3:
                 self._send(p.Keepalive(id=self._new_id()))
