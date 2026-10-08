@@ -10,9 +10,11 @@ from thermaestro.store import (
     Database,
     Location,
     Mqtt,
+    PriceLayer,
     Sensor,
     StoreError,
     Transaction,
+    Vat,
 )
 
 HOME = Location(latitude=52.52, longitude=13.40, timezone="Europe/Berlin")
@@ -50,9 +52,51 @@ async def test_the_brokers_old_discovery_switch_is_dropped(tmp_path: Path) -> No
             "UPDATE settings SET body = json_set(body, '$.discovery', json('true'))"
             " WHERE kind = 'mqtt'"
         )
-        raw.execute(f"PRAGMA user_version = {VERSION - 1}")
+        raw.execute("PRAGMA user_version = 6")
     async with await Database.open(path) as db:
         assert await db.get(Mqtt) == Mqtt(host="192.0.2.30")
+
+
+async def test_a_stored_remainder_is_a_suppliers_total_again(tmp_path: Path) -> None:
+    path = tmp_path / "thermaestro.db"
+    spot = PriceLayer(
+        role="energy.spot",
+        source="series",
+        plugin="entsoe",
+        series="spot",
+        unit="SEK/kWh",
+        vat="excl",
+    )
+    async with await Database.open(path) as db:
+        await db.put(spot, "energy-spot")
+        await db.put(spot.model_copy(update={"series": "total"}), "energy-supplier")
+        await db.put(Vat(rate=0.25, applies_to=("energy-spot", "energy-supplier", "tax.energy")))
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        # As the release that stored them wrote them: every layer with `minus`, the
+        # supplier's as a remainder.
+        raw.execute(
+            "UPDATE settings SET body = json_set(body, '$.minus', json('null'))"
+            " WHERE kind = 'price.layer'"
+        )
+        raw.execute(
+            "UPDATE settings SET body = json_set(body, '$.source', 'remainder',"
+            " '$.plugin', 'tibber', '$.minus', 'tibber:energy', '$.role', 'energy.supplier')"
+            " WHERE kind = 'price.layer' AND id = 'energy-supplier'"
+        )
+        raw.execute("PRAGMA user_version = 7")
+    async with await Database.open(path) as db:
+        layers = await db.all(PriceLayer)
+        assert layers["energy-spot"] == spot
+        supplier = layers["energy-supplier"]
+        assert (supplier.source, supplier.plugin, supplier.series, supplier.vat) == (
+            "series",
+            "tibber",
+            "total",
+            "incl",
+        )
+        vat = await db.get(Vat)
+        assert vat is not None
+        assert vat.applies_to == ("energy-spot", "tax.energy")
 
 
 async def test_a_newer_database_is_refused(tmp_path: Path) -> None:

@@ -154,6 +154,25 @@ MIGRATIONS: tuple[str, ...] = (
     """
     UPDATE settings SET body = json_remove(body, '$.discovery') WHERE kind = 'mqtt';
     """,
+    # 8: price layers lose the "remainder" a short-lived release stored; the price stack
+    # now splits a supplier's total itself. A remainder layer was a supplier's total that
+    # includes VAT, so it is that again, and VAT is no longer charged on it.
+    """
+    UPDATE settings SET body = json_set(body, '$.applies_to', (
+        SELECT json_group_array(item.value)
+        FROM json_each(settings.body, '$.applies_to') AS item
+        WHERE item.value NOT IN (
+            SELECT layer.id FROM settings AS layer
+            WHERE layer.kind = 'price.layer'
+            AND json_extract(layer.body, '$.source') = 'remainder'
+        )
+    ))
+    WHERE kind = 'price.vat';
+    UPDATE settings
+    SET body = json_set(body, '$.source', 'series', '$.vat', 'incl')
+    WHERE kind = 'price.layer' AND json_extract(body, '$.source') = 'remainder';
+    UPDATE settings SET body = json_remove(body, '$.minus') WHERE kind = 'price.layer';
+    """,
 )
 VERSION = len(MIGRATIONS)
 
