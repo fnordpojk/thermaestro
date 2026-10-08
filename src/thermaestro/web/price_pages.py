@@ -184,7 +184,7 @@ async def set_spot(
     currency: Text = "",
 ) -> Response:
     work = services(request).choose_spot(who, zone, source, fallback or None, currency or None)
-    return await attempt(request, who, work, "prices", f"/setup/prices?zone={zone}#spot")
+    return await attempt(request, who, work, "prices", "/setup/prices#spot")
 
 
 @router.post("/settings/octopus_agile")

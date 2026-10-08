@@ -156,6 +156,8 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
         "entsoe": {id: p for id, p in sources.items() if p["plugin"] == "entsoe"},
         "octopus": {id: p for id, p in sources.items() if p["plugin"] == "octopus_agile"},
         "spot_zone": zone,
+        # The sources only once asked for; after saving, the zone is chosen again.
+        "spot_asked": asked in ZONES,
         "spot_choices": offered,
         "spot_source": source,
         "spot_fallback": fallback,

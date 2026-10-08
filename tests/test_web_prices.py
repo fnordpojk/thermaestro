@@ -244,6 +244,7 @@ async def test_the_spot_source_is_picked_by_the_zone(site: Site) -> None:
             fallback="nordic_sites",
         )
         assert saved.status_code == 303
+        assert saved.headers["location"] == "/setup/prices#spot"
         sources = (await client.get("/api/v1/prices/sources")).json()
         for plugin in ("energy_charts", "nordic_sites"):
             assert sources[plugin]["settings"] == {"zone": "NO1", "currency": "NOK"}
@@ -259,9 +260,13 @@ async def test_the_spot_source_is_picked_by_the_zone(site: Site) -> None:
             "source": "energy_charts",
             "fallback": "nordic_sites",
         }
-        # Saved and shown again: what is set up is what the form shows.
+        # Saved: back to choosing a zone, the saved one selected; its sources only on asking,
+        # with what is set up selected.
         page = (await client.get("/setup/prices")).text
         assert '<option value="NO1" selected>' in page
+        assert 'action="/settings/spot"' not in page
+        asked = (await client.get("/setup/prices", params={"zone": "NO1"})).text
+        assert 'value="energy_charts" checked' in asked
         # Moved to Sweden through the API: one source, and the one no longer used goes.
         token = csrf_of(page)
         moved = await client.put(
