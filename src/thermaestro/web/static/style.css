@@ -141,7 +141,8 @@ nav.tabs a[aria-current="page"] { background: var(--panel); border-color: var(--
   nav.side ul { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   header nav a.apart { margin-left: 0; }
 }
-header .me { display: flex; gap: 0.75rem; align-items: center; }
+header .me { display: flex; gap: 0.75rem; align-items: baseline; align-self: baseline; }
+header .theme-switch { align-self: baseline; }
 header .me form { margin: 0; }
 main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
 
