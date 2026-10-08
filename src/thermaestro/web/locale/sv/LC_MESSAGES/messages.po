@@ -176,6 +176,17 @@ msgstr "Även varje sensors egna värden"
 msgid "Amount per kWh"
 msgstr "Belopp per kWh"
 
+msgid ""
+"An S-series pump answers Modbus TCP on its own address, with no gateway: turn it on "
+"in the pump's menu 7.5.9, and choose the pump's model here. The pump only answers "
+"addresses on the local network. What Thermaestro reads from an S-series pump comes "
+"from Nibe's documents and hasn't yet been checked on a real one."
+msgstr ""
+"En pump i S-serien svarar på Modbus TCP på sin egen adress, utan gateway: slå på det "
+"i pumpens meny 7.5.9 och välj pumpens modell här. Pumpen svarar bara adresser på det "
+"lokala nätverket. Det Thermaestro läser från en pump i S-serien bygger på Nibes "
+"dokument och har ännu inte kontrollerats på en riktig pump."
+
 #, python-format
 msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
 msgstr "Årsmedel %(mean)s °C, månadsspridning %(spread)s K"
@@ -509,9 +520,6 @@ msgstr "Från Home Assistant"
 msgid "From Home Assistant's areas"
 msgstr "Från Home Assistants områden"
 
-msgid "Gateway address"
-msgstr "Gatewayens adress"
-
 msgid "Get it from Open-Meteo's archive"
 msgstr "Hämta det från Open-Meteos arkiv"
 
@@ -674,6 +682,12 @@ msgstr "Mäter"
 
 msgid "Middle temperature"
 msgstr "Mittemperatur"
+
+msgid "Modbus TCP (an S-series pump)"
+msgstr "Modbus TCP (en pump i S-serien)"
+
+msgid "Modbus port"
+msgstr "Modbus-port"
 
 msgid "Model"
 msgstr "Modell"
@@ -949,6 +963,12 @@ msgstr "Rumstemperatur"
 msgid "Rooms"
 msgstr "Rum"
 
+msgid "S-series"
+msgstr "S-serien"
+
+msgid "S-series, over Modbus TCP"
+msgstr "S-serien, över Modbus TCP"
+
 msgid "Save"
 msgstr "Spara"
 
@@ -1153,6 +1173,9 @@ msgstr ""
 
 msgid "This value"
 msgstr "Det här värdet"
+
+msgid "Through a gateway"
+msgstr "Genom en gateway"
 
 msgid ""
 "Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as "
@@ -1393,6 +1416,9 @@ msgstr "tillsats"
 msgid "all"
 msgstr "alla"
 
+msgid "an S-series pump's must be chosen"
+msgstr "måste väljas för en pump i S-serien"
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr "som det är satt i Home Assistants MQTT-integration"
 
@@ -1478,9 +1504,6 @@ msgstr "någon annanstans"
 
 msgid "empty: 60"
 msgstr "tomt: 60"
-
-msgid "empty: as the pump reports it"
-msgstr "tomt: som pumpen anger den"
 
 msgid "empty: no estimate"
 msgstr "tomt: ingen uppskattning"
@@ -1711,6 +1734,9 @@ msgstr "de diagnostiska värdena"
 msgid "the everyday values"
 msgstr "vardagsvärdena"
 
+msgid "the gateway's, or an S-series pump's own"
+msgstr "gatewayens, eller en S-seriepumps egen"
+
 msgid "the main provider"
 msgstr "huvudleverantören"
 
@@ -1777,4 +1803,3 @@ msgstr "fel användarnamn eller lösenord"
 
 msgid "yes"
 msgstr "ja"
-

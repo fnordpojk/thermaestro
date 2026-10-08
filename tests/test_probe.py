@@ -10,7 +10,9 @@ from typing import Any
 
 import pytest
 from simpump import TEST_PSK, SimPump
+from simspump import SimSPump
 from test_nibe_plugin import FAST_PLAIN, FAST_TGW, PUMP
+from test_sseries_plugin import stock
 from thermaestro_gateway.server import Gateway
 
 from thermaestro.cli import main
@@ -60,10 +62,12 @@ async def test_the_report(stocked: SimPump, gateway: Gateway) -> None:
     report = result.report
     assert (report["format"], report["version"]) == ("thermaestro-probe", 1)
     assert report["pump"] == {
+        "family": "bus",
         "product": "F1245-6 CU",
         "model": "F1245",
         "firmware": "9721R4",
         "word_order": "high first",
+        "identification": None,
     }
     assert report["transport"]["protocol"] == "nibegw"
     assert report["detection"]["climate_systems"] == [1]
@@ -250,3 +254,53 @@ async def test_the_command(stocked: SimPump, gateway: Gateway, tmp_path: Path) -
     # The gateway protocol needs its key.
     no_key = ["probe", "127.0.0.1", "--protocol", "thermaestro-gw"]
     assert await asyncio.to_thread(main, no_key) == 2
+
+
+async def test_an_s_series_pump_over_modbus(tmp_path: Path) -> None:
+    pump = SimSPump(identification={0: b"NIBE", 1: b"S1255-6"})
+    stock(pump)
+    await pump.start()
+    try:
+        result = await probe(
+            NibeGateway(
+                host="127.0.0.1", protocol="modbus-tcp", modbus_port=pump.port, model="S1255"
+            ),
+            seconds=0.5,
+            identify_timeout_s=5,
+        )
+        report = result.report
+        assert report["pump"] == {
+            "family": "s-series",
+            "product": "S1255",
+            "model": "S1255",
+            "firmware": None,
+            "word_order": "high first",
+            "identification": {"vendor": "NIBE", "product": "S1255-6"},
+        }
+        assert report["transport"]["protocol"] == "modbus-tcp"
+        assert report["levers"] == report["levers_missing"] == []
+        assert {30039, 32014} <= set(report["absent"])  # not installed
+        points = {p["path"]: p for p in report["points"]}
+        assert points["hp1/outdoor.temp"]["value"] == -6.0
+        assert report["bus"]["by_address_and_command"] == {}
+        assert "127.0.0.1" not in json.dumps(report) + result.capture.text({})
+        assert len(result.capture.lines) > 0
+        assert pump.writes == []
+        # The command needs a model from the S-series table.
+        no_model = ["probe", "127.0.0.1", "--protocol", "modbus-tcp"]
+        assert await asyncio.to_thread(main, no_model) == 2
+        argv = [
+            *no_model,
+            "--model",
+            "S1255",
+            "--modbus-port",
+            str(pump.port),
+            "--minutes",
+            "0.01",
+            "--out",
+            str(tmp_path),
+        ]
+        assert await asyncio.to_thread(main, argv) == 0
+        assert pump.writes == []
+    finally:
+        await pump.stop()

@@ -84,7 +84,12 @@ async def _pump(request: Request, who: Caller) -> dict[str, Any]:
     plugins = await s.plugins(who)
     pumps = {id: p for id, p in plugins.items() if p.plugin == "nibe"}
     states = {i["id"]: i for i in s.status(who) if i["id"] in pumps}
-    return {"pumps": pumps, "states": states, "models": sorted(load("bus").models)}
+    return {
+        "pumps": pumps,
+        "states": states,
+        "models": sorted(load("bus").models),
+        "s_models": sorted(load("s-series").models),
+    }
 
 
 async def _external(request: Request, who: Caller) -> dict[str, Any]:

@@ -1,13 +1,16 @@
 <form method="post" action="/settings/pump" class="grid">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="id" value="{{ id }}">
-  <label>{{ _("Gateway address") }}
+  <label>{{ _("Address") }} <small>{{ _("the gateway's, or an S-series pump's own") }}</small>
     <input name="host" required placeholder="192.0.2.20" value="{{ s.host | default('') }}"></label>
   <label>{{ _("Protocol") }}
     <select name="protocol">
       <option value="nibegw"{% if s.protocol | default('nibegw') == "nibegw" %} selected{% endif %}>{{ _("NibeGW (plain)") }}</option>
       <option value="thermaestro-gw"{% if s.protocol | default('') == "thermaestro-gw" %} selected{% endif %}>{{ _("Thermaestro gateway (with a key)") }}</option>
+      <option value="modbus-tcp"{% if s.protocol | default('') == "modbus-tcp" %} selected{% endif %}>{{ _("Modbus TCP (an S-series pump)") }}</option>
     </select></label>
+  <label>{{ _("Modbus port") }} <small>{{ _("S-series") }}</small>
+    <input name="modbus_port" inputmode="numeric" value="{{ s.modbus_port | default(502) }}"></label>
   <label>{{ _("Read port") }}
     <input name="read_port" inputmode="numeric" value="{{ s.read_port | default(9999) }}"></label>
   <label>{{ _("Write port") }}
@@ -16,10 +19,15 @@
     <input name="control_port" inputmode="numeric" value="{{ s.control_port | default(10090) }}"></label>
   <label>{{ _("Local port") }} <small>{{ _("0 picks a free one") }}</small>
     <input name="local_port" inputmode="numeric" value="{{ s.local_port | default(0) }}"></label>
-  <label>{{ _("Model") }} <small>{{ _("empty: as the pump reports it") }}</small>
+  <label>{{ _("Model") }} <small>{{ _("an S-series pump's must be chosen") }}</small>
     <select name="model">
       <option value="">{{ _("as the pump reports it") }}</option>
+      <optgroup label="{{ _('Through a gateway') }}">
       {% for m in models %}<option{% if s.model | default('') == m %} selected{% endif %}>{{ m }}</option>{% endfor %}
+      </optgroup>
+      <optgroup label="{{ _('S-series, over Modbus TCP') }}">
+      {% for m in s_models %}<option{% if s.model | default('') == m %} selected{% endif %}>{{ m }}</option>{% endfor %}
+      </optgroup>
     </select></label>
   <label>{{ _("Key (pre-shared)") }} <small>{% if s.psk | default(none) %}{{ _("entered; leave empty to keep it") }}{% else %}{{ _("64 hex digits, for the Thermaestro gateway") }}{% endif %}</small>
     <input name="psk" type="password" autocomplete="off" spellcheck="false"></label>

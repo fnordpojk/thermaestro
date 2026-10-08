@@ -28,6 +28,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "aiomqtt>=2",
     "aiohttp>=3.12",
+    "pymodbus>=3.15,<3.16",
 ]
 
 [project.scripts]

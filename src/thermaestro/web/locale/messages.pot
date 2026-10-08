@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 02:28+0200\n"
+"POT-Creation-Date: 2026-10-08 04:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,6 +162,14 @@ msgid "Also each sensor's own values"
 msgstr ""
 
 msgid "Amount per kWh"
+msgstr ""
+
+msgid ""
+"An S-series pump answers Modbus TCP on its own address, with no gateway: "
+"turn it on in the pump's menu 7.5.9, and choose the pump's model here. "
+"The pump only answers addresses on the local network. What Thermaestro "
+"reads from an S-series pump comes from Nibe's documents and hasn't yet "
+"been checked on a real one."
 msgstr ""
 
 #, python-format
@@ -481,9 +489,6 @@ msgstr ""
 msgid "From Home Assistant's areas"
 msgstr ""
 
-msgid "Gateway address"
-msgstr ""
-
 msgid "Get it from Open-Meteo's archive"
 msgstr ""
 
@@ -643,6 +648,12 @@ msgid "Measures"
 msgstr ""
 
 msgid "Middle temperature"
+msgstr ""
+
+msgid "Modbus TCP (an S-series pump)"
+msgstr ""
+
+msgid "Modbus port"
 msgstr ""
 
 msgid "Model"
@@ -911,6 +922,12 @@ msgstr ""
 msgid "Rooms"
 msgstr ""
 
+msgid "S-series"
+msgstr ""
+
+msgid "S-series, over Modbus TCP"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
@@ -1098,6 +1115,9 @@ msgid ""
 msgstr ""
 
 msgid "This value"
+msgstr ""
+
+msgid "Through a gateway"
 msgstr ""
 
 msgid ""
@@ -1327,6 +1347,9 @@ msgstr ""
 msgid "all"
 msgstr ""
 
+msgid "an S-series pump's must be chosen"
+msgstr ""
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr ""
 
@@ -1411,9 +1434,6 @@ msgid "elsewhere"
 msgstr ""
 
 msgid "empty: 60"
-msgstr ""
-
-msgid "empty: as the pump reports it"
 msgstr ""
 
 msgid "empty: no estimate"
@@ -1641,6 +1661,9 @@ msgid "the diagnostic values"
 msgstr ""
 
 msgid "the everyday values"
+msgstr ""
+
+msgid "the gateway's, or an S-series pump's own"
 msgstr ""
 
 msgid "the main provider"

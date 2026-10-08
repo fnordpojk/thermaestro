@@ -678,6 +678,39 @@ async def test_the_pump_connection_and_its_key(site: Site) -> None:
     assert '"what":"secret.set"' in audit
 
 
+async def test_an_s_series_pump_over_modbus(site: Site) -> None:
+    async with admin(site) as client:
+        page = (await client.get("/setup/pump")).text
+        assert '<option value="modbus-tcp">' in page
+        assert "<option>S1255</option>" in page
+        no_model = await form(
+            client,
+            "/setup/pump",
+            "/settings/pump",
+            id="s",
+            host="192.0.2.30",
+            protocol="modbus-tcp",
+        )
+        assert no_model.status_code == 400
+        assert "needs its model" in no_model.text
+        answer = await form(
+            client,
+            "/setup/pump",
+            "/settings/pump",
+            id="s",
+            host="192.0.2.30",
+            protocol="modbus-tcp",
+            modbus_port="1502",
+            model="S1255",
+        )
+        assert answer.status_code == 303, answer.text
+    setting = await site.services.db.get(Plugin, "s")
+    assert setting is not None
+    assert (setting.settings["protocol"], setting.settings["modbus_port"]) == ("modbus-tcp", 1502)
+    assert setting.settings["model"] == "S1255"
+    assert setting.settings["psk"] is None
+
+
 async def test_history_and_the_chart_page(site: Site) -> None:
     _with_a_pump(site)
     await site.services.values.flush()

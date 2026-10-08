@@ -56,11 +56,13 @@ def main(argv: list[str] | None = None) -> int:
     status.add_argument("--url", default="http://127.0.0.1:8080", help="the web UI's address")
     probe = commands.add_parser(
         "probe",
-        help="read a Nibe pump through its gateway, writing nothing to it; makes a report"
-        " and a bus capture to send with a new model or a bug",
+        help="read a Nibe pump through its gateway or over Modbus TCP, writing nothing to it;"
+        " makes a report and a capture to send with a new model or a bug",
     )
-    probe.add_argument("host", help="the gateway's address")
-    probe.add_argument("--protocol", choices=["nibegw", "thermaestro-gw"], default="nibegw")
+    probe.add_argument("host", help="the gateway's address, or an S-series pump's")
+    probe.add_argument(
+        "--protocol", choices=["nibegw", "thermaestro-gw", "modbus-tcp"], default="nibegw"
+    )
     probe.add_argument(
         "--key-file", type=Path, help="Thermaestro gateway protocol: a file with its 64-digit key"
     )
@@ -69,8 +71,13 @@ def main(argv: list[str] | None = None) -> int:
     probe.add_argument(
         "--local-port", type=int, default=0, help="where to listen for the gateway; 0 picks one"
     )
-    probe.add_argument("--model", help="the model, if the pump's own name isn't recognized")
-    probe.add_argument("--minutes", type=float, default=5.0, help="how long to capture the bus")
+    probe.add_argument("--modbus-port", type=int, default=502)
+    probe.add_argument(
+        "--model",
+        help="the model: needed over Modbus TCP (S1255), else if the pump's own name"
+        " isn't recognized",
+    )
+    probe.add_argument("--minutes", type=float, default=5.0, help="how long to capture")
     probe.add_argument("--out", type=Path, default=Path(), help="the directory to write to")
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
@@ -131,12 +138,20 @@ def _probe(args: argparse.Namespace) -> int:
     if args.protocol == "thermaestro-gw" and psk is None:
         sys.stderr.write("the Thermaestro gateway protocol needs --key-file\n")
         return 2
+    if args.protocol == "modbus-tcp":
+        from .nibe.maps import load
+
+        models = sorted(load("s-series").models)
+        if args.model not in models:
+            sys.stderr.write(f"Modbus TCP needs --model, one of {', '.join(models)}\n")
+            return 2
     gateway = NibeGateway(
         host=args.host,
         protocol=args.protocol,
         read_port=args.read_port,
         control_port=args.control_port,
         local_port=args.local_port,
+        modbus_port=args.modbus_port,
         psk=PSK_NAME if psk is not None else None,
         model=args.model,
     )
@@ -151,7 +166,8 @@ def _probe(args: argparse.Namespace) -> int:
         sys.stderr.write(f"{e}\n")
         return 2
     except OSError as e:
-        sys.stderr.write(f"the gateway can't be reached: {e.strerror or e}\n")
+        reached = "the pump" if args.protocol == "modbus-tcp" else "the gateway"
+        sys.stderr.write(f"{reached} can't be reached: {e.strerror or e}\n")
         return 2
     report = result.report
     pump = report["pump"]
@@ -171,10 +187,9 @@ def _probe(args: argparse.Namespace) -> int:
         f" {len(report['levers'])} levers offered, {len(report['levers_missing'])} not."
     )
     say(f"Wrote {report_path} and {capture_path}.")
-    say(
-        "The capture holds everything on the bus, other devices' traffic too."
-        " Look through both files before sending them."
-    )
+    if args.protocol != "modbus-tcp":
+        say("The capture holds everything on the bus, other devices' traffic too.")
+    say("Look through both files before sending them.")
     return 0
 
 

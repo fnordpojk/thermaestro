@@ -1,9 +1,14 @@
-"""The Nibe plugin for the bus family (F-series, VVM, SMO, MHB), read-only for now.
+"""The Nibe plugin, read-only for now: the bus family (F-series, VVM, SMO, MHB) through a
+gateway, and the S-series over its own Modbus TCP.
 
-It connects to the pump's gateway, identifies the pump (its model from the product
-information it sends every 15 s, its firmware from 43001/44331, the word order of 32-bit
-values from 48852), finds the climate systems it has, and then keeps every point fresh:
-registers the pump pushes (its LOG.SET) as they come, the rest polled one at a time.
+On the bus it connects to the pump's gateway, identifies the pump (its model from the
+product information it sends every 15 s, its firmware from 43001/44331, the word order of
+32-bit values from 48852), finds the climate systems it has, and then keeps every point
+fresh: registers the pump pushes (its LOG.SET) as they come, the rest polled one at a time.
+
+An S-series pump names neither its model nor its firmware in a documented register, so
+its model is set by the user. Modbus's own device identification is asked for and shown,
+not relied on. Every point is polled, one value per request.
 
 Nothing here writes to the pump: an `act` is dropped as read-only.
 """
@@ -48,10 +53,10 @@ from ..cap.model import (
 from ..cap.vocabulary import point as standard_point
 from ..core.plugins import PluginContext, PluginStore
 from ..store import NibeGateway, SecretStore
-from . import profile
+from . import profile, sprofile
 from .maps import ModelMap, Register, RegisterMap, Status, decode, load, words
-from .transport import GatewayConfig, connect
-from .transport.base import FateKind, Observed, ReadFailed, Transport
+from .transport import GatewayConfig, ModbusConfig, connect
+from .transport.base import FateKind, Observed, ReadFailed, RegisterRefused, Transport
 from .transport.nibegw import PlainSettings
 
 log = logging.getLogger(__name__)
@@ -65,6 +70,8 @@ METER_SAVE_S = 60.0
 """How often the heat meters' counts are kept, at most, for a restart."""
 COUNTERS = ("heat.produced", "elec.used")
 """Points that only count up, and start over from 0 at their register's size."""
+IDENTIFICATION = "x.nibe.identification"
+"""What an S-series pump answers to Modbus's device identification, as text."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,11 +109,14 @@ class NibePlugin:
         health_interval_s: float = 10.0,
         read_timeout_s: float = READ_TIMEOUT_S,
         state: PluginStore | None = None,
+        poll_round_s: float | None = None,
     ) -> None:
         self.gateway = gateway
+        self.family = sprofile.S_SERIES if gateway.protocol == "modbus-tcp" else profile.BUS
+        self._poll_round = self.family.poll_round_s if poll_round_s is None else poll_round_s
         self._state = state
         self._secrets = secrets
-        self.maps = maps or load("bus")
+        self.maps = maps or load(self.family.name)
         self._connect = connect_fn
         self._transport_settings = transport_settings or {}
         self._identify_timeout = identify_timeout_s
@@ -120,11 +130,15 @@ class NibePlugin:
         self.model: ModelMap | None = None
         self.firmware: str | None = None
         self.high_word_first: bool | None = None
+        self.identification: dict[str, str] | None = None
+        """An S-series pump's answer to Modbus device identification, where it gave one."""
         self.layout: profile.Layout | None = None
         self._samples: dict[int, Sample] = {}
         self.pushed: set[int] = set()
         self.absent: set[int] = set()
         """Registers that gave no value, whose points were removed."""
+        self._refused: set[int] = set()
+        """Registers the pump said it hasn't got."""
         self._tick = asyncio.Event()
         self._read_lock = asyncio.Lock()
         self._charge_started: float | None = None
@@ -149,9 +163,14 @@ class NibePlugin:
         await self._restore()
         try:
             self._transport = await self._connect_transport()
+        except NotIdentified as e:
+            await send(Health(t=_now(), unit=profile.UNIT, state="down", needs_user_action=None))
+            self._identified.set_exception(e)
+            raise
         except Exception as e:
             await send(Health(t=_now(), unit=profile.UNIT, state="down", needs_user_action=None))
-            self._identified.set_exception(NotIdentified(f"can't reach the gateway: {e}"))
+            reached = "the pump" if self.family.name == "s-series" else "the gateway"
+            self._identified.set_exception(NotIdentified(f"can't reach {reached}: {e}"))
             raise
         stop = self._transport.observe(self._observed)
         poller: asyncio.Task[None] | None = None
@@ -198,6 +217,17 @@ class NibePlugin:
     # --- connecting and identifying ---------------------------------------------------------
 
     async def _connect_transport(self) -> Transport:
+        if self.family.name == "s-series":
+            # The model is the user's: a Modbus TCP pump doesn't name it.
+            try:
+                model = self.maps.model(self.gateway.model or "")
+            except KeyError as e:
+                raise NotIdentified(f"{e.args[0]}; choose one of the S-series models") from None
+            wide = frozenset(
+                r for r in model if (size := model.register(r).size) is not None and size.bits == 32
+            )
+            modbus = ModbusConfig(self.gateway.host, self.gateway.modbus_port, wide=wide)
+            return await self._connect(modbus, **self._transport_settings)
         psk = None
         if self.gateway.protocol == "thermaestro-gw" and self.gateway.psk and self._secrets:
             secret = await self._secrets.get(self.gateway.psk)
@@ -218,6 +248,9 @@ class NibePlugin:
         return await self._connect(config, **settings)
 
     async def _identify(self) -> None:
+        if self.family.name == "s-series":
+            await self._identify_modbus()
+            return
         # Read first: a plain NibeGW gateway forwards the bus (and with it the product
         # information) only to clients that have sent it something. These registers are the
         # same on every bus-family model: 43001 u16, 44331 u8, 48852 u8.
@@ -235,7 +268,7 @@ class NibePlugin:
                 raise NotIdentified(f"no register map for the product {product!r}; set the model")
         self.model = self.maps.model(name)
         systems = [1]
-        for system in profile.detectable(self.model):
+        for system in self.family.detectable(self.model):
             if system.accessory is None or await self._read_value(system.accessory) != 1:
                 continue
             words_ = await self._read(system.supply)
@@ -243,8 +276,21 @@ class NibePlugin:
                 supply = decode(self.model.register(system.supply), *words_, high_word_first=True)
                 if supply.status is not Status.NOT_CONNECTED:
                     systems.append(system.number)
-        self.layout = profile.layout(self.model, systems)
+        self.layout = self.family.layout(self.model, systems)
         log.info("pump %s, firmware %s, climate systems %s", name, self.firmware, systems)
+
+    async def _identify_modbus(self) -> None:
+        """The user's model; a 32-bit value's words come back put in order by the transport.
+        The pump answers its Modbus TCP, so it's there; what it says of itself is kept."""
+        self.model = self.maps.model(self.gateway.model or "")
+        self.high_word_first = True
+        identify = getattr(self._transport, "identify", None)
+        if identify is not None:
+            self.identification = await identify()
+        self.layout = self.family.layout(self.model, [1])
+        log.info(
+            "pump %s (set by the user), identification %s", self.model.name, self.identification
+        )
 
     # --- reading ---------------------------------------------------------------------------
 
@@ -273,11 +319,18 @@ class NibePlugin:
                 )
             except ReadFailed as e:
                 log.debug("read %d failed: %s", register, e.why)
+                if isinstance(e, RegisterRefused):
+                    self._refused.add(register)
                 return None
         first, second = words(reading.data)
         self._store(register, (first, second))
         following = register + 1
-        if self.model is not None and following in self.model and following not in self.pushed:
+        if (
+            self.family.answers_carry_next
+            and self.model is not None
+            and following in self.model
+            and following not in self.pushed
+        ):
             size = self.model.register(following).size
             if size is not None and size.bits <= 16:
                 self._store(following, (second, 0))  # the answer carries the next one too
@@ -297,15 +350,15 @@ class NibePlugin:
     def _store(self, register: int, words_: tuple[int, int]) -> None:
         now = time.monotonic()
         self._watch_meters(register, words_, now)
-        if register == profile.PRIO:
+        if register == self.family.prio:
             prio = words_[0] & 0xFF
             previous = self._samples.get(register)
-            if prio != profile.PRIO_HOT_WATER:
+            if prio != self.family.prio_hot_water:
                 self._charge_started = None
-            elif previous is None or previous.words[0] & 0xFF != profile.PRIO_HOT_WATER:
+            elif previous is None or previous.words[0] & 0xFF != self.family.prio_hot_water:
                 self._charge_started = now
         self._samples[register] = Sample(words_, now)
-        if register in (profile.BRINE_IN, profile.BRINE_OUT, profile.BRINE_PUMP_SPEED):
+        if register in (self.family.brine_in, self.family.brine_out, self.family.brine_pump_speed):
             self._integrate(now)
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
@@ -315,18 +368,19 @@ class NibePlugin:
         the time the compressor ran while the demand was the meter's purpose."""
         if self._last_store is not None:
             elapsed = min(now - self._last_store, 60.0)  # a gap in reading isn't production
-            prio = self._samples.get(profile.PRIO)
-            compressor = self._samples.get(profile.COMPRESSOR)
+            prio = self._samples.get(self.family.prio)
+            compressor = self._samples.get(self.family.compressor)
             running = (
-                compressor is not None and compressor.words[0] & 0xFF == profile.COMPRESSOR_RUNNING
+                compressor is not None
+                and compressor.words[0] & 0xFF == self.family.compressor_running
             )
-            demand = profile.DEMAND.get(prio.words[0] & 0xFF) if prio is not None else None
+            demand = self.family.demand.get(prio.words[0] & 0xFF) if prio is not None else None
             if running and demand is not None:
-                for meter, purpose in profile.METERS.items():
+                for meter, purpose in self.family.meters.items():
                     if purpose == demand and meter in self._samples:
                         self._meter_idle[meter] = self._meter_idle.get(meter, 0.0) + elapsed
         self._last_store = now
-        if register in profile.METERS:
+        if register in self.family.meters:
             previous = self._samples.get(register)
             if previous is None:
                 # The count kept before a restart holds if the meter still reads the same.
@@ -375,12 +429,12 @@ class NibePlugin:
         if self.layout is None:
             return None
         values = self._snapshot().values
-        brine_out = values.get(profile.BRINE_OUT)
-        limit = values.get(profile.BRINE_OUT_LIMIT)
-        compressor = values.get(profile.COMPRESSOR)
+        brine_out = values.get(self.family.brine_out)
+        limit = values.get(self.family.brine_out_limit)
+        compressor = values.get(self.family.compressor)
         if brine_out is None or limit is None:
             return None
-        running = compressor is not None and int(compressor) == profile.COMPRESSOR_RUNNING
+        running = compressor is not None and int(compressor) == self.family.compressor_running
         if not self._brine_warned and running and brine_out <= limit + profile.BRINE_WARNING_K:
             self._brine_warned = True
         elif self._brine_warned and brine_out > limit + profile.BRINE_WARNING_CLEAR_K:
@@ -416,16 +470,10 @@ class NibePlugin:
 
     async def _poll(self, send: Send) -> None:
         model, layout = self._pump()
-        rule_inputs = (
-            profile.PRIO,
-            profile.COMPRESSOR,
-            profile.SUPPLY_PUMP_SPEED,
-            profile.BRINE_PUMP_SPEED,
-        )
-        wanted = sorted(
-            {p.register for p in layout.points.values()} | {r for r in rule_inputs if r in model}
-        )
+        watched = {r for r in self.family.watched if r in model}
+        wanted = sorted({p.register for p in layout.points.values()} | watched)
         while True:
+            started = time.monotonic()
             polled = [r for r in wanted if r not in self.pushed and r not in self.absent]
             if not polled:
                 await asyncio.sleep(1.0)
@@ -433,26 +481,35 @@ class NibePlugin:
                 if register not in self.pushed:
                     await self._read(register)
                     await self._drop_if_absent(register, send)
+            await asyncio.sleep(max(0.0, self._poll_round - (time.monotonic() - started)))
 
     async def _drop_if_absent(self, register: int, send: Send) -> None:
-        """A 32-bit point whose register gives no value (a heat meter this pump doesn't
-        keep) is removed from the description and not read again. The pump is described
-        before this is known, so start-up never waits on these reads; a point that later
-        starts giving values is found at the next start."""
+        """A point whose register the pump refuses (an S-series pump without the accessory)
+        or that gives no value (a 32-bit heat meter this pump doesn't keep) is removed from
+        the description and not read again, with what is worked out from it. The pump is
+        described before this is known, so start-up never waits on these reads; a point
+        that later starts giving values is found at the next start."""
         model, layout = self._pump()
-        definition = model.register(register)
-        sample = self._samples.get(register)
-        if sample is None or definition.size is None or definition.size.bits != 32:
-            return
-        if self.high_word_first is None:
-            return
-        decoded = decode(definition, *sample.words, high_word_first=self.high_word_first)
-        if decoded.status is not Status.NO_VALUE:
-            return
+        if register in self._refused:
+            why = "the pump hasn't got it"
+        else:
+            definition = model.register(register)
+            sample = self._samples.get(register)
+            if sample is None or definition.size is None or definition.size.bits != 32:
+                return
+            if self.high_word_first is None:
+                return
+            decoded = decode(definition, *sample.words, high_word_first=self.high_word_first)
+            if decoded.status is not Status.NO_VALUE:
+                return
+            why = "gives no value"
         gone = [path for path, d in layout.points.items() if d.register == register]
         for path in gone:
             del layout.points[path]
-            log.info("%s (register %d) gives no value: left out", path, register)
+            log.info("%s (register %d) %s: left out", path, register, why)
+        for path in [path for path, d in layout.derived.items() if register in d.inputs]:
+            del layout.derived[path]
+            gone.append(path)
         self.absent.add(register)
         if gone:
             removed = tuple(f"{profile.UNIT}/{path}" for path in gone)
@@ -515,9 +572,9 @@ class NibePlugin:
     def _brine(self) -> tuple[float, float, float] | str:
         """Brine in, brine out and the brine pump's speed, or why there are none."""
         values = self._snapshot().values
-        found = [values.get(r) for r in (profile.BRINE_IN, profile.BRINE_OUT)]
-        speed = values.get(profile.BRINE_PUMP_SPEED)
-        if any(r not in self._samples for r in profile.BRINE_DERIVED[0].inputs):
+        found = [values.get(r) for r in (self.family.brine_in, self.family.brine_out)]
+        speed = values.get(self.family.brine_pump_speed)
+        if any(r not in self._samples for r in self.family.brine_derived[0].inputs):
             return "not read yet"
         if found[0] is None or found[1] is None or speed is None:
             return "a brine sensor gives no value"
@@ -555,8 +612,8 @@ class NibePlugin:
             value = round(brine_in - brine_out, 1)
             if speed == 0:
                 # No flow: the two sensors measure standing brine, as their own values say.
-                quality, why = "no_flow", f"pump {profile.BRINE_PUMP_SPEED} = 0"
-            elif (verdict := profile.compressor_changing(self._snapshot())) is not None:
+                quality, why = "no_flow", f"pump {self.family.brine_pump_speed} = 0"
+            elif (verdict := self.family.compressor_changing(self._snapshot())) is not None:
                 quality, why = verdict
         return Envelope(
             point=path,
@@ -574,6 +631,8 @@ class NibePlugin:
         derived = self._derived(path)
         if derived is not None:
             return self._derived_envelope(path, derived)
+        if path == f"{profile.UNIT}/{IDENTIFICATION}" and self.family.name == "s-series":
+            return self._identification_envelope(path)
         definition = self._definition(path)
         now = _now()
         if definition is None or self.model is None:
@@ -630,6 +689,24 @@ class NibePlugin:
             why=why,
         )
 
+    def _identification_envelope(self, path: str) -> Envelope:
+        now = _now()
+        if not self._identified.done():
+            return _missing(path, now, "not read yet")
+        if self.identification is None:
+            return _missing(path, now, "the pump doesn't answer Modbus device identification")
+        text = ", ".join(f"{k}: {v}" for k, v in self.identification.items())
+        return Envelope(
+            point=path,
+            value=text,
+            unit=None,
+            t_observed=None,
+            t_received=now,
+            quality="good",
+            source="measured",
+            why="what the pump says of itself; the model used is the one set",
+        )
+
     def _snapshot(self) -> profile.Snapshot:
         model, _ = self._pump()
         values: dict[int, float | int | None] = {}
@@ -677,13 +754,15 @@ class NibePlugin:
                     vendor="Nibe",
                     model=model.name,
                     firmware=self.firmware,
-                    map=f"nibe-bus-{model.name}",
+                    map=f"nibe-{self.family.name}-{model.name}",
                 ),
                 transport=Promises(
                     fate="exact"
                     if promises is not None and promises.fate is FateKind.EXACT
                     else "best_effort",
-                    ack=Ack(means="accepted", detail="0x6C: 1 accepted, 0 refused"),
+                    ack=Ack(means="accepted", detail="0x6C: 1 accepted, 0 refused")
+                    if self.family.name == "bus"
+                    else Ack(means="none", detail="writing isn't built for Modbus TCP yet"),
                     sees_other_writers=Knowledge(
                         value="yes" if promises and promises.sees_other_writers else "no",
                         known="reported",
@@ -708,7 +787,18 @@ class NibePlugin:
             for d in layout.derived.values()
             if self._derived(f"{unit}/{d.path}") is not None
         ]
-        levers = profile.levers(model, layout.points)
+        if self.family.name == "s-series":
+            points.append(
+                Point(
+                    path=f"{unit}/{IDENTIFICATION}",
+                    label="Modbus device identification",
+                    description="What the pump answers to Modbus's read device identification;"
+                    " shown, not relied on.",
+                    category="diagnostic",
+                    delivery=Delivery(how="on_change"),
+                )
+            )
+        levers = self.family.levers(model, layout.points)
         return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
 
     def _presence(self, path: str, kind: str) -> Presence:
@@ -717,7 +807,7 @@ class NibePlugin:
         number = int(path.removeprefix("cs"))
         if number == 1:
             return Presence(how="detected", rule="climate system 1 is always there")
-        system = profile.SYSTEMS[number - 1]
+        system = self.family.systems[number - 1]
         return Presence(
             how="detected",
             rule=f"{system.accessory} = 1 and supply sensor {system.supply} connected",
@@ -751,7 +841,7 @@ class NibePlugin:
             path=f"{profile.UNIT}/{definition.path}",
             label=register.title if definition.path.rpartition("/")[2].startswith("x.") else None,
             description=(register.info or "").strip() or None,
-            category=_category(definition, register),
+            category=_category(definition, register, self.family.word_swap),
             unit=unit,
             wraps_at=wraps_at,
             resolution=Knowledge(value=1 / register.factor, known="documented")
@@ -787,11 +877,11 @@ class NibePlugin:
 
 
 def _category(
-    definition: profile.PointDef, register: Register
+    definition: profile.PointDef, register: Register, word_swap: int | None
 ) -> Literal["config", "diagnostic"] | None:
     """A standard point is worth seeing every day; a pump setting read back is `config`;
     any other register of the pump's own is `diagnostic`, and so is the word order."""
-    if definition.register == profile.WORD_SWAP:
+    if definition.register == word_swap:
         return "diagnostic"
     if not definition.path.rpartition("/")[2].startswith("x."):
         return None

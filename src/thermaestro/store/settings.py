@@ -91,13 +91,16 @@ class Discovery(Setting):
 
 
 class NibeGateway(BaseModel):
-    """A Nibe pump's gateway: the settings of a `nibe` plugin instance."""
+    """A Nibe pump's connection: the settings of a `nibe` plugin instance. A bus-family pump
+    is reached through its gateway; an S-series pump answers Modbus TCP itself."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     host: str
-    protocol: Literal["nibegw", "thermaestro-gw"] = "nibegw"
-    """Plain NibeGW, or the Thermaestro gateway protocol on the control port."""
+    protocol: Literal["nibegw", "thermaestro-gw", "modbus-tcp"] = "nibegw"
+    """Plain NibeGW or the Thermaestro gateway protocol on the control port (the bus
+    family), or Modbus TCP (the S-series)."""
+    modbus_port: Port = 502
     read_port: Port = 9999
     write_port: Port = 10000
     control_port: Port = 10090
@@ -107,8 +110,9 @@ class NibeGateway(BaseModel):
     psk: SecretName | None = None
     """The control port's pre-shared key: 64 hex digits in the secrets file."""
     model: str | None = None
-    """The pump model as the register map names it (`F1245`). Without it, the model is
-    taken from the product information the pump sends every 15 s."""
+    """The pump model as the register map names it (`F1245`, `S1255`). Without it, a
+    bus-family pump's model is taken from the product information it sends every 15 s;
+    an S-series pump's must be set."""
     brine_flow: Annotated[float, Field(gt=0, le=500)] | None = None
     """The brine flow in liters a minute, at `brine_flow_at` percent of the brine pump's
     speed, as the installation measured or set it. With it, Thermaestro estimates the heat
@@ -120,6 +124,8 @@ class NibeGateway(BaseModel):
     def _protocol_has_key(self) -> Self:
         if self.protocol == "thermaestro-gw" and self.psk is None:
             raise ValueError("the Thermaestro gateway protocol needs its pre-shared key")
+        if self.protocol == "modbus-tcp" and self.model is None:
+            raise ValueError("an S-series pump over Modbus TCP needs its model set")
         return self
 
 

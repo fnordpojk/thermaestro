@@ -178,6 +178,18 @@ msgstr "Auch die eigenen Werte jedes Sensors"
 msgid "Amount per kWh"
 msgstr "Betrag pro kWh"
 
+msgid ""
+"An S-series pump answers Modbus TCP on its own address, with no gateway: turn it on "
+"in the pump's menu 7.5.9, and choose the pump's model here. The pump only answers "
+"addresses on the local network. What Thermaestro reads from an S-series pump comes "
+"from Nibe's documents and hasn't yet been checked on a real one."
+msgstr ""
+"Eine Pumpe der S-Serie antwortet über Modbus TCP an ihrer eigenen Adresse, ohne "
+"Gateway: Schalten Sie es im Menü 7.5.9 der Pumpe ein und wählen Sie hier das Modell "
+"der Pumpe. Die Pumpe antwortet nur Adressen im lokalen Netzwerk. Was Thermaestro von "
+"einer Pumpe der S-Serie liest, stammt aus Nibes Dokumenten und wurde noch nicht an "
+"einer echten Pumpe geprüft."
+
 #, python-format
 msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
 msgstr "Jahresmittel %(mean)s °C, Monatsspanne %(spread)s K"
@@ -515,9 +527,6 @@ msgstr "Aus Home Assistant"
 msgid "From Home Assistant's areas"
 msgstr "Aus den Bereichen von Home Assistant"
 
-msgid "Gateway address"
-msgstr "Adresse des Gateways"
-
 msgid "Get it from Open-Meteo's archive"
 msgstr "Aus dem Archiv von Open-Meteo holen"
 
@@ -680,6 +689,12 @@ msgstr "Misst"
 
 msgid "Middle temperature"
 msgstr "Mitteltemperatur"
+
+msgid "Modbus TCP (an S-series pump)"
+msgstr "Modbus TCP (eine Pumpe der S-Serie)"
+
+msgid "Modbus port"
+msgstr "Modbus-Port"
 
 msgid "Model"
 msgstr "Modell"
@@ -957,6 +972,12 @@ msgstr "Raumtemperatur"
 msgid "Rooms"
 msgstr "Räume"
 
+msgid "S-series"
+msgstr "S-Serie"
+
+msgid "S-series, over Modbus TCP"
+msgstr "S-Serie, über Modbus TCP"
+
 msgid "Save"
 msgstr "Speichern"
 
@@ -1163,6 +1184,9 @@ msgstr ""
 
 msgid "This value"
 msgstr "Dieser Wert"
+
+msgid "Through a gateway"
+msgstr "Über ein Gateway"
 
 msgid ""
 "Through the MQTT broker, Thermaestro and the heat pump appear in Home Assistant as "
@@ -1415,6 +1439,9 @@ msgstr "Zusatzheizung"
 msgid "all"
 msgstr "alle"
 
+msgid "an S-series pump's must be chosen"
+msgstr "bei einer Pumpe der S-Serie zu wählen"
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr "wie in der MQTT-Integration von Home Assistant eingestellt"
 
@@ -1500,9 +1527,6 @@ msgstr "anderswo"
 
 msgid "empty: 60"
 msgstr "leer: 60"
-
-msgid "empty: as the pump reports it"
-msgstr "leer: wie die Pumpe es meldet"
 
 msgid "empty: no estimate"
 msgstr "leer: keine Schätzung"
@@ -1733,6 +1757,9 @@ msgstr "den Diagnosewerten"
 msgid "the everyday values"
 msgstr "den Alltagswerten"
 
+msgid "the gateway's, or an S-series pump's own"
+msgstr "die des Gateways oder die eigene einer Pumpe der S-Serie"
+
 msgid "the main provider"
 msgstr "der Hauptanbieter"
 
@@ -1799,4 +1826,3 @@ msgstr "falscher Benutzername oder falsches Passwort"
 
 msgid "yes"
 msgstr "ja"
-

@@ -1,8 +1,9 @@
-"""The bus-family pump profile: Nibe registers as the capability interface's points and
-levers, with the rules that say how far each value can be trusted.
+"""The pump profiles: Nibe registers as the capability interface's points and levers, with
+the rules that say how far each value can be trusted.
 
-The profile names registers; the model's register map says whether the model has them
-and how to decode them. A point whose register the model lacks isn't described.
+A `Family` holds one family's profile: the bus family's is here (`BUS`), the S-series' in
+`sprofile`. The profile names registers; the model's register map says whether the model
+has them and how to decode them. A point whose register the model lacks isn't described.
 """
 
 from collections.abc import Callable, Iterable, Mapping
@@ -89,12 +90,12 @@ Rule = Callable[[Snapshot], tuple[Quality, str] | None]
 None where the rule has nothing to say."""
 
 
-def counting(register: int) -> Rule:
+def counting(register: int, purpose: str) -> Rule:
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
         idle = s.idle.get(register, 0.0)
         if idle >= METER_IDLE_S:
             minutes = int(idle // 60)
-            return "unknown", f"hasn't changed in {minutes} min of {METERS[register]} production"
+            return "unknown", f"hasn't changed in {minutes} min of {purpose} production"
         return None
 
     return rule
@@ -109,11 +110,16 @@ def no_flow(pump: int) -> Rule:
     return rule
 
 
-def compressor_changing(s: Snapshot) -> tuple[Quality, str] | None:
-    state = s.values.get(COMPRESSOR)
-    if state is not None and int(state) in COMPRESSOR_CHANGING:
-        return "transitional", f"compressor {COMPRESSOR_STATE[int(state)]}"
-    return None
+def changing(compressor: int, states: Mapping[int, str], moving: frozenset[int]) -> Rule:
+    """Transitional while the compressor's state is one of `moving` (starting, stopping)."""
+
+    def rule(s: Snapshot) -> tuple[Quality, str] | None:
+        state = s.values.get(compressor)
+        if state is not None and int(state) in moving:
+            return "transitional", f"compressor {states[int(state)]}"
+        return None
+
+    return rule
 
 
 def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
@@ -122,10 +128,19 @@ def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
     return None
 
 
-def diverted_to_hot_water(s: Snapshot) -> tuple[Quality, str] | None:
-    if s.values.get(PRIO) == PRIO_HOT_WATER:
-        return "good", "diverter to dhw"  # true, but it describes the charge, not the heating
-    return None
+def diverted(register: int, hot_water: int) -> Rule:
+    """While `register` says the water goes to the tank."""
+
+    def rule(s: Snapshot) -> tuple[Quality, str] | None:
+        if s.values.get(register) == hot_water:
+            return "good", "diverter to dhw"  # true, but it describes the charge, not the heating
+        return None
+
+    return rule
+
+
+compressor_changing = changing(COMPRESSOR, COMPRESSOR_STATE, COMPRESSOR_CHANGING)
+diverted_to_hot_water = diverted(PRIO, PRIO_HOT_WATER)
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,7 +223,7 @@ UNIT_POINTS = (
         PointDef(
             path,
             register,
-            rules=(counting(register),),
+            rules=(counting(register, METERS[register]),),
             validity=(
                 f"unknown when it hasn't changed in {METER_IDLE_S / 60:.0f} min of production",
             ),
@@ -311,32 +326,38 @@ class Derived:
     validity: tuple[str, ...] = ()
 
 
-BRINE_DERIVED = (
-    Derived(
-        "brine/brine.delta_t",
-        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
-        "K",
-        0.1,
-        "calculated",
-        ("brine in less brine out; no_flow when the brine pump stands still",),
-    ),
-    Derived(
-        "brine/heat.extracted.power",
-        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
-        "kW",
-        0.01,
-        "estimated",
-        ("from the entered brine flow, scaled by the brine pump's speed, and the delta-T",),
-    ),
-    Derived(
-        "brine/heat.extracted",
-        (BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED),
-        "kWh",
-        0.1,
-        "estimated",
-        ("the estimated power, added up while Thermaestro runs",),
-    ),
-)
+def brine_derived(brine_in: int, brine_out: int, pump_speed: int) -> tuple[Derived, ...]:
+    """The brine's delta-T and the heat taken from the ground, from these registers."""
+    inputs = (brine_in, brine_out, pump_speed)
+    return (
+        Derived(
+            "brine/brine.delta_t",
+            inputs,
+            "K",
+            0.1,
+            "calculated",
+            ("brine in less brine out; no_flow when the brine pump stands still",),
+        ),
+        Derived(
+            "brine/heat.extracted.power",
+            inputs,
+            "kW",
+            0.01,
+            "estimated",
+            ("from the entered brine flow, scaled by the brine pump's speed, and the delta-T",),
+        ),
+        Derived(
+            "brine/heat.extracted",
+            inputs,
+            "kWh",
+            0.1,
+            "estimated",
+            ("the estimated power, added up while Thermaestro runs",),
+        ),
+    )
+
+
+BRINE_DERIVED = brine_derived(BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED)
 
 ADDITION_POINTS = (PointDef("addition/power", 43084),)
 
@@ -376,27 +397,75 @@ def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[Poi
     return groups
 
 
-def layout(model: ModelMap, systems: list[int]) -> Layout:
-    """The nodes and points a model has, with climate systems `systems` (1 always)."""
-    out = Layout(systems=sorted(set(systems) | {1}))
-    for node, kind, defs in definitions(out.systems):
-        present = [p for p in defs if p.register in model]
-        if not present:
-            continue
-        if node is not None:
-            out.nodes[node] = kind
-        for p in present:
-            out.points[p.path] = p
-    if "brine" in out.nodes:
-        for d in BRINE_DERIVED:
-            if all(r in model for r in d.inputs):
-                out.derived[d.path] = d
-    return out
+Groups = Callable[[Iterable[int]], list[tuple[str | None, str, tuple[PointDef, ...]]]]
+"""A family's points by node, with the given climate systems."""
+Levers = Callable[[ModelMap, Mapping[str, PointDef]], list[Lever]]
 
 
-def detectable(model: ModelMap) -> list[System]:
-    """The climate systems beyond the first that this model can have."""
-    return [s for s in SYSTEMS[1:] if s.accessory in model and s.supply in model]
+@dataclass(frozen=True)
+class Family:
+    """One family of pumps: the registers the plugin watches itself, and its points."""
+
+    name: str
+    """Its register table (`bus`, `s-series`), and its part of a map's name."""
+    prio: int
+    demand: Mapping[int, str]
+    compressor: int
+    compressor_running: int
+    compressor_changing: Rule
+    supply_pump_speed: int
+    brine_in: int
+    brine_out: int
+    brine_pump_speed: int
+    brine_out_limit: int
+    """The pump's own low brine-out alarm limit."""
+    meters: Mapping[int, str]
+    """The heat meters, and what they count: production for this demand."""
+    systems: tuple[System, ...]
+    groups: Groups
+    levers: Levers
+    lever_paths: tuple[str, ...]
+    """Every lever `levers` can offer, below the unit."""
+    prio_hot_water: int = PRIO_HOT_WATER
+    word_swap: int | None = None
+    """The register that sets the word order of 32-bit values; None where it is fixed."""
+    firmware: tuple[int, int] | None = None
+    """The registers of the firmware's version and release, where the family has them."""
+    answers_carry_next: bool = False
+    """Whether a read's answer carries the next register's word too, as the bus's does."""
+    poll_round_s: float = 0.0
+    """The least time a round of polling every point takes. The bus paces reads itself,
+    about one a second; a Modbus TCP pump answers at once, so its rounds are spaced."""
+
+    @property
+    def brine_derived(self) -> tuple[Derived, ...]:
+        return brine_derived(self.brine_in, self.brine_out, self.brine_pump_speed)
+
+    @property
+    def watched(self) -> tuple[int, ...]:
+        """The registers the rules need, whether or not a point shows them."""
+        return (self.prio, self.compressor, self.supply_pump_speed, self.brine_pump_speed)
+
+    def layout(self, model: ModelMap, systems: list[int]) -> Layout:
+        """The nodes and points a model has, with climate systems `systems` (1 always)."""
+        out = Layout(systems=sorted(set(systems) | {1}))
+        for node, kind, defs in self.groups(out.systems):
+            present = [p for p in defs if p.register in model]
+            if not present:
+                continue
+            if node is not None:
+                out.nodes[node] = kind
+            for p in present:
+                out.points[p.path] = p
+        if "brine" in out.nodes:
+            for d in self.brine_derived:
+                if all(r in model for r in d.inputs):
+                    out.derived[d.path] = d
+        return out
+
+    def detectable(self, model: ModelMap) -> list[System]:
+        """The climate systems beyond the first that this model can have."""
+        return [s for s in self.systems[1:] if s.accessory in model and s.supply in model]
 
 
 def unit(register_unit: str) -> str | None:
@@ -509,3 +578,27 @@ def levers(model: ModelMap, points: Mapping[str, PointDef]) -> list[Lever]:
             )
         )
     return out
+
+
+BUS = Family(
+    name="bus",
+    prio=PRIO,
+    demand=DEMAND,
+    compressor=COMPRESSOR,
+    compressor_running=COMPRESSOR_RUNNING,
+    compressor_changing=compressor_changing,
+    supply_pump_speed=SUPPLY_PUMP_SPEED,
+    brine_in=BRINE_IN,
+    brine_out=BRINE_OUT,
+    brine_pump_speed=BRINE_PUMP_SPEED,
+    brine_out_limit=BRINE_OUT_LIMIT,
+    meters=METERS,
+    systems=SYSTEMS,
+    groups=definitions,
+    levers=levers,
+    lever_paths=LEVERS,
+    word_swap=WORD_SWAP,
+    firmware=FIRMWARE,
+    answers_carry_next=True,
+)
+"""The bus family: F-series, VVM, SMO and MHB, through a gateway on the MODBUS40 bus."""

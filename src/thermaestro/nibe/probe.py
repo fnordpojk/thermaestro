@@ -1,13 +1,13 @@
-"""`thermaestro probe`: a read-only check of a Nibe bus-family pump.
+"""`thermaestro probe`: a read-only check of a Nibe pump, on the bus or over Modbus TCP.
 
 For a tester on a model Thermaestro hasn't met, or a bug report. It identifies the pump,
-reads what Thermaestro reads, captures the bus for a few minutes, and writes two files
+reads what Thermaestro reads, captures the traffic for a few minutes, and writes two files
 that can become test fixtures:
 - a **report** (JSON): the pump, its firmware and word order, what detection found, which
   of Thermaestro's points and levers this model's map has, and each point's value. It
   holds no address, key or name;
-- a **capture** (JSON lines): every bus exchange the gateway forwarded, with its time.
-  It holds everything on the bus, other devices' traffic too.
+- a **capture** (JSON lines): on the bus, every exchange the gateway forwarded, other
+  devices' traffic too; over Modbus TCP, each answer with its request. With its time.
 
 **Read-only by construction.** The probe runs Thermaestro's own Nibe plugin, which never
 writes, and gives it only `ReadOnly`, a transport with no way to send a write. Nothing
@@ -35,7 +35,7 @@ from ..store import NibeGateway, SecretStore
 from . import profile
 from .maps import RegisterMap, Status, decode, words
 from .plugin import NibePlugin
-from .transport import GatewayConfig, connect
+from .transport import GatewayConfig, ModbusConfig, connect
 from .transport.base import (
     LinkHealth,
     Observed,
@@ -79,6 +79,11 @@ class ReadOnly:
 
     async def write(self, register: int, value: int, *, timeout: float = 30.0) -> WriteOutcome:
         raise PermissionError(f"the probe never writes (register {register})")
+
+    async def identify(self) -> dict[str, str] | None:
+        """Modbus's device identification, where the transport has it: a read."""
+        identify = getattr(self._inner, "identify", None)
+        return None if identify is None else await identify()
 
     def observe(self, callback: Callable[[Observed], None]) -> Callable[[], None]:
         return self._inner.observe(callback)
@@ -164,7 +169,7 @@ async def probe(
     capture = Capture()
     transports: list[ReadOnly] = []
 
-    async def read_only(config: GatewayConfig, **settings: Any) -> Transport:
+    async def read_only(config: GatewayConfig | ModbusConfig, **settings: Any) -> Transport:
         transport = ReadOnly(await connect_fn(config, **settings))
         transport.observe(capture.add)
         transports.append(transport)
@@ -244,7 +249,7 @@ async def _detection(
     model = plugin.model
     assert model is not None  # noqa: S101
     out = []
-    for system in profile.detectable(model):
+    for system in plugin.family.detectable(model):
         entry: dict[str, Any] = {"system": system.number, "supply": system.supply}
         if system.accessory is not None:
             entry["accessory"] = system.accessory
@@ -305,9 +310,10 @@ def _report(
                 "why": envelope.why if envelope else "not read",
             }
         )
+    family = plugin.family
     missing = [
         {"path": f"{profile.UNIT}/{p.path}", "register": p.register}
-        for _, _, defs in profile.definitions(range(1, len(profile.SYSTEMS) + 1))
+        for _, _, defs in family.groups(range(1, len(family.systems) + 1))
         for p in defs
         if p.register not in model
     ]
@@ -315,7 +321,7 @@ def _report(
     exchanges = Counter(
         f"0x{t.address:02x} 0x{t.command:02x}"
         for line in capture.lines
-        if (t := _telegram(line["data"])) is not None
+        if family.name == "bus" and (t := _telegram(line["data"])) is not None
     )
     swap = plugin.high_word_first
     return {
@@ -329,10 +335,12 @@ def _report(
             "counters": dict(sorted(health.detail.items())),
         },
         "pump": {
+            "family": family.name,
             "product": unit.label,
             "model": model.name,
             "firmware": plugin.firmware,
             "word_order": None if swap is None else ("high first" if swap else "low first"),
+            "identification": plugin.identification,
         },
         "detection": {
             "climate_systems": layout.systems,
@@ -346,7 +354,9 @@ def _report(
             for path, lever in sorted(offered.items())
         ],
         "levers_missing": [
-            f"{profile.UNIT}/{p}" for p in profile.LEVERS if f"{profile.UNIT}/{p}" not in offered
+            f"{profile.UNIT}/{p}"
+            for p in family.lever_paths
+            if f"{profile.UNIT}/{p}" not in offered
         ],
         "pushed": sorted(plugin.pushed),
         "absent": sorted(plugin.absent),

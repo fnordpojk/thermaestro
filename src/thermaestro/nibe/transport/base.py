@@ -93,6 +93,11 @@ class ReadFailed(TransportError):
         self.stages = stages
 
 
+class RegisterRefused(ReadFailed):
+    """The pump says it hasn't got the register (Modbus exception 2): not a passing
+    failure, so it isn't asked for again."""
+
+
 @dataclass(frozen=True, slots=True)
 class Observed:
     """One completed bus exchange, as the gateway forwarded it."""

@@ -7,7 +7,8 @@
 {% block topic %}
 <section id="connection">
 <h2>{{ _("The pump's connection") }}</h2>
-<p>{{ _("The gateway that connects Thermaestro to a Nibe pump's bus: its address, and the protocol it speaks.") }}</p>
+<p>{{ _("The gateway that connects Thermaestro to a Nibe pump's bus: its address, and the protocol it speaks.") }}
+  {{ _("An S-series pump answers Modbus TCP on its own address, with no gateway: turn it on in the pump's menu 7.5.9, and choose the pump's model here. The pump only answers addresses on the local network. What Thermaestro reads from an S-series pump comes from Nibe's documents and hasn't yet been checked on a real one.") }}</p>
 {% for id, pump in pumps.items() %}
   {% set s = pump.settings %}
   {{ state_line(states.get(id)) }}
