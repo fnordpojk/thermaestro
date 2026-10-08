@@ -82,6 +82,9 @@ async def test_the_series_and_what_they_cover(tmp_path: Path) -> None:
             "excl",
         )
         assert (total.id, total.role, total.vat) == ("total", "energy.supplier", "incl")
+        assert energy.area == total.area == "SE3"  # the home's price area, as Tibber gives it
+        assert "meteringPointData { priceAreaCode }" in fake.queries[0]
+        assert "consumptionEan" not in fake.queries[0]
         assert total.covers.value == ("energy.spot", "vat")
         assert total.covers.known == "verified"  # checked on a Swedish home
         assert energy.publication is not None
@@ -114,9 +117,15 @@ async def test_only_price_fields_are_asked_for(tmp_path: Path) -> None:
         "contactInfo",
         "name",
         "consumption",
-        "meteringPoint",
+        "productionEan",
+        "gridCompany",
+        "gridAreaCode",
+        "energyTaxType",
+        "estimatedAnnual",
     ):
         assert personal not in asked
+    # Of the metering point, only its price area (SE3), which every home in it shares.
+    assert "meteringPointData { priceAreaCode }" in asked
     assert "QUARTER_HOURLY" in asked
 
 

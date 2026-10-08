@@ -53,6 +53,7 @@ async def prices(
                         "value": p.value,
                         "vat_added": p.vat_added,
                         "fallback": p.fallback,
+                        "carried_from": p.carried_from.isoformat() if p.carried_from else None,
                     }
                     for p in slot.parts
                 ],

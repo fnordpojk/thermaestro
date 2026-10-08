@@ -161,17 +161,27 @@ class PriceOperations:
         """The price plugins' instances, with their settings and how they are doing."""
         caller.principal.require("settings.read")
         out = {}
+        followed = (
+            sorted(self.series.followed.items(), key=lambda kv: (kv[0].instance, kv[0].series))
+            if self.series is not None
+            else []
+        )
         for id, plugin in (await self.db.all(Plugin)).items():
             if plugin.plugin not in PRICE_PLUGINS:
                 continue
             instance = self.host.instances.get(id) if self.host is not None else None
             health = instance.health if instance is not None else None
+            # The area and currency as the source reports them, set or learned (Tibber's).
+            reported = [f.info for k, f in followed if k.instance == id and f.info.kind == "price"]
+            areas = [info.area for info in reported if info.area]
             out[id] = {
                 "plugin": plugin.plugin,
                 "settings": plugin.settings,
                 "state": str(instance.state) if instance is not None else "stopped",
                 "needs_user_action": health.needs_user_action if health else None,
                 "error": instance.last_error if instance is not None else None,
+                "area": areas[0] if areas else None,
+                "currency": reported[0].unit.split("/")[0] if reported else None,
             }
         return out
 
@@ -275,7 +285,7 @@ class PriceOperations:
         instance, _, series = refs[0].partition(":")
         layers = await self.db.all(PriceLayer)
         including = self.spot_included_in(caller, layers)
-        if including is not None:
+        if including is not None and not await self._split_total(caller, including, layers):
             return including, None
         current_id = next((id for id, layer in layers.items() if layer.role == "energy.spot"), None)
         body = {
@@ -287,7 +297,60 @@ class PriceOperations:
             "unit": unit,
             "vat": "excl",
         }
-        return await self.set_price_layer(caller, current_id, body)
+        spot_id, spot_layer = await self.set_price_layer(caller, current_id, body)
+        await self._charge_vat_on(caller, [spot_id, *([including] if including else [])])
+        return spot_id, spot_layer
+
+    async def _split_total(self, caller: "Caller", id: str, layers: dict[str, PriceLayer]) -> bool:
+        """Turn the layer holding a supplier's total into its remainder, what the supplier
+        adds beyond the spot price, so the spot price can have a layer of its own. Possible
+        where the supplier offers its own spot price, and a VAT rate is set if the total
+        includes VAT."""
+        layer = layers[id]
+        offered = self.offered_series(caller)
+        total = next(
+            (o for o in offered if (o["instance"], o["series"]) == (layer.plugin, layer.series)),
+            None,
+        )
+        if total is None:
+            return False
+        own_spot = next(
+            (
+                o
+                for o in offered
+                if o["instance"] == layer.plugin
+                and o["role"] == "energy.spot"
+                and not o["covers"]
+                and o["unit"] == total["unit"]
+            ),
+            None,
+        )
+        if own_spot is None or (total["vat"] == "incl" and await self.db.get(Vat) is None):
+            return False
+        body = {
+            "role": layer.role,
+            "source": "remainder",
+            "plugin": layer.plugin,
+            "series": layer.series,
+            "minus": f"{layer.plugin}:{own_spot['series']}",
+            "unit": total["unit"],
+            "vat": "excl",
+        }
+        await self.set_price_layer(caller, id, body)
+        return True
+
+    async def _charge_vat_on(self, caller: "Caller", ids: list[str]) -> None:
+        """Have the VAT rule charge VAT on these layers too, where a rule is set."""
+        vat = await self.db.get(Vat)
+        layers = await self.db.all(PriceLayer)
+        if vat is None:
+            return
+        added = [
+            id for id in ids if id not in vat.applies_to and layers[id].role not in vat.applies_to
+        ]
+        if added:
+            body = {"rate": vat.rate, "applies_to": [*vat.applies_to, *added]}
+            await self.set_vat(caller, body)
 
     def spot_included_in(self, caller: "Caller", layers: dict[str, PriceLayer]) -> str | None:
         """The layer other than the spot layer whose series already includes the spot

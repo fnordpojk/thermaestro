@@ -18,6 +18,13 @@ its interval holding the slot's start; a coarser interval applies to every slot 
 and a finer one isn't averaged. Where the layer's series has no price, its fallbacks are
 tried in order.
 
+A remainder layer is what a supplier's total charges beyond the spot price, without VAT:
+for each of the total's intervals, the total less its VAT (at the stack's rate, where the
+total includes it) less the supplier's own spot price. On a day the supplier has no
+prices, its last remainder applies, from up to a week back: a supplier's adders seldom
+change, so the spot price can come from any source while the adders still come from the
+supplier.
+
 The stack is checked against every other price series offered that covers some of its
 layers exactly: a supplier's price with VAT (Tibber's total) checks the spot price plus
 the supplier's adders plus VAT on both; another source's spot price checks the spot
@@ -34,6 +41,8 @@ from ..store import PriceLayer, Vat
 from .series import Key, Series
 
 SLOT = timedelta(minutes=15)
+CARRY = timedelta(days=7)
+"""How far back a remainder's last value is looked for."""
 EXPECTED_ROLES = ("energy.spot", "tax.energy", "grid.transfer")
 CHECK_RELATIVE = 0.01
 CHECK_ABSOLUTE = 0.001
@@ -50,6 +59,8 @@ class Part:
     vat_added: float = 0.0
     fallback: str | None = None
     """The series that stood in for the layer's own, `<instance>:<series>`."""
+    carried_from: datetime | None = None
+    """For a remainder with no price of its own here: the start of the last one it had."""
 
 
 @dataclass
@@ -116,7 +127,13 @@ def check(
     for id, layer in sorted(layers.items()):
         roles = [layer.role]
         unit = layer.unit
-        if layer.source == "series":
+        if layer.source == "remainder":
+            found = _remainder_problems(id, layer, vat, series)
+            if isinstance(found, list):
+                problems += found
+                continue
+            unit = found
+        elif layer.source == "series":
             info = _info(series, _ref(layer.plugin or "", layer.series or ""))
             if info is None:
                 problems.append(f"layer {id}: {layer.plugin} offers no series {layer.series!r}")
@@ -159,6 +176,52 @@ def _fallback_problems(id: str, info: SeriesInfo, layer: PriceLayer, series: Ser
     return out
 
 
+def _remainder_problems(
+    id: str, layer: PriceLayer, vat: Vat | None, series: Series
+) -> list[str] | str:
+    """Why a remainder layer can't be computed; else its unit."""
+    ref = _ref(layer.plugin or "", layer.series or "")
+    total, spot = _info(series, ref), _info(series, layer.minus or "")
+    if total is None:
+        return [f"layer {id}: {layer.plugin} offers no series {layer.series!r}"]
+    if spot is None:
+        return [f"layer {id}: no series {layer.minus} to take out"]
+    if (
+        "energy.spot" not in _covered(total)
+        or spot.role != "energy.spot"
+        or spot.unit != total.unit
+    ):
+        return [f"layer {id}: {layer.minus} isn't the spot price inside {ref}"]
+    if total.vat == "incl" and vat is None:
+        return [f"layer {id}: {ref} includes VAT, and no VAT rate is set to take it out"]
+    return total.unit
+
+
+def _remainders(
+    totals: list[Interval], spots: list[Interval], divisor: float
+) -> list[tuple[datetime, datetime, float]]:
+    """Each total's interval with what it holds beyond the spot price, without VAT."""
+    out = []
+    for interval in totals:
+        spot = _at(spots, interval.start)
+        if spot is not None:
+            out.append((interval.start, interval.end, interval.value / divisor - spot))
+    return out
+
+
+def _remainder_at(
+    remainders: list[tuple[datetime, datetime, float]], moment: datetime
+) -> tuple[float, datetime | None] | None:
+    """The remainder at a moment, or the last one before it and where that started."""
+    last: tuple[datetime, datetime, float] | None = None
+    for start, end, value in remainders:
+        if start <= moment < end:
+            return value, None
+        if end <= moment and (last is None or start > last[0]):
+            last = (start, end, value)
+    return (last[2], last[0]) if last is not None else None
+
+
 def _charged(vat: Vat, id: str, layer: PriceLayer) -> bool:
     """Whether the VAT rule names this layer, by id or by role."""
     return id in vat.applies_to or layer.role in vat.applies_to
@@ -189,19 +252,32 @@ async def assemble(
         return Stack(unit, [], problems, warnings)
     first, last = day_slots[0][0].timestamp(), day_slots[-1][1].timestamp()
     held: dict[str, list[tuple[str | None, list[Interval]]]] = {}
+    remainders: dict[str, list[tuple[datetime, datetime, float]]] = {}
     for id, layer in layers.items():
         if layer.source == "series":
             own = _ref(layer.plugin or "", layer.series or "")
             held[id] = [(None, await series.get(_key(own), first, last))]
             for ref in layer.fallbacks:
                 held[id].append((ref, await series.get(_key(ref), first, last)))
+        elif layer.source == "remainder":
+            own = _ref(layer.plugin or "", layer.series or "")
+            since = first - CARRY.total_seconds()
+            totals = await series.get(_key(own), since, last)
+            spots = await series.get(_key(layer.minus or ""), since, last)
+            info = _info(series, own)
+            divisor = 1 + vat.rate if vat is not None and info and info.vat == "incl" else 1.0
+            remainders[id] = _remainders(totals, spots, divisor)
     out = []
     for start, end in day_slots:
         parts, missing = [], []
         for id, layer in sorted(layers.items()):
             fallback: str | None = None
+            carried: datetime | None = None
             if layer.source == "fixed":
                 raw = layer.value
+            elif layer.source == "remainder":
+                found = _remainder_at(remainders[id], start)
+                raw, carried = found if found is not None else (None, None)
             else:
                 raw = None
                 for stand_in, intervals in held[id]:
@@ -214,7 +290,7 @@ async def assemble(
                 parts.append(Part(id, layer.role, None))
                 continue
             added = raw * vat.rate if vat is not None and _charged(vat, id, layer) else 0.0
-            parts.append(Part(id, layer.role, raw + added, added, fallback))
+            parts.append(Part(id, layer.role, raw + added, added, fallback, carried))
         total = None if missing else sum(p.value or 0.0 for p in parts)
         out.append(Slot(start, end, total, parts, missing))
     checks = await _checks(layers, series, unit, out, first, last)

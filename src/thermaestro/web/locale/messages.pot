@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 22:43+0200\n"
+"POT-Creation-Date: 2026-10-08 23:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -39,6 +39,10 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s so far"
+msgstr ""
+
+#, python-format
+msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -1105,9 +1109,9 @@ msgstr ""
 
 #, python-format
 msgid ""
-"The layer %(layer)s already includes the spot price, so the source chosen"
-" here isn't added to the stack. Its prices are kept current beside it, "
-"and can take that layer's place under Layers."
+"The layer %(layer)s already includes the spot price. Saving a source here"
+" splits it into the spot price, from that source, and what the supplier "
+"adds, once VAT is set below."
 msgstr ""
 
 msgid "The location's climate"

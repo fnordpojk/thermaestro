@@ -67,6 +67,7 @@ class FakeTibber:
                 {
                     "id": "00000000-0000-4000-8000-000000000001",
                     "timeZone": "Europe/Stockholm",
+                    "meteringPointData": {"priceAreaCode": "SE3"},
                     "currentSubscription": {
                         "priceInfo": {"today": self.today, "tomorrow": self.tomorrow}
                     },

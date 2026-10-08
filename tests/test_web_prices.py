@@ -322,6 +322,8 @@ async def test_every_spot_source_stands_in(site: Site) -> None:
         page = (await client.get("/setup/prices")).text
         assert 'name="fallbacks" value="entsoe:spot" checked' in page
         assert 'name="fallbacks" value="tibber:se3/spot" checked' in page
+        # Tibber's area and currency as its series report them; it has no settings for them.
+        assert re.search(r"<strong>tibber</strong> · \w+ · SE3, SEK", page)
 
 
 async def test_a_supplier_total_keeps_the_stack(site: Site) -> None:
@@ -351,6 +353,41 @@ async def test_a_supplier_total_keeps_the_stack(site: Site) -> None:
         )
         assert answer.json() == {"included_in": "energy-supplier"}
         assert (await client.get("/api/v1/prices")).json()["problems"] == []
+
+
+async def test_a_suppliers_total_is_split_once_vat_is_set(site: Site) -> None:
+    series = site.services.series
+    assert series is not None
+    series.describe("nordic_sites", [OTHER_SPOT])
+    async with logged_in(site) as client:
+        await form(client, "/setup/prices", "/settings/tibber", token="tibber-token-1")
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered=f"tibber:{TOTAL.id}"
+        )
+        await client.post(
+            "/prices/vat",
+            data={"csrf": csrf_of((await client.get("/setup/prices")).text), "rate": "25"},
+        )
+        await form(
+            client, "/setup/prices?zone=SE3", "/settings/spot", zone="SE3", source="nordic_sites"
+        )
+        layers = (await client.get("/api/v1/prices/layers")).json()
+        assert sorted(layers) == ["energy-spot", "energy-supplier"]
+        supplier = layers["energy-supplier"]
+        assert (supplier["source"], supplier["series"], supplier["minus"], supplier["vat"]) == (
+            "remainder",
+            TOTAL.id,
+            f"tibber:{SPOT.id}",
+            "excl",
+        )
+        spot = layers["energy-spot"]
+        assert (spot["plugin"], spot["fallbacks"]) == ("nordic_sites", [f"tibber:{SPOT.id}"])
+        vat = (await client.get("/api/v1/prices/vat")).json()
+        assert sorted(vat["applies_to"]) == ["energy-spot", "energy-supplier"]
+        assert (await client.get("/api/v1/prices")).json()["problems"] == []
+        page = (await client.get("/setup/prices")).text
+        assert "what the supplier adds, without VAT" in page
+        assert "already includes the spot price" not in page
 
 
 async def test_octopus_agile_by_region(site: Site) -> None:

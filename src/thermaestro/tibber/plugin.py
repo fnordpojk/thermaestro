@@ -1,8 +1,8 @@
 """The Tibber plugin: a home's prices per 15 minutes, from Tibber's GraphQL API.
 
 It logs in with a personal access token from the secrets file and asks for prices only:
-the home's id and time zone, and today's and tomorrow's prices. Never the name, address,
-contact or consumption fields.
+the home's id, time zone and price area (`SE3`), and today's and tomorrow's prices. Never
+the name, address, contact or consumption fields, nor the metering point's id.
 
 Two series, both per 15 minutes:
 - `energy`: the spot price, without VAT (Tibber's `energy`, "Nord Pool spot price");
@@ -45,6 +45,7 @@ query Prices {
     homes {
       id
       timeZone
+      meteringPointData { priceAreaCode }
       currentSubscription {
         priceInfo(resolution: QUARTER_HOURLY) {
           today { total energy startsAt currency }
@@ -77,6 +78,8 @@ class TibberPlugin(DayAheadPlugin):
         self._url = url
         self._zone: ZoneInfo | None = None
         self.currency: str | None = None
+        self.area: str | None = None
+        """The home's price area, as Tibber names it (`SE3`); None where it doesn't say."""
 
     # --- what Tibber supplies ---------------------------------------------------------------
 
@@ -103,6 +106,7 @@ class TibberPlugin(DayAheadPlugin):
                 unit=unit,
                 vat="excl",
                 resolution="PT15M",
+                area=self.area,
                 publication=self.publication(),
             ),
             SeriesInfo(
@@ -121,6 +125,7 @@ class TibberPlugin(DayAheadPlugin):
                 unit=unit,
                 vat="incl",
                 resolution="PT15M",
+                area=self.area,
                 publication=self.publication(),
             ),
         )
@@ -175,6 +180,8 @@ class TibberPlugin(DayAheadPlugin):
             self._zone = ZoneInfo(home.get("timeZone") or "UTC")
         except (ZoneInfoNotFoundError, ValueError):
             raise SourceError(f"unknown time zone {home.get('timeZone')!r}") from None
+        area = (home.get("meteringPointData") or {}).get("priceAreaCode")
+        self.area = area if isinstance(area, str) and area else None
         info = home["currentSubscription"].get("priceInfo") or {}
         prices = [*(info.get("today") or []), *(info.get("tomorrow") or [])]
         return self._intervals(prices)
