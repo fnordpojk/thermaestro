@@ -18,12 +18,12 @@ its interval holding the slot's start; a coarser interval applies to every slot 
 and a finer one isn't averaged. Where the layer's series has no price, its fallbacks are
 tried in order.
 
-A remainder layer is what a supplier's total charges beyond the spot price, without VAT:
-for each of the total's intervals, the total less its VAT (at the stack's rate, where the
-total includes it) less the supplier's own spot price. On a day the supplier has no
-prices, its last remainder applies, from up to a week back: a supplier's adders seldom
-change, so the spot price can come from any source while the adders still come from the
-supplier.
+A supplier's total beside a spot layer is split, where the supplier gives its own spot
+price too (Tibber's total and its energy price): the total less the supplier's own spot
+price, with VAT where the total has it, is what the supplier adds, and the spot price
+comes from the spot layer, from any source and with its fallbacks. On a day the supplier
+has no prices, the last it added applies, from up to a week back: a supplier's adders
+seldom change.
 
 The stack is checked against every other price series offered that covers some of its
 layers exactly: a supplier's price with VAT (Tibber's total) checks the spot price plus
@@ -42,7 +42,7 @@ from .series import Key, Series
 
 SLOT = timedelta(minutes=15)
 CARRY = timedelta(days=7)
-"""How far back a remainder's last value is looked for."""
+"""How far back a split total's last adders are looked for."""
 EXPECTED_ROLES = ("energy.spot", "tax.energy", "grid.transfer")
 CHECK_RELATIVE = 0.01
 CHECK_ABSOLUTE = 0.001
@@ -60,7 +60,7 @@ class Part:
     fallback: str | None = None
     """The series that stood in for the layer's own, `<instance>:<series>`."""
     carried_from: datetime | None = None
-    """For a remainder with no price of its own here: the start of the last one it had."""
+    """For a split total with no price of its own here: where its last price started."""
 
 
 @dataclass
@@ -99,6 +99,17 @@ class Stack:
     checks: list[Check] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class Split:
+    """A layer holding a supplier's total, from which the supplier's spot price is taken."""
+
+    total: str
+    spot: str
+    """The supplier's own spot price, `<instance>:<series>`."""
+    with_vat: bool
+    """Whether the total includes VAT, so the spot price is taken out with it."""
+
+
 def _ref(instance: str, series: str) -> str:
     return f"{instance}:{series}"
 
@@ -117,6 +128,39 @@ def _covered(info: SeriesInfo) -> set[str]:
     return {info.role, *(info.covers.value or ())}
 
 
+def splits(layers: Mapping[str, PriceLayer], series: Series) -> dict[str, Split]:
+    """The layers holding a supplier's total that are split: a series that includes the
+    spot price, in a stack that has a spot layer, from a supplier that offers its own spot
+    price in the same unit."""
+    if not any(layer.role == "energy.spot" for layer in layers.values()):
+        return {}
+    out = {}
+    for id, layer in sorted(layers.items()):
+        if layer.source != "series" or layer.role == "energy.spot":
+            continue
+        ref = _ref(layer.plugin or "", layer.series or "")
+        info = _info(series, ref)
+        if info is None or "energy.spot" not in (info.covers.value or ()):
+            continue
+        own = next(
+            (
+                _ref(key.instance, key.series)
+                for key, followed in sorted(
+                    series.followed.items(), key=lambda kv: (kv[0].instance, kv[0].series)
+                )
+                if key.instance == layer.plugin
+                and followed.info.kind == "price"
+                and followed.info.role == "energy.spot"
+                and not followed.info.covers.value
+                and (followed.info.unit, followed.info.vat) == (info.unit, "excl")
+            ),
+            None,
+        )
+        if own is not None:
+            out[id] = Split(ref, own, info.vat == "incl")
+    return out
+
+
 def check(
     layers: Mapping[str, PriceLayer], vat: Vat | None, series: Series
 ) -> tuple[list[str], list[str], str | None]:
@@ -124,21 +168,23 @@ def check(
     problems: list[str] = []
     counted: dict[str, str] = {}
     units: set[str] = set()
+    split = splits(layers, series)
     for id, layer in sorted(layers.items()):
         roles = [layer.role]
         unit = layer.unit
-        if layer.source == "remainder":
-            found = _remainder_problems(id, layer, vat, series)
-            if isinstance(found, list):
-                problems += found
-                continue
-            unit = found
-        elif layer.source == "series":
+        if layer.source == "series":
             info = _info(series, _ref(layer.plugin or "", layer.series or ""))
             if info is None:
                 problems.append(f"layer {id}: {layer.plugin} offers no series {layer.series!r}")
                 continue
-            roles += list(info.covers.value or ())
+            covers = list(info.covers.value or ())
+            if id in split:
+                covers = [role for role in covers if role != "energy.spot"]
+                if split[id].with_vat and vat is None:
+                    problems.append(
+                        f"layer {id}: its spot price is taken out with VAT, and no VAT is set"
+                    )
+            roles += covers
             unit = info.unit
             problems += _fallback_problems(id, info, layer, series)
         units.add(unit)
@@ -157,6 +203,12 @@ def check(
     warnings = [f"no layer for {role}" for role in EXPECTED_ROLES if role not in counted]
     if layers and vat is None and any(layer.vat == "excl" for layer in layers.values()):
         warnings.append("some layers exclude VAT, and no VAT is set")
+    if vat is not None:
+        warnings += [
+            f"VAT isn't charged on {id}, which excludes it"
+            for id, layer in sorted(layers.items())
+            if layer.vat == "excl" and not _charged(vat, id, layer)
+        ]
     return problems, warnings, (units.pop() if len(units) == 1 else None)
 
 
@@ -176,45 +228,25 @@ def _fallback_problems(id: str, info: SeriesInfo, layer: PriceLayer, series: Ser
     return out
 
 
-def _remainder_problems(
-    id: str, layer: PriceLayer, vat: Vat | None, series: Series
-) -> list[str] | str:
-    """Why a remainder layer can't be computed; else its unit."""
-    ref = _ref(layer.plugin or "", layer.series or "")
-    total, spot = _info(series, ref), _info(series, layer.minus or "")
-    if total is None:
-        return [f"layer {id}: {layer.plugin} offers no series {layer.series!r}"]
-    if spot is None:
-        return [f"layer {id}: no series {layer.minus} to take out"]
-    if (
-        "energy.spot" not in _covered(total)
-        or spot.role != "energy.spot"
-        or spot.unit != total.unit
-    ):
-        return [f"layer {id}: {layer.minus} isn't the spot price inside {ref}"]
-    if total.vat == "incl" and vat is None:
-        return [f"layer {id}: {ref} includes VAT, and no VAT rate is set to take it out"]
-    return total.unit
-
-
-def _remainders(
-    totals: list[Interval], spots: list[Interval], divisor: float
+def _adders(
+    totals: list[Interval], spots: list[Interval], factor: float
 ) -> list[tuple[datetime, datetime, float]]:
-    """Each total's interval with what it holds beyond the spot price, without VAT."""
+    """Each total's interval with what it holds beyond the spot price: the total less
+    the spot price times `factor` (1 + VAT, where the total includes it)."""
     out = []
     for interval in totals:
         spot = _at(spots, interval.start)
         if spot is not None:
-            out.append((interval.start, interval.end, interval.value / divisor - spot))
+            out.append((interval.start, interval.end, interval.value - factor * spot))
     return out
 
 
-def _remainder_at(
-    remainders: list[tuple[datetime, datetime, float]], moment: datetime
+def _adders_at(
+    adders: list[tuple[datetime, datetime, float]], moment: datetime
 ) -> tuple[float, datetime | None] | None:
-    """The remainder at a moment, or the last one before it and where that started."""
+    """The adders at a moment, or the last before it and where those started."""
     last: tuple[datetime, datetime, float] | None = None
-    for start, end, value in remainders:
+    for start, end, value in adders:
         if start <= moment < end:
             return value, None
         if end <= moment and (last is None or start > last[0]):
@@ -251,22 +283,21 @@ async def assemble(
     if problems or not layers:
         return Stack(unit, [], problems, warnings)
     first, last = day_slots[0][0].timestamp(), day_slots[-1][1].timestamp()
+    split = splits(layers, series)
+    rate = vat.rate if vat is not None else 0.0
     held: dict[str, list[tuple[str | None, list[Interval]]]] = {}
-    remainders: dict[str, list[tuple[datetime, datetime, float]]] = {}
+    adders: dict[str, list[tuple[datetime, datetime, float]]] = {}
     for id, layer in layers.items():
-        if layer.source == "series":
+        if id in split:
+            since = first - CARRY.total_seconds()
+            totals = await series.get(_key(split[id].total), since, last)
+            spots = await series.get(_key(split[id].spot), since, last)
+            adders[id] = _adders(totals, spots, 1 + rate if split[id].with_vat else 1.0)
+        elif layer.source == "series":
             own = _ref(layer.plugin or "", layer.series or "")
             held[id] = [(None, await series.get(_key(own), first, last))]
             for ref in layer.fallbacks:
                 held[id].append((ref, await series.get(_key(ref), first, last)))
-        elif layer.source == "remainder":
-            own = _ref(layer.plugin or "", layer.series or "")
-            since = first - CARRY.total_seconds()
-            totals = await series.get(_key(own), since, last)
-            spots = await series.get(_key(layer.minus or ""), since, last)
-            info = _info(series, own)
-            divisor = 1 + vat.rate if vat is not None and info and info.vat == "incl" else 1.0
-            remainders[id] = _remainders(totals, spots, divisor)
     out = []
     for start, end in day_slots:
         parts, missing = [], []
@@ -275,8 +306,8 @@ async def assemble(
             carried: datetime | None = None
             if layer.source == "fixed":
                 raw = layer.value
-            elif layer.source == "remainder":
-                found = _remainder_at(remainders[id], start)
+            elif id in split:
+                found = _adders_at(adders[id], start)
                 raw, carried = found if found is not None else (None, None)
             else:
                 raw = None
@@ -289,11 +320,15 @@ async def assemble(
                 missing.append(id)
                 parts.append(Part(id, layer.role, None))
                 continue
+            if id in split and split[id].with_vat:
+                # VAT is in the value already; its share is shown as VAT.
+                parts.append(Part(id, layer.role, raw, raw * rate / (1 + rate), None, carried))
+                continue
             added = raw * vat.rate if vat is not None and _charged(vat, id, layer) else 0.0
             parts.append(Part(id, layer.role, raw + added, added, fallback, carried))
         total = None if missing else sum(p.value or 0.0 for p in parts)
         out.append(Slot(start, end, total, parts, missing))
-    checks = await _checks(layers, series, unit, out, first, last)
+    checks = await _checks(layers, split, series, unit, out, first, last)
     for c in checks:
         if c.differing:
             warnings.append(
@@ -305,6 +340,7 @@ async def assemble(
 
 async def _checks(
     layers: Mapping[str, PriceLayer],
+    split: Mapping[str, Split],
     series: Series,
     unit: str | None,
     stack: list[Slot],
@@ -321,6 +357,8 @@ async def _checks(
             used |= {own, *layer.fallbacks}
             info = _info(series, own)
             roles[id] |= _covered(info) if info else set()
+            if id in split:
+                roles[id].discard("energy.spot")
     out = []
     for key, followed in sorted(
         series.followed.items(), key=lambda kv: (kv[0].instance, kv[0].series)

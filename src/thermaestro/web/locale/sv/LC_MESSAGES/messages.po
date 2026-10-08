@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 23:01+0200\n"
+"POT-Creation-Date: 2026-10-08 23:28+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -38,10 +38,6 @@ msgstr "%(n)s min"
 #, python-format
 msgid "%(n)s so far"
 msgstr "%(n)s hittills"
-
-#, python-format
-msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
-msgstr "%(total)s minus %(spot)s: det leverantören lägger till, utan moms"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
@@ -1163,16 +1159,6 @@ msgstr ""
 "Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
 "protokollet den talar."
 
-#, python-format
-msgid ""
-"The layer %(layer)s already includes the spot price. Saving a source here splits it "
-"into the spot price, from that source, and what the supplier adds, once VAT is set "
-"below."
-msgstr ""
-"Lagret %(layer)s innehåller redan spotpriset. Att spara en källa här delar upp det i "
-"spotpriset, från den källan, och det leverantören lägger till, när moms är angiven "
-"nedan."
-
 msgid "The location's climate"
 msgstr "Platsens klimat"
 
@@ -1647,6 +1633,10 @@ msgstr "ingår"
 msgid "last heard"
 msgstr "senast hörd"
 
+#, python-format
+msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot layer"
+msgstr "minus %(spot)s: det leverantören lägger till; spotpriset kommer från spotlagret"
+
 msgid "lowest"
 msgstr "lägsta"
 
@@ -1879,4 +1869,20 @@ msgstr "din token"
 #~ " stapeln. Dess priser hålls aktuella bredvid, "
 #~ "och kan ta det lagrets plats under "
 #~ "Lager."
+
+#~ msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
+#~ msgstr "%(total)s minus %(spot)s: det leverantören lägger till, utan moms"
+
+#~ msgid ""
+#~ "The layer %(layer)s already includes the spot"
+#~ " price. Saving a source here splits it "
+#~ "into the spot price, from that source, "
+#~ "and what the supplier adds, once VAT is"
+#~ " set below."
+#~ msgstr ""
+#~ "Lagret %(layer)s innehåller redan spotpriset. Att"
+#~ " spara en källa här delar upp det i"
+#~ " spotpriset, från den källan, och det "
+#~ "leverantören lägger till, när moms är angiven"
+#~ " nedan."
 

@@ -361,21 +361,15 @@ SeriesRef = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,64}:\S{
 
 
 class PriceLayer(Setting):
-    """One layer of the import price: a series a plugin offers, a fixed amount, or the
-    remainder of a supplier's total: what it charges beyond the spot price, without VAT,
-    so that the spot price can come from any source while the supplier's adders still
-    come from the supplier."""
+    """One layer of the import price: a series a plugin offers, or a fixed amount."""
 
     kind = "price.layer"
 
     role: Annotated[str, StringConstraints(pattern=r"^[a-z_]+(\.[a-z_]+)*$")]
-    source: Literal["series", "fixed", "remainder"]
+    source: Literal["series", "fixed"]
     plugin: Id | None = None
     """The plugin instance offering the series."""
     series: str | None = None
-    """For a remainder, the supplier's total."""
-    minus: SeriesRef | None = None
-    """For a remainder: the supplier's own spot price, taken out of its total."""
     fallbacks: tuple[SeriesRef, ...] = ()
     """Series of the same kind that stand in, in order, where this one has no price: a
     second source of the spot price, for a day the first one doesn't publish."""
@@ -385,15 +379,11 @@ class PriceLayer(Setting):
 
     @model_validator(mode="after")
     def _has_its_source(self) -> Self:
-        if self.source in ("series", "remainder") and not (self.plugin and self.series):
+        if self.source == "series" and not (self.plugin and self.series):
             raise ValueError("a series layer names the plugin and the series")
-        if self.source == "remainder" and (self.minus is None or self.vat != "excl"):
-            raise ValueError("a remainder names the spot price it takes out, and excludes VAT")
-        if self.source != "remainder" and self.minus is not None:
-            raise ValueError("only a remainder takes a series out")
         if self.source == "fixed" and self.value is None:
             raise ValueError("a fixed layer gives its value")
-        if self.source != "series" and self.fallbacks:
+        if self.source == "fixed" and self.fallbacks:
             raise ValueError("only a series layer has fallbacks")
         return self
 

@@ -124,6 +124,7 @@ async def _sensors(request: Request, who: Caller) -> dict[str, Any]:
 
 
 async def _prices(request: Request, who: Caller) -> dict[str, Any]:
+    from ..core.prices import splits
     from ..nordic_sites.plugin import SITES
     from ..octopus_agile.plugin import REGIONS
     from ..spotsources import TIBBER_COUNTRIES, choices
@@ -163,7 +164,7 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
         "spot_source": source,
         "spot_fallback": fallback,
         "source_names": names,
-        "spot_included_in": s.spot_included_in(who, layers),
+        "split": splits(layers, s.series) if s.series is not None else {},
         "tibber_hint": country in TIBBER_COUNTRIES and "tibber" not in has,
         "octopus_regions": REGIONS,
         "bidding_zones": ZONES,

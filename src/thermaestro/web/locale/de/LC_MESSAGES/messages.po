@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 23:01+0200\n"
+"POT-Creation-Date: 2026-10-08 23:28+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -38,10 +38,6 @@ msgstr "%(n)s min"
 #, python-format
 msgid "%(n)s so far"
 msgstr "bisher %(n)s"
-
-#, python-format
-msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
-msgstr "%(total)s abzüglich %(spot)s: was der Lieferant aufschlägt, ohne Mehrwertsteuer"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -1176,16 +1172,6 @@ msgstr ""
 "Das Gateway, das Thermaestro mit dem Bus einer Nibe-Pumpe verbindet: seine Adresse "
 "und das Protokoll, das es spricht."
 
-#, python-format
-msgid ""
-"The layer %(layer)s already includes the spot price. Saving a source here splits it "
-"into the spot price, from that source, and what the supplier adds, once VAT is set "
-"below."
-msgstr ""
-"Die Schicht %(layer)s enthält den Spotpreis bereits. Das Speichern einer Quelle hier "
-"teilt sie in den Spotpreis, aus dieser Quelle, und den Aufschlag des Lieferanten auf,"
-" sobald unten die Mehrwertsteuer angegeben ist."
-
 msgid "The location's climate"
 msgstr "Das Klima des Standorts"
 
@@ -1672,6 +1658,12 @@ msgstr "enthalten"
 msgid "last heard"
 msgstr "zuletzt gehört"
 
+#, python-format
+msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot layer"
+msgstr ""
+"abzüglich %(spot)s: was der Lieferant aufschlägt; der Spotpreis kommt aus der "
+"Spotpreis-Schicht"
+
 msgid "lowest"
 msgstr "niedrigster"
 
@@ -1905,4 +1897,20 @@ msgstr "Ihr Token"
 #~ "werden daneben aktuell gehalten und können "
 #~ "unter Schichten den Platz dieser Schicht "
 #~ "einnehmen."
+
+#~ msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
+#~ msgstr "%(total)s abzüglich %(spot)s: was der Lieferant aufschlägt, ohne Mehrwertsteuer"
+
+#~ msgid ""
+#~ "The layer %(layer)s already includes the spot"
+#~ " price. Saving a source here splits it "
+#~ "into the spot price, from that source, "
+#~ "and what the supplier adds, once VAT is"
+#~ " set below."
+#~ msgstr ""
+#~ "Die Schicht %(layer)s enthält den Spotpreis "
+#~ "bereits. Das Speichern einer Quelle hier teilt"
+#~ " sie in den Spotpreis, aus dieser Quelle,"
+#~ " und den Aufschlag des Lieferanten auf, "
+#~ "sobald unten die Mehrwertsteuer angegeben ist."
 

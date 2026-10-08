@@ -163,7 +163,7 @@ async def test_the_price_chart_and_its_table(site: Site) -> None:
     assert "Per 15 minutes" in page
 
 
-async def test_a_double_count_is_shown_not_summed(site: Site) -> None:
+async def test_a_problem_is_shown_not_summed(site: Site) -> None:
     async with logged_in(site) as client:
         await form(
             client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
@@ -177,11 +177,10 @@ async def test_a_double_count_is_shown_not_summed(site: Site) -> None:
         )
         today = (await client.get("/api/v1/prices")).json()
         assert today["problems"] == [
-            "energy.spot is counted twice, in the layers energy-spot and energy-supplier:"
-            " remove one under Setup → Prices"
+            "layer energy-supplier: its spot price is taken out with VAT, and no VAT is set"
         ]
         assert today["slots"] == []
-        assert "energy.spot is counted twice" in (await client.get("/prices")).text
+        assert "no VAT is set" in (await client.get("/prices")).text
 
 
 async def test_series_and_their_freshness(site: Site) -> None:
@@ -326,68 +325,51 @@ async def test_every_spot_source_stands_in(site: Site) -> None:
         assert re.search(r"<strong>tibber</strong> · \w+ · SE3, SEK", page)
 
 
-async def test_a_supplier_total_keeps_the_stack(site: Site) -> None:
-    async with logged_in(site) as client:
-        await form(
-            client,
-            "/setup/prices",
-            "/prices/layers",
-            source="series",
-            offered="tibber:home/price.total",
-        )
-        saved = await form(
-            client, "/setup/prices?zone=NO1", "/settings/spot", zone="NO1", source="energy_charts"
-        )
-        assert saved.status_code == 303
-        layers = (await client.get("/api/v1/prices/layers")).json()
-        assert sorted(layers) == ["energy-supplier"]
-        sources = (await client.get("/api/v1/prices/sources")).json()
-        assert sources["energy_charts"]["settings"]["zone"] == "NO1"
-        page = (await client.get("/setup/prices")).text
-        assert "The layer energy-supplier already includes the spot price" in page
-        assert '<option value="NO1" selected>' in page
-        answer = await client.put(
-            "/api/v1/prices/spot",
-            json={"zone": "NO1", "source": "energy_charts"},
-            headers={"x-csrf-token": csrf_of(page)},
-        )
-        assert answer.json() == {"included_in": "energy-supplier"}
-        assert (await client.get("/api/v1/prices")).json()["problems"] == []
-
-
-async def test_a_suppliers_total_is_split_once_vat_is_set(site: Site) -> None:
+async def test_a_suppliers_total_beside_the_spot_layer_is_split(site: Site) -> None:
     series = site.services.series
     assert series is not None
     series.describe("nordic_sites", [OTHER_SPOT])
+    midnight = datetime.now(STOCKHOLM).replace(hour=0, minute=0, second=0, microsecond=0)
+    n = len(slots(midnight.date(), STOCKHOLM))
+    await series.put(
+        "tibber", quarters(TOTAL.id, midnight, n, round(1.25 * 0.59016 + 0.1248, 6), vat="incl")
+    )
     async with logged_in(site) as client:
         await form(client, "/setup/prices", "/settings/tibber", token="tibber-token-1")
+        # A spot layer and Tibber's total, VAT set: no saving needed to have them work.
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered=f"tibber:{SPOT.id}"
+        )
         await form(
             client, "/setup/prices", "/prices/layers", source="series", offered=f"tibber:{TOTAL.id}"
         )
         await client.post(
             "/prices/vat",
-            data={"csrf": csrf_of((await client.get("/setup/prices")).text), "rate": "25"},
+            data={
+                "csrf": csrf_of((await client.get("/setup/prices")).text),
+                "rate": "25",
+                "applies_to": ["energy-spot"],
+            },
         )
+        today = (await client.get("/api/v1/prices")).json()
+        assert today["problems"] == []
+        assert today["slots"][0]["total"] == pytest.approx(1.25 * 0.59016 + 0.1248)
+        page = (await client.get("/setup/prices")).text
+        assert f"less tibber · {SPOT.id}: what the supplier adds" in page
+        # A spot source chosen: the split stays, the spot price from the source first.
         await form(
             client, "/setup/prices?zone=SE3", "/settings/spot", zone="SE3", source="nordic_sites"
         )
         layers = (await client.get("/api/v1/prices/layers")).json()
-        assert sorted(layers) == ["energy-spot", "energy-supplier"]
-        supplier = layers["energy-supplier"]
-        assert (supplier["source"], supplier["series"], supplier["minus"], supplier["vat"]) == (
-            "remainder",
+        assert (layers["energy-supplier"]["series"], layers["energy-supplier"]["vat"]) == (
             TOTAL.id,
-            f"tibber:{SPOT.id}",
-            "excl",
+            "incl",
         )
         spot = layers["energy-spot"]
         assert (spot["plugin"], spot["fallbacks"]) == ("nordic_sites", [f"tibber:{SPOT.id}"])
-        vat = (await client.get("/api/v1/prices/vat")).json()
-        assert sorted(vat["applies_to"]) == ["energy-spot", "energy-supplier"]
-        assert (await client.get("/api/v1/prices")).json()["problems"] == []
-        page = (await client.get("/setup/prices")).text
-        assert "what the supplier adds, without VAT" in page
-        assert "already includes the spot price" not in page
+        today = (await client.get("/api/v1/prices")).json()
+        assert today["problems"] == []
+        assert today["slots"][0]["total"] == pytest.approx(1.25 * 0.59016 + 0.1248)
 
 
 async def test_octopus_agile_by_region(site: Site) -> None:

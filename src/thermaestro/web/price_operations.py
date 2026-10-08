@@ -219,16 +219,15 @@ class PriceOperations:
         source: str,
         fallback: str | None = None,
         currency: str | None = None,
-    ) -> tuple[str, PriceLayer | None]:
+    ) -> tuple[str, PriceLayer]:
         """Take a bidding zone's spot price from `source`, with `fallback` standing in on a
         day it has no price, then ENTSO-E where a token is entered, then every other spot
         price on offer in the same unit (Tibber's, for a Tibber customer). Both are
         plugin names, from those `spotsources.choices` offers for the zone. Sources that
         need no account are set up for the zone, and removed once no longer used; one with
-        a token keeps it. The stack's spot layer then takes from them, and its id and
-        setting are returned. Where another layer already includes the spot price (a
-        supplier's total), the stack is left as it is, and that layer's id is returned
-        with no setting: the sources are kept current beside it."""
+        a token keeps it. The stack's spot layer then takes from them, VAT charged on it
+        where a VAT rule is set; its id and setting are returned. A supplier's total in the
+        stack is split by the stack itself (`core.prices.splits`)."""
         self._require(caller, "plugins.manage", step_up=True)
         area = ZONES.get(zone)
         if area is None:
@@ -284,9 +283,6 @@ class PriceOperations:
         ]
         instance, _, series = refs[0].partition(":")
         layers = await self.db.all(PriceLayer)
-        including = self.spot_included_in(caller, layers)
-        if including is not None and not await self._split_total(caller, including, layers):
-            return including, None
         current_id = next((id for id, layer in layers.items() if layer.role == "energy.spot"), None)
         body = {
             "role": "energy.spot",
@@ -298,46 +294,8 @@ class PriceOperations:
             "vat": "excl",
         }
         spot_id, spot_layer = await self.set_price_layer(caller, current_id, body)
-        await self._charge_vat_on(caller, [spot_id, *([including] if including else [])])
+        await self._charge_vat_on(caller, [spot_id])
         return spot_id, spot_layer
-
-    async def _split_total(self, caller: "Caller", id: str, layers: dict[str, PriceLayer]) -> bool:
-        """Turn the layer holding a supplier's total into its remainder, what the supplier
-        adds beyond the spot price, so the spot price can have a layer of its own. Possible
-        where the supplier offers its own spot price, and a VAT rate is set if the total
-        includes VAT."""
-        layer = layers[id]
-        offered = self.offered_series(caller)
-        total = next(
-            (o for o in offered if (o["instance"], o["series"]) == (layer.plugin, layer.series)),
-            None,
-        )
-        if total is None:
-            return False
-        own_spot = next(
-            (
-                o
-                for o in offered
-                if o["instance"] == layer.plugin
-                and o["role"] == "energy.spot"
-                and not o["covers"]
-                and o["unit"] == total["unit"]
-            ),
-            None,
-        )
-        if own_spot is None or (total["vat"] == "incl" and await self.db.get(Vat) is None):
-            return False
-        body = {
-            "role": layer.role,
-            "source": "remainder",
-            "plugin": layer.plugin,
-            "series": layer.series,
-            "minus": f"{layer.plugin}:{own_spot['series']}",
-            "unit": total["unit"],
-            "vat": "excl",
-        }
-        await self.set_price_layer(caller, id, body)
-        return True
 
     async def _charge_vat_on(self, caller: "Caller", ids: list[str]) -> None:
         """Have the VAT rule charge VAT on these layers too, where a rule is set."""
@@ -351,23 +309,6 @@ class PriceOperations:
         if added:
             body = {"rate": vat.rate, "applies_to": [*vat.applies_to, *added]}
             await self.set_vat(caller, body)
-
-    def spot_included_in(self, caller: "Caller", layers: dict[str, PriceLayer]) -> str | None:
-        """The layer other than the spot layer whose series already includes the spot
-        price, such as a supplier's total; None if there is none."""
-        covers = {
-            f"{o['instance']}:{o['series']}": set(o["covers"]) for o in self.offered_series(caller)
-        }
-        return next(
-            (
-                id
-                for id, layer in sorted(layers.items())
-                if layer.role != "energy.spot"
-                and layer.source == "series"
-                and "energy.spot" in covers.get(f"{layer.plugin}:{layer.series}", set())
-            ),
-            None,
-        )
 
     async def spot_choice(self, caller: "Caller") -> dict[str, str | None]:
         """Where the stack's spot layer takes its price from, as plugin names, and the

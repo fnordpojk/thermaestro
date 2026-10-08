@@ -277,14 +277,23 @@ async def test_a_stack_counted_wrong_is_refused(db: Database) -> None:
         unit="SEK/kWh",
         vat="incl",
     )
+    series.describe("entsoe", [OTHER_SPOT])
+    other = spot.model_copy(update={"plugin": "entsoe", "series": "spot"})
     twice = await assemble(
-        {"spot": spot, "tibber": total}, None, series, date(2026, 9, 29), STOCKHOLM
+        {"spot": spot, "other": other}, None, series, date(2026, 9, 29), STOCKHOLM
     )
     assert twice.problems == [
-        "energy.spot is counted twice, in the layers spot and tibber:"
+        "energy.spot is counted twice, in the layers other and spot:"
         " remove one under Setup → Prices"
     ]
     assert twice.slots == []
+    # Tibber's total beside a spot layer is split, its spot price taken out with VAT.
+    no_vat = await assemble(
+        {"spot": spot, "tibber": total}, None, series, date(2026, 9, 29), STOCKHOLM
+    )
+    assert no_vat.problems == [
+        "layer tibber: its spot price is taken out with VAT, and no VAT is set"
+    ]
     on_vat = await assemble(
         {"tibber": total},
         Vat(rate=0.25, applies_to=("tibber",)),
@@ -367,62 +376,54 @@ async def test_another_sources_spot_price_checks_the_first(db: Database) -> None
     assert checked.at == local(2026, 9, 29, 12)
 
 
-def remainder_layer(**kw: object) -> PriceLayer:
-    return PriceLayer.model_validate(
-        {
-            "role": "energy.supplier",
-            "source": "remainder",
-            "plugin": "tibber",
-            "series": TOTAL.id,
-            "minus": f"tibber:{SPOT.id}",
-            "unit": "SEK/kWh",
-            "vat": "excl",
-            **kw,
-        }
-    )
+TOTAL_LAYER = PriceLayer(
+    role="energy.supplier",
+    source="series",
+    plugin="tibber",
+    series=TOTAL.id,
+    unit="SEK/kWh",
+    vat="incl",
+)
 
 
-async def test_a_suppliers_adders_come_from_its_total(db: Database) -> None:
+async def test_a_suppliers_total_beside_a_spot_layer_is_split(db: Database) -> None:
+    series = await stocked(db)
+    vat = Vat(rate=0.25, applies_to=("spot",))
+    # The stack as set up: Tibber's spot price, and Tibber's total as the supplier's layer.
+    own = {"spot": spot_layer(), "supplier": TOTAL_LAYER}
+    stack = await assemble(own, vat, series, date(2026, 9, 29), STOCKHOLM)
+    assert stack.problems == []
+    # The total less Tibber's spot price with VAT: what Tibber adds, 0.1248 with VAT.
+    supplier = stack.slots[0].parts[1]
+    assert supplier.layer == "supplier"
+    assert supplier.value == pytest.approx(0.1248)
+    assert supplier.vat_added == pytest.approx(0.1248 * 0.25 / 1.25)
+    assert stack.slots[0].total == pytest.approx(1.25 * 0.59016 + 0.1248)  # Tibber's total
+
+
+async def test_the_spot_price_from_elsewhere_and_the_adders_kept(db: Database) -> None:
     series = await stocked(db)
     series.describe("entsoe", [OTHER_SPOT])
     # Another source has the 29th and the 30th; Tibber only the 29th.
     await series.put("entsoe", quarters("spot", local(2026, 9, 29), 192, 0.6))
     layers = {
         "spot": spot_layer(plugin="entsoe", series="spot", fallbacks=(f"tibber:{SPOT.id}",)),
-        "supplier": remainder_layer(),
+        "supplier": TOTAL_LAYER,
     }
-    vat = Vat(rate=0.25, applies_to=("spot", "supplier"))
+    vat = Vat(rate=0.25, applies_to=("spot",))
     first = await assemble(layers, vat, series, date(2026, 9, 29), STOCKHOLM)
     assert first.problems == []
-    supplier = first.slots[0].parts[1]
-    # Tibber's total without VAT, less its own spot price: its adders, 0.1248 / 1.25.
-    assert (supplier.layer, supplier.carried_from) == ("supplier", None)
-    assert supplier.value == pytest.approx(0.09984 * 1.25)
-    assert first.slots[0].total == pytest.approx(1.25 * (0.6 + 0.09984))
-    # Tibber's total checks the stack: its spot price and the other source's differ.
-    [checked] = first.checks
-    assert (checked.series, checked.differing) == (f"tibber:{TOTAL.id}", 96)
-    # The 30th: Tibber has nothing; its last adders stand.
+    assert first.slots[0].total == pytest.approx(1.25 * 0.6 + 0.1248)
+    assert first.slots[0].parts[1].carried_from is None
+    # The 30th: Tibber has nothing; what it last added stands.
     second = await assemble(layers, vat, series, date(2026, 9, 30), STOCKHOLM)
-    assert all(s.total == pytest.approx(1.25 * (0.6 + 0.09984)) for s in second.slots)
+    assert all(s.total == pytest.approx(1.25 * 0.6 + 0.1248) for s in second.slots)
     assert {s.parts[1].carried_from for s in second.slots} == {local(2026, 9, 29, 23, 45)}
-
-
-async def test_a_remainder_needs_the_spot_price_and_the_vat(db: Database) -> None:
-    series = await stocked(db)
-    series.describe("entsoe", [OTHER_SPOT])
-    layers = {"supplier": remainder_layer(minus="entsoe:nothing")}
-    missing = await assemble(layers, None, series, date(2026, 9, 29), STOCKHOLM)
-    assert missing.problems == ["layer supplier: no series entsoe:nothing to take out"]
-    no_vat = await assemble(
-        {"supplier": remainder_layer()}, None, series, date(2026, 9, 29), STOCKHOLM
+    # VAT not charged on a layer that excludes it is said.
+    unvatted = await assemble(
+        layers, Vat(rate=0.25, applies_to=()), series, date(2026, 9, 29), STOCKHOLM
     )
-    assert no_vat.problems == [
-        "layer supplier: tibber:home/price.total includes VAT,"
-        " and no VAT rate is set to take it out"
-    ]
-    with pytest.raises(ValueError, match="a remainder names the spot price"):
-        remainder_layer(minus=None)
+    assert "VAT isn't charged on spot, which excludes it" in unvatted.warnings
 
 
 async def test_a_fallback_of_another_kind_is_refused(db: Database) -> None:
