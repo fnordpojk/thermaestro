@@ -1,1 +1,1 @@
-"""Day-ahead prices from the Nordic price sites, with no account."""
+"""Day-ahead prices from Beneficial Apps' Nordic price sites, with no account."""

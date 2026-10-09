@@ -1,13 +1,13 @@
 [project]
 name = "thermaestro"
 version = "0.0.0"
-description = "Heat-pump controller (placeholder release, not usable yet)"
+description = "Plans a home's heating and hot water around prices, weather and the household's goals"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [

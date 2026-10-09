@@ -11,7 +11,7 @@ Nibe's S-series Modbus document (TIF SV 2608) sets the rules this follows:
   its own request until a real pump has shown it.
 
 Everything here is from the documents; nothing has been read on a real S-series pump yet.
-Writing isn't built: Stage 2 only reads.
+Writing isn't built yet: a write is answered as not taken.
 """
 
 import asyncio

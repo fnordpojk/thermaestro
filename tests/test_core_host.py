@@ -62,7 +62,7 @@ async def test_an_instance_runs_and_its_values_arrive(db: Database, tmp_path: Pa
         await until(lambda: instance.health is not None)
     finally:
         await h.stop()
-    assert pumps[0].acts == []  # nothing in Stage 2 acts on a lever
+    assert pumps[0].acts == []  # starting a plugin acts on no lever
     assert state(h, "pump") is State.STOPPED
 
 

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 23:28+0200\n"
+"POT-Creation-Date: 2026-10-09 22:06+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -1080,20 +1080,20 @@ msgstr "Inaktuell efter (minuter)"
 msgid "Stale:"
 msgstr "Inaktuella:"
 
+msgid "Start temperature"
+msgstr "Starttemperatur"
+
 msgid "State"
 msgstr "Tillstånd"
 
 msgid "State:"
 msgstr "Tillstånd:"
 
-msgid "Start temperature"
-msgstr "Starttemperatur"
+msgid "Steps"
+msgstr "Steg"
 
 msgid "Stop temperature"
 msgstr "Stopptemperatur"
-
-msgid "Steps"
-msgstr "Steg"
 
 msgid "Subsidy"
 msgstr "Stöd"
@@ -1547,6 +1547,9 @@ msgstr "varje dag: lägsta, medel och högsta"
 msgid "elsewhere"
 msgstr "någon annanstans"
 
+msgid "empty: learned from how often it reports, 60 to 720"
+msgstr "tomt: lärs från hur ofta den rapporterar, 60 till 720"
+
 msgid "empty: no estimate"
 msgstr "tomt: ingen uppskattning"
 
@@ -1889,5 +1892,3 @@ msgstr "din token"
 #~ "leverantören lägger till, när moms är angiven"
 #~ " nedan."
 
-msgid "empty: learned from how often it reports, 60 to 720"
-msgstr "tomt: lärs från hur ofta den rapporterar, 60 till 720"

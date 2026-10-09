@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-08 23:28+0200\n"
+"POT-Creation-Date: 2026-10-09 22:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1034,19 +1034,19 @@ msgstr ""
 msgid "Stale:"
 msgstr ""
 
+msgid "Start temperature"
+msgstr ""
+
 msgid "State"
 msgstr ""
 
 msgid "State:"
 msgstr ""
 
-msgid "Start temperature"
+msgid "Steps"
 msgstr ""
 
 msgid "Stop temperature"
-msgstr ""
-
-msgid "Steps"
 msgstr ""
 
 msgid "Subsidy"
@@ -1470,6 +1470,9 @@ msgstr ""
 msgid "elsewhere"
 msgstr ""
 
+msgid "empty: learned from how often it reports, 60 to 720"
+msgstr ""
+
 msgid "empty: no estimate"
 msgstr ""
 
@@ -1780,5 +1783,3 @@ msgstr ""
 msgid "your token"
 msgstr ""
 
-msgid "empty: learned from how often it reports, 60 to 720"
-msgstr ""

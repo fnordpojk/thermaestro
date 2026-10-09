@@ -1,4 +1,4 @@
-"""The Nordic price sites' plugin: day-ahead prices from elprisetjustnu.se (Sweden),
+"""Beneficial Apps' Nordic price sites' plugin: day-ahead prices from elprisetjustnu.se (Sweden),
 hvakosterstrommen.no (Norway), elprisenligenu.dk (Denmark) and sahkonhintatanaan.fi
 (Finland). One company, Beneficial Apps AS, runs all four, with one API and no account.
 
@@ -96,7 +96,7 @@ class NordicSitesPlugin(DayAheadPlugin):
         super().__init__(**kwargs)
         area = ZONES.get(settings.zone)
         if area is None or area.country not in SITES:
-            raise ValueError(f"no Nordic price site for {settings.zone!r}")
+            raise ValueError(f"no Beneficial Apps Nordic price site for {settings.zone!r}")
         self.settings = settings
         self.area = area
         self.site = SITES[area.country]

@@ -1,7 +1,7 @@
 """Small stand-ins for the price sources that need no account: Energy-Charts' `/price`,
-the Nordic price sites' daily files, OMIE's marginalpdbc files and Octopus' products and
-unit rates, plus the ECB's 90-day reference rates. The formats are the real ones as read
-on 2026-10-08; the values are invented."""
+Beneficial Apps' Nordic price sites' daily files, OMIE's marginalpdbc files and Octopus'
+products and unit rates, plus the ECB's 90-day reference rates. The formats are the real
+ones as read on 2026-10-08; the values are invented."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

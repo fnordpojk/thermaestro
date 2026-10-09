@@ -1,4 +1,4 @@
-"""Thermaestro, a heat-pump controller. This release is a placeholder."""
+"""Thermaestro: plans heating and hot water around prices, weather and the household's goals."""
 
 from importlib import metadata
 

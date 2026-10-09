@@ -1,5 +1,6 @@
 """The price sources that need no account, against stand-ins for their APIs: Energy-Charts,
-the Nordic price sites, OMIE and Octopus Agile; and which of them a bidding zone gets."""
+Beneficial Apps' Nordic price sites, OMIE and Octopus Agile; and which of them a bidding
+zone gets."""
 
 import asyncio
 import contextlib
@@ -154,7 +155,7 @@ async def test_energy_charts_with_nothing_published() -> None:
             assert (await first_health(health)).state == "up"
 
 
-# --- the Nordic price sites ------------------------------------------------------------------
+# --- Beneficial Apps' Nordic price sites ------------------------------------------------------
 
 
 async def test_a_swedish_site_per_quarter_in_kronor() -> None:
@@ -202,7 +203,7 @@ async def test_finland_is_one_zone_and_its_day_ends_first() -> None:
 
 
 async def test_no_site_outside_the_nordics() -> None:
-    with pytest.raises(ValueError, match="no Nordic price site"):
+    with pytest.raises(ValueError, match="no Beneficial Apps Nordic price site"):
         NordicSitesPlugin(SpotZone(zone="DE-LU"))
 
 

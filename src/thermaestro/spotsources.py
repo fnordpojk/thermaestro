@@ -4,8 +4,8 @@ the one that stands in for it, and the others a household may choose instead.
 The rules:
 - every zone of a country takes its prices from the same source, so a country's prices
   are all treated alike;
-- a source with prices per 15 minutes comes before one with hourly prices; the Nordic
-  price sites stand in where another source is first;
+- a source with prices per 15 minutes comes before one with hourly prices; Beneficial
+  Apps' Nordic price sites stand in where another source is first;
 - a Tibber customer's own prices come first, in the countries Tibber sells in;
 - where Energy-Charts' prices are for private use only and nothing else covers the
   country, ENTSO-E comes first once the household has a token, and Energy-Charts stands in;
