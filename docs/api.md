@@ -38,7 +38,7 @@ Authorization: Bearer thm_...
   - send the CSRF token from the login answer, in the `X-CSRF-Token` header (a form may send it in the `csrf` field instead);
   - send an `Origin` header, or failing that a `Referer`, naming the host the request was sent to.
 - `POST /api/v1/login` and `POST /api/v1/setup` take JSON only. If they carry an `Origin` or `Referer`, it must be this site's.
-- Logins are limited to 30 attempts per client address in 5 minutes. After a wrong password, the user's next login is delayed: 1 second, doubling with each further failure, up to 15 minutes. After 100 failures in a row, the user is disabled.
+- Logins are limited to 30 attempts per client address in 5 minutes. After a wrong password, the user's next login is delayed: 1 second, doubling with each further failure, up to 15 minutes. After 100 failures in a row, the user is disabled. Setting a new password enables it again: another administrator can do it under **Users** (or `PUT /api/v1/users/{name}/password`), and on the host `thermaestro admin reset-password <name>` does it for any user, the last administrator included (in Docker: `docker compose exec thermaestro thermaestro admin reset-password <name>`).
 
 ### Entering the password again
 

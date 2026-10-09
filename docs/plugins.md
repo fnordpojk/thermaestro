@@ -110,7 +110,7 @@ Standard names make points and levers findable. They are listed in [`cap/vocabul
 - **On/off states**, by Home Assistant's binary sensor device classes.
 - **Levers**, with the kinds each may have: `heating.offset` is a setting, `dhw.block` a hold, `dhw.boost_once` a trigger. A name ending in `_input`, such as `room.temp_input`, is a feed.
 
-Names are `area.quantity`. On a node of the area's own kind the area may be left out: `dhw.block` on a hot-water tank is written `hp1/dhw/block`. A name may carry qualifiers in braces, `heat.produced{purpose=dhw}`, and a suffix telling several of the same apart, `temperature#2`.
+Names are `area.quantity`. On a node of the area's own kind the area may be left out: `dhw.block` on a hot-tap-water tank is written `hp1/dhw/block`. A name may carry qualifiers in braces, `heat.produced{purpose=dhw}`, and a suffix telling several of the same apart, `temperature#2`.
 
 Anything outside the vocabulary goes under the plugin's own namespace, `x.<plugin>.<name>`, such as `x.nibe.47134`. The core logs and shows it, but never plans on it. Give such a point a `label` so people can tell what it is.
 

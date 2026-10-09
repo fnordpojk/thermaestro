@@ -22,7 +22,7 @@ Built today:
 Coming:
 
 - **Intents:** the household's goals in its own terms, ranked, with plain reports when one can't be met.
-- **A planner** that looks a day or two ahead in 15-minute steps, using the house and the tank as heat storage.
+- **A planner** that looks a day or two ahead in 15-minute steps, using the house and the hot-tap-water tank as heat storage.
 - **Safe control:** settings taken over, read back and put back on shutdown, and a shadow mode that shows what it would do.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.
 
