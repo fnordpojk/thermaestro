@@ -41,7 +41,7 @@ which adds a line with your name and email:
 Signed-off-by: Your Name <you@example.com>
 ```
 
-Use your real name. To sign off commits you've already made on your branch, `git rebase --signoff main`.
+Use your real name, as in the commit's author. CI checks every new commit and fails on one without its author's sign-off. To sign off commits you've already made on your branch, `git rebase --signoff main`.
 
 ## License
 
