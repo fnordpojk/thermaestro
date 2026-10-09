@@ -116,7 +116,7 @@ Nothing in the tests reaches a real device or the internet. They use stand-ins:
 |---|---|
 | `gateway/tests/simpump.py` | A Nibe bus pump on a pseudo-terminal: the MODBUS40 side of the bus, read and write tokens, LOG.SET pushes. `OtherClient` is another program on the same gateway. `tests/conftest.py` puts the Python gateway in front of it. |
 | `tests/simspump.py` | A Nibe S-series pump: a small Modbus TCP server. Writes are recorded and never applied. |
-| `tests/plant/` | A house, a hot-tap-water tank and a pool behind a simulated Nibe pump, in simulated time. See below. |
+| `tests/plant/` | A house, a hot-water tank and a pool behind a simulated Nibe pump, in simulated time. See below. |
 | `tests/capfake.py` | One invented heat pump, for the plugin conformance suite. `flaws` makes it break one rule at a time. Run as a script, it connects to a core from its own process. |
 | `tests/leverfake.py` | An invented device with one lever of each kind, for the write path. It can accept a write but not keep it, refuse one, answer slowly, or be changed by someone else. |
 | `tests/hafake.py` | Home Assistant's WebSocket API, as much as the plugin uses. |

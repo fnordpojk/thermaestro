@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thermaestro: heat pump control by intent</title>
+<meta name="description" content="Thermaestro plans a home's heating and hot water around electricity prices, the weather and what the household wants. Brand-neutral, open source under the AGPL. Nibe first.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15181b" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://thermaestro.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Thermaestro">
+<meta property="og:title" content="Thermaestro: heat pump control by intent">
+<meta property="og:description" content="Heating and hot water planned around prices, weather and what the household wants. Brand-neutral and open source; Nibe first.">
+<meta property="og:url" content="https://thermaestro.org/">
+<meta property="og:image" content="https://thermaestro.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Thermaestro logo">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="Thermaestro, to the top">
+      <img src="assets/thermaestro-lockup.svg" width="199" height="72" alt="thermaestro">
+    </a>
+    <nav aria-label="Sections">
+      <ul>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#devices">Devices</a></li>
+        <li><a href="#status">Where it stands</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="kicker">Heat pump controller · intent, not registers</p>
+      <h1>Thermaestro</h1>
+      <p class="lead">Thermaestro plans a home's heating and hot water around electricity prices, the weather and the household's needs. The household says what it wants (warm rooms, hot water by seven, cost before comfort within limits), and Thermaestro works out how, tells each device only what it needs, and checks that it happened.</p>
+      <ul class="points">
+        <li>One plan for every device in the house: heat pumps, cascades, air/air units, hot-water tanks, pool, sensors and meters.</li>
+        <li>Goals in household terms, a ranking of what gives way, and plain reports when a goal can't be met.</li>
+        <li>The house and the hot-water tank used as heat storage, within limits the household sets.</li>
+      </ul>
+      <p>It is brand-neutral: devices come in through plugins, whatever the brand and however they are reached. Nibe is the first. Thermaestro is meant to replace NibePi, and is open source under the AGPL.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/fnordpojk/thermaestro">Code on GitHub</a>
+        <a class="button" href="#links">Documentation</a>
+      </div>
+    </div>
+    <aside class="status" aria-label="Status">
+      <h4>Status</h4>
+      <p><strong>Thermaestro reads, and changes nothing yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and control are being built. There is no release yet.</p>
+      <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
+    </aside>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="kicker">Operating principle</p>
+    <h2>How it works</h2>
+    <p class="legend">How to read this page: it describes the design. <span class="tag p">proposal</span> not settled yet. <span class="tag l">later</span> planned, not designed or built. Unmarked items are settled design. <a href="#status">Where it stands</a> says what is built today.</p>
+    <div class="two">
+      <div>
+        <p>Thermaestro works from what the household wants, not from pump settings. The household states its goals and what may give way when not all of them can be met. A planner turns them into a schedule. Thermaestro changes the few settings the schedule needs, then checks what actually happens and learns from it. The household gets reports and can adjust its goals. The approach follows intent-based management as described in IRTF RFC 9315 and 9316.</p>
+        <p><strong>Each device stays in charge of itself.</strong> Thermaestro supervises; it doesn't replace a device's own control. A heat pump keeps its own regulation, defrosting, compressor protection and the regular extra-hot heating of the hot-water tank against legionella. Thermaestro only adjusts the settings each device offers, such as a heating curve offset, the hot-water mode, pausing or forcing hot-water heating, or a temperature setpoint. Setting the flow temperature directly, on pumps that allow it, comes later. <span class="tag l">later</span></p>
+        <p><strong>One controller per setting.</strong> If a device has its own feature that changes the same setting (a maker's price function, the pump's own schedule, or its room control while Thermaestro regulates the heating), that feature has to be turned off. Otherwise Thermaestro leaves the setting alone and says why.</p>
+      </div>
+      <div>
+        <svg class="diagram" viewBox="0 0 86 88" role="img" aria-labelledby="loop-title">
+          <title id="loop-title">The loop: intents go to the planner, the planner to control, control changes the heat pump's settings, follow-up checks the result and reports back to the household.</title>
+          <defs><marker id="arrow" markerWidth="4" markerHeight="4" refX="3.5" refY="2" orient="auto"><path class="head" d="M0 0 L4 2 L0 4z"/></marker></defs>
+          <rect class="box" x="27" y="2" width="32" height="14"/>
+          <text class="t" x="43" y="8" text-anchor="middle">Intents</text>
+          <text class="s" x="43" y="12.6" text-anchor="middle">what the household wants</text>
+          <rect class="box" x="55" y="34" width="30" height="14"/>
+          <text class="t" x="70" y="40" text-anchor="middle">Planner</text>
+          <text class="s" x="70" y="44.6" text-anchor="middle">makes the schedule</text>
+          <rect class="box" x="27" y="66" width="32" height="14"/>
+          <text class="t" x="43" y="72" text-anchor="middle">Control</text>
+          <text class="s" x="43" y="76.6" text-anchor="middle">changes settings, checks</text>
+          <rect class="box" x="1" y="34" width="30" height="14"/>
+          <text class="t" x="16" y="40" text-anchor="middle">Follow-up</text>
+          <text class="s" x="16" y="44.6" text-anchor="middle">goals met? learns</text>
+          <rect class="box device" x="33" y="35.5" width="20" height="11"/>
+          <text class="t device" x="43" y="42.4" text-anchor="middle">heat pump</text>
+          <g class="arrows" marker-end="url(#arrow)">
+            <path d="M59 9 Q70 12 70 33"/>
+            <path d="M70 49 Q70 70 60 73"/>
+            <path d="M26 73 Q16 70 16 49"/>
+            <path d="M16 33 Q16 12 26 9"/>
+            <path d="M43 65 L43 48"/>
+          </g>
+          <text class="s" x="43" y="86" text-anchor="middle">reports go back to the household</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="box-note">
+      <h4>Fail-safe</h4>
+      <p>When Thermaestro shuts down, when a room sensor stops reporting, or when its watchdog trips, it puts back the settings it found. Missing price data alone doesn't do this: Thermaestro then stops moving heat to cheaper hours but keeps the rooms comfortable. Before changing a setting, Thermaestro takes it over, notes its current value, changes it and reads it back. If the pump accepts a value but doesn't keep it, Thermaestro reports that instead of trying again and again. If something else changes a setting Thermaestro is using, it reports the change and doesn't fight it. A watchdog in the gateway, which puts the settings back if Thermaestro itself goes silent, is planned. <span class="tag l">later</span></p>
+    </div>
+  </div>
+</section>
+
+<section id="functions">
+  <div class="wrap">
+    <p class="kicker">Functions</p>
+    <h2>What it does</h2>
+    <p class="intro">The planner looks one to two days ahead in 15-minute steps and plans again whenever something changes. It weighs the heat each climate system needs, hot water, prices, the weather, the heat stored in the house and the hot-water tank, and the heat pump's efficiency at each hour, then picks the actual settings for the next hours, counting every change of a setting as a small cost.</p>
+
+    <div class="group">
+      <h3>Intents</h3>
+      <div class="features">
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 V5 L5 2 L8 5 V8 Z"/></svg></div>
+          <p><strong>Standing intents</strong> apply all the time: a comfort range per climate system on a weekly schedule, hot water ready by set times, a lowest hot-water temperature, how much to favor cost over comfort, when the electric heater may help, the pool, a limit on peak power, quiet hours.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.2"/><path d="M5 3 V5 L6.5 6"/></svg></div>
+          <p><strong>Temporary intents</strong> always have an end: warmer or cooler, please; a bath by 19:30; guests until Sunday; away until the 12th, ready when back; hands off for at most 48 hours; boost now. The newest one wins; when it ends, the one before it applies again. A "fireplace on" intent is proposed. <span class="tag p">proposal</span></p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3 H8 M2 5 H6 M2 7 H7"/></svg></div>
+          <p><strong>Levels are the household's own:</strong> named settings such as "Comfort, 21–22 °C" or "Hot water, 50 °C". The weekly schedule uses levels, so changing one changes it everywhere. A new installation starts with levels taken from the devices' own settings.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 V8 M2 5 H8"/></svg></div>
+          <p><strong>When intents conflict,</strong> a fixed order decides: protection first, then the limits on changing settings, then "hands off", then temporary intents, then standing intents, and last the devices' own settings. <span class="tag p">proposal</span></p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M3 7 V4 M5 7 V2.5 M7 7 V5"/></svg></div>
+          <p><strong>A ranking decides what gives way</strong>, most important first: protective minimum temperatures, the lower edge of each comfort range, hot water marked <i>must</i>, then <i>should</i>, the upper edge of each comfort range, the power peak. One slider sets what is left: saving money against staying close to the target, shown as real limits ("may go 1.5 °C below your target") rather than a number from 1 to 10. <span class="tag p">proposal</span> Where a goal falls short, the report says by how much: "the bath will be ready 40 minutes late".</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Comfort and hot water</h3>
+      <div class="features">
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M4 2 V6.5 A1.6 1.6 0 1 0 6 6.5 V2 Z"/></svg></div>
+          <p><strong>A comfort range per climate system</strong>, measured by room sensors from Home Assistant or MQTT. Thermaestro regulates the room temperature itself, through the setting each device offers for it, so the pump's own room control must be off. How air/air units in single rooms fit in is still to be designed. <span class="tag l">later</span></p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 6 Q5 2 8 6"/><path d="M5 6 V8"/></svg></div>
+          <p><strong>No room sensor?</strong> Then the pump heats on its own heating curve, adjusted ahead of weather changes, and Thermaestro may move heat by up to a set amount toward cheaper hours.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 Q2.5 3.5 3.5 5 Q4.5 6.5 3.5 8 M6.5 2 Q5.5 3.5 6.5 5 Q7.5 6.5 6.5 8"/></svg></div>
+          <p><strong>Hot water as °C at the top of the hot-water tank by a time.</strong> Liters or showers come once the hot-water tank model is calibrated. <span class="tag l">later</span> Thermaestro pauses or forces hot-water heating in whatever way each pump allows. If a pump can't pause it, Thermaestro can only make it heat when power is cheap, and says so.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 L4 5 L6 6.5 L8 2"/></svg></div>
+          <p><strong>A learned demand profile.</strong> Thermaestro notices when hot water is used and learns a typical week. Patterns that repeat are suggested as standing intents, never applied without asking.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Cost, and the house as storage</h3>
+      <div class="features">
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="3" width="6" height="4"/><path d="M8 4.5 H8.8 V5.5 H8"/></svg></div>
+          <p><strong>Prices built from their parts:</strong> the spot price, the supplier's surcharges, energy tax, grid fees and VAT, the same arithmetic in every country, checked against the supplier's own total. Grid tariffs are stored as data. Prices are handled in 15-minute steps.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 V4.5 L5 2 L8 4.5 V8 Z"/><path d="M3.5 7 H6.5 V5.5 H3.5 Z"/></svg></div>
+          <p><strong>A reasonably insulated house is storage.</strong> Thermaestro learns each climate system's heat capacity and losses. Heating ahead is worth it only when the price difference pays for the extra heat lost, given the heat pump's efficiency at that hour.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M2 5 Q4 3 6 5 T8 5"/></svg></div>
+          <p><strong>Slow heating systems.</strong> Underfloor heating in a slab can take a day or more to respond. The planner looks far enough ahead, pre-heats in time, and says how long a request will take: "the floor heating will reach +1 °C in about 9 hours".</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3"/><path d="M5 2 V1 M5 9 V8 M2 5 H1 M9 5 H8"/></svg></div>
+          <p><strong>Seasons and the real world.</strong> Compressor starts, the ground cooling over the winter, defrosting, sun, open windows, quiet hours and holidays are all part of the plan. Goals marked <i>must</i> keep a safety margin in case the forecast is wrong. Cooling is still to be designed. <span class="tag l">later</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Reports, wear and shadow mode</h3>
+      <div class="features">
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 H7.5 V8 H2.5 Z M3.8 4 H6.2 M3.8 5.5 H6.2"/></svg></div>
+          <p><strong>Plain reports.</strong> When an intent is entered, the plan answers at once: the shortfall in time or degrees, what gives way, or what isn't known yet ("the plan firms up when tomorrow's prices are published"), with a choice where there is one. <span class="tag p">proposal</span> While running: what's in control now, and why, against the real prices; who set an override and until when; a daily summary, and savings only ever compared with a reference the household can check. <span class="tag p">proposal</span></p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 V5 L7 7"/><path d="M2 5 A3 3 0 1 0 5 2"/></svg></div>
+          <p><strong>Settings are changed sparingly.</strong> Some pumps store settings in memory that tolerates only a limited number of writes. Thermaestro counts every change as a cost, never rewrites a value that is already right, and has a hard daily limit per setting.</p>
+        </div>
+        <div class="feat">
+          <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5 Q5 1.5 8.5 5 Q5 8.5 1.5 5 Z"/><circle cx="5" cy="5" r="1.2"/></svg></div>
+          <p><strong>Shadow mode.</strong> Thermaestro plans as usual but changes nothing, and shows what it would do. Coming from NibePi, run it alongside to evaluate it and let it learn your house before you switch.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="devices">
+  <div class="wrap">
+    <p class="kicker">One installation, many devices</p>
+    <h2>Devices and plugins</h2>
+    <div class="two">
+      <div>
+        <p><strong>Several devices, one plan.</strong> An installation is a tree of devices, each handled by a plugin. One planner covers every heat source, climate system, hot-water tank and pool in the house: a cascade of heat pumps, a heat pump with air/air units in some rooms, several climate systems with their own room sensors. A plugin declares shared limits, such as one compressor serving either heating or hot water at a time. Other heat sources (a boiler or district-heating addition, a wood stove as a known source) can join the same plan where a plugin can reach them. <span class="tag l">later</span></p>
+        <p><strong>Many brands, many connections.</strong> A plugin reaches its devices whichever way they allow: a bus gateway, Modbus TCP, a local REST gateway, a cloud API, infrared, relay contacts such as SG Ready, or MQTT. Planning never deals with registers or protocols, only with what each device can report and which settings it offers, and how well each of these is known.</p>
+      </div>
+      <div>
+        <p><strong>Nibe first.</strong> The first plugin is for Nibe pumps: F-series and related models through a small gateway on the pump's accessory bus, and S-series over their built-in Modbus TCP. Other brands, air/air units and other heat sources follow as plugins. <span class="tag l">later</span></p>
+        <p><strong>Gateways for Nibe's bus.</strong> Thermaestro's <a href="https://github.com/fnordpojk/esphome-nibe">fork of esphome-nibe</a> runs on an ESP32 with RS485, and <a href="https://github.com/fnordpojk/thermaestro/tree/main/gateway">thermaestro-gateway</a> on Linux with an RS485 adapter. Both speak plain NibeGW and the Thermaestro gateway protocol, which adds a report of what happened to every request, timing from the bus, health statistics and optional authentication. Plain NibeGW gateways work too, with less information.</p>
+      </div>
+    </div>
+
+    <div class="three group">
+      <div>
+        <h3>Home Assistant and MQTT</h3>
+        <p>To Home Assistant, Thermaestro is a device like any other: it publishes its state over MQTT and appears through MQTT discovery. It takes room sensors and other values from Home Assistant or MQTT. Thermaestro is not a Home Assistant add-on.</p>
+      </div>
+      <div>
+        <h3>Users and security</h3>
+        <p>Everyone logs in, on the home network too. Users and groups get rights per kind of action, so a household member can ask for more warmth without being able to change minimum temperatures. Plain HTTP and HTTPS with a self-signed certificate by default. Secrets live in their own file and are never shown back. The project runs no cloud service of its own.</p>
+      </div>
+      <div>
+        <h3>Coming from NibePi</h3>
+        <p>Upload NibePi's <code>config.json</code>: the gateway, the MQTT broker, sensors, location, prices and secrets come over, and its control settings become draft intents to confirm. Before switching, run Thermaestro in shadow mode beside NibePi. <span class="tag">not built yet</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <p class="kicker">Installation</p>
+    <h2>Running it</h2>
+    <div class="two">
+      <div>
+        <p><strong>Today:</strong> a Docker Compose file builds Thermaestro from its source on GitHub. See <a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/docker.md">running it in Docker</a>.</p>
+        <p><strong>At release:</strong> Docker images for amd64 and arm64, and <code>.deb</code> packages for Raspberry Pi OS, 32-bit and 64-bit, from the project's own apt repository. thermaestro-gateway is its own small package, so it can run alone on a Pi next to the pump with the core elsewhere.</p>
+      </div>
+      <div>
+        <p><strong>Setup</strong> adds each device through its plugin, detects its model, firmware, climate systems, hot-water tanks and pool, asks what heats each climate system, and takes room and outdoor sensors, the location and the price source, suggested from the bidding zone. Starting levels come from the pump, so on day one it behaves like the pump on its own.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <p class="kicker">Technical data</p>
+    <h2>In short</h2>
+    <div class="two">
+      <div>
+        <div class="table-wrap">
+          <table>
+            <caption>Software</caption>
+            <tbody>
+              <tr><th scope="row">Core</th><td>Python 3.13</td></tr>
+              <tr><th scope="row">License</th><td>AGPL-3.0-or-later (test vectors also MIT)</td></tr>
+              <tr><th scope="row">Web interface</th><td>Server-rendered; every action has an API counterpart; a command line</td></tr>
+              <tr><th scope="row">Languages</th><td>English, Swedish, German</td></tr>
+              <tr><th scope="row">Plugin interface</th><td>JSON lines with a JSON Schema, in the core or over a Unix socket</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption>Planner</caption>
+            <tbody>
+              <tr><th scope="row">Time step</th><td>15 minutes</td></tr>
+              <tr><th scope="row">Horizon</th><td>24–48 hours, as far as the slowest climate system needs <span class="tag p">proposal</span></td></tr>
+              <tr><th scope="row">Method</th><td>Linear programming (HiGHS), goals solved in order of rank</td></tr>
+              <tr><th scope="row">How goals are treated</th><td>They can give way, with any shortfall stated in minutes or degrees; only physics, device limits and protections are absolute <span class="tag p">proposal</span></td></tr>
+              <tr><th scope="row">Setting changes</th><td>About 50 per device and day planned; a hard stop at 200 per setting and day; both configurable</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="table-wrap">
+          <table>
+            <caption>Data sources</caption>
+            <tbody>
+              <tr><th scope="row">Prices, no account</th><td>Energy-Charts, Beneficial Apps' Nordic price sites, OMIE (Spain, Portugal)</td></tr>
+              <tr><th scope="row">Prices, own token</th><td>Tibber, ENTSO-E (every European zone)</td></tr>
+              <tr><th scope="row">Great Britain</th><td>Octopus Agile</td></tr>
+              <tr><th scope="row">Weather</th><td>MET Norway, SMHI, Open-Meteo, each scored against the house's own outdoor sensor; Home Assistant as a fallback</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption>Hosts and devices</caption>
+            <tbody>
+              <tr><th scope="row">Docker</th><td>A Compose file that builds from source today; amd64 and arm64 images <span class="tag">at release</span></td></tr>
+              <tr><th scope="row">Raspberry Pi OS</th><td>32-bit and 64-bit packages <span class="tag">at release</span></td></tr>
+              <tr><th scope="row">Heat pumps</th><td>Nibe F-series and related models; Nibe S-series over Modbus TCP; other brands by plugin <span class="tag">later</span></td></tr>
+              <tr><th scope="row">Other heat sources</th><td>In the same plan where a plugin reaches them <span class="tag l">later</span></td></tr>
+              <tr><th scope="row">Sensors and meters</th><td>Home Assistant and MQTT, indoors and outdoors</td></tr>
+              <tr><th scope="row">Smallest host for everything</th><td>To be measured <span class="tag l">later</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="status" class="stand">
+  <div class="wrap">
+    <p class="kicker">Where it stands</p>
+    <h2>Reading first, control next</h2>
+    <p class="intro">Thermaestro reads, and changes nothing yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi.</p>
+    <div class="three">
+      <div>
+        <h3>Built</h3>
+        <ul>
+          <li>The core: plugins, every value with its quality and history, an audit log, the command line.</li>
+          <li>The Nibe plugin: both gateway protocols; F-series read on a real F1245; S-series from Nibe's documentation, not yet tried on a real pump.</li>
+          <li>Room and outdoor sensors from Home Assistant and MQTT, each with its reporting rhythm learned.</li>
+          <li>Prices and weather from the sources above, the price built from its parts.</li>
+          <li>Home Assistant discovery over MQTT.</li>
+          <li>The web interface: logins, users, groups and rights, setup, charts, an API for every action.</li>
+          <li>A read-only probe that reports what Thermaestro reads from a pump, for testers.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Being built</h3>
+        <ul>
+          <li>Intents: the household's goals are already kept and resolved, and the starting levels are taken from the pump's own settings. Nothing acts on them yet.</li>
+          <li>The planner.</li>
+          <li>Safe control: settings taken over, read back and put back, and shadow mode.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Later</h3>
+        <ul>
+          <li>Learning: the house and hot-water tank models and the optimizer.</li>
+          <li>Release images, Raspberry Pi OS packages and a beta channel.</li>
+          <li>Migration from NibePi.</li>
+          <li>Testers on other pump models, once it runs reliably on the first.</li>
+          <li>Other brands and heat sources, by plugin.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="links">
+  <div class="wrap">
+    <p class="kicker">Code and documentation</p>
+    <h2>Links</h2>
+    <div class="two">
+      <ul class="links">
+        <li><a href="https://github.com/fnordpojk/thermaestro">github.com/fnordpojk/thermaestro</a><br><span>The core, the plugins, and thermaestro-gateway in <code>gateway/</code></span></li>
+        <li><a href="https://github.com/fnordpojk/esphome-nibe">github.com/fnordpojk/esphome-nibe</a><br><span>Thermaestro's fork of esphome-nibe, for an ESP32 on the pump's bus</span></li>
+      </ul>
+      <ul class="links">
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/setup.md">Setting it up</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/docker.md">Running it in Docker</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/probe.md">The read-only probe, for testers</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/plugins.md">Writing a plugin</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/gateway-protocol.md">The gateway protocol</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>Thermaestro is open source under the AGPL-3.0-or-later.</p>
+    <p>Thermaestro is not affiliated with NIBE Energy Systems. NIBE, Smart Price Adaption and myUplink are NIBE's names.</p>
+  </div>
+</footer>
+
+</body>
+</html>
