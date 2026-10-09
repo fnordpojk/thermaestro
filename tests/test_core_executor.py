@@ -310,11 +310,12 @@ async def test_after_a_crash_what_was_left_changed_is_put_back(tmp_path: Path) -
 
 async def test_a_silent_planner_has_everything_put_back(tmp_path: Path) -> None:
     async with rig(tmp_path, {OFFSET: "control"}) as r:
-        r.executor.heartbeat()
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
-        await until(lambda: r.device.registers["x.fake.offset"] == -4, timeout=3)
+        r.executor.heartbeat()
+        await until(lambda: any(e["what"] == "lever.restore" for e in audited(r)), timeout=5)
         restore = [e for e in audited(r) if e["what"] == "lever.restore"]
         assert restore[-1]["why"] == "the planner stopped answering"
+        assert r.device.registers["x.fake.offset"] == -4
 
 
 async def test_a_newer_request_replaces_one_still_waiting(tmp_path: Path) -> None:
