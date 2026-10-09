@@ -29,9 +29,6 @@ from thermaestro.nibe.maps import load
 from thermaestro.nibe.plugin import NibePlugin
 from thermaestro.store import LeverMode
 
-SCHEDULE = "the pump's hot-water schedule (menu 2.3)"
-HOT_WATER: dict[str, tuple[str, ...]] = {"dhw/block": (SCHEDULE,), "dhw/mode": (SCHEDULE,)}
-
 
 def scenario(seed: int = 1, **changes: object) -> Scenario:
     return replace(draw(seed, emitter="radiators"), **changes)  # type: ignore[arg-type]
@@ -108,7 +105,7 @@ def test_the_block_holds_off_charges_for_hours(tmp_path: Path) -> None:
     s = scenario(draws=(Draw(hour=1.0, liters=60.0, minutes=8.0),)).set({47050: 0})
 
     async def body() -> None:
-        sim = Sim(s, tmp_path, levers={"dhw/block": "control"}, confirmed_off=HOT_WATER)
+        sim = Sim(s, tmp_path, levers={"dhw/block": "control"})
         async with running(sim):
             engaged = await sim.act("dhw/block", "engage")
             assert engaged.outcome == "awaiting_effect"
@@ -125,13 +122,32 @@ def test_the_block_holds_off_charges_for_hours(tmp_path: Path) -> None:
     run(s, body)
 
 
+def test_price_adaption_must_be_confirmed_off(tmp_path: Path) -> None:
+    """Until the household says the pump's own price adaption is off, the offset is
+    Thermaestro's to read, not to change."""
+    s = scenario()
+
+    async def body() -> None:
+        sim = Sim(s, tmp_path, levers={"cs1/heating.offset": "control"}, confirmed_off={})
+        async with running(sim):
+            result = await sim.act("cs1/heating.offset", "set", {"value": 2})
+            assert (result.outcome, result.detail) == (
+                "refused",
+                "the pump's Smart Price Adaption (with myUplink) may be on: confirm it's"
+                " switched off",
+            )
+            assert sim.bus.writes == []
+
+    run(s, body)
+
+
 def test_a_restart_mid_hold_puts_it_back(tmp_path: Path) -> None:
     """The process dies with the block engaged; an hour later it starts again, puts the
     start temperature back, and says so."""
     s = scenario()
 
     async def body() -> None:
-        sim = Sim(s, tmp_path, levers={"dhw/block": "control"}, confirmed_off=HOT_WATER)
+        sim = Sim(s, tmp_path, levers={"dhw/block": "control"})
         async with running(sim):
             await sim.act("dhw/block", "engage")
             await sim.stop(restore=False)
@@ -235,13 +251,13 @@ def shadow_equals_control(path: Path, s: Scenario, days: float) -> None:
     shadows: dict[str, LeverMode] = dict.fromkeys(LEVERS, "shadow")
 
     async def control() -> Sim:
-        sim = Sim(s, path / "control", controls, HOT_WATER, record=True)
+        sim = Sim(s, path / "control", controls, record=True)
         async with running(sim):
             await sim.run(days, stand_in)
         return sim
 
     async def shadow(frames: list[Frame]) -> Sim:
-        sim = Sim(s, path / "shadow", shadows, HOT_WATER, replay=frames)
+        sim = Sim(s, path / "shadow", shadows, replay=frames)
         async with running(sim):
             await sim.run(days, stand_in)
         return sim

@@ -26,6 +26,7 @@ from thermaestro.nibe.plugin import NibePlugin
 from thermaestro.store import Control, Database, Layout, NibeGateway, Plugin, SecretStore
 
 SCHEDULE = "the pump's hot-water schedule (menu 2.3)"
+PRICED = "the pump's Smart Price Adaption (with myUplink)"
 
 STOCK = {
     **PUMP,
@@ -104,13 +105,15 @@ async def test_the_levers_on_offer(stocked: SimPump, gateway: Gateway) -> None:
     }
     offset = levers["cs1/heating.offset"]
     assert offset.preconditions.value == ("hp1/cs1/x.nibe.47394 == 0",)
-    assert offset.competing_features == ()
+    assert [f.name for f in offset.competing_features] == [PRICED]
     mode = levers["dhw/mode"]
     assert mode.params["value"].enum.value == {"eco": 0, "normal": 1, "lux": 2}
-    assert [f.name for f in mode.competing_features] == [SCHEDULE]
+    assert [f.name for f in mode.competing_features] == [SCHEDULE, PRICED]
     block = levers["dhw/block"]
     assert block.implementation.how == "Normal's start temperature (47044) lowered to 25.0 °C"
-    assert [f.name for f in block.competing_features] == [SCHEDULE]
+    assert [f.name for f in block.competing_features] == [SCHEDULE, PRICED]
+    assert [f.name for f in levers["pool1/block"].competing_features] == [PRICED]
+    assert levers["addition/stop_temp"].competing_features == ()
     assert levers["addition/stop_temp"].preconditions.value == ("hp1/x.nibe.47137 == 0",)
     assert levers["pool1/block"].kind == "hold"
     nodes = {n.path: n for n in described.nodes}
@@ -434,7 +437,8 @@ async def daemon(
             ),
             "pump",
         )
-        confirmed = {f"pump:hp1/{lv}": (SCHEDULE,) for lv in ("dhw/mode", "dhw/block")}
+        # The household has confirmed the pump's own schedule and price adaption are off.
+        confirmed = {f"pump:hp1/{lv}": (SCHEDULE, PRICED) for lv in levers}
         await db.put(
             Control(levers={f"pump:hp1/{k}": v for k, v in levers.items()}, confirmed_off=confirmed)
         )

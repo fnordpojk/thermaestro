@@ -582,6 +582,12 @@ NEVER_WRITTEN = frozenset(
 DATABASE = "Nibe register database"
 SCHEDULE = CompetingFeature(name="the pump's hot-water schedule (menu 2.3)")
 """No register for it is known, so whether it is off is the household's to confirm."""
+PRICE_ADAPTION = CompetingFeature(name="the pump's Smart Price Adaption (with myUplink)")
+"""It moves the heating offset, the hot-water mode and the pool by price on its own. What
+its state register says isn't documented, and a pump doesn't say whether it has myUplink,
+so the household confirms it is off."""
+PRICE_ADAPTION_STATE = 44908
+"""Present in the maps of the models that have Smart Price Adaption."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -667,6 +673,7 @@ def levers(
     """The levers this pump offers, and how each is carried out. `values` are the values
     last read: the hot-water block's description names the mode it would block."""
     out = []
+    priced = (PRICE_ADAPTION,) if PRICE_ADAPTION_STATE in model else ()
     for system in SYSTEMS:
         cs = f"cs{system.number}"
         if system.offset is None or f"{cs}/x.nibe.{system.offset}" not in points:
@@ -687,6 +694,7 @@ def levers(
                 _number(-10, 10, 1, None, DATABASE),
                 _documented("installer manual"),
                 preconditions=conditions,
+                competing_features=priced,
             )
         )
     mode_point = f"dhw/x.nibe.{HOT_WATER_MODE}"
@@ -706,7 +714,7 @@ def levers(
                     ),
                 ),
                 _documented(DATABASE),
-                competing_features=(SCHEDULE,),
+                competing_features=(SCHEDULE, *priced),
                 names=MODES,
             )
         )
@@ -738,7 +746,7 @@ def levers(
                         expectation="no charge until the charge sensor reaches"
                         f" {BLOCK_START:.1f} °C",
                     ),
-                    competing_features=(SCHEDULE,),
+                    competing_features=(SCHEDULE, *priced),
                     touches=tuple(f"x.nibe.{r}" for r in sorted(starts)),
                 ),
                 starts=MODE_STARTS,
@@ -816,6 +824,7 @@ def levers(
                         f"{node}/x.nibe.{register}",
                         _number(5, 80, 0.1, "degC", DATABASE),
                         _documented(untried),
+                        competing_features=priced,
                     )
                 )
         if f"{node}/x.nibe.{pool.activated}" in points:
@@ -835,6 +844,7 @@ def levers(
                         verify=Verify(
                             kind="effect", point=f"{UNIT}/demand", expectation="no pool demand"
                         ),
+                        competing_features=priced,
                         touches=(f"x.nibe.{pool.activated}",),
                     ),
                     register=pool.activated,

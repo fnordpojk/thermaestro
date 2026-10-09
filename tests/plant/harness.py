@@ -20,6 +20,7 @@ from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
 from thermaestro.core.executor import COUNTED, Result
+from thermaestro.nibe import profile
 from thermaestro.nibe.plugin import NibePlugin
 from thermaestro.store import Control, Database, LeverMode, NibeGateway, Plugin, SecretStore
 
@@ -110,7 +111,9 @@ class Sim:
     path: Path
     levers: dict[str, LeverMode] = field(default_factory=dict)
     """By path below the pump's unit: `dhw/block`."""
-    confirmed_off: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    confirmed_off: dict[str, tuple[str, ...]] | None = None
+    """The competing features the household confirmed off, by lever; by default all of
+    them, for every lever."""
     replay: list[Frame] | None = None
     record: bool = False
 
@@ -136,12 +139,14 @@ class Sim:
                 Plugin(plugin="nibe", settings={"host": "plant.invalid", "model": "F1245"}), PUMP
             )
             await self.db.put(Plugin(plugin="plant_sensors"), "sensors")
+            confirmed = self.confirmed_off
+            if confirmed is None:  # the pump's own schedule and price adaption are off
+                everything = (profile.SCHEDULE.name, profile.PRICE_ADAPTION.name)
+                confirmed = dict.fromkeys(self.levers, everything)
             await self.db.put(
                 Control(
                     levers={f"{PUMP}:hp1/{k}": v for k, v in self.levers.items()},
-                    confirmed_off={
-                        f"{PUMP}:hp1/{k}": tuple(v) for k, v in self.confirmed_off.items()
-                    },
+                    confirmed_off={f"{PUMP}:hp1/{k}": tuple(v) for k, v in confirmed.items()},
                 )
             )
             self._tasks.append(asyncio.create_task(every(STEP_S, self._step)))
