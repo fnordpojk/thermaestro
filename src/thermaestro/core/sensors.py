@@ -29,15 +29,23 @@ from .. import clock, durations
 from ..cap.model import Envelope, Quality
 from ..cap.vocabulary import QUANTITIES, STATES
 from ..store import Database, Display, Names, Outdoor, Room, Sensor
-from .values import Key, Values
+from .values import DAY_S, HELD_MAX_S, Key, Values
 
 log = logging.getLogger(__name__)
 
 SENSORS = "sensors"
 SITE = "site"
 DEFAULT_FRESHNESS_S = 3600.0
-"""A sensor that hasn't reported for an hour is stale, unless it says otherwise. Many
-report only on a change, so a quiet one isn't necessarily a dead one."""
+"""The least time a sensor may stay quiet before it is stale, and the limit until its
+rhythm is known."""
+MAX_FRESHNESS_S = HELD_MAX_S
+"""The most: a reading stops counting after twelve hours, however slowly a sensor
+reports."""
+RHYTHM_DAYS = 7
+RHYTHM_FACTOR = 2.0
+"""Many sensors report only on a change, so a quiet one isn't necessarily a dead one. A
+sensor is stale once it has been quiet for twice its longest silence over the last week,
+within those bounds, unless its setting says otherwise."""
 
 ROOM_UNITS = {"heat_demand": "%", "setpoint": "degC"}
 ANY_OPEN = {"zone.open", "window.open", *STATES}
@@ -120,6 +128,10 @@ class SensorHub:
         self._readings: dict[str, Reading] = {}
         self._by_point: dict[str, list[str]] = {}
         self._by_topic: dict[str, list[str]] = {}
+        self._silences: dict[str, dict[int, float]] = {}
+        """Each sensor's longest silence, by day (days since the epoch, UTC)."""
+        self._unsaved: set[tuple[str, int]] = set()
+        self._forgotten: int | None = None
         values.listeners.append(self._heard)
 
     # --- settings --------------------------------------------------------------------------
@@ -128,9 +140,15 @@ class SensorHub:
         """Read the sensor, room, outdoor and name settings again, after a change."""
 
         def read(t: Any) -> tuple[Any, ...]:
-            return t.all(Sensor), t.all(Room), t.get(Outdoor), t.get(Names), t.get(Display)
+            silences = list(t.execute("SELECT sensor, day, longest FROM sensor_silences"))
+            settings = t.all(Sensor), t.all(Room), t.get(Outdoor), t.get(Names), t.get(Display)
+            return *settings, silences
 
-        sensors, rooms, outdoor, names, display = await self._db.run(read)
+        sensors, rooms, outdoor, names, display, silences = await self._db.run(read)
+        for id, day, longest in silences:
+            days = self._silences.setdefault(id, {})
+            days[day] = max(days.get(day, 0.0), longest)
+        self._silences = {id: s for id, s in self._silences.items() if id in sensors}
         self.display = display or Display()
         self.sensors, self.rooms = sensors, rooms
         self.outdoor = outdoor or Outdoor()
@@ -178,9 +196,34 @@ class SensorHub:
         value = reading.value
         if isinstance(value, int | float) and not isinstance(value, bool):
             reading.value = float(value) + sensor.calibration_offset
+        previous = self._readings.get(id)
+        if previous is not None and reading.t > previous.t:
+            self._silence(id, reading.t - previous.t, reading.t)
         self._readings[id] = reading
         self._publish(id)
         self._derive()
+
+    def _silence(self, id: str, seconds: float, ended: float) -> None:
+        """A silence between two reports, kept where it is the day's longest. One across
+        a restart isn't seen: the sensor wasn't the one quiet."""
+        day = int(ended // DAY_S)
+        days = self._silences.setdefault(id, {})
+        if seconds > days.get(day, 0.0):
+            days[day] = seconds
+            self._unsaved.add((id, day))
+
+    def freshness(self, id: str) -> tuple[float, bool]:
+        """How long the sensor may stay quiet before it is stale, and whether that was
+        learned from its rhythm rather than set or the default."""
+        set_s = self.sensors[id].freshness_s
+        if set_s is not None:
+            return min(set_s, MAX_FRESHNESS_S), False
+        today = int(self._clock() // DAY_S)
+        week = [s for d, s in self._silences.get(id, {}).items() if d > today - RHYTHM_DAYS]
+        if not week:
+            return DEFAULT_FRESHNESS_S, False
+        learned = RHYTHM_FACTOR * max(week)
+        return min(max(learned, DEFAULT_FRESHNESS_S), MAX_FRESHNESS_S), True
 
     def tick(self) -> None:
         """Mark sensors that have gone quiet as stale; call regularly."""
@@ -192,9 +235,37 @@ class SensorHub:
         if changed:
             self._derive()
 
+    async def save(self) -> None:
+        """Keep the silences learned since the last save, and forget those older than a
+        week."""
+        unsaved, self._unsaved = self._unsaved, set()
+        rows = [
+            (id, day, self._silences[id][day])
+            for id, day in unsaved
+            if day in self._silences.get(id, {})
+        ]
+        oldest = int(self._clock() // DAY_S) - RHYTHM_DAYS
+
+        def write(t: Any) -> None:
+            t.executemany(
+                "INSERT OR REPLACE INTO sensor_silences (sensor, day, longest) VALUES (?, ?, ?)",
+                rows,
+            )
+            t.execute("DELETE FROM sensor_silences WHERE day <= ?", (oldest,))
+
+        if rows or oldest != self._forgotten:  # old days are forgotten once a day
+            try:
+                await self._db.run(write)
+            except BaseException:
+                self._unsaved |= unsaved  # for the next save
+                raise
+            self._forgotten = oldest
+        for days in self._silences.values():
+            for day in [d for d in days if d <= oldest]:
+                del days[day]
+
     def _stale(self, id: str, reading: Reading) -> bool:
-        limit = self.sensors[id].freshness_s or DEFAULT_FRESHNESS_S
-        return self._clock() - reading.received > limit
+        return self._clock() - reading.received > self.freshness(id)[0]
 
     def _current(self, id: str) -> Reading | None:
         reading = self._readings.get(id)

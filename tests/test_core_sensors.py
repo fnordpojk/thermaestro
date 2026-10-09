@@ -205,3 +205,52 @@ async def test_the_outdoor_reference(db: Database) -> None:
 def test_room_sensors_belong_to_rooms() -> None:
     with pytest.raises(ValueError, match="only a room sensor"):
         Sensor(name="x", source="mqtt", topic="t", placement="outdoor", room="living")
+
+
+async def test_a_quiet_sensor_is_stale_by_its_own_rhythm(db: Database) -> None:
+    """Twice its longest silence over the week, between an hour and twelve; learned
+    across a restart, but a silence across one isn't the sensor's."""
+    clock = Clock()
+    await db.put(Room(name="Hall"), "hall")
+    await db.put(Sensor(name="Hall", source="mqtt", topic="t/hall", room="hall"), "hall")
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock)
+    await hub.load()
+    assert hub.freshness("hall") == (3600, False)  # nothing known yet
+    hub.receive_mqtt("t/hall", b"20.5")
+    clock.now += 600
+    hub.receive_mqtt("t/hall", b"20.6")
+    assert hub.freshness("hall") == (3600, True)  # 20 minutes: the least
+    clock.now += 3 * 3600
+    hub.receive_mqtt("t/hall", b"20.7")
+    assert hub.freshness("hall") == (6 * 3600, True)
+    clock.now += 5 * 3600
+    hub.tick()
+    assert values.latest[Key(SENSORS, "hall/temperature")].quality == "good"
+    clock.now += 2 * 3600
+    hub.tick()
+    assert values.latest[Key(SENSORS, "hall/temperature")].quality == "stale"
+    hub.receive_mqtt("t/hall", b"20.8")  # after 7 hours: 14 is more than the most
+    assert hub.freshness("hall") == (12 * 3600, True)
+    await hub.save()
+
+    again = SensorHub(db, Values(db), clock=clock)
+    await again.load()
+    assert again.freshness("hall") == (12 * 3600, True)
+    clock.now += 20 * 3600  # Thermaestro was down
+    again.receive_mqtt("t/hall", b"20.9")
+    assert max(again._silences["hall"].values()) == 7 * 3600
+    clock.now += 7 * 86_400
+    assert again.freshness("hall") == (3600, False)  # a week on, forgotten
+    await again.save()
+    assert await db.run(lambda t: list(t.execute("SELECT * FROM sensor_silences"))) == []
+
+
+async def test_a_set_limit_wins_up_to_twelve_hours(db: Database) -> None:
+    await db.put(
+        Sensor(name="Attic", source="mqtt", topic="t/attic", placement="other", freshness_s=86_400),
+        "attic",
+    )
+    hub = SensorHub(db, Values(db), clock=Clock())
+    await hub.load()
+    assert hub.freshness("attic") == (12 * 3600, False)

@@ -5,8 +5,10 @@ or changes it; a part of the house that already has an intent of the kind isn't 
 - Each climate system: a level from its rooms' mean temperature over the last week,
   ±0.5 °C, and a comfort band at that level all the time; without a room sensor, normal
   heat that price may shift a little.
-- The tank: a level at the top's usual daily high, and a floor at its usual daily low.
-- A pool: a level between its usual low and high.
+- The tank: a level at the device's stop temperature and a floor at its start
+  temperature, both at the top; where the device doesn't say them, the top's usual daily
+  high and low.
+- A pool: a level between its start and stop temperatures, or its usual low and high.
 - The addition: the pump's own logic.
 
 Nothing here sets a cost stance or a power limit: those are the household's to set.
@@ -35,8 +37,9 @@ class Found:
     room_means: Mapping[str, float] = field(default_factory=dict)
     """A room's mean temperature over the last week."""
     tanks: Mapping[str, tuple[float, float]] = field(default_factory=dict)
-    """A tank's top temperature: its usual daily low and high."""
+    """A tank's start and stop temperatures, or its top's usual daily low and high."""
     pools: Mapping[str, tuple[float, float]] = field(default_factory=dict)
+    """A pool's start and stop temperatures, or its usual daily low and high."""
     addition: bool = False
 
 

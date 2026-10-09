@@ -222,6 +222,16 @@ MIGRATIONS: tuple[str, ...] = (
             "intent.temporary.create.guests", "plan.read"]') AS granted
         WHERE EXISTS (SELECT 1 FROM groups WHERE name = 'Household');
     """,
+    # 11: how often each sensor reports: its longest silence each day, so one that reports
+    # seldom isn't taken for stale
+    """
+    CREATE TABLE IF NOT EXISTS sensor_silences (
+        sensor TEXT NOT NULL,
+        day INTEGER NOT NULL,
+        longest REAL NOT NULL,
+        PRIMARY KEY (sensor, day)
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

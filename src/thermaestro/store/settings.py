@@ -286,8 +286,9 @@ class Sensor(Setting):
     room's sensors (a sensor above a radiator isn't representative; one on an inner wall
     is)."""
     freshness_s: Annotated[float, Field(gt=0)] | None = None
-    """How old a value may get before it's stale; None for Thermaestro's default. A
-    room sensor is never 'never stale', since a stale one restores the pump's settings."""
+    """How long the sensor may stay quiet before its value is stale, at most twelve hours;
+    None to learn it from how often the sensor reports. A room sensor is never 'never
+    stale', since a stale one restores the pump's settings."""
     calibration_offset: float = 0.0
 
     @model_validator(mode="after")

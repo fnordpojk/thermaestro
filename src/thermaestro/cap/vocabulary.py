@@ -62,6 +62,8 @@ POINTS: dict[str, PointName] = {
     "temp.top": _p("degC", DHW),
     "temp.mid": _p("degC", DHW),
     "temp.charge": _p("degC", DHW),
+    "temp.start": _p("degC", DHW, "pool"),
+    "temp.stop": _p("degC", DHW, "pool"),
     "pool.temp": _p("degC", "pool"),
     "room.temp": _p("degC", ROOM, CS),
     "brine.in.temp": _p("degC", "brine_circuit"),

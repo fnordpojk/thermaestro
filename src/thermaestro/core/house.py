@@ -5,7 +5,7 @@ has run over the last week; and each climate system's emitter where a device say
 
 import logging
 import statistics
-from datetime import UTC, timedelta, tzinfo
+from datetime import UTC, date, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
 from .. import clock
@@ -17,7 +17,9 @@ from .values import Key, Values
 log = logging.getLogger(__name__)
 
 WEEK = timedelta(days=7)
+DAY = timedelta(days=1)
 EMITTERS = {"radiators", "floor", "radiators_and_floor", "fan_coils"}
+EDGES = ("start", "stop")
 
 
 class House:
@@ -103,24 +105,23 @@ class House:
 
     async def found(self) -> Found:
         """How the house has run over the last week, for seeding. A climate system whose
-        rooms have no day of readings yet is left out until they have one."""
+        rooms have no day of readings yet is left out until they have one. A tank's or
+        pool's start and stop temperatures where its device says them, else its usual
+        daily low and high."""
         caps = self.capabilities
         now = clock.time()
         location = await self._db.get(Location)
         zone = ZoneInfo(location.timezone) if location is not None else UTC
         means = {}
         for room in caps.rooms:
-            days = await self._values.daily(
-                Key("site", f"room.{room.removeprefix('room:')}/temperature"),
-                now - WEEK.total_seconds(),
-                now,
-                zone,
+            days = await self._week(
+                Key("site", f"room.{room.removeprefix('room:')}/temperature"), now, zone
             )
             if days:
                 means[room] = statistics.fmean(mean for _, _, mean, _ in days)
         waiting = {s for r, s in caps.rooms.items() if r not in means}
-        tanks = await self._ranges(caps.tanks, "temp.top", now, zone)
-        pools = await self._ranges(caps.pools, "temp", now, zone)
+        tanks = await self._ranges(caps.tanks, "temp.top", now, zone) | self._settings(caps.tanks)
+        pools = await self._ranges(caps.pools, "temp", now, zone) | self._settings(caps.pools)
         return Found(
             systems=tuple(sorted(caps.systems - waiting)),
             rooms=dict(caps.rooms),
@@ -130,6 +131,21 @@ class House:
             addition=caps.addition,
         )
 
+    def _settings(self, scopes: frozenset[str]) -> dict[str, tuple[float, float]]:
+        """For each node whose device says them, its start and stop temperatures."""
+        out = {}
+        for scope in scopes:
+            instance, _, path = scope.partition(":")
+            found = [self._values.latest.get(Key(instance, f"{path}/temp.{e}")) for e in EDGES]
+            values = [
+                e.value
+                for e in found
+                if e is not None and e.quality == "good" and isinstance(e.value, float)
+            ]
+            if len(values) == 2:
+                out[scope] = (values[0], values[1])
+        return out
+
     async def _ranges(
         self, scopes: frozenset[str], point: str, now: float, zone: tzinfo
     ) -> dict[str, tuple[float, float]]:
@@ -137,12 +153,19 @@ class House:
         out = {}
         for scope in scopes:
             instance, _, path = scope.partition(":")
-            days = await self._values.daily(
-                Key(instance, f"{path}/{point}"), now - WEEK.total_seconds(), now, zone
-            )
+            days = await self._week(Key(instance, f"{path}/{point}"), now, zone)
             if days:
                 out[scope] = (
                     statistics.median(low for _, low, _, _ in days),
                     statistics.median(high for _, _, _, high in days),
                 )
         return out
+
+    async def _week(
+        self, key: Key, now: float, zone: tzinfo
+    ) -> list[tuple[date, float, float, float]]:
+        """The point's days over the last week, once its history goes back a day."""
+        first = await self._values.first(key)
+        if first is None or first > now - DAY.total_seconds():
+            return []
+        return await self._values.daily(key, now - WEEK.total_seconds(), now, zone)

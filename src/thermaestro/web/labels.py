@@ -14,6 +14,8 @@ POINTS = {
     "temp.top": mark("Top temperature"),
     "temp.mid": mark("Middle temperature"),
     "temp.charge": mark("Charging temperature"),
+    "temp.start": mark("Start temperature"),
+    "temp.stop": mark("Stop temperature"),
     "room.temp": mark("Room temperature"),
     "brine.in.temp": mark("Brine in"),
     "brine.delta_t": mark("Brine delta-T"),

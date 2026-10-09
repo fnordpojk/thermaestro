@@ -27,7 +27,7 @@
   <label class="check"><input type="checkbox" name="reference" value="1"{% if s and s.reference %} checked{% endif %}> {{ _("the room's reference") }}</label>
   <label>{{ _("Calibration") }} <small>{{ _("added to each value") }}</small>
     <input name="calibration_offset" inputmode="decimal" value="{{ s.calibration_offset if s else 0 }}"></label>
-  <label>{{ _("Stale after (minutes)") }} <small>{{ _("empty: 60") }}</small>
+  <label>{{ _("Stale after (minutes)") }} <small>{{ _("empty: learned from how often it reports, 60 to 720") }}</small>
     <input name="freshness_min" inputmode="numeric" value="{{ (s.freshness_s / 60) | round | int if s and s.freshness_s else '' }}"></label>
   <button type="submit">{{ _("Save") }}</button>
 </form>

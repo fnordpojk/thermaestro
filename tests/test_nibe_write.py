@@ -313,6 +313,33 @@ async def test_the_hot_water_block(stocked: SimPump, gateway: Gateway) -> None:
     assert [r for r, _ in stocked.taken_writes] == [47044, 47044]
 
 
+async def test_the_start_and_stop_under_standard_names(stocked: SimPump, gateway: Gateway) -> None:
+    """The current mode's; while the block lowers the start, what its release puts back;
+    none in Smart Control. The pool's as they are."""
+    stocked.registers.update({47047: 530, 47048: 500, 47049: 470})
+    p = plugin(gateway)
+
+    def edges(node: str = "dhw") -> tuple[object, ...]:
+        return tuple(p.envelope(f"hp1/{node}/temp.{e}").value for e in ("start", "stop"))
+
+    async with served(p) as link:
+        await until(lambda: edges() == (45.0, 50.0))
+        await until(lambda: edges("pool1") == (22.0, 28.0))
+        points = {pt.path for pt in p.describe().points}
+        assert {"hp1/dhw/temp.start", "hp1/dhw/temp.stop", "hp1/pool1/temp.start"} <= points
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+        await until(lambda: p.envelope("hp1/dhw/x.nibe.47044").value == 25.0)
+        assert edges() == (45.0, 50.0)
+        stocked.registers[47041] = 0
+        await until(lambda: edges() == (42.0, 47.0))
+        stocked.registers[47041] = 4
+        await until(lambda: edges() == (None, None))
+        assert p.envelope("hp1/dhw/temp.start").why == "Smart Control has no setting of its own"
+        stocked.registers[47041] = 1
+        await until(lambda: edges() == (45.0, 50.0))
+        await act(link, "dhw/block", "release")
+
+
 async def test_the_pool_block(stocked: SimPump, gateway: Gateway) -> None:
     p = plugin(gateway)
     async with served(p) as link:

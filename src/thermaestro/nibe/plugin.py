@@ -737,7 +737,49 @@ class NibePlugin:
         liters_per_s = flow * speed / self.gateway.brine_flow_at / 60
         return liters_per_s * profile.BRINE_HEAT[self.gateway.brine_mix] * (brine_in - brine_out)
 
+    def _setting_envelope(self, path: str, d: profile.Derived) -> Envelope:
+        """A setting under its standard name: for one that follows the hot-water mode, the
+        current mode's; while a hold of this plugin's lowers it, what its release puts
+        back."""
+        now = _now()
+        values = self._snapshot().values
+        register = d.inputs[0]
+        if d.by_mode is not None:
+            mode = values.get(register)
+            if register not in self._samples or mode is None:
+                return _missing(path, now, "the hot-water mode isn't read yet")
+            found = d.by_mode.get(int(mode))
+            if found is None:
+                title = profile.MODE_TITLES.get(int(mode), f"mode {mode:g}")
+                return _missing(path, now, f"{title} has no setting of its own")
+            register = found
+        value = values.get(register)
+        if register not in self._samples or value is None:
+            return _missing(path, now, "not read yet")
+        for hold in self.holds.values():
+            if hold.get("register") == register:
+                value = hold["value"]
+        t = min(self._samples[r].t for r in {d.inputs[0], register})
+        observed = now - timedelta(seconds=clock.monotonic() - t)
+        quality: Quality = "good"
+        why = None
+        if clock.monotonic() - t > POLLED_FRESHNESS_S:
+            quality, why = "stale", f"last read {durations.text(int(clock.monotonic() - t))} ago"
+        return Envelope(
+            point=path,
+            value=round(float(value), 1),
+            unit=d.unit,
+            t_observed=observed,
+            t_received=observed,
+            quality=quality,
+            source=d.source,
+            resolution=d.resolution,
+            why=why,
+        )
+
     def _derived_envelope(self, path: str, d: profile.Derived) -> Envelope:
+        if d.setting:
+            return self._setting_envelope(path, d)
         now = _now()
         brine = self._brine()
         if isinstance(brine, str):

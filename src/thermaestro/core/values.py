@@ -4,13 +4,19 @@ A pump pushes some values twice a second, and a Pi's SD card wears with every wr
 a value goes into the history only when it changes, when its quality changes, or when
 `heartbeat_s` has passed since the last one kept; and the history is written in batches.
 Old samples are folded into 15-minute aggregates, which are kept far longer.
+
+Means are over time, not over samples: a value counts for as long as it held, until the
+next sample, for at most `HELD_MAX_S`. A sensor that reports every few minutes while the
+temperature moves and once in hours while it doesn't would otherwise pull the mean toward
+the moving stretches.
 """
 
 import asyncio
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from datetime import date, datetime, tzinfo
+from datetime import date, datetime, time, timedelta, tzinfo
+from itertools import groupby
 
 from .. import clock
 from ..cap.model import Envelope, Point
@@ -21,6 +27,12 @@ log = logging.getLogger(__name__)
 
 SLOT_S = 900.0
 DAY_S = 86_400.0
+HELD_MAX_S = 12 * 3600.0
+"""How long a value counts for with nothing after it: a reading stops counting after
+twelve hours, however slowly its sensor reports."""
+
+Row = tuple[float, float | None, str]
+"""A sample as the history keeps it: when, its number, its quality."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,38 +127,65 @@ class Values:
 
         return await self._db.run(read)
 
+    async def first(self, key: Key) -> float | None:
+        """When the point's history starts, or None where it has none."""
+
+        def read(t: Transaction) -> float | None:
+            found = [
+                row[0]
+                for table, column in (("history", "t"), ("history_15m", "slot"))
+                for row in t.execute(
+                    f"SELECT MIN({column}) FROM {table} WHERE instance = ? AND point = ?",  # noqa: S608 - names, not input
+                    (key.instance, key.point),
+                )
+                if row[0] is not None
+            ]
+            return min(found, default=None)
+
+        return await self._db.run(read)
+
     async def daily(
         self, key: Key, start: float, end: float, zone: tzinfo
     ) -> list[tuple[date, float, float, float]]:
         """Each local day's lowest, mean and highest good value, from the 15-minute
-        aggregates where the samples were folded into them and the samples since."""
+        aggregates where the samples were folded into them and the samples since; the mean
+        over the time each value held."""
+        end = min(end, clock.time())
 
         def read(t: Transaction) -> list[tuple[date, float, float, float]]:
-            days: dict[date, list[float]] = {}  # low, sum, n, high
+            days: dict[date, list[float]] = {}  # low, value-seconds, seconds, high
 
-            def add(at: float, low: float, total: float, n: float, high: float) -> None:
-                d = datetime.fromtimestamp(at, zone).date()
+            def add(d: date, low: float, total: float, seconds: float, high: float) -> None:
                 found = days.get(d)
                 if found is None:
-                    days[d] = [low, total, n, high]
+                    days[d] = [low, total, seconds, high]
                 else:
                     found[0] = min(found[0], low)
                     found[1] += total
-                    found[2] += n
+                    found[2] += seconds
                     found[3] = max(found[3], high)
 
-            for slot, low, mean, high, n in t.execute(
-                "SELECT slot, min, mean, max, n FROM history_15m"
-                " WHERE instance = ? AND point = ? AND slot >= ? AND slot < ?",
+            folded_until = start
+            for slot, low, mean, high in t.execute(
+                "SELECT slot, min, mean, max FROM history_15m"
+                " WHERE instance = ? AND point = ? AND slot >= ? AND slot < ? ORDER BY slot",
                 (key.instance, key.point, start, end),
             ):
-                add(slot, low, mean * n, n, high)
-            for at, value in t.execute(
-                "SELECT t, value FROM history WHERE instance = ? AND point = ? AND t >= ?"
-                " AND t < ? AND quality = 'good' AND value IS NOT NULL",
-                (key.instance, key.point, start, end),
-            ):
-                add(at, value, value, 1, value)
+                add(datetime.fromtimestamp(slot, zone).date(), low, mean * SLOT_S, SLOT_S, high)
+                folded_until = slot + SLOT_S
+            rows = t.execute(
+                "SELECT t, value, quality FROM history"
+                " WHERE instance = ? AND point = ? AND t >= ? AND t < ? ORDER BY t",
+                (key.instance, key.point, folded_until - HELD_MAX_S, end),
+            )
+            for t0, t1, value in _held(rows, end):
+                t0 = max(t0, folded_until)
+                while t0 < t1:
+                    d = datetime.fromtimestamp(t0, zone).date()
+                    midnight = datetime.combine(d + timedelta(days=1), time(), zone)
+                    stop = min(t1, midnight.timestamp())
+                    add(d, value, value * (stop - t0), stop - t0, value)
+                    t0 = stop
             return [(d, v[0], v[1] / v[2], v[3]) for d, v in sorted(days.items())]
 
         return await self._db.run(read)
@@ -179,25 +218,77 @@ def _insert(t: Transaction, rows: Iterable[tuple[Key, Sample]]) -> None:
     )
 
 
+def _held(rows: Iterable[Row], end: float) -> Iterator[tuple[float, float, float]]:
+    """Each good value, from when it was seen until the next sample, `end`, or
+    `HELD_MAX_S`, whichever comes first. Only good numeric values count: a sensor that
+    wasn't connected has no temperature to average."""
+    good: tuple[float, float] | None = None
+    for at, value, quality in rows:
+        if good is not None:
+            stop = min(at, end, good[0] + HELD_MAX_S)
+            if stop > good[0]:
+                yield good[0], stop, good[1]
+        good = (at, value) if quality == "good" and value is not None else None
+    if good is not None:
+        stop = min(end, good[0] + HELD_MAX_S)
+        if stop > good[0]:
+            yield good[0], stop, good[1]
+
+
+@dataclass
+class _Slot:
+    low: float
+    high: float
+    total: float = 0.0
+    """Value-seconds."""
+    seconds: float = 0.0
+    last: float = 0.0
+    n: int = 0
+
+
+def _fold(rows: list[Row], cutoff: float) -> dict[float, _Slot]:
+    """One point's samples before `cutoff` as 15-minute slots, each value spread over the
+    slots it held in; a slot where a value only held on has no samples of its own."""
+    slots: dict[float, _Slot] = {}
+    for t0, t1, value in _held(rows, cutoff):
+        slot = t0 // SLOT_S * SLOT_S
+        first = True
+        while slot < t1:
+            seconds = min(t1, slot + SLOT_S) - max(t0, slot)
+            found = slots.setdefault(slot, _Slot(low=value, high=value))
+            found.low, found.high = min(found.low, value), max(found.high, value)
+            found.total += value * seconds
+            found.seconds += seconds
+            found.last = value
+            found.n += first
+            first = False
+            slot += SLOT_S
+    return slots
+
+
 def _prune(t: Transaction, raw_cutoff: float, aggregate_cutoff: float) -> None:
-    # Only good numeric values are aggregated: a sensor that wasn't connected has no
-    # temperature to average.
-    t.execute(
-        """
-        INSERT OR IGNORE INTO history_15m (instance, point, slot, min, mean, max, last, n)
-        SELECT instance, point, slot, MIN(value), AVG(value), MAX(value),
-               (SELECT h2.value FROM history h2
-                 WHERE h2.instance = g.instance AND h2.point = g.point
-                   AND h2.quality = 'good' AND h2.value IS NOT NULL
-                   AND h2.t >= g.slot AND h2.t < g.slot + ?
-                 ORDER BY h2.t DESC LIMIT 1),
-               COUNT(*)
-          FROM (SELECT instance, point, value, CAST(t / ? AS INTEGER) * ? AS slot
-                  FROM history
-                 WHERE t < ? AND quality = 'good' AND value IS NOT NULL) AS g
-         GROUP BY instance, point, slot
-        """,
-        (SLOT_S, SLOT_S, SLOT_S, raw_cutoff),
+    rows = t.execute(
+        "SELECT instance, point, t, value, quality FROM history WHERE t < ?"
+        " ORDER BY instance, point, t",
+        (raw_cutoff,),
     )
-    t.execute("DELETE FROM history WHERE t < ?", (raw_cutoff,))
+    folded: list[tuple[str, str, float, float, float, float, float, int]] = []
+    dropped: list[tuple[str, str, float]] = []
+    for (instance, point), group in groupby(rows, key=lambda r: (r[0], r[1])):
+        samples: list[Row] = [(at, value, quality) for _, _, at, value, quality in group]
+        for slot, s in _fold(samples, raw_cutoff).items():
+            mean = s.total / s.seconds
+            folded.append((instance, point, slot, s.low, mean, s.high, s.last, s.n))
+        # The newest sample may hold on past the cutoff: it stays, so the next fold
+        # starts from it. Its own slots are folded already and aren't folded again.
+        newest = samples[-1][0]
+        dropped.append(
+            (instance, point, newest if newest >= raw_cutoff - HELD_MAX_S else raw_cutoff)
+        )
+    t.executemany(
+        "INSERT OR IGNORE INTO history_15m (instance, point, slot, min, mean, max, last, n)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        folded,
+    )
+    t.executemany("DELETE FROM history WHERE instance = ? AND point = ? AND t < ?", dropped)
     t.execute("DELETE FROM history_15m WHERE slot < ?", (aggregate_cutoff,))

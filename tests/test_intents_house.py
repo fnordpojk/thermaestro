@@ -1,5 +1,5 @@
 """Intents and the house they are about: what it has, read from the plugins, and the
-defaults seeded from a day of the plant's readings."""
+defaults seeded from the pump's own settings or a day of the plant's readings."""
 
 from pathlib import Path
 
@@ -16,7 +16,9 @@ CS = "pump:hp1/cs1"
 TANK = "pump:hp1/dhw"
 
 
-def test_seeded_from_a_day_of_the_house(tmp_path: Path) -> None:
+def test_seeded_from_the_pumps_settings(tmp_path: Path) -> None:
+    """The tank's floor and level from the mode's start and stop at once; the comfort band
+    without a room sensor at once too."""
     scenario = draw(1, emitter="radiators").set({47442: 1})  # the pump's flow preset: radiators
 
     async def body() -> None:
@@ -33,22 +35,45 @@ def test_seeded_from_a_day_of_the_house(tmp_path: Path) -> None:
             assert caps.power  # the plant's meter
             assert caps.pools == frozenset()
             intents = Intents(sim.db, AuditLog(tmp_path / "intents"), capabilities=lambda: caps)
-            assert await intents.seed(await house.found()) != []  # nothing read yet: some
-            await sim.advance(26 * 3600)
-            await house.refresh()
-            assert (await sim.db.get(Home) or Home()).emitters == {CS: "radiators"}
+            await sim.advance(600)
             seeded = await intents.seed(await house.found())
-            every = await intents.all()
-            assert {(i.kind, i.scope, i.confirmed) for i in every} == {
+            assert {(i.kind, i.scope, i.confirmed) for i in seeded} == {
                 ("comfort_band", CS, False),
                 ("addition_policy", "house", False),
                 ("hot_water_floor", TANK, False),
             }
-            assert [i.kind for i in seeded] == ["hot_water_floor"]  # once a day was read
-            no_sensor = next(i for i in every if i.kind == "comfort_band")
+            floor = next(i for i in seeded if i.kind == "hot_water_floor")
+            assert floor.expectations[0].targets[0].value == 45.0  # Normal's start
+            assert (await intents.levels())["current-pump-hp1-dhw"].top == 50.0  # its stop
+            no_sensor = next(i for i in seeded if i.kind == "comfort_band")
             assert no_sensor.parameters == {"no_sensor": True}  # no room sensor
-            levels = await intents.levels()
-            top = levels["current-pump-hp1-dhw"].top
+            await sim.advance(26 * 3600)
+            await house.refresh()
+            assert (await sim.db.get(Home) or Home()).emitters == {CS: "radiators"}
+            assert await intents.seed(await house.found()) == []
+
+    simulate(body, scenario.start_time)
+
+
+def test_seeded_from_a_day_where_the_pump_doesnt_say(tmp_path: Path) -> None:
+    """In Smart Control the pump has no start or stop of its own: the tank's top over a
+    day instead."""
+    scenario = draw(1, emitter="radiators").set({47041: 4})
+
+    async def body() -> None:
+        sim = Sim(scenario, tmp_path)
+        async with running(sim):
+            house = House(sim.db, sim.host, sim.values)
+            caps = await house.refresh()
+            intents = Intents(sim.db, AuditLog(tmp_path / "intents"), capabilities=lambda: caps)
+            await sim.advance(600)
+            first = await intents.seed(await house.found())
+            assert "hot_water_floor" not in {i.kind for i in first}  # nothing read yet
+            await sim.advance(26 * 3600)
+            await house.refresh()
+            seeded = await intents.seed(await house.found())
+            assert [i.kind for i in seeded] == ["hot_water_floor"]  # once a day was read
+            top = (await intents.levels())["current-pump-hp1-dhw"].top
             assert top is not None
             assert 44 <= top <= 56
 

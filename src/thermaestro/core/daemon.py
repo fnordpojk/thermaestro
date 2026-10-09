@@ -208,10 +208,14 @@ async def _intents(core: Core, every_s: float = INTENTS_S) -> None:
 
 
 async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:
-    """Mark sensors that have gone quiet as stale."""
+    """Mark sensors that have gone quiet as stale, and keep how often each reports."""
     while True:
         await asyncio.sleep(every_s)
         sensors.tick()
+        try:
+            await sensors.save()
+        except Exception:
+            log.exception("keeping the sensors' rhythms failed; trying again later")
 
 
 async def _plugin_socket(core: Core) -> asyncio.Server | None:

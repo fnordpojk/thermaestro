@@ -369,6 +369,40 @@ class Derived:
     resolution: float
     source: Source
     validity: tuple[str, ...] = ()
+    by_mode: Mapping[int, int] | None = None
+    """For a setting that follows the hot-water mode: the register each mode reads. The
+    mode's register is the first input. None for the brine's points, or a single setting."""
+    setting: bool = False
+    """A setting read from the pump, not worked out from the brine."""
+
+
+def setting_derived(
+    path: str, registers: Mapping[int, int] | int, validity: str, mode: int | None = None
+) -> Derived:
+    """A temperature setting under a standard name: one register, or the one the current
+    hot-water mode reads (`registers` by mode, `mode` the mode's register)."""
+    if isinstance(registers, int):
+        return Derived(path, (registers,), "degC", 0.1, "measured", (validity,), setting=True)
+    assert mode is not None  # noqa: S101 - a setting by mode names the mode's register
+    return Derived(
+        path,
+        (mode, *registers.values()),
+        "degC",
+        0.1,
+        "measured",
+        (validity,),
+        by_mode=registers,
+        setting=True,
+    )
+
+
+def pool_settings(pool: Pool) -> tuple[Derived, Derived]:
+    """The pool's start and stop under standard names."""
+    node = f"pool{pool.number}"
+    return (
+        setting_derived(f"{node}/temp.start", pool.start, "the pool's start temperature"),
+        setting_derived(f"{node}/temp.stop", pool.stop, "the pool's stop temperature"),
+    )
 
 
 def brine_derived(brine_in: int, brine_out: int, pump_speed: int) -> tuple[Derived, ...]:
@@ -521,10 +555,17 @@ class Family:
                 out.nodes[node] = kind
             for p in present:
                 out.points[p.path] = p
+        found: list[Derived] = []
         if "brine" in out.nodes:
-            for d in self.brine_derived:
-                if all(r in model for r in d.inputs):
-                    out.derived[d.path] = d
+            found += self.brine_derived
+        if "dhw" in out.nodes and self.hot_water_mode == HOT_WATER_MODE:
+            found += TANK_SETTINGS
+        for number in out.pools:
+            if f"pool{number}" in out.nodes:
+                found += pool_settings(self.pools[number - 1])
+        for d in found:
+            if all(r in model for r in d.inputs):
+                out.derived[d.path] = d
         return out
 
     def detectable(self, model: ModelMap) -> list[System]:
@@ -561,6 +602,24 @@ baseline may be it, and is then put back."""
 MODE_TITLES = {0: "Economy", 1: "Normal", 2: "Luxury", 4: "Smart Control"}
 MODE_STARTS = {0: 47045, 1: 47044, 2: 47043}
 """Each mode's start temperature. Smart Control has none of its own."""
+MODE_STOPS = {0: 47049, 1: 47048, 2: 47047}
+"""Each mode's stop temperature."""
+TANK_SETTINGS = (
+    setting_derived(
+        "dhw/temp.start",
+        MODE_STARTS,
+        "the current mode's start temperature, at the charge sensor; while the hot-water"
+        " block holds it, the one its release puts back",
+        HOT_WATER_MODE,
+    ),
+    setting_derived(
+        "dhw/temp.stop",
+        MODE_STOPS,
+        "the current mode's stop temperature, at the charge sensor",
+        HOT_WATER_MODE,
+    ),
+)
+"""The tank's start and stop as the household has them, where the pump has a mode."""
 BLOCK_START = 25.0
 """What the hot-water block lowers the start temperature to: a charge waits until the
 charge sensor reaches it, so it is also a floor."""

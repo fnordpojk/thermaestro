@@ -1086,6 +1086,12 @@ msgstr "Tillstånd"
 msgid "State:"
 msgstr "Tillstånd:"
 
+msgid "Start temperature"
+msgstr "Starttemperatur"
+
+msgid "Stop temperature"
+msgstr "Stopptemperatur"
+
 msgid "Steps"
 msgstr "Steg"
 
@@ -1541,9 +1547,6 @@ msgstr "varje dag: lägsta, medel och högsta"
 msgid "elsewhere"
 msgstr "någon annanstans"
 
-msgid "empty: 60"
-msgstr "tomt: 60"
-
 msgid "empty: no estimate"
 msgstr "tomt: ingen uppskattning"
 
@@ -1886,3 +1889,5 @@ msgstr "din token"
 #~ "leverantören lägger till, när moms är angiven"
 #~ " nedan."
 
+msgid "empty: learned from how often it reports, 60 to 720"
+msgstr "tomt: lärs från hur ofta den rapporterar, 60 till 720"
