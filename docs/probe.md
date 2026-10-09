@@ -28,7 +28,7 @@ It takes about the minutes given, and longer if some values haven't been read by
 
 - **`probe-<model>-<time>.json`**, the report:
   - the pump's family, product name, model, firmware and word order; for an S-series pump, also what it answers to Modbus's device identification, if anything;
-  - which extra climate systems the model can have, and what detection found;
+  - which extra climate systems the model can have, and what detection found, pools too;
   - each of Thermaestro's points that the model's register map has, with its value and quality;
   - those it lacks, those the pump gave no value for or said it hasn't got, and which control levers Thermaestro could offer;
   - on the bus, which registers the pump sends by itself, and how many bus exchanges of each kind were seen.

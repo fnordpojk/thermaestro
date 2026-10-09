@@ -1,16 +1,21 @@
-"""The Nibe plugin, read-only for now: the bus family (F-series, VVM, SMO, MHB) through a
-gateway, and the S-series over its own Modbus TCP.
+"""The Nibe plugin: the bus family (F-series, VVM, SMO, MHB) through a gateway, and the
+S-series over its own Modbus TCP.
 
 On the bus it connects to the pump's gateway, identifies the pump (its model from the
 product information it sends every 15 s, its firmware from 43001/44331, the word order of
-32-bit values from 48852), finds the climate systems it has, and then keeps every point
-fresh: registers the pump pushes (its LOG.SET) as they come, the rest polled one at a time.
+32-bit values from 48852), finds the climate systems and pools it has, and then keeps
+every point fresh: registers the pump pushes (its LOG.SET) as they come, the rest polled
+one at a time.
 
 An S-series pump names neither its model nor its firmware in a documented register, so
 its model is set by the user. Modbus's own device identification is asked for and shown,
-not relied on. Every point is polled, one value per request.
+not relied on. Every point is polled, one value per request. Its levers are described as
+unavailable: none has been tried on a real S-series pump.
 
-Nothing here writes to the pump: an `act` is dropped as read-only.
+It writes only when the core asks, with an `act` on a lever, and never a register outside
+that lever's own. A hold's release (what the hot-water block puts back) is kept across
+restarts. Where the route shows other clients' writes, each is reported as a
+`foreign_write`.
 """
 
 import asyncio
@@ -18,10 +23,14 @@ import contextlib
 import logging
 import re
 import time
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+
+from thermaestro_gateway import nibe
+from thermaestro_gateway.protocol import Origin, Stage
 
 from .. import durations
 from ..cap import Message, Send
@@ -32,6 +41,8 @@ from ..cap.messages import (
     DeviceEvent,
     Error,
     Fate,
+    FateStage,
+    ForeignWrite,
     Health,
     Read,
     Subscribe,
@@ -56,8 +67,18 @@ from ..core.plugins import PluginContext, PluginStore
 from ..store import NibeGateway, SecretStore
 from . import profile, sprofile
 from .maps import ModelMap, Register, RegisterMap, Status, decode, load, words
+from .maps.codec import EncodeError, encode
 from .transport import GatewayConfig, ModbusConfig, connect
-from .transport.base import FateKind, Observed, ReadFailed, RegisterRefused, Transport
+from .transport.base import (
+    FateKind,
+    Observed,
+    ReadFailed,
+    RegisterRefused,
+    Transport,
+    WriteOutcome,
+    WriteResult,
+    stage_after_reply,
+)
 from .transport.nibegw import PlainSettings
 
 log = logging.getLogger(__name__)
@@ -73,6 +94,18 @@ COUNTERS = ("heat.produced", "elec.used")
 """Points that only count up, and start over from 0 at their register's size."""
 IDENTIFICATION = "x.nibe.identification"
 """What an S-series pump answers to Modbus's device identification, as text."""
+WRITE_TIMEOUT_S = 30.0
+"""The longest a write waits for its turn on the bus and the pump's answer."""
+FATES: dict[WriteResult, FateStage] = {
+    WriteResult.ACCEPTED: "device_accepted",
+    WriteResult.REFUSED: "device_refused",
+    WriteResult.NOT_TAKEN: "dropped",
+    WriteResult.UNKNOWN: "unknown",
+}
+
+
+class Refused(Exception):
+    """A request the plugin won't send, and why."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +184,18 @@ class NibePlugin:
         self._saved_at = 0.0
         self._last_saved: dict[str, Any] = {}
         self._saving: asyncio.Task[None] | None = None
+        self._save_lock = asyncio.Lock()
+        self.holds: dict[str, dict[str, Any]] = {}
+        """Per hold lever engaged: the register written and the value to put back (and for
+        the hot-water block, the mode it was engaged in). Kept across restarts."""
+        self._act_lock = asyncio.Lock()
+        self._mine: Counter[bytes] = Counter()
+        """The write requests this plugin has on their way, to tell other clients' apart."""
+        self._send_event: Send | None = None
+        self._described_mode: int | None = None
+        """The hot-water mode the block's description was last given for."""
+        self._block_described = False
+        self._tasks: set[asyncio.Future[None]] = set()
         self._extracted_kwh = 0.0
         """The estimated heat taken from the ground, kWh, while Thermaestro runs."""
         self._integrated_at: float | None = None
@@ -161,6 +206,7 @@ class NibePlugin:
     async def events(self, send: Send) -> None:
         if self._transport is not None or self._identified.done():
             raise RuntimeError("a Nibe plugin instance serves one connection")
+        self._send_event = send
         await self._restore()
         try:
             self._transport = await self._connect_transport()
@@ -197,18 +243,16 @@ class NibePlugin:
             await self._transport.close()
 
     async def handle(self, request: Message, send: Send) -> None:
-        if isinstance(request, Act):
-            await send(
-                Fate(id=request.id, stage="dropped", t=_now(), detail="read-only in this version")
-            )
-            return
-        if not isinstance(request, Describe | Read | Subscribe):
+        if not isinstance(request, Describe | Read | Subscribe | Act):
             await send(
                 Error(id=getattr(request, "id", None), code="unsupported", detail="not offered")
             )
             return
         await asyncio.shield(self._identified)
-        if isinstance(request, Describe):
+        if isinstance(request, Act):
+            async with self._act_lock:  # one change at a time: the bus carries one anyway
+                await self._act(request, send)
+        elif isinstance(request, Describe):
             await send(self.describe(request.id))
         elif isinstance(request, Read):
             await send(Values(id=request.id, values=tuple(await self._read_points(request))))
@@ -277,8 +321,25 @@ class NibePlugin:
                 supply = decode(self.model.register(system.supply), *words_, high_word_first=True)
                 if supply.status is not Status.NOT_CONNECTED:
                     systems.append(system.number)
-        self.layout = self.family.layout(self.model, systems)
-        log.info("pump %s, firmware %s, climate systems %s", name, self.firmware, systems)
+        pools = []
+        for pool in self.family.detectable_pools(self.model):
+            if await self._read_value(pool.accessory) != 1:
+                continue
+            words_ = await self._read(pool.sensor)
+            if words_ is not None:
+                sensor = decode(self.model.register(pool.sensor), *words_, high_word_first=True)
+                if sensor.status is not Status.NOT_CONNECTED:
+                    pools.append(pool.number)
+        if (mode := self.family.hot_water_mode) is not None and mode in self.model:
+            await self._read(mode)  # the hot-water block's description names it
+        self.layout = self.family.layout(self.model, systems, pools)
+        log.info(
+            "pump %s, firmware %s, climate systems %s, pools %s",
+            name,
+            self.firmware,
+            systems,
+            pools or "none",
+        )
 
     async def _identify_modbus(self) -> None:
         """The user's model; a 32-bit value's words come back put in order by the transport.
@@ -309,6 +370,34 @@ class NibePlugin:
                     continue  # an empty slot
                 self.pushed.add(register)
                 self._store(register, (int.from_bytes(payload[i + 2 : i + 4], "little"), 0))
+        elif telegram.is_token and telegram.command == nibe.WRITE_TOKEN:
+            self._seen_write(observed)
+
+    def _seen_write(self, observed: Observed) -> None:
+        """A write the pump took: another client's is reported, where the route shows it."""
+        reply = observed.reply
+        if len(reply) != 10 or reply[1] != nibe.WRITE_TOKEN:
+            return
+        if stage_after_reply(observed.trailer) is Stage.PUMP_NAK:
+            return  # not taken
+        if observed.origin is None:
+            if self._mine[reply]:
+                return
+        elif observed.origin not in (Origin.PLAIN_CLIENT, Origin.OTHER_CLIENT):
+            return
+        register = int.from_bytes(reply[3:5], "little")
+        raw = int.from_bytes(reply[5:9], "little")
+        value: float | int | None = raw
+        if self.model is not None and register in self.model:
+            definition = self.model.register(register)
+            if definition.size is not None and definition.size.bits <= 16:
+                value = decode(definition, raw & 0xFFFF, high_word_first=True).value
+        log.info("another client wrote %d = %s", register, value)
+        if self._send_event is not None:
+            event = ForeignWrite(
+                t=_now(), unit=profile.UNIT, datapoint=f"x.nibe.{register}", value=value
+            )
+            self._spawn(self._send_event(event))
 
     async def _read(self, register: int, after: float | None = None) -> tuple[int, int] | None:
         if self._transport is None:
@@ -361,8 +450,21 @@ class NibePlugin:
         self._samples[register] = Sample(words_, now)
         if register in (self.family.brine_in, self.family.brine_out, self.family.brine_pump_speed):
             self._integrate(now)
+        if register == self.family.hot_water_mode:
+            self._mode_seen(words_[0] & 0xFF)
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
+
+    def _mode_seen(self, mode: int) -> None:
+        """The hot-water block lowers the current mode's start: when the mode changes, the
+        block is described anew, so the core can move it."""
+        if not self._block_described or mode == self._described_mode:
+            return
+        self._described_mode = mode
+        block = self._specs().get(f"{profile.UNIT}/dhw/block")
+        if block is not None and self._send_event is not None:
+            log.info("hot-water mode now %s: the block is described anew", mode)
+            self._spawn(self._send_event(Described(complete=False, levers=(block.lever,))))
 
     def _watch_meters(self, register: int, words_: tuple[int, int], now: float) -> None:
         """Count the production each heat meter should have counted since it last moved:
@@ -396,8 +498,8 @@ class NibePlugin:
     async def _restore(self) -> None:
         if self._state is None:
             return
+        data = await self._state.load()
         try:
-            data = await self._state.load()
             self._restored = {
                 int(register): ((int(m["words"][0]), int(m["words"][1])), float(m["idle"]))
                 for register, m in data.get("meters", {}).items()
@@ -405,23 +507,48 @@ class NibePlugin:
             self._extracted_kwh = float(data.get("brine_kwh", 0.0))
         except (KeyError, TypeError, ValueError, AttributeError) as e:
             log.warning("what was kept couldn't be read, so the counts start over: %s", e)
+        holds = data.get("holds", {})
+        for path, hold in holds.items() if isinstance(holds, dict) else ():
+            if (
+                isinstance(hold, dict)
+                and isinstance(hold.get("register"), int)
+                and isinstance(hold.get("value"), int | float)
+            ):
+                self.holds[str(path)] = dict(hold)
+            else:
+                log.error("the hold kept for %s can't be read: %r", path, hold)
 
     def _save_meters(self, now: float) -> None:
         """Keep the heat meters' counts and the heat taken from the ground for a restart,
         at most once a minute."""
-        if self._saving is not None and not self._saving.done():
+        if self._state is None or (self._saving is not None and not self._saving.done()):
             return
-        meters = {
-            str(register): {"words": list(self._samples[register].words), "idle": round(idle, 1)}
-            for register, idle in self._meter_idle.items()
-            if register in self._samples
-        }
-        data: dict[str, Any] = {"meters": meters, "brine_kwh": round(self._extracted_kwh, 3)}
         self._saved_at = now
-        if data == self._last_saved or self._state is None:
-            return  # nothing new: no write, which on a Pi's SD card counts
-        self._last_saved = data
-        self._saving = asyncio.get_running_loop().create_task(self._state.save(data))
+        self._saving = asyncio.get_running_loop().create_task(self._save())
+
+    async def _save(self) -> None:
+        """Keep what outlives a restart. What is saved is put together under the lock, so
+        a later save never carries older holds than an earlier one."""
+        if self._state is None:
+            return
+        async with self._save_lock:
+            meters = {
+                str(register): {
+                    "words": list(self._samples[register].words),
+                    "idle": round(idle, 1),
+                }
+                for register, idle in self._meter_idle.items()
+                if register in self._samples
+            }
+            data: dict[str, Any] = {
+                "meters": meters,
+                "brine_kwh": round(self._extracted_kwh, 3),
+                "holds": {path: dict(hold) for path, hold in self.holds.items()},
+            }
+            if data == self._last_saved:
+                return  # nothing new: no write, which on a Pi's SD card counts
+            await self._state.save(data)
+            self._last_saved = data
 
     def _brine_warning(self) -> DeviceEvent | None:
         """A warning when brine out comes within `BRINE_WARNING_K` of the pump's own low
@@ -740,6 +867,153 @@ class NibePlugin:
             return None
         return str(f.exception())
 
+    # --- changing settings -----------------------------------------------------------------
+
+    def _specs(self) -> dict[str, profile.Spec]:
+        model, layout = self._pump()
+        specs = self.family.levers(model, layout.points, self._snapshot().values)
+        return {spec.path: spec for spec in specs}
+
+    async def _act(self, request: Act, send: Send) -> None:
+        spec = self._specs().get(request.lever)
+        try:
+            if spec is None:
+                raise Refused("no such lever")
+            if spec.lever.unavailable is not None:
+                raise Refused(spec.lever.unavailable)
+            await send(Fate(id=request.id, stage="queued", t=_now()))
+            outcome = await self._carry_out(spec, request)
+        except Refused as e:
+            log.info("%s %s not sent: %s", request.lever, request.op, e)
+            await send(Fate(id=request.id, stage="dropped", t=_now(), detail=str(e)))
+            return
+        log.info(
+            "%s %s: %d = %d, %s (%s)",
+            request.lever,
+            request.op,
+            outcome.register,
+            outcome.value,
+            outcome.result.value,
+            outcome.why,
+        )
+        t = _now()
+        if outcome.t_result is not None:
+            t -= timedelta(seconds=max(0.0, time.monotonic() - outcome.t_result))
+        await send(Fate(id=request.id, stage=FATES[outcome.result], t=t, detail=outcome.why))
+
+    async def _carry_out(self, spec: profile.Spec, request: Act) -> WriteOutcome:
+        kind, op = spec.lever.kind, request.op
+        if kind == "setting" and op == "set":
+            value = _setting_value(spec, request.params.get("value"))
+            return await self._write(spec, spec.register, value)
+        if kind == "trigger" and op == "fire" and spec.fire is not None:
+            return await self._write(spec, spec.register, spec.fire)
+        if kind == "trigger" and op == "cancel" and spec.cancel is not None:
+            return await self._write(spec, spec.register, spec.cancel)
+        if kind == "hold" and op == "engage":
+            return await self._engage(spec)
+        if kind == "hold" and op == "release":
+            return await self._release(spec)
+        raise Refused(f"{spec.path} doesn't take {op}")
+
+    async def _engage(self, spec: profile.Spec) -> WriteOutcome:
+        """Engage a hold, keeping first what its release puts back. The hot-water block
+        lowers the current mode's start temperature."""
+        extra: dict[str, Any] = {}
+        if spec.starts is not None:
+            assert self.family.hot_water_mode is not None  # noqa: S101 - the block needs it
+            mode = int(await self._fresh(self.family.hot_water_mode))
+            register: int | None = spec.starts.get(mode)
+            if register is None:
+                title = profile.MODE_TITLES.get(mode, f"mode {mode}")
+                raise Refused(f"{title} has no start temperature of its own to lower")
+            engaged: float | None = profile.BLOCK_START
+            extra["mode"] = mode
+        else:
+            register, engaged = spec.register, spec.held
+        if register is None or engaged is None:
+            raise Refused(f"{spec.path} has nothing to engage")
+        kept = self.holds.get(spec.path)
+        if kept is not None and kept["register"] != register:
+            # Still engaged on another mode's start (its release went astray): that one is
+            # put back first, or it would stay lowered with nothing to undo it.
+            if _same(await self._fresh(int(kept["register"])), engaged):
+                outcome = await self._release(spec)
+                if outcome.result is not WriteResult.ACCEPTED:
+                    return outcome
+            self.holds.pop(spec.path, None)
+            kept = None
+        now = await self._fresh(register)
+        still = kept is not None and kept["register"] == register and _same(now, engaged)
+        if kept is not None and still:
+            put_back = kept["value"]  # engaged before, and still: what was found then
+        elif spec.starts is not None and now <= engaged:
+            raise Refused(
+                f"the start temperature already reads {now:g} °C, so what to put back isn't known"
+            )
+        else:
+            put_back = now
+        self.holds[spec.path] = {"register": register, "value": put_back, **extra}
+        await self._save()  # before the write: a crash right after it still knows
+        outcome = await self._write(spec, register, engaged)
+        if outcome.result in (WriteResult.REFUSED, WriteResult.NOT_TAKEN) and not still:
+            self.holds.pop(spec.path, None)
+            await self._save()
+        return outcome
+
+    async def _release(self, spec: profile.Spec) -> WriteOutcome:
+        kept = self.holds.get(spec.path)
+        if kept is None:
+            raise Refused("nothing engaged by this plugin is held here")
+        outcome = await self._write(spec, int(kept["register"]), kept["value"])
+        if outcome.result is WriteResult.ACCEPTED:
+            self.holds.pop(spec.path, None)
+            await self._save()
+        return outcome
+
+    async def _fresh(self, register: int) -> float | int:
+        """A register's value, from a request the pump takes from now on."""
+        model, _ = self._pump()
+        words_ = await self._read(register, after=time.monotonic())
+        if words_ is None:
+            raise Refused(f"{register} can't be read now")
+        decoded = decode(model.register(register), *words_, high_word_first=True)
+        if decoded.status is not Status.OK or decoded.value is None:
+            raise Refused(f"{register} gives no good value now")
+        return decoded.value
+
+    async def _write(
+        self, spec: profile.Spec, register: int | None, value: float | int
+    ) -> WriteOutcome:
+        """Write one of the lever's own registers; never one outside it, nor one that is
+        never written."""
+        model, _ = self._pump()
+        if register is None or f"x.nibe.{register}" not in spec.lever.touches:
+            raise Refused(f"register {register} isn't one {spec.path} changes")
+        if register in profile.NEVER_WRITTEN:
+            raise Refused(f"register {register} is never written")
+        if self._transport is None:
+            raise Refused("not connected")
+        try:
+            raw = encode(model.register(register), value)
+        except EncodeError as e:
+            raise Refused(str(e)) from None
+        frame = nibe.write_request(register, raw)
+        self._mine[frame] += 1
+        # Kept a while: a gateway may still send a request whose fate was unknown.
+        asyncio.get_running_loop().call_later(2 * WRITE_TIMEOUT_S, self._forget, frame)
+        return await self._transport.write(register, raw, timeout=WRITE_TIMEOUT_S)
+
+    def _forget(self, frame: bytes) -> None:
+        self._mine[frame] -= 1
+        if self._mine[frame] <= 0:
+            del self._mine[frame]
+
+    def _spawn(self, sending: Awaitable[None]) -> None:
+        task = asyncio.ensure_future(sending)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
     # --- describing ------------------------------------------------------------------------
 
     def describe(self, id: int | None = None) -> Described:
@@ -800,10 +1074,21 @@ class NibePlugin:
                     delivery=Delivery(how="on_change"),
                 )
             )
-        levers = self.family.levers(model, layout.points)
+        values = self._snapshot().values
+        if self.family.hot_water_mode is not None:
+            mode = values.get(self.family.hot_water_mode)
+            self._described_mode = None if mode is None else int(mode)
+            self._block_described = True
+        levers = [spec.lever for spec in self.family.levers(model, layout.points, values)]
         return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
 
     def _presence(self, path: str, kind: str) -> Presence:
+        if kind == "pool":
+            pool = self.family.pools[int(path.removeprefix("pool")) - 1]
+            return Presence(
+                how="detected",
+                rule=f"{pool.accessory} = 1 and pool sensor {pool.sensor} connected",
+            )
         if kind != "climate_system":
             return Presence(how="assumed")
         number = int(path.removeprefix("cs"))
@@ -911,6 +1196,24 @@ def is_switch(register: Register) -> bool:
         return False
     texts = value_texts(register)
     return texts is None or {k: v.lower() for k, v in texts.items()} == {0: "off", 1: "on"}
+
+
+def _setting_value(spec: profile.Spec, value: object) -> float | int:
+    """What a setting is set to: a number, or one of its values by name (or the pump's
+    own number for it, as a baseline may be kept)."""
+    if spec.names is not None:
+        if isinstance(value, str) and value in spec.names:
+            return spec.names[value]
+        if isinstance(value, int) and not isinstance(value, bool) and value in spec.names.values():
+            return value
+        raise Refused(f"{value!r} isn't one of {', '.join(spec.names)}")
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise Refused(f"{value!r} isn't a number")
+    return value
+
+
+def _same(a: float | int, b: float | int) -> bool:
+    return abs(a - b) < 1e-6
 
 
 def _now() -> datetime:

@@ -108,6 +108,13 @@ LEVERS = (
         touches=("x.fake.boost",),
     ),
     Lever(
+        path="hp1/alarm.reset",
+        kind="trigger",
+        works=WORKS,
+        verify=Verify(kind="none"),
+        touches=("x.fake.alarm",),
+    ),
+    Lever(
         path="hp1/leased",
         kind="setting",
         params={"value": number(0, 100)},
@@ -226,6 +233,12 @@ class LeverDevice:
         elif request.op == "release":
             self.held.discard(request.lever)
             self.registers[register] = REGISTERS[register]
+
+    async def redescribe(self, path: str) -> None:
+        """Describe a lever anew, as a plugin does when what a hold acts on has moved."""
+        lever = next(lv for lv in LEVERS if lv.path == path)
+        if self._send is not None:
+            await self._send(Described(complete=False, levers=(lever,)))
 
     async def someone_writes(self, register: str, value: int, *, tell: bool) -> None:
         """Another client, or the pump's menu, changes a register. Over a route that sees

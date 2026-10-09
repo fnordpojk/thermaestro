@@ -8,6 +8,7 @@ has them and how to decode them. A point whose register the model lacks isn't de
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from .. import durations
 from ..cap.model import (
@@ -178,13 +179,43 @@ class System:
 SYSTEMS = (
     System(1, 40008, None, offset=47011, room_control=47394),
     System(2, 40007, 47302, offset=47010, room_control=47393),
-    System(3, 40006, 47303, offset=47009),
-    System(4, 40005, 47304, offset=47008),
-    System(5, 40162, 48569),
-    System(6, 40161, 48570),
-    System(7, 40160, 48571),
-    System(8, 40159, 48572),
+    System(3, 40006, 47303, offset=47009, room_control=47392),
+    System(4, 40005, 47304, offset=47008, room_control=47391),
+    System(5, 40162, 48569, offset=48494, room_control=48678),
+    System(6, 40161, 48570, offset=48493, room_control=48677),
+    System(7, 40160, 48571, offset=48492, room_control=48676),
+    System(8, 40159, 48572, offset=48491, room_control=48675),
 )
+
+
+@dataclass(frozen=True, slots=True)
+class Pool:
+    """A pool heated by a POOL 40 accessory."""
+
+    number: int
+    accessory: int
+    """The register that switches the accessory on."""
+    sensor: int
+    """The pool's temperature sensor, BT51."""
+    start: int
+    stop: int
+    activated: int
+    """Pool heating on or off, as in the pump's menu."""
+
+
+POOLS = (
+    Pool(1, 48088, 40042, start=48090, stop=48092, activated=48094),
+    Pool(2, 48087, 40106, start=48089, stop=48091, activated=48093),
+)
+
+
+def pool_points(pool: Pool) -> list[PointDef]:
+    node = f"pool{pool.number}"
+    return [
+        PointDef(f"{node}/temp", pool.sensor),
+        *(PointDef(f"{node}/x.nibe.{r}", r) for r in (pool.start, pool.stop, pool.activated)),
+    ]
+
 
 FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED, SUPPLY_STOPPED), compressor_changing)
 BRINE_RULES = (no_flow(BRINE_PUMP_SPEED, BRINE_STOPPED), compressor_changing)
@@ -367,7 +398,11 @@ def brine_derived(brine_in: int, brine_out: int, pump_speed: int) -> tuple[Deriv
 
 BRINE_DERIVED = brine_derived(BRINE_IN, BRINE_OUT, BRINE_PUMP_SPEED)
 
-ADDITION_POINTS = (PointDef("addition/power", 43084),)
+ADDITION_POINTS = (
+    PointDef("addition/power", 43084),
+    PointDef("addition/x.nibe.47376", 47376),  # stop of addition, auto mode
+    PointDef("addition/x.nibe.47212", 47212),  # most power the internal addition may use
+)
 
 LOG_SET = (
     40004, 40008, 40012, 40013, 40014, 40015, 40016, PRIO, COMPRESSOR, 43431, 43433,
@@ -381,6 +416,7 @@ class Layout:
     """What this model and installation have: nodes and points by path."""
 
     systems: list[int]
+    pools: list[int] = field(default_factory=list)
     nodes: dict[str, str] = field(default_factory=dict)
     """Path below the unit to node kind."""
     points: dict[str, PointDef] = field(default_factory=dict)
@@ -388,9 +424,12 @@ class Layout:
     """Points worked out from the pump's values, where it has their inputs."""
 
 
-def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
+def definitions(
+    systems: Iterable[int], pools: Iterable[int] = ()
+) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
     """Thermaestro's points, by node (None for the unit) and node kind, with climate
-    systems `systems`; which of them a pump has depends on its model's map."""
+    systems `systems` and pools `pools`; which of them a pump has depends on its model's
+    map."""
     groups: list[tuple[str | None, str, tuple[PointDef, ...]]] = [
         (None, "unit", UNIT_POINTS),
         ("dhw", "dhw_tank", DHW_POINTS),
@@ -402,12 +441,19 @@ def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[Poi
         system = SYSTEMS[number - 1]
         system_defs = system_points(system) + (list(CS1_POINTS) if number == 1 else [])
         groups.append((f"cs{number}", "climate_system", tuple(system_defs)))
+    for number in sorted(set(pools)):
+        groups.append((f"pool{number}", "pool", tuple(pool_points(POOLS[number - 1]))))
     return groups
 
 
-Groups = Callable[[Iterable[int]], list[tuple[str | None, str, tuple[PointDef, ...]]]]
-"""A family's points by node, with the given climate systems."""
-Levers = Callable[[ModelMap, Mapping[str, PointDef]], list[Lever]]
+Groups = Callable[
+    [Iterable[int], Iterable[int]], list[tuple[str | None, str, tuple[PointDef, ...]]]
+]
+"""A family's points by node, with the given climate systems and pools."""
+Levers = Callable[
+    [ModelMap, Mapping[str, PointDef], Mapping[int, float | int | None]], list["Spec"]
+]
+"""A family's levers, from the model, the points it has and the values last read."""
 
 
 @dataclass(frozen=True)
@@ -444,6 +490,9 @@ class Family:
     poll_round_s: float = 0.0
     """The least time a round of polling every point takes. The bus paces reads itself,
     about one a second; a Modbus TCP pump answers at once, so its rounds are spaced."""
+    pools: tuple[Pool, ...] = ()
+    hot_water_mode: int | None = None
+    """The register of the hot-water mode, which the hot-water block follows."""
 
     @property
     def brine_derived(self) -> tuple[Derived, ...]:
@@ -454,10 +503,11 @@ class Family:
         """The registers the rules need, whether or not a point shows them."""
         return (self.prio, self.compressor, self.supply_pump_speed, self.brine_pump_speed)
 
-    def layout(self, model: ModelMap, systems: list[int]) -> Layout:
-        """The nodes and points a model has, with climate systems `systems` (1 always)."""
-        out = Layout(systems=sorted(set(systems) | {1}))
-        for node, kind, defs in self.groups(out.systems):
+    def layout(self, model: ModelMap, systems: list[int], pools: Iterable[int] = ()) -> Layout:
+        """The nodes and points a model has, with climate systems `systems` (1 always) and
+        pools `pools`."""
+        out = Layout(systems=sorted(set(systems) | {1}), pools=sorted(set(pools)))
+        for node, kind, defs in self.groups(out.systems, out.pools):
             present = [p for p in defs if p.register in model]
             if not present:
                 continue
@@ -475,116 +525,322 @@ class Family:
         """The climate systems beyond the first that this model can have."""
         return [s for s in self.systems[1:] if s.accessory in model and s.supply in model]
 
+    def detectable_pools(self, model: ModelMap) -> list[Pool]:
+        """The pools this model can have."""
+        return [p for p in self.pools if p.accessory in model and p.sensor in model]
+
 
 def unit(register_unit: str) -> str | None:
     return UNITS.get(register_unit, register_unit) or None
 
 
-LEVERS = ("cs1/heating.offset", "dhw/mode", "dhw/block", "dhw/boost_once", "alarm.reset")
-"""Every lever `levers` can offer, below the unit, where a model's map has its registers."""
+LEVERS = (
+    "cs1/heating.offset",
+    "dhw/mode",
+    "dhw/block",
+    "dhw/boost_once",
+    "alarm.reset",
+    "addition/stop_temp",
+    "addition/max_power",
+)
+"""The levers `levers` offers wherever a model's map has their registers, below the unit.
+Further climate systems' offsets and the pools' levers come with what is detected."""
+
+HOT_WATER_MODE = 47041
+MODES = {"eco": 0, "normal": 1, "lux": 2, "smart": 4}
+"""The hot-water mode's values (47041), Smart Control from firmware 8224R1."""
+OFFERED_MODES = ("eco", "normal", "lux")
+"""What Thermaestro may set. Smart Control is never set while Thermaestro has the lever; a
+baseline may be it, and is then put back."""
+MODE_TITLES = {0: "Economy", 1: "Normal", 2: "Luxury", 4: "Smart Control"}
+MODE_STARTS = {0: 47045, 1: 47044, 2: 47043}
+"""Each mode's start temperature. Smart Control has none of its own."""
+BLOCK_START = 25.0
+"""What the hot-water block lowers the start temperature to: a charge waits until the
+charge sensor reaches it, so it is also a floor."""
+BOOST = 48132
+BOOST_ONCE = 4
+"""48132's "one time increase": a charge until the need is met, from firmware 7740R2."""
+ALARM_RESET = 45171
+ADDITION_STOP = 47376
+ADDITION_MAX_POWER = 47212
+
+NEVER_WRITTEN = frozenset(
+    {
+        47134,  # the hot-water period
+        47137,  # the operating mode: the pump stays in auto
+        47370,  # allow addition, manual mode only
+        47371,  # allow heating, manual mode only
+        48852,  # the word order other clients decode by
+        *range(47004, 47008),  # the heating curves, systems 4 to 1
+        48488, 48489, 47525, 47567,  # systems 5 to 8
+        *range(47020, 47027),  # the own curve's points
+    }
+)  # fmt: skip
+"""Registers no lever ever writes."""
+
+DATABASE = "Nibe register database"
+SCHEDULE = CompetingFeature(name="the pump's hot-water schedule (menu 2.3)")
+"""No register for it is known, so whether it is off is the household's to confirm."""
 
 
-def levers(model: ModelMap, points: Mapping[str, PointDef]) -> list[Lever]:
-    """The levers this plugin will offer, described in full and read-only for now."""
+@dataclass(frozen=True, slots=True)
+class Spec:
+    """A lever, and how the plugin carries out what is asked of it."""
+
+    lever: Lever
+    register: int | None = None
+    """What a setting sets, a trigger writes, or a hold writes while engaged."""
+    names: Mapping[str, int] | None = None
+    """A setting's values by name, the ones not offered too: a baseline may be one."""
+    fire: int | None = None
+    cancel: int | None = None
+    held: int | None = None
+    """A hold on `register`: its value while engaged. Release writes back what was read."""
+    starts: Mapping[int, int] | None = None
+    """The hot-water block: the start-temperature register of each mode it can block."""
+
+    @property
+    def path(self) -> str:
+        return self.lever.path
+
+
+def _number(low: float, high: float, step: float, unit: str | None, basis: str) -> Param:
+    return Param(
+        type="number",
+        unit=unit,
+        range=Knowledge(value=Range(min=low, max=high, step=step), known="documented", basis=basis),
+    )
+
+
+def _documented(basis: str | tuple[str, ...]) -> Knowledge[bool]:
+    return Knowledge(value=True, known="documented", basis=basis)
+
+
+STORED = Knowledge[Persistence](
+    value=Persistence(kind="stored"), known="documented", basis=DATABASE
+)
+FLASH = Knowledge[Wear](value=Wear(kind="flash"), known="reported")
+
+
+def block_how(mode: float | int | None) -> str:
+    """What the hot-water block does in the current mode."""
+    if mode is None or int(mode) not in MODE_TITLES:
+        return f"the current mode's start temperature lowered to {BLOCK_START:.1f} °C"
+    if int(mode) not in MODE_STARTS:
+        return f"{MODE_TITLES[int(mode)]} has no start temperature of its own: it can't block"
+    register = MODE_STARTS[int(mode)]
+    return (
+        f"{MODE_TITLES[int(mode)]}'s start temperature ({register}) lowered to {BLOCK_START:.1f} °C"
+    )
+
+
+def _setting(
+    path: str,
+    register: int,
+    point: str,
+    param: Param,
+    works: Knowledge[bool],
+    **kw: Any,
+) -> Spec:
+    names = kw.pop("names", None)
+    return Spec(
+        Lever(
+            path=f"{UNIT}/{path}",
+            kind="setting",
+            params={"value": param},
+            works=works,
+            persistence=STORED,
+            wear=FLASH,
+            verify=Verify(kind="readback", point=f"{UNIT}/{point}"),
+            touches=(f"x.nibe.{register}",),
+            **kw,
+        ),
+        register=register,
+        names=names,
+    )
+
+
+def levers(
+    model: ModelMap, points: Mapping[str, PointDef], values: Mapping[int, float | int | None]
+) -> list[Spec]:
+    """The levers this pump offers, and how each is carried out. `values` are the values
+    last read: the hot-water block's description names the mode it would block."""
     out = []
-    if 47011 in model and "cs1/x.nibe.47011" in points:
-        competing = []
-        if 47394 in model:
-            competing.append(
-                CompetingFeature(
-                    name="the pump's room control (47394)",
-                    can_disable=Knowledge(value=True, known="documented", basis="register 47394"),
-                    how="47394 = 0",
-                )
+    for system in SYSTEMS:
+        cs = f"cs{system.number}"
+        if system.offset is None or f"{cs}/x.nibe.{system.offset}" not in points:
+            continue
+        conditions: Knowledge[tuple[str, ...]] = Knowledge()
+        if system.room_control is not None and f"{cs}/x.nibe.{system.room_control}" in points:
+            conditions = Knowledge(
+                value=(f"{UNIT}/{cs}/x.nibe.{system.room_control} == 0",),
+                known="documented",
+                basis="the pump's room control corrects the supply temperature itself, so it"
+                " is off while Thermaestro steers",
             )
         out.append(
-            Lever(
-                path=f"{UNIT}/cs1/heating.offset",
-                kind="setting",
-                params={
-                    "value": Param(
-                        type="number",
-                        range=Knowledge(
-                            value=Range(min=-10, max=10, step=1),
-                            known="documented",
-                            basis="Nibe register database",
-                        ),
-                    )
-                },
-                works=Knowledge(value=True, known="documented", basis="installer manual"),
-                persistence=Knowledge(value=Persistence(kind="stored"), known="documented"),
-                wear=Knowledge(value=Wear(kind="flash"), known="reported"),
-                verify=Verify(kind="readback", point=f"{UNIT}/cs1/x.nibe.47011"),
-                competing_features=tuple(competing),
-                touches=("x.nibe.47011",),
+            _setting(
+                f"{cs}/heating.offset",
+                system.offset,
+                f"{cs}/x.nibe.{system.offset}",
+                _number(-10, 10, 1, None, DATABASE),
+                _documented("installer manual"),
+                preconditions=conditions,
             )
         )
-    if 47041 in model and "dhw/x.nibe.47041" in points:
+    mode_point = f"dhw/x.nibe.{HOT_WATER_MODE}"
+    if mode_point in points:
+        offered = {name: MODES[name] for name in OFFERED_MODES}
         out.append(
-            Lever(
-                path=f"{UNIT}/dhw/mode",
-                kind="setting",
-                params={
-                    "value": Param(
-                        type="enum",
-                        enum=Knowledge(
-                            value={"eco": 0, "normal": 1, "comfort": 2, "smart": 4},
-                            known="documented",
-                            basis="Nibe register database; smart from firmware 8224R1",
-                        ),
-                    )
-                },
-                verify=Verify(kind="readback", point=f"{UNIT}/dhw/x.nibe.47041"),
-                competing_features=(
-                    CompetingFeature(name="the pump's hot-water schedule (menu 2.3)"),
-                ),
-                touches=("x.nibe.47041",),
-            )
-        )
-    if {47041, 47043, 47044, 47045} <= model.ids and "dhw/temp.charge" in points:
-        out.append(
-            Lever(
-                path=f"{UNIT}/dhw/block",
-                kind="hold",
-                implementation=Implementation(
-                    kind="emulated",
-                    how="the current mode's start temperature lowered to 25.0 °C",
-                    side_effects=(
-                        "two setting writes per engage and release",
-                        "a floor: the pump charges when the charge sensor reaches 25.0 °C",
+            _setting(
+                "dhw/mode",
+                HOT_WATER_MODE,
+                mode_point,
+                Param(
+                    type="enum",
+                    enum=Knowledge(
+                        value=offered,
+                        known="documented",
+                        basis=(DATABASE, "Smart Control isn't offered"),
                     ),
                 ),
-                works=Knowledge(
-                    value=True, known="verified", basis="tested on an F1245, firmware 9721R4"
-                ),
-                persistence=Knowledge(value=Persistence(kind="stored"), known="verified"),
-                verify=Verify(
-                    kind="effect",
-                    point=f"{UNIT}/dhw/temp.charge",
-                    expectation="no charge until the charge sensor reaches 25.0 °C",
-                ),
-                touches=("x.nibe.47043", "x.nibe.47044", "x.nibe.47045"),
+                _documented(DATABASE),
+                competing_features=(SCHEDULE,),
+                names=MODES,
             )
         )
-    if 48132 in model and "demand" in points:
+    starts = set(MODE_STARTS.values())
+    if mode_point in points and starts <= model.ids and "dhw/temp.charge" in points:
         out.append(
-            Lever(
-                path=f"{UNIT}/dhw/boost_once",
-                kind="trigger",
-                works=Knowledge(value=True, known="documented", basis="firmware history, 7740R2"),
-                verify=Verify(kind="effect", point=f"{UNIT}/demand", expectation="demand: dhw"),
-                touches=("x.nibe.48132",),
+            Spec(
+                Lever(
+                    path=f"{UNIT}/dhw/block",
+                    kind="hold",
+                    implementation=Implementation(
+                        kind="emulated",
+                        how=block_how(values.get(HOT_WATER_MODE)),
+                        side_effects=(
+                            "a setting write each to engage and release",
+                            f"a floor: the pump charges when the charge sensor reaches"
+                            f" {BLOCK_START:.1f} °C",
+                            "it follows the mode: when the mode changes, it is moved",
+                        ),
+                    ),
+                    works=Knowledge(
+                        value=True, known="verified", basis="tested on an F1245, firmware 9721R4"
+                    ),
+                    persistence=Knowledge(value=Persistence(kind="stored"), known="verified"),
+                    wear=FLASH,
+                    verify=Verify(
+                        kind="effect",
+                        point=f"{UNIT}/dhw/temp.charge",
+                        expectation="no charge until the charge sensor reaches"
+                        f" {BLOCK_START:.1f} °C",
+                    ),
+                    competing_features=(SCHEDULE,),
+                    touches=tuple(f"x.nibe.{r}" for r in sorted(starts)),
+                ),
+                starts=MODE_STARTS,
             )
         )
-    if 45171 in model:
+    if f"dhw/x.nibe.{BOOST}" in points and "demand" in points:
         out.append(
-            Lever(
-                path=f"{UNIT}/alarm.reset",
-                kind="trigger",
-                verify=Verify(kind="none"),
-                touches=("x.nibe.45171",),
+            Spec(
+                Lever(
+                    path=f"{UNIT}/dhw/boost_once",
+                    kind="trigger",
+                    works=_documented("firmware history, 7740R2"),
+                    verify=Verify(kind="effect", point=f"{UNIT}/demand", expectation="demand: dhw"),
+                    touches=(f"x.nibe.{BOOST}",),
+                ),
+                register=BOOST,
+                fire=BOOST_ONCE,
+                cancel=0,
             )
         )
+    if ALARM_RESET in model:
+        out.append(
+            Spec(
+                Lever(
+                    path=f"{UNIT}/alarm.reset",
+                    kind="trigger",
+                    works=_documented(f"{DATABASE}: reset alarm by setting value 1"),
+                    verify=Verify(kind="none"),
+                    touches=(f"x.nibe.{ALARM_RESET}",),
+                ),
+                register=ALARM_RESET,
+                fire=1,
+            )
+        )
+    auto = Knowledge[tuple[str, ...]](
+        value=(f"{UNIT}/x.nibe.47137 == 0",),
+        known="documented",
+        basis="user manual, menu 4.9.2: the addition's stop applies in auto mode",
+    )
+    if f"addition/x.nibe.{ADDITION_STOP}" in points and "x.nibe.47137" in points:
+        out.append(
+            _setting(
+                "addition/stop_temp",
+                ADDITION_STOP,
+                f"addition/x.nibe.{ADDITION_STOP}",
+                _number(-25, 40, 0.1, "degC", DATABASE),
+                _documented(
+                    "user manual, menu 4.9.2: above this mean outdoor temperature the"
+                    " addition isn't used"
+                ),
+                preconditions=auto,
+            )
+        )
+    if f"addition/x.nibe.{ADDITION_MAX_POWER}" in points:
+        out.append(
+            _setting(
+                "addition/max_power",
+                ADDITION_MAX_POWER,
+                f"addition/x.nibe.{ADDITION_MAX_POWER}",
+                _number(0, 45, 0.01, "kW", DATABASE),
+                _documented(f"{DATABASE}: the internal addition's most power"),
+            )
+        )
+    untried = (DATABASE, "not yet tried on a real pool")
+    for pool in POOLS:
+        node = f"pool{pool.number}"
+        if f"{node}/temp" not in points:
+            continue
+        for name, register in (("start_temp", pool.start), ("stop_temp", pool.stop)):
+            if f"{node}/x.nibe.{register}" in points:
+                out.append(
+                    _setting(
+                        f"{node}/{name}",
+                        register,
+                        f"{node}/x.nibe.{register}",
+                        _number(5, 80, 0.1, "degC", DATABASE),
+                        _documented(untried),
+                    )
+                )
+        if f"{node}/x.nibe.{pool.activated}" in points:
+            out.append(
+                Spec(
+                    Lever(
+                        path=f"{UNIT}/{node}/block",
+                        kind="hold",
+                        implementation=Implementation(
+                            kind="emulated",
+                            how=f"pool heating switched off ({pool.activated} = 0)",
+                            side_effects=("a setting write each to engage and release",),
+                        ),
+                        works=_documented(untried),
+                        persistence=STORED,
+                        wear=FLASH,
+                        verify=Verify(
+                            kind="effect", point=f"{UNIT}/demand", expectation="no pool demand"
+                        ),
+                        touches=(f"x.nibe.{pool.activated}",),
+                    ),
+                    register=pool.activated,
+                    held=0,
+                )
+            )
     return out
 
 
@@ -608,5 +864,7 @@ BUS = Family(
     word_swap=WORD_SWAP,
     firmware=FIRMWARE,
     answers_carry_next=True,
+    pools=POOLS,
+    hot_water_mode=HOT_WATER_MODE,
 )
 """The bus family: F-series, VVM, SMO and MHB, through a gateway on the MODBUS40 bus."""

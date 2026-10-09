@@ -292,6 +292,43 @@ async def test_another_clients_write_lets_go_of_a_hold(tmp_path: Path) -> None:
         assert r.executor.claims[BLOCK].drift == "another client wrote x.fake.start"
 
 
+async def test_a_hold_described_anew_is_moved(tmp_path: Path) -> None:
+    """What the hold acts on moved: released and engaged again, in shadow as in control."""
+    modes: tuple[LeverMode, ...] = ("control", "shadow")
+    for mode in modes:
+        path = tmp_path / mode
+        path.mkdir()
+        async with rig(path, {BLOCK: mode}) as r:
+            await r.device.redescribe("hp1/block")  # not held: nothing to move
+            await r.executor.act(BLOCK, "engage", who="planner")
+            await r.device.redescribe("hp1/block")
+            async with asyncio.timeout(5):
+                while len(acts(path / "t.db")) < 3:
+                    await asyncio.sleep(0.02)
+            outcome = "awaiting_effect" if mode == "control" else "shadowed"
+            assert [(op, o) for _, op, _, o in acts(path / "t.db")] == [
+                ("engage", outcome),
+                ("release", outcome),
+                ("engage", outcome),
+            ]
+            assert r.executor.claims[BLOCK].held
+            sent = ["engage", "release", "engage"] if mode == "control" else []
+            assert [a.op for a in r.device.acts] == sent
+
+
+async def test_a_lever_kept_for_people(tmp_path: Path) -> None:
+    reset = "dev:hp1/alarm.reset"
+    async with rig(tmp_path, {reset: "control"}) as r:
+        for who in ("planner", "core", "mqtt"):
+            result = await r.executor.act(reset, "fire", who=who)
+            assert (result.outcome, result.detail) == (
+                "refused",
+                "only a person may use this lever",
+            )
+        assert (await r.executor.act(reset, "fire", who="anna")).outcome == "unverifiable"
+        assert [a.lever for a in r.device.acts] == ["hp1/alarm.reset"]
+
+
 async def test_after_a_crash_what_was_left_changed_is_put_back(tmp_path: Path) -> None:
     device = LeverDevice()
     async with rig(tmp_path, {OFFSET: "control", "dev:hp1/curve": "control"}, device) as r:

@@ -21,6 +21,7 @@ from .model import LeverKind
 
 AREA_OF_KIND = {
     "dhw_tank": "dhw",
+    "pool": "pool",
     "addition": "addition",
     "compressor": "compressor",
     "ventilation": "ventilation",
@@ -61,6 +62,7 @@ POINTS: dict[str, PointName] = {
     "temp.top": _p("degC", DHW),
     "temp.mid": _p("degC", DHW),
     "temp.charge": _p("degC", DHW),
+    "pool.temp": _p("degC", "pool"),
     "room.temp": _p("degC", ROOM, CS),
     "brine.in.temp": _p("degC", "brine_circuit"),
     "brine.out.temp": _p("degC", "brine_circuit"),
@@ -154,6 +156,11 @@ LEVERS: dict[str, LeverName] = {
     "addition.block": _l("hold"),
     "heating.block": _l("hold"),
     "addition.policy": _l("setting"),
+    "addition.stop_temp": _l("setting"),
+    "addition.max_power": _l("setting"),
+    "pool.start_temp": _l("setting"),
+    "pool.stop_temp": _l("setting"),
+    "pool.block": _l("hold"),
     "operating_mode": _l("setting"),
     "grid.sg_state": _l("hold"),
     "power.limit": _l("setting", "hold"),

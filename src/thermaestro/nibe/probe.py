@@ -313,7 +313,9 @@ def _report(
     family = plugin.family
     missing = [
         {"path": f"{profile.UNIT}/{p.path}", "register": p.register}
-        for _, _, defs in family.groups(range(1, len(family.systems) + 1))
+        for _, _, defs in family.groups(
+            range(1, len(family.systems) + 1), range(1, len(family.pools) + 1)
+        )
         for p in defs
         if p.register not in model
     ]
@@ -344,6 +346,7 @@ def _report(
         },
         "detection": {
             "climate_systems": layout.systems,
+            "pools": layout.pools,
             "checked": detection,
             "nodes": sorted(layout.nodes),
         },

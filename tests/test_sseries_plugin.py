@@ -142,7 +142,11 @@ async def test_it_identifies_the_pump_by_the_model_set(plugin: NibePlugin) -> No
         "hp1/compressor.ep14",
         "hp1/brine",
     }
-    assert described.levers == ()
+    # Described, and none usable until tried on a real S-series pump.
+    assert {(lv.path, lv.unavailable) for lv in described.levers} == {
+        ("hp1/cs1/heating.offset", "not yet read on a real S-series pump"),
+        ("hp1/dhw/mode", "not yet read on a real S-series pump"),
+    }
     assert value(plugin, IDENTIFICATION) == (
         None,
         "unknown",

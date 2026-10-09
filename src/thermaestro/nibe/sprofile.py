@@ -6,20 +6,23 @@ table does: input register n is 3nnnn, holding register n is 4nnnn.
 
 The S-series reports what the bus family leaves to be inferred: the reversing valve's
 position (QN10) is a register of its own, and its heat meters are documented for every
-model. The compressor's status is only off or on. Levers aren't offered yet.
+model. The compressor's status is only off or on. Its levers are described and
+unavailable until they have been tried on a real pump.
 """
 
 from collections.abc import Iterable, Mapping
 
 from .. import durations
-from ..cap.model import Lever
+from ..cap.model import Lever, Verify
 from .maps import ModelMap
 from .profile import (
     BRINE_STOPPED,
     METER_IDLE_S,
     SUPPLY_STOPPED,
+    UNIT,
     Family,
     PointDef,
+    Spec,
     System,
     changing,
     charge_starting,
@@ -143,8 +146,10 @@ BRINE_POINTS = (
 )
 
 
-def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
-    """The S-series points by node; climate system 1 only."""
+def definitions(
+    systems: Iterable[int], pools: Iterable[int] = ()
+) -> list[tuple[str | None, str, tuple[PointDef, ...]]]:
+    """The S-series points by node; climate system 1 only, and no pools yet."""
     return [
         (None, "unit", UNIT_POINTS),
         ("dhw", "dhw_tank", DHW_POINTS),
@@ -154,9 +159,27 @@ def definitions(systems: Iterable[int]) -> list[tuple[str | None, str, tuple[Poi
     ]
 
 
-def levers(model: ModelMap, points: Mapping[str, PointDef]) -> list[Lever]:
-    """None yet: what the S-series takes is to be read on a real pump first."""
-    return []
+UNAVAILABLE = "not yet read on a real S-series pump"
+
+
+def levers(
+    model: ModelMap, points: Mapping[str, PointDef], values: Mapping[int, float | int | None]
+) -> list[Spec]:
+    """Described, and unavailable: what the S-series takes is to be read on a real pump
+    first."""
+    out = []
+    for path, register in (("cs1/heating.offset", 40030), ("dhw/mode", 40056)):
+        point = f"{path.split('/')[0]}/x.nibe.{register}"
+        if point in points:
+            lever = Lever(
+                path=f"{UNIT}/{path}",
+                kind="setting",
+                verify=Verify(kind="readback", point=f"{UNIT}/{point}"),
+                touches=(f"x.nibe.{register}",),
+                unavailable=UNAVAILABLE,
+            )
+            out.append(Spec(lever, register=register))
+    return out
 
 
 S_SERIES = Family(
@@ -175,7 +198,7 @@ S_SERIES = Family(
     systems=SYSTEMS,
     groups=definitions,
     levers=levers,
-    lever_paths=(),
+    lever_paths=("cs1/heating.offset", "dhw/mode"),
     poll_round_s=10.0,
 )
 """The S-series: S1155, S1255, S2125, S320, SMO S40, VVM S320 and their kin, over Modbus TCP."""

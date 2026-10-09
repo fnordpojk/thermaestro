@@ -278,7 +278,12 @@ async def test_an_s_series_pump_over_modbus(tmp_path: Path) -> None:
             "identification": {"vendor": "NIBE", "product": "S1255-6"},
         }
         assert report["transport"]["protocol"] == "modbus-tcp"
-        assert report["levers"] == report["levers_missing"] == []
+        # Described, though none can be used until tried on a real S-series pump.
+        assert {lever["path"] for lever in report["levers"]} == {
+            "hp1/cs1/heating.offset",
+            "hp1/dhw/mode",
+        }
+        assert report["levers_missing"] == []
         assert {30039, 32014} <= set(report["absent"])  # not installed
         points = {p["path"]: p for p in report["points"]}
         assert points["hp1/outdoor.temp"]["value"] == -6.0

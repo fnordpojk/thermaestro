@@ -10,7 +10,12 @@ decisions rest on goes stale, and when the planner stops answering. A change The
 didn't make lets go of the lever: it is reported, and never written over.
 
 A hold's release is the plugin's to know (what an emulated block puts back), and a plugin
-keeps it across its own restarts.
+keeps it across its own restarts. When a plugin describes an engaged hold anew, what it
+acts on has changed (the hot-water block follows the mode): it is released and engaged
+again.
+
+A lever the vocabulary keeps for people (an alarm reset) is never used by the planner,
+the core or an MQTT request.
 """
 
 import asyncio
@@ -24,10 +29,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from ..cap import Closed, Message
+from ..cap import Closed, Message, vocabulary
 from ..cap.client import CapError, Link
 from ..cap.defaults import assume
-from ..cap.messages import ForeignWrite, Op
+from ..cap.messages import Described, ForeignWrite, Op
 from ..cap.model import Envelope, Lever, Param, Value
 from ..store import Control, Database, LeverMode, Transaction
 from .audit import AuditLog
@@ -76,6 +81,9 @@ guard count. Shadow counts too, so it decides as control would."""
 
 TAKEN: frozenset[str] = frozenset({"verified", "unverifiable", "awaiting_effect", "timeout"})
 """Outcomes after which the device may hold the new value, so a restore must undo it."""
+
+AUTOMATIC = frozenset({"planner", "core", "mqtt"})
+"""Principals that aren't a person acting: a lever kept for people is refused to them."""
 
 OPS: dict[str, frozenset[str]] = {
     "setting": frozenset({"set"}),
@@ -318,7 +326,7 @@ class Executor:
                 mode,
                 Result("dropped", "no such lever, or its plugin isn't running"),
             )
-        refusal = self._check(ref, lever, op, params, control, restoring)
+        refusal = self._check(ref, lever, op, params, control, restoring, who)
         claim = self.claims.get(ref)
         if refusal is None and claim is None:
             claim, refusal = await self._claim(ref, lever, mode)
@@ -357,12 +365,15 @@ class Executor:
         params: dict[str, Value],
         control: Control,
         restoring: bool,
+        who: str,
     ) -> str | None:
         """Why the request may not go ahead, or None."""
         if lever.unavailable is not None:
             return lever.unavailable
         if op not in OPS[lever.kind]:
             return f"a {lever.kind} lever doesn't take {op}"
+        if who in AUTOMATIC and self._for_people(ref, lever):
+            return "only a person may use this lever"
         claim = self.claims.get(ref)
         if claim is not None and claim.drift is not None:
             return f"let go after a change Thermaestro didn't make: {claim.drift}"
@@ -456,7 +467,7 @@ class Executor:
             found = self._readback(ref, lever)
             if found is None:
                 return None, "no baseline: its value can't be read now"
-            baseline = found.value
+            baseline = reading(found, lever.params.get("value"))
         claim = Claim(ref, self._clock(), baseline, mode)
         self.claims[ref] = claim
         await self._save(claim)
@@ -479,7 +490,7 @@ class Executor:
         if claim.last is not None:
             return same(claim.last, target, param)
         found = self._readback(claim.lever, lever)
-        return found is not None and same(found.value, target, param)
+        return found is not None and same(reading(found, param), target, param)
 
     async def _send(self, ref: str, lever: Lever, op: Op, params: dict[str, Value]) -> Result:
         instance, path = split(ref)
@@ -532,9 +543,9 @@ class Executor:
                 for envelope in answer.values:
                     if envelope.quality != "good" or not _after(envelope, accepted):
                         continue
-                    if same(envelope.value, target, param):
+                    if same(reading(envelope, param), target, param):
                         return Result("verified")
-                    seen = envelope.value
+                    seen = reading(envelope, param)
             left = deadline - time.monotonic()
             if left <= 0:
                 break
@@ -618,12 +629,18 @@ class Executor:
             observed = (envelope.t_observed or envelope.t_received).timestamp()
             if claim.last_t is not None and observed <= claim.last_t:
                 continue
-            if not same(envelope.value, claim.last, lever.params.get("value")):
-                self._spawn(
-                    self._let_go(ref, f"it reads {envelope.value}, not {claim.last} as set")
-                )
+            now = reading(envelope, lever.params.get("value"))
+            if not same(now, claim.last, lever.params.get("value")):
+                self._spawn(self._let_go(ref, f"it reads {now}, not {claim.last} as set"))
 
     def _on_event(self, instance: str, message: Message) -> None:
+        if isinstance(message, Described):
+            for described in message.levers:
+                ref = f"{instance}:{described.path}"
+                claim = self.claims.get(ref)
+                if claim is not None and claim.held and claim.drift is None:
+                    self._spawn(self._move(ref))
+            return
         if not isinstance(message, ForeignWrite):
             return
         for ref, claim in self.claims.items():
@@ -642,6 +659,22 @@ class Executor:
         log.warning("%s was changed by something else (%s): let go", ref, why)
         await self._audit.record("core", "lever.drift", why=why, details={"lever": ref})
 
+    async def _move(self, ref: str) -> None:
+        """An engaged hold its plugin describes anew acts on something else now: release it
+        and engage it again, in shadow as in control."""
+        why = "what it holds moved: released and engaged again"
+        async with self._lock(ref):
+            claim = self.claims.get(ref)
+            if claim is None or not claim.held or claim.drift is not None:
+                return
+            released = await self._act(ref, "release", {}, "core", why)
+            if released.outcome not in TAKEN | {"shadowed"}:
+                log.warning("%s: moving it, the release was %s", ref, released.outcome)
+                return
+            engaged = await self._act(ref, "engage", {}, "core", why)
+            if engaged.outcome not in TAKEN | {"shadowed"}:
+                log.warning("%s: moving it, engaging it again was %s", ref, engaged.outcome)
+
     async def _reconcile(self, ref: str) -> None:
         """A lever left changed by an earlier run that didn't end cleanly: once its plugin
         is up, put it back, unless someone changed it since. The planner then sets what it
@@ -657,17 +690,17 @@ class Executor:
             if lever is None or found is None or found.link is None:
                 continue
             if not claim.held:
-                now = self._readback(ref, lever)
-                if now is None:
+                back = self._readback(ref, lever)
+                if back is None:
                     continue
-                if same(now.value, claim.baseline, lever.params.get("value")):
+                param = lever.params.get("value")
+                now = reading(back, param)
+                if same(now, claim.baseline, param):
                     claim.last, claim.last_t = None, None
                     await self._save(claim)
                     return
-                if not same(now.value, claim.last, lever.params.get("value")):
-                    await self._let_go(
-                        ref, f"after a restart it reads {now.value}, not {claim.last}"
-                    )
+                if not same(now, claim.last, param):
+                    await self._let_go(ref, f"after a restart it reads {now}, not {claim.last}")
                     return
             await self.restore("Thermaestro restarted without putting this back", [ref])
             return
@@ -729,8 +762,20 @@ class Executor:
             expected = json.loads(literal)
         except ValueError:
             expected = literal.strip("'\"")
-        equal = same(found.value, expected)
+        # The point's value, or where it shows words ("Auto"), the device's own number.
+        equal = same(found.value, expected) or (
+            isinstance(found.value, str) and found.raw is not None and same(found.raw, expected)
+        )
         return equal if operator == "==" else not equal
+
+    def _for_people(self, ref: str, lever: Lever) -> bool:
+        """Whether the vocabulary keeps this lever for a person's explicit action."""
+        instance, _ = split(ref)
+        node, _, name = lever.path.rpartition("/")
+        found = self._host.instances.get(instance)
+        kinds = {n.path: n.kind for n in found.described.nodes} if found and found.described else {}
+        standard = vocabulary.lever(kinds.get(node, "unit"), name)
+        return standard is not None and standard.user_only
 
     async def _control(self) -> Control:
         return await self._db.get(Control) or Control()
@@ -760,6 +805,17 @@ def same(a: Value | None, b: Value | None, param: Param | None = None) -> bool:
             step = param.range.value.step
         return abs(a - b) <= (step / 2 if step else 1e-6)
     return str(a) == str(b)
+
+
+def reading(envelope: Envelope, param: Param | None) -> Value | None:
+    """A value read back, in the lever's terms. A point may show a setting in its own words
+    ("Normal"), so for an enum the device's number is taken, and named as the lever names
+    it; a number the lever doesn't name stays a number."""
+    raw = envelope.raw
+    if param is None or param.enum.value is None or raw is None or isinstance(raw, str):
+        return envelope.value
+    names = {str(v): k for k, v in param.enum.value.items()}
+    return names.get(str(raw), raw)
 
 
 def _after(envelope: Envelope, accepted: datetime) -> bool:
