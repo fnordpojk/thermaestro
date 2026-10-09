@@ -1,0 +1,517 @@
+{
+  "$defs": {
+    "Context": {
+      "additionalProperties": false,
+      "description": "When targets apply. Everything given must hold; an empty context always holds.",
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "format": "time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "By"
+        },
+        "days": {
+          "default": [],
+          "items": {
+            "maximum": 6,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Days",
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "format": "time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "outdoor_above": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outdoor Above"
+        },
+        "outdoor_below": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outdoor Below"
+        },
+        "season": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+                  "type": "string"
+                },
+                {
+                  "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Season"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "format": "time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "title": "Context",
+      "type": "object"
+    },
+    "Expectation": {
+      "additionalProperties": false,
+      "properties": {
+        "contexts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Context"
+          },
+          "title": "Contexts",
+          "type": "array"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/Target"
+          },
+          "minItems": 1,
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "targets"
+      ],
+      "title": "Expectation",
+      "type": "object"
+    },
+    "Intent": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmed": {
+          "default": true,
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "created": {
+          "format": "date-time",
+          "title": "Created",
+          "type": "string"
+        },
+        "expectations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "title": "Expectations",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[a-z0-9-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "comfort_band",
+                "hot_water_by",
+                "hot_water_floor",
+                "cost_stance",
+                "addition_policy",
+                "pool",
+                "power_peak",
+                "quiet_hours"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "warmer",
+                "bath",
+                "guests",
+                "away",
+                "hands_off",
+                "fireplace",
+                "boost_now"
+              ],
+              "type": "string"
+            }
+          ],
+          "title": "Kind"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "principal": {
+          "title": "Principal",
+          "type": "string"
+        },
+        "scope": {
+          "pattern": "^(house|room:[a-z0-9_-]+|[a-z0-9_]+:[^\\s]+)$",
+          "title": "Scope",
+          "type": "string"
+        },
+        "state": {
+          "default": "received",
+          "enum": [
+            "received",
+            "rejected",
+            "scheduled",
+            "active",
+            "at_risk",
+            "giving_way",
+            "met",
+            "missed",
+            "finished"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "strength": {
+          "anyOf": [
+            {
+              "enum": [
+                "must",
+                "should"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strength"
+        },
+        "tier": {
+          "enum": [
+            "protection",
+            "wear",
+            "hands_off",
+            "temporary",
+            "standing",
+            "default"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "validity": {
+          "$ref": "#/$defs/Validity",
+          "default": {
+            "at": null,
+            "ends": "never",
+            "starts": null
+          }
+        },
+        "why": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Why"
+        }
+      },
+      "required": [
+        "id",
+        "principal",
+        "created",
+        "scope",
+        "kind",
+        "tier"
+      ],
+      "title": "Intent",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Level": {
+      "additionalProperties": false,
+      "description": "A named band for a climate system or a room, or a named top temperature for the\ntank or a pool's band: the household's own, used by name in patterns and intents.",
+      "properties": {
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "id": {
+          "pattern": "^[a-z0-9-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scope": {
+          "pattern": "^(house|room:[a-z0-9_-]+|[a-z0-9_]+:[^\\s]+)$",
+          "title": "Scope",
+          "type": "string"
+        },
+        "top": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Top"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "scope"
+      ],
+      "title": "Level",
+      "type": "object"
+    },
+    "Target": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "enum": [
+            "within",
+            "at_least",
+            "at_most",
+            "equals"
+          ],
+          "title": "Condition",
+          "type": "string"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "name": {
+          "enum": [
+            "room_temp",
+            "offset_shift",
+            "tank_top_temp",
+            "pool_temp",
+            "house_power",
+            "addition",
+            "quiet"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "name",
+        "condition"
+      ],
+      "title": "Target",
+      "type": "object"
+    },
+    "Validity": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "ends": {
+          "default": "never",
+          "enum": [
+            "at",
+            "next_change",
+            "when_met",
+            "never"
+          ],
+          "title": "Ends",
+          "type": "string"
+        },
+        "starts": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Starts"
+        }
+      },
+      "title": "Validity",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What a household wants, and the levels it names.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Intent"
+    },
+    {
+      "$ref": "#/$defs/Level"
+    }
+  ],
+  "title": "Thermaestro intent"
+}

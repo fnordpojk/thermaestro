@@ -128,7 +128,15 @@ def test_the_real_parameters() -> None:
 async def test_the_seeded_groups(accounts: Accounts) -> None:
     assert await accounts.groups() == {
         "Administrators": frozenset({"*"}),
-        "Household": frozenset({"points.read"}),
+        "Household": frozenset(
+            {
+                "points.read",
+                "intent.temporary.create",
+                "intent.temporary.create.away",
+                "intent.temporary.create.guests",
+                "plan.read",
+            }
+        ),
         "Viewers": frozenset({"points.read"}),
     }
 
@@ -137,7 +145,7 @@ async def test_create_a_user_and_read_rights(accounts: Accounts, tmp_path: Path)
     assert not await accounts.has_admin()
     anna = await accounts.create_user("anna", GOOD, ["Household"], by="cli")
     assert anna.groups == ("Household",)
-    assert anna.permissions == {"points.read"}
+    assert anna.permissions == (await accounts.groups())["Household"]
     assert not await accounts.has_admin()
     await accounts.create_user("bo", GOOD + " two", ["Administrators"], by="cli")
     assert await accounts.has_admin()

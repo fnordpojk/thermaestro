@@ -29,6 +29,7 @@ dependencies = [
     "aiomqtt>=2",
     "aiohttp>=3.12",
     "pymodbus>=3.15,<3.16",
+    "holidays>=0.106",
 ]
 
 [project.scripts]

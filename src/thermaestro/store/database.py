@@ -201,6 +201,27 @@ MIGRATIONS: tuple[str, ...] = (
     ) STRICT;
     CREATE INDEX IF NOT EXISTS acts_by_lever ON acts (lever, t);
     """,
+    # 10: what the household wants: intents and the levels they name; and the household's
+    # right to ask for things for a while and to see the plan.
+    """
+    CREATE TABLE IF NOT EXISTS intents (
+        id TEXT PRIMARY KEY,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        state TEXT NOT NULL,
+        created REAL NOT NULL,
+        ended REAL
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS intents_open ON intents (ended);
+    CREATE TABLE IF NOT EXISTS levels (
+        id TEXT PRIMARY KEY,
+        body TEXT NOT NULL CHECK (json_valid(body))
+    ) STRICT;
+    INSERT OR IGNORE INTO group_permissions (group_name, permission)
+        SELECT 'Household', granted.value
+        FROM json_each('["intent.temporary.create", "intent.temporary.create.away",
+            "intent.temporary.create.guests", "plan.read"]') AS granted
+        WHERE EXISTS (SELECT 1 FROM groups WHERE name = 'Household');
+    """,
 )
 VERSION = len(MIGRATIONS)
 

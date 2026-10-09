@@ -15,11 +15,13 @@ from dataclasses import dataclass, field
 
 from ..cap.sockets import listen_tcp, listen_unix, unix_available
 from ..files import private_directory
+from ..intents import Intents
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .discovery import Publisher
 from .executor import Executor
 from .host import PluginHost
+from .house import House
 from .mqtt import MqttClient
 from .plugins import Factory, discover
 from .sensors import SensorHub
@@ -31,6 +33,10 @@ log = logging.getLogger(__name__)
 
 FLUSH_S = 60.0
 PRUNE_S = 3600.0
+INTENTS_S = 60.0
+"""How often intents move along with time, and the house's capabilities are read again."""
+SEED_EVERY = 10
+"""Seeding is tried every this many rounds, until every part of the house has been."""
 
 ShutdownHook = Callable[[], Awaitable[None]]
 
@@ -51,6 +57,8 @@ class Core:
     weather: Weather
     discovery: Publisher
     executor: Executor
+    house: House
+    intents: Intents
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -88,6 +96,8 @@ async def run(
         weather = Weather(db, series, values, host)
         discovery = Publisher(db, values, host, sensors, series, mqtt)
         executor = Executor(db, host, values, audit)
+        house = House(db, host, values)
+        intents = Intents(db, audit, capabilities=lambda: house.capabilities)
         core = Core(
             layout,
             startup,
@@ -101,6 +111,8 @@ async def run(
             weather,
             discovery,
             executor,
+            house,
+            intents,
         )
         core.shutdown_hooks.append(_restore(executor))
         await _serve(core, stop, flush_s, started)
@@ -124,6 +136,7 @@ async def _serve(
         asyncio.create_task(core.mqtt.run()),
         asyncio.create_task(_tick(core.sensors)),
         asyncio.create_task(core.weather.run()),
+        asyncio.create_task(_intents(core)),
     ]
     writer = asyncio.create_task(
         core.values.run(
@@ -176,6 +189,22 @@ def _restore(executor: Executor) -> ShutdownHook:
         await executor.restore("Thermaestro is stopping")
 
     return hook
+
+
+async def _intents(core: Core, every_s: float = INTENTS_S) -> None:
+    """Keep intents moving with time and the house's capabilities current; seed defaults
+    from how the house runs, part by part, as soon as each has a day of readings."""
+    rounds = 0
+    while True:
+        await asyncio.sleep(every_s)
+        try:
+            await core.house.refresh()
+            await core.intents.advance()
+            if rounds % SEED_EVERY == 0:
+                await core.intents.seed(await core.house.found())
+        except Exception:
+            log.exception("keeping intents failed")
+        rounds += 1
 
 
 async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:

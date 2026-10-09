@@ -109,7 +109,7 @@ async def sleep_until(t: float) -> None:
     await asyncio.sleep(max(0.0, t - clock.time()))
 
 
-async def every(seconds: float, act: Callable[[], Awaitable[None] | None]) -> None:
+async def every(seconds: float, act: Callable[[], Awaitable[object] | None]) -> None:
     """Call `act` every `seconds` of simulated time, on the boundaries of `seconds`."""
     while True:
         now = clock.time()

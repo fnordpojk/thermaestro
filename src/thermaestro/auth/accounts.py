@@ -20,15 +20,17 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass, field
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 from argon2 import PasswordHasher
 
-from ..core.audit import AuditLog
 from ..store import Database, Transaction
 from . import passwords
 from .permissions import STEP_UP, allows, known
 from .preferences import Preferences
+
+if TYPE_CHECKING:  # the core uses the rights; importing it here would go round in a circle
+    from ..core.audit import AuditLog
 from .setup import SetupCode
 
 log = logging.getLogger(__name__)
@@ -158,7 +160,7 @@ class Accounts:
     def __init__(
         self,
         db: Database,
-        audit: AuditLog,
+        audit: "AuditLog",
         *,
         hasher: PasswordHasher = passwords.HASHER,
         clock: Callable[[], float] = time.time,

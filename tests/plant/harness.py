@@ -150,6 +150,8 @@ class Sim:
                 )
             )
             self._tasks.append(asyncio.create_task(every(STEP_S, self._step)))
+            # The history, written as the daemon writes it.
+            self._tasks.append(asyncio.create_task(every(60.0, lambda: self.values.flush())))
         audit = AuditLog(self.path / "audit")
         self.values = Values(self.db)
         bus, plant = self.bus, self.plant

@@ -443,6 +443,36 @@ class Climate(Setting):
         return self
 
 
+Emitter = Literal["unknown", "radiators", "floor", "radiators_and_floor", "fan_coils"]
+
+
+class Home(Setting):
+    """What setup asks about the house, and the household's choices that hold for every
+    intent. One per installation."""
+
+    kind = "home"
+
+    emitters: dict[PointRef, Emitter] = Field(default_factory=dict)
+    """Per climate system's node (`pump:hp1/cs1`): what gives off its heat. How slow a
+    system is starts from this, until it is learned."""
+    house: Literal["unknown", "poorly_insulated", "average", "well_insulated", "low_energy"] = (
+        "unknown"
+    )
+    """A rough start for how much heat the house stores and loses, until it is learned."""
+    water: Literal["unknown", "municipal", "well"] = "unknown"
+    """Where the cold water comes from: a well's stays near the year's mean temperature."""
+    holidays: Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}(-[A-Z0-9]{1,3})?$")] | None = (
+        None
+    )
+    """The public holidays' calendar: a country, and maybe a region (`SE`, `DE-BY`)."""
+    holidays_as: Annotated[int, Field(ge=0, le=6)] | None = 6
+    """The day of the week a public holiday counts as in weekly patterns (0 Monday, 6
+    Sunday); None: as the day it falls on."""
+    past_deadline: Literal["keep_heating", "stop"] = "keep_heating"
+    """After a missed hot-water deadline: keep heating until it is met or the next one is
+    due, or stop at the deadline."""
+
+
 LeverMode = Literal["off", "shadow", "control"]
 
 
@@ -493,6 +523,7 @@ SETTINGS: dict[str, type[Setting]] = {
         WeatherChoice,
         Climate,
         Control,
+        Home,
         PluginState,
     )
 }

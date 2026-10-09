@@ -73,6 +73,7 @@ POINTS: dict[str, PointName] = {
     "diverter": _p(None, UNIT, values=("heating", "dhw")),
     "state": _p(None, "compressor", values=("stopped", "starting", "running", "stopping")),
     "speed": _p(None, "compressor"),
+    "emitter": _p(None, CS, values=("radiators", "floor", "radiators_and_floor", "fan_coils")),
     "pump.state": _p(None, CS, "brine_circuit"),
     "pump.speed": _p(None, CS, "brine_circuit"),
     "power": _p(None, "addition"),
