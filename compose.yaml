@@ -10,6 +10,9 @@ services:
     image: thermaestro:local
     hostname: thermaestro # the name in its own HTTPS certificate
     restart: unless-stopped
+    # On the way out Thermaestro puts back every pump setting it changed, a write and a
+    # read-back each; Docker's default of 10 s before it kills the container is too short.
+    stop_grace_period: 60s
     ports:
       - "${THERMAESTRO_HTTP_PORT:-8080}:8080"
       - "${THERMAESTRO_HTTPS_PORT:-8443}:8443"

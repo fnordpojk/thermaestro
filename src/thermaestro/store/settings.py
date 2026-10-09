@@ -443,6 +443,30 @@ class Climate(Setting):
         return self
 
 
+LeverMode = Literal["off", "shadow", "control"]
+
+
+class Control(Setting):
+    """What Thermaestro may change, and how much. One per installation. A lever that isn't
+    named is off: Thermaestro reads and plans, and writes nothing to it."""
+
+    kind = "control"
+
+    levers: dict[PointRef, LeverMode] = Field(default_factory=dict)
+    """Each lever, `<instance>:<path>`, in shadow (decided and recorded, never sent) or
+    in control."""
+    confirmed_off: dict[PointRef, tuple[Name, ...]] = Field(default_factory=dict)
+    """Per lever, the competing features the household says are switched off, by the
+    names the plugin gives them."""
+    soft_budget: Annotated[int, Field(ge=1, le=10_000)] = 50
+    """Setting writes a day per plugin instance that the planner aims to stay under."""
+    guard: Annotated[int, Field(ge=1, le=10_000)] = 200
+    """Writes a day per lever after which nothing more is sent: a stop for a writer
+    caught in a loop."""
+    min_hold_s: Annotated[float, Field(ge=0, le=86_400)] = 900.0
+    """The shortest time between two changes of a setting: one price slot."""
+
+
 class PluginState(Setting):
     """What an in-process plugin keeps across restarts, as it chooses; one per instance,
     under the instance's id. Not a setting anyone changes: the plugin writes it."""
@@ -468,6 +492,7 @@ SETTINGS: dict[str, type[Setting]] = {
         Vat,
         WeatherChoice,
         Climate,
+        Control,
         PluginState,
     )
 }

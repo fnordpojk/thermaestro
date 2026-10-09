@@ -2,18 +2,22 @@
 
 from .audit import AuditLog, verify
 from .daemon import Core, run
+from .executor import Claim, Executor, Result
 from .host import Instance, PluginHost, State
 from .plugins import Factory, PluginContext, discover
 from .values import Key, Sample, Values
 
 __all__ = [
     "AuditLog",
+    "Claim",
     "Core",
+    "Executor",
     "Factory",
     "Instance",
     "Key",
     "PluginContext",
     "PluginHost",
+    "Result",
     "Sample",
     "State",
     "Values",

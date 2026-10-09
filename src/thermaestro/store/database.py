@@ -173,6 +173,34 @@ MIGRATIONS: tuple[str, ...] = (
     WHERE kind = 'price.layer' AND json_extract(body, '$.source') = 'remainder';
     UPDATE settings SET body = json_remove(body, '$.minus') WHERE kind = 'price.layer';
     """,
+    # 9: the write path: each lever taken over, with what it was found at, and every
+    # change made or, in shadow, decided. (IF NOT EXISTS: tests replay migrations on a
+    # newer database by setting its version back.)
+    """
+    CREATE TABLE IF NOT EXISTS claims (
+        lever TEXT PRIMARY KEY,
+        claimed REAL NOT NULL,
+        baseline TEXT CHECK (baseline IS NULL OR json_valid(baseline)),
+        mode TEXT NOT NULL,
+        held INTEGER NOT NULL DEFAULT 0,
+        last TEXT CHECK (last IS NULL OR json_valid(last)),
+        last_t REAL,
+        drift TEXT
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS acts (
+        id INTEGER PRIMARY KEY,
+        t REAL NOT NULL,
+        lever TEXT NOT NULL,
+        op TEXT NOT NULL,
+        params TEXT NOT NULL CHECK (json_valid(params)),
+        who TEXT NOT NULL,
+        why TEXT,
+        mode TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        detail TEXT
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS acts_by_lever ON acts (lever, t);
+    """,
 )
 VERSION = len(MIGRATIONS)
 

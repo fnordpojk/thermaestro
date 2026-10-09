@@ -1,9 +1,9 @@
 """`thermaestro run`: the long-running process.
 
 It reads the start-up file, opens the store, runs the plugins and the web UI, and keeps
-their values until it is told to stop. On SIGTERM or SIGINT it stops the plugins, writes what's
-waiting, runs the shutdown hooks, and exits. The core keeps those signals for itself,
-so the restore-on-exit that comes with the write path has its place here.
+their values until it is told to stop. On SIGTERM or SIGINT it puts every lever back as it
+was found, runs the other shutdown hooks, stops the plugins, writes what's waiting, and
+exits. The core keeps those signals for itself, so the restore always runs first.
 """
 
 import asyncio
@@ -18,6 +18,7 @@ from ..files import private_directory
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .discovery import Publisher
+from .executor import Executor
 from .host import PluginHost
 from .mqtt import MqttClient
 from .plugins import Factory, discover
@@ -49,6 +50,7 @@ class Core:
     mqtt: MqttClient
     weather: Weather
     discovery: Publisher
+    executor: Executor
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -59,8 +61,10 @@ async def run(
     stop: asyncio.Event | None = None,
     factories: Mapping[str, Factory] | None = None,
     flush_s: float = FLUSH_S,
+    started: Callable[[Core], Awaitable[None]] | None = None,
 ) -> None:
-    """Run until `stop` is set, or until SIGTERM or SIGINT."""
+    """Run until `stop` is set, or until SIGTERM or SIGINT. `started` is called once
+    everything runs."""
     stop = stop or asyncio.Event()
     startup = load_startup(layout.startup)
     layout = startup.layout(layout)
@@ -83,15 +87,33 @@ async def run(
         mqtt = MqttClient(db, secrets, sensors)
         weather = Weather(db, series, values, host)
         discovery = Publisher(db, values, host, sensors, series, mqtt)
+        executor = Executor(db, host, values, audit)
         core = Core(
-            layout, startup, db, secrets, audit, values, host, sensors, mqtt, weather, discovery
+            layout,
+            startup,
+            db,
+            secrets,
+            audit,
+            values,
+            host,
+            sensors,
+            mqtt,
+            weather,
+            discovery,
+            executor,
         )
-        await _serve(core, stop, flush_s)
+        core.shutdown_hooks.append(_restore(executor))
+        await _serve(core, stop, flush_s, started)
     finally:
         await db.close()
 
 
-async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
+async def _serve(
+    core: Core,
+    stop: asyncio.Event,
+    flush_s: float,
+    started: Callable[[Core], Awaitable[None]] | None,
+) -> None:
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
@@ -113,12 +135,15 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
     )
     server = await _plugin_socket(core)
     await core.host.start()
+    await core.executor.start()
     stop_web = None
     try:
         from ..web.server import start as start_web
 
         stop_web = await start_web(core)
         log.info("Thermaestro is running")
+        if started is not None:
+            await started(core)
         await stop.wait()
     finally:
         log.info("stopping")
@@ -129,6 +154,7 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
                 await hook()
             except Exception:
                 log.exception("a shutdown step failed")
+        await core.executor.stop()
         await core.host.stop()
         if server is not None:
             server.close()
@@ -143,6 +169,13 @@ async def _serve(core: Core, stop: asyncio.Event, flush_s: float) -> None:
         await core.audit.record("core", "core.stop")
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
+
+
+def _restore(executor: Executor) -> ShutdownHook:
+    async def hook() -> None:
+        await executor.restore("Thermaestro is stopping")
+
+    return hook
 
 
 async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:

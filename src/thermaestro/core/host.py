@@ -4,7 +4,8 @@ Each instance is supervised: if its plugin fails or its connection ends, the ins
 restarted after a growing pause, and the failure is reported. One plugin failing never
 stops the others or the core.
 
-Nothing here acts on a lever. Writing to devices comes with the write path.
+Nothing here acts on a lever: the executor does, through the link an instance has while
+it is up.
 """
 
 import asyncio
@@ -12,7 +13,7 @@ import contextlib
 import logging
 import time
 from collections import deque
-from collections.abc import Coroutine, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -56,6 +57,8 @@ class Instance:
     active: dict[tuple[str, str], DeviceEvent] = field(default_factory=dict)
     """The device events that are on now, by unit and code: a warning stays until the
     plugin says it's over, however many events came since."""
+    link: Link | None = None
+    """The connection while the instance is up: what the write path sends through."""
 
 
 class PluginHost:
@@ -84,6 +87,9 @@ class PluginHost:
         """A plugin may first have to identify its device: a Nibe pump names its model
         every 15 s."""
         self.instances: dict[str, Instance] = {}
+        self.listeners: list[Callable[[str, Message], None]] = []
+        """Told of what plugins send unasked (health, device events, foreign writes),
+        with the instance's id."""
         self._tasks: set[asyncio.Task[None]] = set()
         self._supervisors: dict[str, asyncio.Task[None]] = {}
 
@@ -222,6 +228,7 @@ class PluginHost:
         ends (Closed)."""
         instance.described = await link.describe(timeout=self._describe_timeout)
         instance.state = State.UP
+        instance.link = link
         await self._audit.record(
             f"plugin:{instance.setting.plugin}",
             "plugin.start",
@@ -238,6 +245,7 @@ class PluginHost:
         try:
             await self._points(instance, link)
         finally:
+            instance.link = None
             if followed is not None:
                 followed.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Closed):
@@ -272,6 +280,8 @@ class PluginHost:
                     instance.active.pop(key, None)
         elif isinstance(message, Described) and instance.described is not None:
             instance.described = _merge(instance.described, message)
+        for listener in self.listeners:
+            listener(instance.id, message)
 
 
 def _merge(old: Described, change: Described) -> Described:

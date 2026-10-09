@@ -104,3 +104,4 @@ The container uses Docker's own network, and reaches the network outside through
 - On a read-only file system, apart from `/data` and a `/tmp` in memory.
 - With no Linux capabilities, and no way to gain privileges.
 - Logging to Docker, kept to 100 MB.
+- Given 60 seconds to stop (`stop_grace_period`). On the way out Thermaestro puts back every pump setting it changed, each with a write and a read-back, and Docker's default of 10 seconds can cut that short.

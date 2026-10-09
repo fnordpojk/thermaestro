@@ -12,10 +12,11 @@ from pathlib import Path
 
 import httpx
 from capfake import FakePump
+from leverfake import LeverDevice
 
 from thermaestro.auth import SetupCode
-from thermaestro.core import run
-from thermaestro.store import Database, Layout, Plugin
+from thermaestro.core import Core, Key, run
+from thermaestro.store import Control, Database, Layout, Plugin
 from thermaestro.web import certificate
 
 
@@ -69,6 +70,38 @@ async def test_runs_until_stopped_and_writes_history(tmp_path: Path) -> None:
     with closing(sqlite3.connect(lay.database)) as raw:
         points = {p for (p,) in raw.execute("SELECT DISTINCT point FROM history")}
     assert "hp1/outdoor.temp" in points
+
+
+async def test_stopping_puts_every_lever_back(tmp_path: Path) -> None:
+    lay = layout(tmp_path)
+    lay.state.mkdir(mode=0o700)
+    async with await Database.open(lay.database) as db:
+        await db.put(Plugin(plugin="leverfake"), "dev")
+        await db.put(Control(levers={"dev:hp1/offset": "control", "dev:hp1/block": "control"}))
+    device = LeverDevice()
+    stop = asyncio.Event()
+    outcomes: list[str] = []
+
+    async def started(core: Core) -> None:
+        async with asyncio.timeout(10):
+            while Key("dev", "hp1/x.fake.offset") not in core.values.latest:
+                await asyncio.sleep(0.05)
+        for ref, op, params in (
+            ("dev:hp1/offset", "set", {"value": 3}),
+            ("dev:hp1/block", "engage", {}),
+        ):
+            result = await core.executor.act(ref, op, params, who="test")  # type: ignore[arg-type]
+            outcomes.append(result.outcome)
+        stop.set()
+
+    await asyncio.wait_for(
+        run(lay, stop=stop, factories={"leverfake": lambda c: device}, started=started), 20
+    )
+    assert outcomes == ["verified", "awaiting_effect"]
+    assert device.registers["x.fake.offset"] == -4
+    assert device.held == set()
+    whats = audit_whats(lay.state)
+    assert whats.index("lever.restore") < whats.index("core.stop")
 
 
 async def test_the_web_ui_runs_inside(tmp_path: Path) -> None:
