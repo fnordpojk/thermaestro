@@ -8,6 +8,7 @@ import pytest
 from thermaestro.store import (
     VERSION,
     Database,
+    Home,
     Location,
     Mqtt,
     PriceLayer,
@@ -55,6 +56,16 @@ async def test_the_brokers_old_discovery_switch_is_dropped(tmp_path: Path) -> No
         raw.execute("PRAGMA user_version = 6")
     async with await Database.open(path) as db:
         assert await db.get(Mqtt) == Mqtt(host="192.0.2.30")
+
+
+async def test_emitters_taken_from_the_pump_are_forgotten(tmp_path: Path) -> None:
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path) as db:
+        await db.put(Home(emitters={"pump:hp1/cs1": "radiators"}, water="well"))
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 11")
+    async with await Database.open(path) as db:
+        assert await db.get(Home) == Home(water="well")
 
 
 async def test_a_stored_remainder_is_a_suppliers_total_again(tmp_path: Path) -> None:

@@ -91,15 +91,8 @@ async def set_discovery(
 async def set_home_assistant(
     request: Request, who: Logged, url: Text, id: Text = "homeassistant", token: Text = ""
 ) -> Response:
-    s = services(request)
-    token_name = f"{id.lower()}.token"
-
-    async def work() -> None:
-        if token:
-            await s.set_secret(who, token_name, token.strip())
-        await s.set_home_assistant(who, id, url, token_name)
-
-    return await attempt(request, who, work(), "external", f"/sensors/homeassistant/{id}")
+    work = services(request).set_home_assistant(who, id, url, token)
+    return await attempt(request, who, work, "external", f"/sensors/homeassistant/{id}")
 
 
 # --- Sensors ------------------------------------------------------------------------------

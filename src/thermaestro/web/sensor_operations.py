@@ -234,9 +234,16 @@ class SensorOperations:
     # --- Home Assistant ------------------------------------------------------------------
 
     async def set_home_assistant(
-        self, caller: "Caller", id: str, url: str, token_name: str
+        self, caller: "Caller", id: str, url: str, token: str = ""
     ) -> Plugin:
-        """Add or change the connection; the entities chosen so far are kept."""
+        """Add or change the connection, with a new token if one is given; the entities
+        chosen so far are kept. The rights are checked before the token is stored."""
+        self._require(caller, "plugins.manage", step_up=True)
+        if not ID.match(id):
+            raise AccountError("an instance name is 1 to 64 letters, digits or . _ -")
+        token_name = f"{id.lower()}.token"
+        if token.strip():
+            await self.set_secret(caller, token_name, token.strip())
         existing = await self.db.get(Plugin, id)
         entities = existing.settings.get("entities", []) if existing else []
         settings = {"url": url.strip().rstrip("/"), "token": token_name, "entities": entities}

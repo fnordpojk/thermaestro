@@ -292,12 +292,6 @@ CS1_POINTS = (
     ),
     PointDef("cs1/pump.state", 43431, enum=PUMP_STATE),
     PointDef("cs1/pump.speed", SUPPLY_PUMP_SPEED),
-    PointDef(
-        "cs1/emitter",
-        47442,  # the preset flow setting: what the curve's flow is preset for
-        enum={1: "radiators", 2: "floor", 3: "radiators_and_floor"},
-        unknown_why="the pump's flow is set by hand, so it doesn't say",
-    ),
 )
 
 DHW_POINTS = (

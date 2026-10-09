@@ -232,6 +232,11 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (sensor, day)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 12: emitters stop coming from Nibe's flow preset (47442), which stays at its factory
+    # "radiator" on most pumps and says nothing about the house; setup asks instead
+    """
+    UPDATE settings SET body = json_set(body, '$.emitters', json('{}')) WHERE kind = 'home';
+    """,
 )
 VERSION = len(MIGRATIONS)
 

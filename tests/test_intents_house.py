@@ -19,7 +19,7 @@ TANK = "pump:hp1/dhw"
 def test_seeded_from_the_pumps_settings(tmp_path: Path) -> None:
     """The tank's floor and level from the mode's start and stop at once; the comfort band
     without a room sensor at once too."""
-    scenario = draw(1, emitter="radiators").set({47442: 1})  # the pump's flow preset: radiators
+    scenario = draw(1, emitter="radiators")
 
     async def body() -> None:
         sim = Sim(scenario, tmp_path)
@@ -49,7 +49,7 @@ def test_seeded_from_the_pumps_settings(tmp_path: Path) -> None:
             assert no_sensor.parameters == {"no_sensor": True}  # no room sensor
             await sim.advance(26 * 3600)
             await house.refresh()
-            assert (await sim.db.get(Home) or Home()).emitters == {CS: "radiators"}
+            assert (await sim.db.get(Home) or Home()).emitters == {}  # setup asks
             assert await intents.seed(await house.found()) == []
 
     simulate(body, scenario.start_time)

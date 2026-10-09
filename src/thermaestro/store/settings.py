@@ -295,6 +295,8 @@ class Sensor(Setting):
     def _names_its_source(self) -> Self:
         if self.source == "mqtt" and not self.topic:
             raise ValueError("an MQTT sensor names its topic")
+        if self.topic and ("+" in self.topic or "#" in self.topic):
+            raise ValueError("an MQTT sensor's topic is one topic, without + or #")
         if self.source == "point" and not self.point:
             raise ValueError("a sensor from another plugin names its point")
         if self.placement != "room" and (self.room or self.reference):

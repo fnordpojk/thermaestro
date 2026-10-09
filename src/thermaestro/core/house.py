@@ -1,6 +1,6 @@
 """What the house has and shows, as intents need it: the climate systems, rooms, tanks and
-pools the plugins describe and what can be changed in each; for seeding, how the house
-has run over the last week; and each climate system's emitter where a device says.
+pools the plugins describe and what can be changed in each; and for seeding, how the
+house has run over the last week. A climate system's emitter is setup's answer only.
 """
 
 import logging
@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 
 WEEK = timedelta(days=7)
 DAY = timedelta(days=1)
-EMITTERS = {"radiators", "floor", "radiators_and_floor", "fan_coils"}
 EDGES = ("start", "stop")
 
 
@@ -71,7 +70,6 @@ class House:
             prices=prices,
             emitters=dict(home.emitters),
         )
-        await self._emitters(home, systems)
         return self.capabilities
 
     async def _rooms(self, systems: set[str]) -> dict[str, str]:
@@ -87,21 +85,6 @@ class House:
             for id, room in rooms.items()
             if id in sensed and room.climate_system in systems
         }
-
-    async def _emitters(self, home: Home, systems: set[str]) -> None:
-        """A climate system's emitter, from a device that says, where setup hasn't."""
-        found = {}
-        for system in systems:
-            if home.emitters.get(system, "unknown") != "unknown":
-                continue
-            instance, _, path = system.partition(":")
-            envelope = self._values.latest.get(Key(instance, f"{path}/emitter"))
-            if envelope is not None and envelope.quality == "good" and envelope.value in EMITTERS:
-                found[system] = envelope.value
-        if found:
-            emitters = {**home.emitters, **found}
-            await self._db.put(home.model_copy(update={"emitters": emitters}))
-            log.info("emitters from the pump: %s", found)
 
     async def found(self) -> Found:
         """How the house has run over the last week, for seeding. A climate system whose

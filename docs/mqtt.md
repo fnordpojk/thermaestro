@@ -28,7 +28,7 @@ Thermaestro connects only while there is something to do: an MQTT sensor to read
 
 An MQTT sensor is added under **Setup → Sensors → Add an MQTT sensor**. It names:
 
-- **the topic**, such as `zigbee2mqtt/bedroom`. Thermaestro subscribes to it and takes messages whose topic is exactly this one;
+- **the topic**, such as `zigbee2mqtt/bedroom`. Thermaestro subscribes to it and takes messages whose topic is exactly this one. Wildcards (`+`, `#`) are refused;
 - **the JSON field**, for a topic that carries JSON. A dotted name reaches into nested objects (`state.temperature`). Left empty, the whole payload is the value.
 
 A value may be a number, `true` or `false`, or a word:

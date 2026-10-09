@@ -215,11 +215,7 @@ async def set_discovery(body: dict[str, Any], request: Request, who: Logged) -> 
 async def set_home_assistant(
     id: str, body: HomeAssistantConnection, request: Request, who: Logged
 ) -> dict[str, Any]:
-    s = services(request)
-    token_name = f"{id.lower()}.token"
-    if body.token:
-        await s.set_secret(who, token_name, body.token.strip())
-    plugin = await s.set_home_assistant(who, id, body.url, token_name)
+    plugin = await services(request).set_home_assistant(who, id, body.url, body.token or "")
     return plugin.model_dump(mode="json")
 
 

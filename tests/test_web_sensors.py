@@ -302,6 +302,24 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
     assert TOKEN not in (site.state / "audit" / "audit.jsonl").read_text()
 
 
+async def test_no_home_assistant_token_is_stored_without_the_right_to_connect(
+    site: Site,
+) -> None:
+    async with logged_in(site) as client:
+        created = await form(
+            client, "/account", "/account/tokens", name="s", days="30", rights="secrets.manage"
+        )
+        raw = re.search(r"(thm_[A-Za-z0-9_-]+)", created.text)
+        assert raw
+    async with site.client(authorization=f"Bearer {raw.group(1)}") as api:
+        refused = await api.put(
+            "/api/v1/homeassistant/homeassistant",
+            json={"url": "http://192.0.2.40:8123", "token": "a new token"},
+        )
+        assert refused.status_code == 403
+    assert await site.services.secrets.get("homeassistant.token") is None
+
+
 async def test_rooms_from_home_assistants_areas(site: Site) -> None:
     """An area with no room yet is offered as a new room, in the picker and under House;
     a room made so is Thermaestro's own, and the pages say so."""

@@ -34,6 +34,8 @@ def test_a_plugins_settings_are_checked_against_its_model() -> None:
         {"name": "t", "source": "mqtt"},
         {"name": "t", "source": "point", "topic": "a/b"},
         {"name": "t", "source": "mqtt", "topic": "a/b", "freshness_s": 0},
+        {"name": "t", "source": "mqtt", "topic": "zigbee2mqtt/+/temperature"},
+        {"name": "t", "source": "mqtt", "topic": "zigbee2mqtt/#"},
     ],
 )
 def test_a_sensor_names_its_source(bad: dict[str, object]) -> None:
