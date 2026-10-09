@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from simpump import TEST_PSK, OtherClient, SimPump
 from test_nibe_plugin import FAST_PLAIN, FAST_TGW, PUMP, settings, until
-from thermaestro_gateway.server import Gateway
+from thermaestro_gateway.server import Config, Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.messages import Described, Fate, ForeignWrite, Op
@@ -131,12 +131,57 @@ def test_no_lever_writes_what_is_never_written() -> None:
             assert all(model.register(r).writable for r in registers), (name, spec.path)
 
 
+async def over_the_protocol(gateway: Gateway, tmp_path: Path) -> NibePlugin:
+    """A plugin on the Thermaestro gateway protocol, with the gateway's key."""
+    secrets = SecretStore(tmp_path / "secrets.json")
+    await secrets.set("nibe.psk", TEST_PSK.hex())
+    return NibePlugin(
+        NibeGateway(
+            host="127.0.0.1",
+            protocol="thermaestro-gw",
+            control_port=gateway.ports["control"],
+            read_port=gateway.ports["read"],
+            write_port=gateway.ports["write"],
+            psk="nibe.psk",
+        ),
+        secrets=secrets,
+        transport_settings={"tgw_settings": FAST_TGW},
+        identify_timeout_s=5,
+    )
+
+
+@pytest.fixture(params=["nibegw", "thermaestro-gw"])
+async def routed(
+    request: pytest.FixtureRequest, stocked: SimPump, tmp_path: Path
+) -> AsyncIterator[NibePlugin]:
+    """A plugin over plain NibeGW, and one over the Thermaestro gateway protocol."""
+    protocol = request.param == "thermaestro-gw"
+    gateway = Gateway(
+        Config(
+            serial_port=stocked.end.path,
+            listen="127.0.0.1",
+            read_port=0,
+            write_port=0,
+            control_port=0,
+            psk=TEST_PSK if protocol else None,
+        )
+    )
+    await gateway.start()
+    stocked.start()
+    try:
+        yield await over_the_protocol(gateway, tmp_path) if protocol else plugin(gateway)
+    finally:
+        await stocked.stop()
+        await gateway.close()
+
+
 @pytest.mark.parametrize(
     ("lever", "op", "params", "register", "word"),
     [
         ("cs1/heating.offset", "set", {"value": 2}, 47011, 2),
         ("cs1/heating.offset", "set", {"value": -7}, 47011, -7),
         ("dhw/mode", "set", {"value": "eco"}, 47041, 0),
+        ("dhw/block", "engage", {}, 47044, 250),
         ("dhw/boost_once", "fire", {}, 48132, 4),
         ("dhw/boost_once", "cancel", {}, 48132, 0),
         ("alarm.reset", "fire", {}, 45171, 1),
@@ -144,20 +189,21 @@ def test_no_lever_writes_what_is_never_written() -> None:
         ("addition/max_power", "set", {"value": 3.5}, 47212, 350),
         ("pool1/start_temp", "set", {"value": 21.5}, 48090, 215),
         ("pool1/stop_temp", "set", {"value": 29}, 48092, 290),
+        ("pool1/block", "engage", {}, 48094, 0),
     ],
 )
-async def test_each_lever_over_the_plain_gateway(
+async def test_each_lever_over_each_route(
     stocked: SimPump,
-    gateway: Gateway,
+    routed: NibePlugin,
     lever: str,
     op: Op,
     params: dict[str, Value],
     register: int,
     word: int,
 ) -> None:
-    async with served(plugin(gateway)) as link:
+    async with served(routed) as link:
         fate = await act(link, lever, op, params)
-    assert (fate.stage, fate.detail) == ("device_accepted", "0x6C = 1")
+    assert fate.stage == "device_accepted", fate.detail
     assert [r for r, _ in stocked.taken_writes] == [register]
     assert signed(stocked.registers[register]) == word
 
@@ -165,21 +211,7 @@ async def test_each_lever_over_the_plain_gateway(
 async def test_over_the_gateway_protocol(
     stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
 ) -> None:
-    secrets = SecretStore(tmp_path / "secrets.json")
-    await secrets.set("nibe.psk", TEST_PSK.hex())
-    p = NibePlugin(
-        NibeGateway(
-            host="127.0.0.1",
-            protocol="thermaestro-gw",
-            control_port=gateway_with_psk.ports["control"],
-            read_port=gateway_with_psk.ports["read"],
-            write_port=gateway_with_psk.ports["write"],
-            psk="nibe.psk",
-        ),
-        secrets=secrets,
-        transport_settings={"tgw_settings": FAST_TGW},
-        identify_timeout_s=5,
-    )
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
     events: list[object] = []
     async with served(p, events) as link:
         assert (await act(link, "cs1/heating.offset", "set", {"value": 3})).stage == (
