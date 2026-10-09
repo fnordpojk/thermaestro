@@ -187,11 +187,8 @@ async def test_the_valves_position_is_measured(plugin: NibePlugin, spump: SimSPu
     spump.registers[32196] = 1  # QN10: hot water
     await until(lambda: value(plugin, "diverter")[0] == "dhw")
     assert value(plugin, "demand")[0] == "dhw"
-    assert value(plugin, "cs1/supply.temp") == (
-        35.1,
-        "good",
-        "the water goes to the hot-water tank now, not to the heating",
-    )
+    assert value(plugin, "cs1/supply.temp") == (35.1, "no_flow", profile.DIVERTED)
+    assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.DIVERTED)
     await until(lambda: value(plugin, "dhw/temp.charge")[1] == "transitional")
 
 

@@ -104,6 +104,9 @@ def counting(register: int, purpose: str) -> Rule:
 
 
 SUPPLY_STOPPED = "the heating medium pump (GP1) is stopped, so the water at the sensor stands still"
+DIVERTED = (
+    "the heating medium goes to the hot-water tank, so the climate system's water stands still"
+)
 BRINE_STOPPED = "the brine pump (GP2) is stopped, so the brine at the sensor stands still"
 
 
@@ -137,12 +140,11 @@ def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
 
 
 def diverted(register: int, hot_water: int) -> Rule:
-    """While `register` says the water goes to the tank."""
+    """No flow in the climate system while `register` says the water goes to the tank."""
 
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
         if s.values.get(register) == hot_water:
-            # True, but it describes the charge, not the heating.
-            return "good", "the water goes to the hot-water tank now, not to the heating"
+            return "no_flow", DIVERTED
         return None
 
     return rule
@@ -227,12 +229,12 @@ def system_points(system: System) -> list[PointDef]:
         PointDef(
             f"{cs}/supply.temp",
             system.supply,
-            rules=(*FLOW_RULES, diverted_to_hot_water) if system.number == 1 else (),
+            rules=(diverted_to_hot_water, *FLOW_RULES) if system.number == 1 else (),
             validity=(
                 (
+                    f"no_flow while the demand ({PRIO}) is hot water",
                     f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
                     f"transitional while compressor {COMPRESSOR} starts or stops",
-                    "during a hot-water charge it describes the charge, not the heating",
                 )
                 if system.number == 1
                 else ()
@@ -287,8 +289,11 @@ CS1_POINTS = (
     PointDef(
         "cs1/return.temp",
         40012,
-        rules=FLOW_RULES,
-        validity=(f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",),
+        rules=(diverted_to_hot_water, *FLOW_RULES),
+        validity=(
+            f"no_flow while the demand ({PRIO}) is hot water",
+            f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+        ),
     ),
     PointDef("cs1/pump.state", 43431, enum=PUMP_STATE),
     PointDef("cs1/pump.speed", SUPPLY_PUMP_SPEED),

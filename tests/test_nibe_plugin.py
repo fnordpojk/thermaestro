@@ -190,11 +190,8 @@ async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
     await until(lambda: value(plugin, "demand")[0] == "dhw")
     assert value(plugin, "diverter") == ("dhw", "good", None)
     await until(lambda: value(plugin, "dhw/temp.charge")[1] == "transitional")
-    assert value(plugin, "cs1/supply.temp") == (
-        35.0,
-        "good",
-        "the water goes to the hot-water tank now, not to the heating",
-    )
+    assert value(plugin, "cs1/supply.temp") == (35.0, "no_flow", profile.DIVERTED)
+    assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.DIVERTED)
     stocked.registers[43086] = 10  # idle
     await until(lambda: value(plugin, "demand")[0] == "idle")
     assert value(plugin, "diverter")[:2] == (None, "unknown")

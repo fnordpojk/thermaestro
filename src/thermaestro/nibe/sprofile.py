@@ -89,17 +89,20 @@ CS1_POINTS = (
     PointDef(
         "cs1/supply.temp",
         30005,
-        rules=(*FLOW_RULES, diverted(DIVERTER, 1)),
+        rules=(diverted(DIVERTER, 1), *FLOW_RULES),
         validity=(
+            f"no_flow while the diverter ({DIVERTER}) is on hot water",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
-            "during a hot-water charge it describes the charge, not the heating",
         ),
     ),
     PointDef(
         "cs1/return.temp",
         30007,
-        rules=FLOW_RULES,
-        validity=(f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",),
+        rules=(diverted(DIVERTER, 1), *FLOW_RULES),
+        validity=(
+            f"no_flow while the diverter ({DIVERTER}) is on hot water",
+            f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+        ),
     ),
     PointDef("cs1/room.temp", 30026),
     PointDef("cs1/pump.speed", SUPPLY_PUMP_SPEED),
