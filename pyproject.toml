@@ -120,7 +120,8 @@ files = ["src", "gateway/src", "tests", "gateway/tests", "scripts"]
 testpaths = ["tests", "gateway/tests"]
 pythonpath = ["gateway/tests", "tests"]
 # Two test folders share module names, so tests aren't imported as packages.
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "-m", "not nightly"]
+markers = ["nightly: long simulated runs over many scenarios, run each night (pytest -m nightly)"]
 asyncio_mode = "auto"
 xfail_strict = true
 filterwarnings = ["error"]

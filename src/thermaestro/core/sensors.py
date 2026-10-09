@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from .. import durations
+from .. import clock, durations
 from ..cap.model import Envelope, Quality
 from ..cap.vocabulary import QUANTITIES, STATES
 from ..store import Database, Display, Names, Outdoor, Room, Sensor
@@ -383,7 +383,7 @@ def _envelope(
             "value": value,
             "unit": unit if value is not None and not isinstance(value, bool) else None,
             "t_observed": observed,
-            "t_received": datetime.now(UTC),
+            "t_received": clock.now(),
             "quality": quality,
             "source": source,
             "why": why,

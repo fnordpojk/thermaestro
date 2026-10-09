@@ -15,12 +15,12 @@ import os
 import sqlite3
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
 
 from pydantic import ValidationError
 
+from .. import clock
 from ..files import UnsafePath, check_private_file
 from .errors import StoreError, name_fields
 from .settings import Setting
@@ -228,7 +228,7 @@ class Transaction:
             "INSERT INTO settings (kind, id, body, updated) VALUES (?, ?, ?, ?)"
             " ON CONFLICT (kind, id)"
             " DO UPDATE SET body = excluded.body, updated = excluded.updated",
-            (setting.kind, id, setting.model_dump_json(), datetime.now(UTC).isoformat()),
+            (setting.kind, id, setting.model_dump_json(), clock.now().isoformat()),
         )
 
     def delete(self, model: type[Setting], id: str = "") -> bool:

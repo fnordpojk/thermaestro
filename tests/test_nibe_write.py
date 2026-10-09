@@ -20,7 +20,8 @@ from thermaestro.cap.model import Value
 from thermaestro.core import Core, Key, run
 from thermaestro.core.plugins import PluginStore
 from thermaestro.nibe import profile
-from thermaestro.nibe.maps import load
+from thermaestro.nibe.maps import decode, load
+from thermaestro.nibe.maps.codec import encode
 from thermaestro.nibe.plugin import NibePlugin
 from thermaestro.store import Control, Database, Layout, NibeGateway, Plugin, SecretStore
 
@@ -148,6 +149,31 @@ async def over_the_protocol(gateway: Gateway, tmp_path: Path) -> NibePlugin:
         transport_settings={"tgw_settings": FAST_TGW},
         identify_timeout_s=5,
     )
+
+
+def test_every_lever_fits_its_register_on_every_model() -> None:
+    """The model-table check: each number a lever takes fits its register's range and
+    size, and both ends encode and decode back to themselves."""
+    maps = load("bus")
+    checked = 0
+    for name in maps.models:
+        model = maps.model(name)
+        layout = profile.BUS.layout(model, list(range(1, 9)), [1, 2])
+        for spec in profile.levers(model, layout.points, {}):
+            param = spec.lever.params.get("value")
+            if param is None or param.type != "number" or spec.register is None:
+                continue
+            limits = param.range.value
+            assert limits is not None, (name, spec.path)
+            register = model.register(spec.register)
+            for end in (limits.min, limits.max):
+                assert end is not None
+                raw = encode(register, end)
+                low, high = raw & 0xFFFF, raw >> 16
+                decoded = decode(register, low, high, high_word_first=True)
+                assert decoded.value == pytest.approx(end), (name, spec.path, end)
+                checked += 1
+    assert checked > 100
 
 
 @pytest.fixture(params=["nibegw", "thermaestro-gw"])

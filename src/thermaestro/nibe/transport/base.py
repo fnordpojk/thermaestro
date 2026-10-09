@@ -3,7 +3,7 @@
 A transport moves read and write requests to the pump and reports what it can know
 about them: when the pump took a request, the pump's answer, and every bus exchange the
 gateway forwards. It doesn't decode values; the register map does that. Times are local
-`time.monotonic()` seconds, so they compare with each other and with the caller's own.
+`clock.monotonic()` seconds, so they compare with each other and with the caller's own.
 
 How much a transport can know differs: plain NibeGW says nothing
 about a request, so its client infers what it can from the forwarded exchanges; the

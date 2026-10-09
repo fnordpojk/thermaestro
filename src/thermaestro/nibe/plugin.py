@@ -22,17 +22,16 @@ import asyncio
 import contextlib
 import logging
 import re
-import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from thermaestro_gateway import nibe
 from thermaestro_gateway.protocol import Origin, Stage
 
-from .. import durations
+from .. import clock, durations
 from ..cap import Message, Send
 from ..cap.messages import (
     Act,
@@ -168,6 +167,8 @@ class NibePlugin:
         """An S-series pump's answer to Modbus device identification, where it gave one."""
         self.layout: profile.Layout | None = None
         self._samples: dict[int, Sample] = {}
+        self._decoded: dict[int, float | int | None] | None = None
+        """The samples decoded, until the next is stored."""
         self.pushed: set[int] = set()
         self.absent: set[int] = set()
         """Registers that gave no value, whose points were removed."""
@@ -438,7 +439,7 @@ class NibePlugin:
         return decoded.value
 
     def _store(self, register: int, words_: tuple[int, int]) -> None:
-        now = time.monotonic()
+        now = clock.monotonic()
         self._watch_meters(register, words_, now)
         if register == self.family.prio:
             prio = words_[0] & 0xFF
@@ -448,6 +449,7 @@ class NibePlugin:
             elif previous is None or previous.words[0] & 0xFF != self.family.prio_hot_water:
                 self._charge_started = now
         self._samples[register] = Sample(words_, now)
+        self._decoded = None
         if register in (self.family.brine_in, self.family.brine_out, self.family.brine_pump_speed):
             self._integrate(now)
         if register == self.family.hot_water_mode:
@@ -601,7 +603,7 @@ class NibePlugin:
         watched = {r for r in self.family.watched if r in model}
         wanted = sorted({p.register for p in layout.points.values()} | watched)
         while True:
-            started = time.monotonic()
+            started = clock.monotonic()
             polled = [r for r in wanted if r not in self.pushed and r not in self.absent]
             if not polled:
                 await asyncio.sleep(1.0)
@@ -609,7 +611,7 @@ class NibePlugin:
                 if register not in self.pushed:
                     await self._read(register)
                     await self._drop_if_absent(register, send)
-            await asyncio.sleep(max(0.0, self._poll_round - (time.monotonic() - started)))
+            await asyncio.sleep(max(0.0, self._poll_round - (clock.monotonic() - started)))
 
     async def _drop_if_absent(self, register: int, send: Send) -> None:
         """A point whose register the pump refuses (an S-series pump without the accessory)
@@ -645,7 +647,7 @@ class NibePlugin:
 
     async def _read_points(self, request: Read) -> list[Envelope]:
         if request.after is not None:
-            after = time.monotonic() - (_now() - request.after).total_seconds()
+            after = clock.monotonic() - (_now() - request.after).total_seconds()
             for path in request.points:
                 definition = self._definition(path)
                 if definition is None:
@@ -664,9 +666,17 @@ class NibePlugin:
 
     async def _subscription(self, request: Subscribe, send: Send) -> None:
         sent: dict[str, tuple[object, ...]] = {}
+        made: dict[str, tuple[object, ...]] = {}
+        """Per point: what its last envelope was made from, where only its own sample and
+        its age decide it; such a point isn't made again until either changes."""
         while True:
             values = []
             for path in request.points:
+                basis = self._basis(path) if request.on_change else None
+                if basis is not None:
+                    if made.get(path) == basis:
+                        continue
+                    made[path] = basis
                 envelope = self.envelope(path)
                 state = (envelope.value, envelope.quality, envelope.why)
                 if not request.on_change or sent.get(path) != state:
@@ -677,6 +687,18 @@ class NibePlugin:
             await self._tick.wait()
             if request.min_interval_s:
                 await asyncio.sleep(request.min_interval_s)
+
+    def _basis(self, path: str) -> tuple[object, ...] | None:
+        """What a point's envelope depends on, where that is only its own sample and
+        whether it is stale; None where rules or other registers come into it."""
+        definition = self._definition(path)
+        if definition is None or definition.rules or self._derived(path) is not None:
+            return None
+        sample = self._samples.get(definition.register)
+        if sample is None:
+            return None
+        freshness = PUSHED_FRESHNESS_S if definition.register in self.pushed else POLLED_FRESHNESS_S
+        return sample, clock.monotonic() - sample.t > freshness, self.high_word_first
 
     # --- values ----------------------------------------------------------------------------
 
@@ -722,7 +744,7 @@ class NibePlugin:
             return _missing(path, now, brine)
         brine_in, brine_out, speed = brine
         t = max(self._samples[r].t for r in d.inputs)
-        observed = now - timedelta(seconds=time.monotonic() - t)
+        observed = now - timedelta(seconds=clock.monotonic() - t)
         quality: Quality = "good"
         why: str | None = None
         value: float
@@ -770,7 +792,7 @@ class NibePlugin:
         unit = self._unit(definition)
         if sample is None:
             return _missing(path, now, "not read yet")
-        observed = now - timedelta(seconds=time.monotonic() - sample.t)
+        observed = now - timedelta(seconds=clock.monotonic() - sample.t)
         if register.size is None:
             return _missing(path, now, "the register's size isn't known")
         if register.size.bits == 32 and self.high_word_first is None:
@@ -794,7 +816,7 @@ class NibePlugin:
                 why = definition.unknown_why or f"unknown value {decoded.raw}"
             else:
                 value = name
-        if quality == "good":
+        if quality == "good" and definition.rules:
             snapshot = self._snapshot()
             for rule in definition.rules:
                 verdict = rule(snapshot)
@@ -802,8 +824,8 @@ class NibePlugin:
                     quality, why = verdict
                     break
         freshness = PUSHED_FRESHNESS_S if definition.register in self.pushed else POLLED_FRESHNESS_S
-        if quality == "good" and time.monotonic() - sample.t > freshness:
-            age = durations.text(int(time.monotonic() - sample.t))
+        if quality == "good" and clock.monotonic() - sample.t > freshness:
+            age = durations.text(int(clock.monotonic() - sample.t))
             quality, why = "stale", f"last read {age} ago"
         return Envelope(
             point=path,
@@ -837,15 +859,19 @@ class NibePlugin:
         )
 
     def _snapshot(self) -> profile.Snapshot:
-        model, _ = self._pump()
-        values: dict[int, float | int | None] = {}
-        for register, sample in self._samples.items():
-            if register in model:
-                definition = model.register(register)
-                if definition.size is not None and definition.size.bits <= 16:
-                    values[register] = decode(definition, *sample.words, high_word_first=True).value
+        """What was last read, decoded; decoded again only after a register was stored."""
+        if self._decoded is None:
+            model, _ = self._pump()
+            values: dict[int, float | int | None] = {}
+            for register, sample in self._samples.items():
+                if register in model:
+                    definition = model.register(register)
+                    if definition.size is not None and definition.size.bits <= 16:
+                        decoded = decode(definition, *sample.words, high_word_first=True)
+                        values[register] = decoded.value
+            self._decoded = values
         return profile.Snapshot(
-            values, self._charge_started, time.monotonic(), dict(self._meter_idle)
+            self._decoded, self._charge_started, clock.monotonic(), dict(self._meter_idle)
         )
 
     def _unit(self, definition: profile.PointDef) -> str | None:
@@ -898,7 +924,7 @@ class NibePlugin:
         )
         t = _now()
         if outcome.t_result is not None:
-            t -= timedelta(seconds=max(0.0, time.monotonic() - outcome.t_result))
+            t -= timedelta(seconds=max(0.0, clock.monotonic() - outcome.t_result))
         await send(Fate(id=request.id, stage=FATES[outcome.result], t=t, detail=outcome.why))
 
     async def _carry_out(self, spec: profile.Spec, request: Act) -> WriteOutcome:
@@ -974,7 +1000,7 @@ class NibePlugin:
     async def _fresh(self, register: int) -> float | int:
         """A register's value, from a request the pump takes from now on."""
         model, _ = self._pump()
-        words_ = await self._read(register, after=time.monotonic())
+        words_ = await self._read(register, after=clock.monotonic())
         if words_ is None:
             raise Refused(f"{register} can't be read now")
         decoded = decode(model.register(register), *words_, high_word_first=True)
@@ -1153,7 +1179,7 @@ class NibePlugin:
         health = self._transport.health()
         last = None
         if health.last_traffic is not None:
-            last = _now() - timedelta(seconds=time.monotonic() - health.last_traffic)
+            last = _now() - timedelta(seconds=clock.monotonic() - health.last_traffic)
         return Health(
             t=_now(),
             unit=profile.UNIT,
@@ -1217,7 +1243,7 @@ def _same(a: float | int, b: float | int) -> bool:
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return clock.now()
 
 
 def _missing(path: str, now: datetime, why: str) -> Envelope:

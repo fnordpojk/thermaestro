@@ -24,7 +24,6 @@ import asyncio
 import contextlib
 import logging
 import socket
-import time
 from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -32,7 +31,7 @@ from dataclasses import dataclass, field
 from thermaestro_gateway import nibe
 from thermaestro_gateway.protocol import Stage
 
-from thermaestro import durations
+from thermaestro import clock, durations
 from thermaestro.nibe.transport.base import (
     FateKind,
     LinkHealth,
@@ -188,7 +187,7 @@ class PlainClient:
     async def read(
         self, register: int, *, after: float | None = None, timeout: float = 30.0
     ) -> Reading:
-        deadline = time.monotonic() + timeout
+        deadline = clock.monotonic() + timeout
         frame = nibe.read_request(register)
         if after is not None:
             await self._settle(register, deadline)
@@ -196,7 +195,7 @@ class PlainClient:
         self._reads.append(pending)
         try:
             while not pending.answer.done():
-                if time.monotonic() >= deadline:
+                if clock.monotonic() >= deadline:
                     raise ReadFailed(
                         register,
                         f"no answer within {durations.text(timeout)}",
@@ -206,13 +205,13 @@ class PlainClient:
                     pending.delivered.clear()
                     self._send(frame, self.read_port)
                     await wait_any(
-                        min(self.settings.resend_s, deadline - time.monotonic()),
+                        min(self.settings.resend_s, deadline - clock.monotonic()),
                         pending.answer,
                         pending.delivered,
                     )
                 if pending.delivered.is_set() and pending.taken:
                     await wait_any(
-                        min(self.settings.answer_s, deadline - time.monotonic()), pending.answer
+                        min(self.settings.answer_s, deadline - clock.monotonic()), pending.answer
                     )
                 if not pending.answer.done():
                     self.counters["read_resends"] += 1
@@ -224,7 +223,7 @@ class PlainClient:
         """Wait until nothing has happened to `register` for answer_s while this client was
         receiving, then pair it afresh: every request taken before has been answered."""
         while True:
-            now = time.monotonic()
+            now = clock.monotonic()
             if self._receiving_since is not None:
                 since = max(self._receiving_since, self._activity.get(register, 0.0))
                 if now - since >= self.settings.answer_s:
@@ -239,7 +238,7 @@ class PlainClient:
     # --- writes --------------------------------------------------------------------------
 
     async def write(self, register: int, value: int, *, timeout: float = 30.0) -> WriteOutcome:
-        deadline = time.monotonic() + timeout
+        deadline = clock.monotonic() + timeout
         frame = nibe.write_request(register, value)
 
         def outcome(result: WriteResult, why: str, t: float | None = None) -> WriteOutcome:
@@ -250,13 +249,13 @@ class PlainClient:
             self._write = pending
             try:
                 sends = 0
-                while not pending.delivered.is_set() and time.monotonic() < deadline:
+                while not pending.delivered.is_set() and clock.monotonic() < deadline:
                     if sends and not self._sees_replies:
                         break  # it can't be seen whether it was taken; again could write twice
                     self._send(frame, self.write_port)
                     sends += 1
                     await wait_any(
-                        min(self.settings.resend_s, deadline - time.monotonic()),
+                        min(self.settings.resend_s, deadline - clock.monotonic()),
                         event=pending.delivered,
                     )
                 if not pending.delivered.is_set():
@@ -273,7 +272,7 @@ class PlainClient:
                 if not pending.taken:
                     return outcome(WriteResult.NOT_TAKEN, "the pump NAKed the frame")
                 await wait_any(
-                    min(self.settings.answer_s, deadline - time.monotonic()), pending.result
+                    min(self.settings.answer_s, deadline - clock.monotonic()), pending.result
                 )
                 if not pending.result.done():
                     return outcome(WriteResult.UNKNOWN, "taken by the pump, but no 0x6C came")
@@ -292,7 +291,7 @@ class PlainClient:
         if addr[0] != self._ip:
             self.counters["foreign_datagrams"] += 1
             return
-        t = time.monotonic()
+        t = clock.monotonic()
         self._last_rx = t
         if self._receiving_since is None:
             self._receiving_since = t
@@ -374,12 +373,12 @@ class PlainClient:
         if self._transport is None:
             raise RuntimeError("the client isn't started")
         self._transport.sendto(frame, (self._ip, port))
-        self._last_tx = time.monotonic()
+        self._last_tx = clock.monotonic()
 
     async def _tick(self) -> None:
         while True:
             await asyncio.sleep(self.settings.tick_s)
-            now = time.monotonic()
+            now = clock.monotonic()
             if self._last_rx is not None and now - self._last_rx > self.settings.silent_s:
                 self._receiving_since = None
             if now - self._last_tx >= self.settings.keepalive_s:

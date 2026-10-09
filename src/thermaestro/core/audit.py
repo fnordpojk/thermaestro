@@ -12,10 +12,10 @@ import hashlib
 import json
 import os
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .. import clock
 from ..files import private_directory
 
 GENESIS = "0" * 64
@@ -85,7 +85,7 @@ class AuditLog:
         details: Mapping[str, Any] | None,
     ) -> bytes:
         entry = {
-            "t": datetime.now(UTC).isoformat(timespec="milliseconds"),
+            "t": clock.now().isoformat(timespec="milliseconds"),
             "who": who,
             "from": source,
             "what": what,

@@ -20,7 +20,6 @@ import contextlib
 import logging
 import os
 import socket
-import time
 from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -29,7 +28,7 @@ from enum import Enum
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
 
-from thermaestro import durations
+from thermaestro import clock, durations
 from thermaestro.nibe.transport.base import (
     FateKind,
     LinkHealth,
@@ -307,7 +306,7 @@ class TgwClient:
         if self.boot_id != boot.as_int():
             self._clock.reset()
         self.boot_id = boot.as_int()
-        t = time.monotonic()
+        t = clock.monotonic()
         self._clock.sample(msg.gw_time_us, t)
         self.welcome = msg
         granted = p.find(msg.options, p.Tag.SUBSCRIBE)
@@ -351,7 +350,7 @@ class TgwClient:
         if not self._up.is_set():
             self._ensure_rehello()
             try:
-                await asyncio.wait_for(self._up.wait(), max(deadline - time.monotonic(), 0))
+                await asyncio.wait_for(self._up.wait(), max(deadline - clock.monotonic(), 0))
             except TimeoutError:
                 raise _SessionDown from None
 
@@ -360,11 +359,11 @@ class TgwClient:
     async def read(
         self, register: int, *, after: float | None = None, timeout: float = 30.0
     ) -> Reading:
-        deadline = time.monotonic() + timeout
+        deadline = clock.monotonic() + timeout
         frame = nibe.read_request(register)
         stages: list[StageEvent] = []
         why = f"no answer within {durations.text(timeout)}"
-        while time.monotonic() < deadline:
+        while clock.monotonic() < deadline:
             try:
                 request = await self._run(nibe.READ_TOKEN, frame, deadline)
             except _SessionDown:
@@ -414,7 +413,7 @@ class TgwClient:
     # --- writes --------------------------------------------------------------------------
 
     async def write(self, register: int, value: int, *, timeout: float = 30.0) -> WriteOutcome:
-        deadline = time.monotonic() + timeout
+        deadline = clock.monotonic() + timeout
         frame = nibe.write_request(register, value)
         previous: list[StageEvent] = []
         """The stages of earlier attempts, refused before the pump took them."""
@@ -447,7 +446,7 @@ class TgwClient:
                     return outcome(WriteResult.NOT_TAKEN, why, None)
                 return outcome(WriteResult.UNKNOWN, "the session ended with it queued", None)
             if final.dropped is not None:
-                if final.dropped in _RETRY_DROPS and time.monotonic() < deadline:
+                if final.dropped in _RETRY_DROPS and clock.monotonic() < deadline:
                     previous += current.stages
                     current = None
                     await asyncio.sleep(self.settings.retry_s)
@@ -492,7 +491,7 @@ class TgwClient:
                 self._new_id(), token, frame, asyncio.get_running_loop().create_future()
             )
             self._requests[request.id] = request
-            ttl_ms = int(min(max(deadline - time.monotonic(), 0.001), 65.535) * 1000)
+            ttl_ms = int(min(max(deadline - clock.monotonic(), 0.001), 65.535) * 1000)
             self._send(
                 p.Request(
                     id=request.id,
@@ -505,7 +504,7 @@ class TgwClient:
                 )
             )
             while request.stage in (None, p.Stage.QUEUED) and not request.final.done():
-                remaining = deadline - time.monotonic()
+                remaining = deadline - clock.monotonic()
                 if remaining <= 0:
                     break
                 request.fated.clear()
@@ -516,7 +515,7 @@ class TgwClient:
                     self.counters["requests_unanswered"] += 1
                     break  # the REQUEST or its FATE was lost
         if request.stage not in (None, p.Stage.QUEUED):
-            await wait_any(deadline - time.monotonic(), request.final)
+            await wait_any(deadline - clock.monotonic(), request.final)
         if request.final.done():
             self._requests.pop(request.id, None)
         return request
@@ -531,7 +530,7 @@ class TgwClient:
         if addr != (self._ip, self.control_port):
             self.counters["foreign_datagrams"] += 1
             return
-        t = time.monotonic()
+        t = clock.monotonic()
         self._last_rx = t
         hello = self._hello
         try:
@@ -697,12 +696,12 @@ class TgwClient:
         if self._transport is None:
             raise RuntimeError("the client isn't started")
         self._transport.sendto(data, (self._ip, self.control_port))
-        self._last_tx = time.monotonic()
+        self._last_tx = clock.monotonic()
 
     async def _tick(self) -> None:
         while True:
             await asyncio.sleep(self.settings.tick_s)
-            now = time.monotonic()
+            now = clock.monotonic()
             if not self._up.is_set():
                 self._ensure_rehello()
                 continue

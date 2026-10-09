@@ -16,12 +16,13 @@ Writing isn't built: Stage 2 only reads.
 
 import asyncio
 import logging
-import time
 from collections.abc import Callable, Collection
 from typing import Any
 
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
+
+from thermaestro import clock
 
 from .base import (
     FateKind,
@@ -83,8 +84,8 @@ class ModbusTransport:
         if sending:
             self._sent = data
         else:
-            self._last_traffic = time.monotonic()
-            self._observers.emit(Observed(data, None, self._sent, b"", time.monotonic()))
+            self._last_traffic = clock.monotonic()
+            self._observers.emit(Observed(data, None, self._sent, b"", clock.monotonic()))
         return data
 
     @property
@@ -101,8 +102,8 @@ class ModbusTransport:
         count = 2 if register in self._wide else 1
         async with self._lock:
             # A fresh request every time, so `after` is always met.
-            await asyncio.sleep(max(0.0, self._next_at - time.monotonic()))
-            self._next_at = time.monotonic() + count / PER_SECOND
+            await asyncio.sleep(max(0.0, self._next_at - clock.monotonic()))
+            self._next_at = clock.monotonic() + count / PER_SECOND
             self._counters["reads"] += 1
             read = (
                 self._client.read_input_registers
@@ -121,7 +122,7 @@ class ModbusTransport:
             if getattr(answer, "exception_code", None) == ILLEGAL_DATA_ADDRESS:
                 raise RegisterRefused(register, "refused: the pump hasn't got it")
             raise ReadFailed(register, f"refused: {answer}")
-        now = time.monotonic()
+        now = clock.monotonic()
         if count == 2:
             low, high = answer.registers  # "in reverse order": the low word first
             first, second = high, low

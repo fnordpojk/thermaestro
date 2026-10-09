@@ -8,11 +8,11 @@ Old samples are folded into 15-minute aggregates, which are kept far longer.
 
 import asyncio
 import logging
-import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, tzinfo
 
+from .. import clock
 from ..cap.model import Envelope, Point
 from ..store import Database, Transaction
 from .plausible import Plausibility
@@ -99,7 +99,7 @@ class Values:
     async def prune(self, raw_days: int, aggregate_days: int, now: float | None = None) -> None:
         """Fold samples older than `raw_days` into 15-minute aggregates and drop them;
         drop aggregates older than `aggregate_days`."""
-        now = time.time() if now is None else now
+        now = clock.time() if now is None else now
         raw_cutoff = (now - raw_days * DAY_S) // SLOT_S * SLOT_S
         aggregate_cutoff = now - aggregate_days * DAY_S
         await self._db.run(lambda t: _prune(t, raw_cutoff, aggregate_cutoff))
@@ -162,9 +162,9 @@ class Values:
                 await asyncio.sleep(flush_s)
                 try:
                     await self.flush()
-                    if time.monotonic() - last_prune >= prune_s:
+                    if clock.monotonic() - last_prune >= prune_s:
                         await self.prune(raw_days, aggregate_days)
-                        last_prune = time.monotonic()
+                        last_prune = clock.monotonic()
                 except Exception:
                     log.exception("writing the value history failed; trying again later")
         finally:

@@ -23,12 +23,12 @@ import contextlib
 import json
 import logging
 import re
-import time
 from collections.abc import Callable, Collection, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
+from .. import clock as clocks
 from ..cap import Closed, Message, vocabulary
 from ..cap.client import CapError, Link
 from ..cap.defaults import assume
@@ -139,7 +139,7 @@ class Executor:
         values: Values,
         audit: AuditLog,
         *,
-        clock: Callable[[], float] = time.time,
+        clock: Callable[[], float] = clocks.time,
         verify_s: float = VERIFY_S,
         act_timeout_s: float = ACT_TIMEOUT_S,
         watchdog_s: float = WATCHDOG_S,
@@ -535,7 +535,7 @@ class Executor:
         target = params.get("value")
         param = lever.params.get("value")
         wait = assume(lever).effect_delay_s or self._verify_s
-        deadline = time.monotonic() + wait
+        deadline = clocks.monotonic() + wait
         seen: Value | None = None
         while True:
             with contextlib.suppress(TimeoutError, CapError):
@@ -546,7 +546,7 @@ class Executor:
                     if same(reading(envelope, param), target, param):
                         return Result("verified")
                     seen = reading(envelope, param)
-            left = deadline - time.monotonic()
+            left = deadline - clocks.monotonic()
             if left <= 0:
                 break
             await asyncio.sleep(min(self._poll_s, left))

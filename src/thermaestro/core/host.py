@@ -11,14 +11,13 @@ it is up.
 import asyncio
 import contextlib
 import logging
-import time
 from collections import deque
 from collections.abc import Callable, Coroutine, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from .. import durations
+from .. import clock, durations
 from ..cap import Closed, Endpoint, Link, Message, pair, serve
 from ..cap.messages import FEATURES, Described, DeviceEvent, ForeignWrite, Health, Hello
 from ..store import Database, Plugin, SecretStore
@@ -170,7 +169,7 @@ class PluginHost:
     async def _supervise(self, instance: Instance) -> None:
         factory = self._factories[instance.setting.plugin]
         while True:
-            started = time.monotonic()
+            started = clock.monotonic()
             try:
                 await self._run_in_process(instance, factory)
                 error = "the plugin ended its connection"
@@ -179,7 +178,7 @@ class PluginHost:
             except Exception as e:
                 log.exception("plugin instance %s failed", instance.id)
                 error = f"{type(e).__name__}: {e}"
-            if time.monotonic() - started >= STABLE_S:
+            if clock.monotonic() - started >= STABLE_S:
                 instance.failures = 0
             instance.failures += 1
             instance.last_error = error
