@@ -50,6 +50,9 @@ ACT_TIMEOUT_S = 60.0
 """The longest wait for the plugin's next word on a request. A Nibe gateway write waits
 up to 30 s for its turn on the bus."""
 KEEP_ACTS_DAYS = 400
+HOLD_SLACK_S = 60.0
+"""A change asked at the next slot may come a little short of the hold, by however long
+the last write took on its way: the hold is one change per slot, not to the second."""
 
 Outcome = Literal[
     "verified",
@@ -415,7 +418,7 @@ class Executor:
         hold = control.min_hold_s if lever.kind == "setting" else 0.0
         if lever.min_interval_s.trusted:
             hold = max(hold, lever.min_interval_s.value or 0.0)
-        if claim.last_t + hold > self._clock():
+        if claim.last_t + hold - HOLD_SLACK_S > self._clock():
             return f"changed less than {round(hold / 60)} min ago"
         return None
 

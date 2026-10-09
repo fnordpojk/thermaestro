@@ -57,6 +57,8 @@ def _l(*kinds: LeverKind, user_only: bool = False) -> LeverName:
 
 POINTS: dict[str, PointName] = {
     "outdoor.temp": _p("degC", UNIT),
+    "outdoor.temp.mean": _p("degC", UNIT),
+    "heating.stop_temp": _p("degC", UNIT),
     "supply.temp": _p("degC", CS, UNIT),
     "return.temp": _p("degC", CS, UNIT),
     "temp.top": _p("degC", DHW),

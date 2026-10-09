@@ -422,6 +422,7 @@ class Plant:
         r = self.registers
         out = self.outdoor
         r[40004] = s16(out)
+        r[40067] = s16(self.mean_out)
         for i, zone in enumerate(self.zones):
             system = profile.SYSTEMS[i]
             supply = zone.emitter + zone.heat_w / (2 * FLOW_W_K)

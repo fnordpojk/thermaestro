@@ -21,6 +21,7 @@ The packages under `src/thermaestro/`:
 | `cap/` | The plugin protocol: the messages, the device model, the standard point names (`vocabulary.py`), the sockets, and the conformance suite for plugins ([plugins.md](plugins.md)) |
 | `core/` | The daemon: the plugin host, the values and their history, sensors, weather, prices, MQTT and Home Assistant discovery, the house model, the write path (`executor.py`) and the audit log |
 | `intents/` | What the household wants: intents, levels, how they resolve, and the intents' JSON Schema |
+| `planner/` | The rule-based planner: what to ask of each lever and why (`rules.py`, pure functions of a `Situation`), and the service that gathers the situation and asks the executor (`service.py`) |
 | `store/` | The state database and its migrations, settings, secrets, the start-up file and the directory layout |
 | `auth/` | Accounts, passwords, groups and permissions, user preferences, the setup code |
 | `web/` | The web UI (FastAPI, Jinja2 templates, htmx) and the API ([api.md](api.md)), translations in `web/locale/` |
@@ -128,8 +129,9 @@ Nothing in the tests reaches a real device or the internet. They use stand-ins:
 - `plant/vloop.py` runs the test in simulated time: the event loop's clock jumps ahead whenever nothing is ready, so days pass in seconds. `simulate(main, start_time)` runs a coroutine that way.
 - `plant/bus.py` is the pump's bus in process, encoded and parsed by the same code as the gateway.
 - `plant/harness.py` runs the core against it: `async with running(Sim(scenario, tmp_path)) as sim:`, then `await sim.advance(seconds)`, `sim.value(point)`, `sim.plant`, `sim.bus.writes`. A `decide` callback stands in for the planner and asks for changes through `Sim.act`.
+- `plant/planning.py` runs the real planner on it instead: rooms with the plant's sensors, the intents given, and the prices from `plant/market.py`, a seeded day-ahead series with optional extremes.
 
-`tests/test_plant_stack.py` shows the pattern.
+`tests/test_plant_stack.py` shows the pattern with a stand-in; `tests/test_planner_plant.py` with the planner.
 
 ## Generated files
 
@@ -194,6 +196,7 @@ To change the schema, append a script to `MIGRATIONS`, with a comment saying wha
 
 - American English, in code, messages and documentation.
 - Short commit messages: a subject line, and at most a few lines on why.
+- Every commit signed off (`git commit -s`), as [CONTRIBUTING.md](../CONTRIBUTING.md) says. CI runs `scripts/check-signoff.sh` on the commits a push or pull request brings; to check a branch yourself, `scripts/check-signoff.sh main..HEAD`.
 - Secrets live in the secrets file (`store/secrets.py`), never in settings. Their values never appear in a repr, a log line or an error message; logs name a secret only.
 - A change that adds a translatable message updates the catalogs and both translations in the same commit, or the tests fail.
 

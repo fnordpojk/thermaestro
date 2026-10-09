@@ -12,6 +12,7 @@ import logging
 import signal
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from ..cap.sockets import listen_tcp, listen_unix, unix_available
 from ..files import private_directory
@@ -28,6 +29,9 @@ from .sensors import SensorHub
 from .series import Series
 from .values import Values
 from .weather import Weather
+
+if TYPE_CHECKING:
+    from ..planner import Planner
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +63,7 @@ class Core:
     executor: Executor
     house: House
     intents: Intents
+    planner: "Planner"
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -98,6 +103,11 @@ async def run(
         executor = Executor(db, host, values, audit)
         house = House(db, host, values)
         intents = Intents(db, audit, capabilities=lambda: house.capabilities)
+        from ..planner import Planner  # the planner is built on the core's parts
+
+        planner = Planner(
+            db, values, host, executor, intents, house, audit, sensors=sensors, series=series
+        )
         core = Core(
             layout,
             startup,
@@ -113,7 +123,10 @@ async def run(
             executor,
             house,
             intents,
+            planner,
         )
+        # The planner stops first, so nothing asks for a change once levers are put back.
+        core.shutdown_hooks.append(planner.stop)
         core.shutdown_hooks.append(_restore(executor))
         await _serve(core, stop, flush_s, started)
     finally:
@@ -149,6 +162,7 @@ async def _serve(
     server = await _plugin_socket(core)
     await core.host.start()
     await core.executor.start()
+    core.planner.start()
     stop_web = None
     try:
         from ..web.server import start as start_web

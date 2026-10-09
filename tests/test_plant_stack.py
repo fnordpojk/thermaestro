@@ -57,7 +57,7 @@ def test_the_core_reads_the_plant(tmp_path: Path) -> None:
                 signed(plant.registers[40013]) / 10, abs=0.3
             )
             assert sim.value("outdoor.temp") is not None
-            room = sim.values.latest[Key("sensors", "room.cs1/temperature")]
+            room = sim.values.latest[Key("plant", "room.cs1/temperature")]
             assert room.value == pytest.approx(plant.indoor(), abs=0.2)
             assert sim.bus.reads > 50
             assert sim.bus.writes == []

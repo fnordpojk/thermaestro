@@ -250,6 +250,7 @@ def system_points(system: System) -> list[PointDef]:
 
 UNIT_POINTS = (
     PointDef("outdoor.temp", 40004),
+    PointDef("outdoor.temp.mean", 40067),
     PointDef("demand", PRIO, enum=DEMAND),
     PointDef(
         "diverter",
@@ -532,6 +533,8 @@ class Family:
     pools: tuple[Pool, ...] = ()
     hot_water_mode: int | None = None
     """The register of the hot-water mode, which the hot-water block follows."""
+    unit_settings: tuple[Derived, ...] = ()
+    """Settings of the whole pump under standard names: the heating stop."""
 
     @property
     def brine_derived(self) -> tuple[Derived, ...]:
@@ -557,6 +560,7 @@ class Family:
         found: list[Derived] = []
         if "brine" in out.nodes:
             found += self.brine_derived
+        found += self.unit_settings
         if "dhw" in out.nodes and self.hot_water_mode == HOT_WATER_MODE:
             found += TANK_SETTINGS
         for number in out.pools:
@@ -619,6 +623,15 @@ TANK_SETTINGS = (
     ),
 )
 """The tank's start and stop as the household has them, where the pump has a mode."""
+HEATING_STOP = 47375
+UNIT_SETTINGS = (
+    setting_derived(
+        "heating.stop_temp",
+        HEATING_STOP,
+        "in auto mode the pump heats only while the mean outdoor temperature is below it",
+    ),
+)
+"""The heating stop of the auto mode, menu 4.9.2, under a standard name."""
 BLOCK_START = 25.0
 """What the hot-water block lowers the start temperature to: a charge waits until the
 charge sensor reaches it, so it is also a floor."""
@@ -937,6 +950,7 @@ BUS = Family(
     lever_paths=LEVERS,
     word_swap=WORD_SWAP,
     firmware=FIRMWARE,
+    unit_settings=UNIT_SETTINGS,
     answers_carry_next=True,
     pools=POOLS,
     hot_water_mode=HOT_WATER_MODE,

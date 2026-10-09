@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 22:06+0200\n"
+"POT-Creation-Date: 2026-10-10 00:58+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -585,6 +585,9 @@ msgstr "Producerad värme"
 msgid "Heating"
 msgstr "Värmer"
 
+msgid "Heating stop"
+msgstr "Värmestopp"
+
 msgid "Holds until"
 msgstr "Räcker till"
 
@@ -852,6 +855,9 @@ msgstr "Utomhusreferenser"
 
 msgid "Outdoor temperature"
 msgstr "Utetemperatur"
+
+msgid "Outdoor temperature, mean"
+msgstr "Utetemperatur, medel"
 
 msgid "Outdoors"
 msgstr "Utomhus"

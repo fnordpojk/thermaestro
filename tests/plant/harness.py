@@ -32,6 +32,8 @@ from .vloop import every, sleep_until
 
 SLOT_S = 900.0
 PUMP = "pump"
+PLANT = "plant"
+"""The plant's sensors and meter, as a plugin instance."""
 POLL_ROUND_S = 300.0
 """The plugin's polling, spaced: values that change slowly are read every 5 minutes."""
 
@@ -138,7 +140,7 @@ class Sim:
             await self.db.put(
                 Plugin(plugin="nibe", settings={"host": "plant.invalid", "model": "F1245"}), PUMP
             )
-            await self.db.put(Plugin(plugin="plant_sensors"), "sensors")
+            await self.db.put(Plugin(plugin="plant_sensors"), PLANT)
             confirmed = self.confirmed_off
             if confirmed is None:  # the pump's own schedule and price adaption are off
                 everything = (profile.SCHEDULE.name, profile.PRICE_ADAPTION.name)

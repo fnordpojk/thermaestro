@@ -9,6 +9,8 @@ from .i18n import mark
 
 POINTS = {
     "outdoor.temp": mark("Outdoor temperature"),
+    "outdoor.temp.mean": mark("Outdoor temperature, mean"),
+    "heating.stop_temp": mark("Heating stop"),
     "supply.temp": mark("Supply temperature"),
     "return.temp": mark("Return temperature"),
     "temp.top": mark("Top temperature"),

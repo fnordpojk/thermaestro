@@ -213,7 +213,7 @@ async def test_a_setting_holds_for_a_slot(tmp_path: Path) -> None:
         await r.executor.act(OFFSET, "set", {"value": 1}, who="planner")
         soon = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         assert soon.detail == "changed less than 15 min ago"
-        r.clock[0] += 901
+        r.clock[0] += 900 - 30  # the next slot, a little short of it
         later = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         assert later.outcome == "verified"
 

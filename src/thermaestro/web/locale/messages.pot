@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-09 22:06+0200\n"
+"POT-Creation-Date: 2026-10-10 00:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -549,6 +549,9 @@ msgstr ""
 msgid "Heating"
 msgstr ""
 
+msgid "Heating stop"
+msgstr ""
+
 msgid "Holds until"
 msgstr ""
 
@@ -807,6 +810,9 @@ msgid "Outdoor references"
 msgstr ""
 
 msgid "Outdoor temperature"
+msgstr ""
+
+msgid "Outdoor temperature, mean"
 msgstr ""
 
 msgid "Outdoors"
