@@ -34,7 +34,7 @@
 <section class="card asking">
   <h2><a href="/intents">{{ _("Ask for a while") }}</a></h2>
   {% for v in asking.temporary %}{% set i = v.intent %}
-  <p>{{ _(labels.KINDS[i.kind]) }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}:
+  <p>{{ labels.intent_name(i.kind, i.parameters) }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}:
     {% if v.when_met %}{{ _("until done, at the latest %(end)s", end=v.end | when) }}{% else %}{{ _("until %(end)s", end=v.end | when) }}{% endif %}
     <form method="post" action="/intents/{{ i.id }}/end" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/"><button type="submit">{{ _("End") }}</button></form></p>
   {% endfor %}

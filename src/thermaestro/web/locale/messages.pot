@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 21:03+0200\n"
+"POT-Creation-Date: 2026-10-10 21:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -466,6 +466,9 @@ msgid "Control port"
 msgstr ""
 
 msgid "Cooler"
+msgstr ""
+
+msgid "Cooler, please"
 msgstr ""
 
 msgid "Copy it now: it is shown only this once."

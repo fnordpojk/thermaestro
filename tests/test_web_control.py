@@ -285,6 +285,11 @@ async def test_asking_from_the_intents_page(tmp_path: Path) -> None:
         warmer = await form(client, "/intents", "/intents", kind="warmer", scope=CS, offset="1")
         assert warmer.status_code == 200
         assert "Warmer, please (+1 °C): until the next change" in warmer.text
+        cooler = await form(client, "/intents", "/intents", kind="warmer", scope=CS, offset="-1")
+        assert "Cooler, please (-1 °C): until the next change" in cooler.text
+        listed = (await client.get("/intents")).text
+        assert "<summary>Cooler, please (-1 °C)" in listed
+        assert "Warmer, please (-1 °C)" not in listed
         kinds = {i.kind: i for i in await services.intents.all()}
         assert set(kinds) == {"comfort_band", "warmer"}
         assert kinds["comfort_band"].expectations[0].contexts[0].days == (0,)

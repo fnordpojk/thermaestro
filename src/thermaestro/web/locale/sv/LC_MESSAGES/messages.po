@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 21:03+0200\n"
+"POT-Creation-Date: 2026-10-10 21:25+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -493,6 +493,9 @@ msgstr "Kontrollport"
 
 msgid "Cooler"
 msgstr "Svalare"
+
+msgid "Cooler, please"
+msgstr "Svalare, tack"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopiera den nu: den visas bara den här gången."

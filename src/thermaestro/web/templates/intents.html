@@ -79,7 +79,7 @@
   <tbody>
   {% for v in views %}{% set i = v.intent %}
     <tr>
-      <td><details id="intent-{{ i.id }}" class="intent"><summary>{{ _(kinds[i.kind]) if i.kind in kinds else i.kind }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}{% if not i.confirmed %} <small>{{ _("taken from how the pump runs") }}</small>{% endif %}</summary>
+      <td><details id="intent-{{ i.id }}" class="intent"><summary>{{ labels.intent_name(i.kind, i.parameters) }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}{% if not i.confirmed %} <small>{{ _("taken from how the pump runs") }}</small>{% endif %}</summary>
         <ul>
         {% for e in i.expectations %}
           <li>{% for t in e.targets %}{{ target_text(t) }}{% if not loop.last %}; {% endif %}{% endfor %}{% if e.contexts %}: {% for c in e.contexts %}{{ context_text(c) }}{% if not loop.last %}; {{ _("or") }} {% endif %}{% endfor %}{% elif i.tier not in ("temporary", "hands_off") %}: {{ _("always") }}{% endif %}</li>

@@ -206,9 +206,10 @@ def _reach(intent: Intent, caps: Capabilities) -> list[str]:
         emitter = caps.emitters.get(system, "unknown")
         hours = RESPONSE_H.get(emitter, RESPONSE_H["unknown"])
         if hours >= 4:
+            way = "warmer" if offset > 0 else "cooler"
             out.append(
-                f"{EMITTER_WORDS.get(emitter, 'the heating')} will reach {offset:+g} °C in"
-                f" about {hours:g} hours"
+                f"{EMITTER_WORDS.get(emitter, 'the heating')} will be {abs(offset):g} °C {way}"
+                f" in about {hours:g} hours"
             )
     return out
 

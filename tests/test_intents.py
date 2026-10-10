@@ -314,7 +314,12 @@ def test_the_answer_says_when_what_and_how_long() -> None:
     assert verdict.intent.state == "active"
     assert verdict.messages == (
         "Warmer, please (+1 °C): until the next change, 2026-12-21 22:00",
-        "the floor heating will reach +1 °C in about 12 hours",
+        "the floor heating will be 1 °C warmer in about 12 hours",
+    )
+    cooler = kinds.warmer(CS, -1.0, principal="user:bo", created=local(21, 8))
+    assert check(cooler, existing, LEVELS, CAPS, CAL, local(21, 8)).messages == (
+        "Cooler, please (-1 °C): until the next change, 2026-12-21 22:00",
+        "the floor heating will be 1 °C cooler in about 12 hours",
     )
     away = kinds.away(local(23, 18), {CS: "away"}, principal="user:anna", created=local(21, 9))
     later = check(away, [*existing, verdict.intent], LEVELS, CAPS, CAL, local(21, 9))

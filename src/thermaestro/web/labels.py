@@ -3,6 +3,7 @@ they sit on, in the request's language. A point outside the vocabulary shows the
 its plugin gives (a register's title), else its path."""
 
 import re
+from collections.abc import Mapping
 
 from . import i18n
 from .i18n import mark
@@ -322,6 +323,17 @@ KINDS = {
     "fireplace": mark("A fireplace is on"),
     "boost_now": mark("Boost now"),
 }
+COOLER = mark("Cooler, please")
+
+
+def intent_name(kind: str, parameters: Mapping[str, object]) -> str:
+    """An intent's name: "warmer" with a negative offset is asked as cooler."""
+    offset = parameters.get("offset")
+    if kind == "warmer" and isinstance(offset, int | float) and offset < 0:
+        return i18n._(COOLER)
+    return i18n._(KINDS[kind]) if kind in KINDS else kind
+
+
 RANKS = {
     "comfort_low": mark("Rooms not below their band"),
     "must_deadlines": mark("Hot water that must be ready"),
