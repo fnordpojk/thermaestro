@@ -21,6 +21,7 @@
   <nav>
     {% if can("points.read") %}<a href="/"{% if path == "/" %} aria-current="page"{% endif %}>{{ _("Overview") }}</a>
     <a href="/pump"{% if path == "/pump" %} aria-current="page"{% endif %}>{{ _("Pump") }}</a>{% endif %}
+    {% if can("plan.read") %}<a href="/intents"{% if path == "/intents" %} aria-current="page"{% endif %}>{{ _("Intents") }}</a>{% endif %}
     {% if can("settings.read") %}
     <a href="/prices"{% if path == "/prices" %} aria-current="page"{% endif %}>{{ _("Prices") }}</a>
     <a href="/weather"{% if path == "/weather" %} aria-current="page"{% endif %}>{{ _("Weather") }}</a>

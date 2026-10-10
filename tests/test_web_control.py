@@ -250,3 +250,49 @@ async def test_the_house_questions(tmp_path: Path) -> None:
             6,
         )
         assert home.past_deadline == "stop"
+
+
+# --- the Intents page and the overview -----------------------------------------------------
+
+
+async def test_asking_from_the_intents_page(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, services, client):
+        await login(client, "admin")
+        assert services.intents is not None
+        assert (await client.get("/intents")).status_code == 200
+        level = await form(
+            client, "/intents", "/levels/new", name="Day time", scope=CS, low="20,5", high="22"
+        )
+        assert level.status_code == 303
+        assert set(await services.intents.levels()) == {"day-time"}
+        band = await form(
+            client,
+            "/intents",
+            "/intents",
+            kind="comfort_band",
+            scope=CS,
+            **{"p0.level": "day-time", "p0.days": "0", "p0.start": "06:00", "p0.end": "22:00"},
+        )
+        assert band.status_code == 200, band.text
+        assert "Asked for." in band.text
+        warmer = await form(client, "/intents", "/intents", kind="warmer", scope=CS, offset="1")
+        assert warmer.status_code == 200
+        assert "Warmer, please (+1 °C): until the next change" in warmer.text
+        kinds = {i.kind: i for i in await services.intents.all()}
+        assert set(kinds) == {"comfort_band", "warmer"}
+        assert kinds["comfort_band"].expectations[0].contexts[0].days == (0,)
+        ended = await form(client, "/intents", f"/intents/{kinds['warmer'].id}/end", next="/")
+        assert ended.status_code == 303
+        assert ended.headers["location"] == "/"
+        bad = await form(client, "/intents", "/intents", kind="warmer", scope=CS, offset="x")
+        assert bad.status_code == 400
+        assert "offset is a number" in bad.text
+
+
+async def test_the_overview_asks_for_a_while(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, _, client):
+        await login(client, "kid")
+        page = await client.get("/")
+        assert page.status_code == 200
+        assert "Ask for a while" in page.text
+        assert 'value="hands_off"' not in page.text  # the household has no right to it

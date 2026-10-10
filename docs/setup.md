@@ -6,7 +6,7 @@ This walks through a new installation: installing it, the first start, and the s
 
 Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT.
 
-It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). Entering what the household wants on a page of its own comes next; until then, intents are entered through the API.
+It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). What the household wants goes on the **Intents** page.
 
 If you want to help with a model Thermaestro doesn't know yet, [the read-only probe](probe.md) makes a report to send with an issue.
 
@@ -208,6 +208,16 @@ Switching needs the password again. A setting the pump has its own feature for (
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
 
 The page shows the day's changes against the planner's budget (about 50 a day).
+
+## What the household wants: the Intents page
+
+**Intents** in the menu says what applies now, lists what has been asked for, with when each ends and who asked, and takes new requests. What Thermaestro first took from how the pump runs is marked; **Keep it** makes it the household's own.
+
+- **For a while** (also on the overview): warmer or cooler, until the pattern next changes; a bath by a time; one extra charge of hot water now; a fireplace; away until a time, with a level for each climate system; hands off for up to 48 hours. Each ends by itself, and **End** ends it sooner.
+- **Always:** comfort, as a band on a weekly pattern of levels (or, for a climate system without a room sensor, how far price may move its heat); hot water ready by times, and the lowest it may get; cost and comfort, the savings slider and what gives way first; the addition; the pool; a power limit; quiet hours.
+- **Levels:** the household's own named bands and hot-water tops. A level used by an intent can't be removed.
+
+Asking answers at once: until when it applies, what it sets aside, and what the house can't do ("no room sensor: normal heat, shifted by price within a bound instead of a band"). The household's group may ask for things for a while; changing what always applies needs more rights ([the rights](api.md#rights)).
 
 ## Users and groups
 

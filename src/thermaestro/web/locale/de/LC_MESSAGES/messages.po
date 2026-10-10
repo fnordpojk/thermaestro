@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 02:59+0200\n"
+"POT-Creation-Date: 2026-10-10 03:24+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -58,6 +58,13 @@ msgstr "* aus einer Ersatzreihe, wo die eigene Reihe der Ebene keinen Preis hat.
 msgid "0 picks a free one"
 msgstr "0 wählt einen freien"
 
+msgid ""
+"0: comfort first, prices only where nothing gives; 100: as much of each band as it "
+"allows"
+msgstr ""
+"0: Komfort zuerst, der Preis nur, wo nichts nachgibt; 100: so viel von jedem Band, "
+"wie es erlaubt"
+
 msgid "1 year"
 msgstr "1 Jahr"
 
@@ -95,6 +102,22 @@ msgstr ""
 "Menü der Pumpe (7.2). Die Pumpe ist bei USB-Sticks wählerisch: Sticks mit mehr als 4 "
 "GB oder aus etwa den letzten 15 Jahren werden oft nicht angenommen. Ohne die Datei "
 "funktioniert alles, nur langsamer."
+
+msgid "A bath"
+msgstr "Ein Bad"
+
+msgid "A bath: at least, °C"
+msgstr "Ein Bad: mindestens, °C"
+
+msgid ""
+"A climate system without a room sensor: its normal heat, moved by price at most this "
+"many of the pump's offset steps."
+msgstr ""
+"Ein Heizsystem ohne Raumfühler: seine normale Wärme, nach dem Preis um höchstens so "
+"viele Verschiebungsschritte der Pumpe bewegt."
+
+msgid "A fireplace is on"
+msgstr "Ein Kaminfeuer brennt"
 
 msgid "A private well"
 msgstr "Ein eigener Brunnen"
@@ -197,6 +220,9 @@ msgstr "Alle Werte der Pumpe"
 msgid "Also each sensor's own values"
 msgstr "Auch die eigenen Werte jedes Sensors"
 
+msgid "Always"
+msgstr "Immer"
+
 msgid "Amount per kWh"
 msgstr "Betrag pro kWh"
 
@@ -225,14 +251,38 @@ msgstr "Bereich"
 msgid "Areas that aren't rooms yet"
 msgstr "Bereiche, die noch keine Räume sind"
 
+msgid "As the pump does it"
+msgstr "Wie die Pumpe es macht"
+
+msgid "Ask for a while"
+msgstr "Für eine Weile bitten"
+
+msgid "Ask for it"
+msgstr "Darum bitten"
+
+msgid "Asked for"
+msgstr "Gewünscht"
+
+msgid "Asked for."
+msgstr "Gewünscht."
+
 msgid "At"
 msgstr "Zeit"
+
+msgid "At least, °C"
+msgstr "Mindestens, °C"
 
 msgid "Audit log"
 msgstr "Prüfprotokoll"
 
 msgid "Average"
 msgstr "Durchschnittlich"
+
+msgid "Away"
+msgstr "Abwesend"
+
+msgid "Away until"
+msgstr "Abwesend bis"
 
 msgid "Back to the list"
 msgstr "Zurück zur Liste"
@@ -252,6 +302,9 @@ msgstr ""
 
 msgid "Bidding zone"
 msgstr "Gebotszone"
+
+msgid "Boost now"
+msgstr "Jetzt zusätzlich aufheizen"
 
 msgid "Brine"
 msgstr "Sole"
@@ -276,6 +329,9 @@ msgstr "Sole, für die dem Boden entzogene Wärme"
 
 msgid "Browser"
 msgstr "Browser"
+
+msgid "By"
+msgstr "Von"
 
 msgid "CO₂"
 msgstr "CO₂"
@@ -352,6 +408,12 @@ msgstr "Farben: dunkel"
 msgid "Colors: light"
 msgstr "Farben: hell"
 
+msgid "Comfort"
+msgstr "Komfort"
+
+msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
+msgstr "Komfort: ein Band für ein Heizsystem oder einen Raum, nach einem Wochenplan"
+
 msgid "Compressor"
 msgstr "Verdichter"
 
@@ -373,8 +435,19 @@ msgstr "Steuerung"
 msgid "Control port"
 msgstr "Steuerport"
 
+msgid "Cooler, please"
+msgstr "Kühler, bitte"
+
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopieren Sie es jetzt: Es wird nur dieses eine Mal angezeigt."
+
+msgid "Cost and comfort"
+msgstr "Kosten und Komfort"
+
+msgid "Cost and comfort: what gives way first, and how much comfort may give for savings"
+msgstr ""
+"Kosten und Komfort: was zuerst nachgibt, und wie viel Komfort für Ersparnisse "
+"nachgeben darf"
 
 msgid "Coverage"
 msgstr "Abdeckung"
@@ -486,6 +559,9 @@ msgstr "Strompreis"
 msgid "Electricity used"
 msgstr "Verbrauchter Strom"
 
+msgid "End"
+msgstr "Beenden"
+
 msgid "Energy"
 msgstr "Energie"
 
@@ -546,6 +622,12 @@ msgstr "Erster Administrator"
 msgid "Flow"
 msgstr "Durchfluss"
 
+msgid "For"
+msgstr "Für"
+
+msgid "For a while"
+msgstr "Für eine Weile"
+
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "Für Vorhersagen und den Sonnenstand. Koordinaten mit Dezimalpunkt, zum Beispiel 59.33."
 
@@ -580,6 +662,9 @@ msgstr "Aus Home Assistant"
 msgid "From Home Assistant's areas"
 msgstr "Aus den Bereichen von Home Assistant"
 
+msgid "From, °C"
+msgstr "Von, °C"
+
 msgid "Get it from Open-Meteo's archive"
 msgstr "Aus dem Archiv von Open-Meteo holen"
 
@@ -608,6 +693,9 @@ msgstr "Gruppe"
 msgid "Groups"
 msgstr "Gruppen"
 
+msgid "Guests"
+msgstr "Gäste"
+
 msgid "Gusts"
 msgstr "Böen"
 
@@ -616,6 +704,16 @@ msgstr "HTTPS"
 
 msgid "HTTPS is off."
 msgstr "HTTPS ist ausgeschaltet."
+
+msgid "Hands off"
+msgstr "Finger weg"
+
+msgid "Hands off until"
+msgstr "Finger weg bis"
+
+#, python-format
+msgid "Hands off until %(until)s: Thermaestro changes nothing on the pump."
+msgstr "Finger weg bis %(until)s: Thermaestro ändert nichts an der Pumpe."
 
 msgid "Health"
 msgstr "Zustand"
@@ -659,6 +757,18 @@ msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 msgid "Hot water"
 msgstr "Warmwasser"
 
+msgid "Hot water by"
+msgstr "Warmwasser bis"
+
+msgid "Hot water that must be ready"
+msgstr "Warmwasser, das bereit sein muss"
+
+msgid "Hot water that should be ready"
+msgstr "Warmwasser, das bereit sein sollte"
+
+msgid "Hot water: ready by a time, and its lowest temperature"
+msgstr "Warmwasser: bereit zu einer Zeit, und seine niedrigste Temperatur"
+
 msgid "Hot-water mode"
 msgstr "Warmwassermodus"
 
@@ -667,6 +777,9 @@ msgstr "Haus"
 
 msgid "How each has done at this house"
 msgstr "Wie gut jeder an diesem Haus war"
+
+msgid "How much it matters"
+msgstr "Wie wichtig es ist"
 
 msgid "Humidity"
 msgstr "Luftfeuchte"
@@ -677,6 +790,9 @@ msgstr "ISO 8601 (2026-10-06)"
 msgid "Instance"
 msgstr "Instanz"
 
+msgid "Intents"
+msgstr "Wünsche"
+
 msgid "Its own control"
 msgstr "Eigene Regelung"
 
@@ -685,6 +801,9 @@ msgstr "JSON-Feld"
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Weiterheizen, bis sie erreicht ist oder die nächste fällig wird"
+
+msgid "Keep it"
+msgstr "Behalten"
 
 msgid "Keep the change, and take it over from there"
 msgstr "Die Änderung behalten und von dort übernehmen"
@@ -725,6 +844,12 @@ msgstr ""
 "Freigegeben nach einer anderswo gemachten Änderung: %(why)s. Thermaestro überschreibt"
 " sie nicht."
 
+msgid "Level"
+msgstr "Stufe"
+
+msgid "Levels"
+msgstr "Stufen"
+
 msgid "Levy"
 msgstr "Umlage"
 
@@ -757,6 +882,9 @@ msgstr "Längengrad"
 
 msgid "Low-energy house"
 msgstr "Niedrigenergiehaus"
+
+msgid "Lowest hot-water temperature"
+msgstr "Niedrigste Warmwassertemperatur"
 
 msgid "MQTT broker"
 msgstr "MQTT-Broker"
@@ -819,6 +947,9 @@ msgstr "Namen"
 msgid "Needs attention"
 msgstr "Braucht Aufmerksamkeit"
 
+msgid "Never below, °C"
+msgstr "Nie unter, °C"
+
 msgid "New group"
 msgstr "Neue Gruppe"
 
@@ -844,6 +975,16 @@ msgstr "NibeGW (einfach)"
 
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
+
+msgid "No cost stance: nothing is moved by price."
+msgstr "Keine Kosteneinstellung: nichts wird nach dem Preis verschoben."
+
+msgid ""
+"No days ticked: every day. No times: all day. A step that ends before it starts runs "
+"past midnight."
+msgstr ""
+"Keine Tage angekreuzt: jeden Tag. Keine Zeiten: den ganzen Tag. Ein Schritt, der vor "
+"seinem Beginn endet, läuft über Mitternacht."
 
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Noch keine Vorhersage: Wählen Sie unter Einrichtung einen Hauptanbieter."
@@ -887,14 +1028,23 @@ msgstr ""
 msgid "No values in this period."
 msgstr "Keine Werte in diesem Zeitraum."
 
+msgid "None yet."
+msgstr "Noch keine."
+
 msgid "Not done"
 msgstr "Nicht ausgeführt"
+
+msgid "Not in dear hours"
+msgstr "Nicht in teuren Stunden"
 
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu werden."
 
 msgid "Not said"
 msgstr "Nicht angegeben"
+
+msgid "Nothing asked for yet."
+msgstr "Noch nichts gewünscht."
 
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
@@ -914,6 +1064,12 @@ msgstr ""
 "Noch nichts: Ein Anbieter erscheint hier, sobald er seine erste Vorhersage geschickt "
 "hat."
 
+msgid "Nothing yet: the pump runs on its own settings."
+msgstr "Noch nichts: die Pumpe läuft mit ihren eigenen Einstellungen."
+
+msgid "Now"
+msgstr "Jetzt"
+
 msgid "Now from"
 msgstr "Jetzt von"
 
@@ -932,12 +1088,18 @@ msgstr "Aus"
 msgid "One extra charge"
 msgstr "Eine zusätzliche Ladung"
 
+msgid "One extra charge of hot water now"
+msgstr "Jetzt eine zusätzliche Warmwasserladung"
+
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
 "above and set Where to outdoors."
 msgstr ""
 "Nur draußen platzierte Sensoren werden angeboten. Für einen schon hinzugefügten: oben"
 " sein Ändern öffnen und Wo auf draußen setzen."
+
+msgid "Only when the compressor can't keep up"
+msgstr "Nur wenn der Verdichter nicht mithält"
 
 msgid "Open"
 msgstr "Offen"
@@ -948,6 +1110,9 @@ msgstr "Archiv von Open-Meteo, %(period)s"
 
 msgid "Operator"
 msgstr "Betreiber"
+
+msgid "Or a hot-water top, °C"
+msgstr "Oder eine Warmwasser-Obergrenze, °C"
 
 msgid "Outcome"
 msgstr "Ergebnis"
@@ -1013,6 +1178,12 @@ msgstr "Leistung"
 msgid "Power from the grid"
 msgstr "Leistung aus dem Netz"
 
+msgid "Power limit"
+msgstr "Leistungsgrenze"
+
+msgid "Power limit, kW"
+msgstr "Leistungsgrenze, kW"
+
 msgid "Power to the grid"
 msgstr "Leistung ins Netz"
 
@@ -1049,6 +1220,12 @@ msgstr "Wärmepumpe"
 msgid "Quantity"
 msgstr "Größe"
 
+msgid "Quiet"
+msgstr "Ruhig"
+
+msgid "Quiet hours"
+msgstr "Ruhezeiten"
+
 msgid "Radiators"
 msgstr "Heizkörper"
 
@@ -1066,6 +1243,9 @@ msgstr "Leseport"
 
 msgid "Read the picked ones"
 msgstr "Die gewählten lesen"
+
+msgid "Refused."
+msgstr "Abgelehnt."
 
 msgid "Region"
 msgstr "Region"
@@ -1106,6 +1286,12 @@ msgstr "Raumtemperatur"
 msgid "Rooms"
 msgstr "Räume"
 
+msgid "Rooms not above their band"
+msgstr "Räume nicht über ihrem Band"
+
+msgid "Rooms not below their band"
+msgstr "Räume nicht unter ihrem Band"
+
 msgid "S-series"
 msgstr "S-Serie"
 
@@ -1120,6 +1306,9 @@ msgstr "Speichern und Entitäten auswählen"
 
 msgid "Save and connect"
 msgstr "Speichern und verbinden"
+
+msgid "Savings, in percent"
+msgstr "Ersparnis, in Prozent"
 
 msgid "Security token"
 msgstr "Sicherheitstoken"
@@ -1218,6 +1407,10 @@ msgstr "Status"
 msgid "State:"
 msgstr "Zustand:"
 
+#, python-format
+msgid "Step %(n)s"
+msgstr "Schritt %(n)s"
+
 msgid "Steps"
 msgstr "Schritte"
 
@@ -1261,6 +1454,12 @@ msgstr "Temperatur, 10. Perzentil"
 msgid "Temperature, 90th percentile"
 msgstr "Temperatur, 90. Perzentil"
 
+msgid "The addition"
+msgstr "Der Zuheizer"
+
+msgid "The addition, the pool, a power limit, quiet hours"
+msgstr "Der Zuheizer, der Pool, eine Leistungsgrenze, Ruhezeiten"
+
 msgid ""
 "The annual mean temperature and how far the warmest month's mean is from the "
 "coldest's. Thermaestro estimates the cold water's temperature from them."
@@ -1302,11 +1501,27 @@ msgstr ""
 msgid "The house"
 msgstr "Das Haus"
 
+msgid "The house at most, kW"
+msgstr "Das Haus höchstens, kW"
+
+msgid ""
+"The household's own named settings, used by name: changing one changes every intent "
+"that names it."
+msgstr ""
+"Die eigenen benannten Einstellungen des Haushalts, nach Namen verwendet: Ändert man "
+"eine, ändert sich jeder Wunsch, der sie nennt."
+
 msgid "The location's climate"
 msgstr "Das Klima des Standorts"
 
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
+
+msgid "The pool"
+msgstr "Der Pool"
+
+msgid "The power limit"
+msgstr "Die Leistungsgrenze"
 
 msgid ""
 "The pump doesn't measure the brine flow. With a flow from the installation (its "
@@ -1342,6 +1557,9 @@ msgstr "Die Werte konnten nicht geladen werden."
 
 msgid "The water"
 msgstr "Das Wasser"
+
+msgid "The whole house"
+msgstr "Das ganze Haus"
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestro-Gateway (mit Schlüssel)"
@@ -1402,6 +1620,9 @@ msgstr ""
 "Kreuzen Sie an, was Thermaestro lesen soll. Jeder gewählte Wert wird ein Sensor; "
 "Namen und Räume folgen als Nächstes."
 
+msgid "Time"
+msgstr "Zeit"
+
 msgid "Time range"
 msgstr "Zeitraum"
 
@@ -1410,6 +1631,12 @@ msgstr "Zeitzone"
 
 msgid "Times are in the house's time zone."
 msgstr "Zeiten gelten in der Zeitzone des Hauses."
+
+msgid "To"
+msgstr "Bis"
+
+msgid "To, °C"
+msgstr "Bis, °C"
 
 msgid "Today"
 msgstr "Heute"
@@ -1434,6 +1661,9 @@ msgstr "Fußbodenheizung"
 
 msgid "Unit"
 msgstr "Einheit"
+
+msgid "Until"
+msgstr "Bis"
 
 msgid "User"
 msgstr "Benutzer"
@@ -1461,6 +1691,12 @@ msgstr "Lüftung"
 
 msgid "View"
 msgstr "Ansicht"
+
+msgid "Warmer or cooler lasts until the pattern next changes."
+msgstr "Wärmer oder kühler gilt, bis sich der Plan das nächste Mal ändert."
+
+msgid "Warmer, please"
+msgstr "Wärmer, bitte"
 
 msgid "Water"
 msgstr "Wasser"
@@ -1503,11 +1739,21 @@ msgstr ""
 msgid "What shadow would have done"
 msgstr "Was der Schatten getan hätte"
 
+msgid ""
+"What the household wants. Thermaestro plans for it, ranks what gives way when not "
+"everything can be met, and says so."
+msgstr ""
+"Was der Haushalt möchte. Thermaestro plant dafür, ordnet, was nachgibt, wenn nicht "
+"alles erfüllt werden kann, und sagt es."
+
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
 
 msgid "When"
 msgstr "Wann"
+
+msgid "When not everything can be met, these give way last to first"
+msgstr "Wenn nicht alles erfüllt werden kann, geben diese vom letzten zum ersten nach"
 
 msgid "Where"
 msgstr "Wo"
@@ -1551,6 +1797,9 @@ msgstr "Windrichtung"
 
 msgid "Window open"
 msgstr "Fenster offen"
+
+msgid "Within a power limit"
+msgstr "Innerhalb einer Leistungsgrenze"
 
 msgid ""
 "Without it or humidity, there's no defrost estimate, and indoor humidity can't be "
@@ -1635,6 +1884,9 @@ msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
 
+msgid "active"
+msgstr "aktiv"
+
 msgid "add, change and remove plugin instances"
 msgstr "Plugin-Instanzen hinzufügen, ändern und entfernen"
 
@@ -1649,6 +1901,9 @@ msgstr "Zusatzheizung"
 
 msgid "all"
 msgstr "alle"
+
+msgid "always"
+msgstr "immer"
 
 msgid "an S-series pump's must be chosen"
 msgstr "bei einer Pumpe der S-Serie zu wählen"
@@ -1686,9 +1941,18 @@ msgstr "mindestens 15 Zeichen"
 msgid "at least 15 characters; a sentence is easy to remember"
 msgstr "mindestens 15 Zeichen; ein Satz ist leicht zu merken"
 
+msgid "at most 48 hours"
+msgstr "höchstens 48 Stunden"
+
+msgid "at risk"
+msgstr "gefährdet"
+
 #, python-format
 msgid "at the brine pump's speed, %%"
 msgstr "bei der Drehzahl der Solepumpe, %%"
+
+msgid "by"
+msgstr "bis"
 
 msgid "change the installation's settings"
 msgstr "die Einstellungen der Installation ändern"
@@ -1781,6 +2045,9 @@ msgstr "fehlgeschlagen"
 msgid "fallback"
 msgstr "Ersatz"
 
+msgid "finished"
+msgstr "beendet"
+
 #, python-format
 msgid "firmware %(version)s"
 msgstr "Firmware %(version)s"
@@ -1805,6 +2072,9 @@ msgstr "laut seiner Dokumentation"
 msgid "gives the formats"
 msgstr "bestimmt die Formate"
 
+msgid "giving way"
+msgstr "gibt nach"
+
 msgid "good"
 msgstr "gut"
 
@@ -1819,6 +2089,10 @@ msgstr "höchster"
 
 msgid "hot water"
 msgstr "Warmwasser"
+
+#, python-format
+msgid "hot water at least %(temp)s °C"
+msgstr "Warmwasser mindestens %(temp)s °C"
 
 msgid "idle"
 msgstr "Ruhe"
@@ -1847,14 +2121,29 @@ msgstr "niedrigster"
 msgid "mean"
 msgstr "Mittel"
 
+msgid "met"
+msgstr "erfüllt"
+
+msgid "missed"
+msgstr "verpasst"
+
 msgid "missing"
 msgstr "fehlt"
 
 msgid "mm per hour"
 msgstr "mm pro Stunde"
 
+msgid "must be ready"
+msgstr "muss bereit sein"
+
 msgid "no"
 msgstr "nein"
+
+#, python-format
+msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
+msgstr ""
+"kein Raumfühler: die Wärme wird nach dem Preis um höchstens %(steps)s Schritte "
+"verschoben"
 
 msgid "no room yet"
 msgstr "noch kein Raum"
@@ -1910,8 +2199,16 @@ msgstr "Punkt (4.5)"
 msgid "pool"
 msgstr "Pool"
 
+#, python-format
+msgid "pool %(low)s–%(high)s °C"
+msgstr "Pool %(low)s–%(high)s °C"
+
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"
+
+#, python-format
+msgid "price may move the target up to %(reach)s °C either way"
+msgstr "der Preis darf das Ziel um bis zu %(reach)s °C in beide Richtungen verschieben"
 
 #, python-format
 msgid "propylene glycol, about 30 %%"
@@ -1919,6 +2216,9 @@ msgstr "Propylenglykol, etwa 30 %%"
 
 msgid "publishing"
 msgstr "veröffentlicht"
+
+msgid "quiet hours"
+msgstr "Ruhezeiten"
 
 msgid "radiator valves with an interface"
 msgstr "Heizkörperventile mit Schnittstelle"
@@ -1932,14 +2232,27 @@ msgstr "werden gelesen"
 msgid "read the audit log"
 msgstr "das Prüfprotokoll lesen"
 
+msgid "received"
+msgstr "empfangen"
+
 msgid "reference"
 msgstr "Referenz"
+
+msgid "refused"
+msgstr "abgelehnt"
 
 msgid "restarting"
 msgstr "startet neu"
 
+#, python-format
+msgid "rooms %(low)s–%(high)s °C"
+msgstr "Räume %(low)s–%(high)s °C"
+
 msgid "running"
 msgstr "läuft"
+
+msgid "scheduled"
+msgstr "geplant"
 
 msgid "see devices, values and their history"
 msgstr "Geräte, Werte und ihren Verlauf sehen"
@@ -1954,8 +2267,15 @@ msgid "seen in running"
 msgstr "im Betrieb gesehen"
 
 #, python-format
+msgid "set aside: %(why)s"
+msgstr "zurückgestellt: %(why)s"
+
+#, python-format
 msgid "set to %(value)s"
 msgstr "gesetzt auf %(value)s"
+
+msgid "should be ready"
+msgstr "sollte bereit sein"
 
 msgid "stale"
 msgstr "veraltet"
@@ -1972,6 +2292,9 @@ msgstr "hält an"
 msgid "sweeping"
 msgstr "räumt auf"
 
+msgid "taken from how the pump runs"
+msgstr "aus dem Betrieb der Pumpe übernommen"
+
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
 "symbols around it, a repeat or a run, or contains the user name or the product's"
@@ -1982,6 +2305,10 @@ msgstr ""
 
 msgid "that would leave no user who can manage users"
 msgstr "dann könnte kein Benutzer mehr Benutzer verwalten"
+
+#, python-format
+msgid "the addition: %(policy)s"
+msgstr "der Zuheizer: %(policy)s"
 
 msgid "the day it falls on"
 msgstr "den Tag, auf den er fällt"
@@ -1994,6 +2321,10 @@ msgstr "den Alltagswerten"
 
 msgid "the gateway's, or an S-series pump's own"
 msgstr "die des Gateways oder die eigene einer Pumpe der S-Serie"
+
+#, python-format
+msgid "the house at most %(kw)s kW"
+msgstr "das Haus höchstens %(kw)s kW"
 
 msgid "the main provider"
 msgstr "der Hauptanbieter"
@@ -2044,6 +2375,14 @@ msgstr "unsicher"
 msgid "unknown"
 msgstr "unbekannt"
 
+#, python-format
+msgid "until %(end)s"
+msgstr "bis %(end)s"
+
+#, python-format
+msgid "until done, at the latest %(end)s"
+msgstr "bis es erledigt ist, spätestens %(end)s"
+
 msgid "up"
 msgstr "läuft"
 
@@ -2055,6 +2394,9 @@ msgstr "Warnung"
 
 msgid "where the values go"
 msgstr "wohin die Werte gehen"
+
+msgid "with a power limit only"
+msgstr "nur mit einer Leistungsgrenze"
 
 msgid "wrong user name or password"
 msgstr "falscher Benutzername oder falsches Passwort"

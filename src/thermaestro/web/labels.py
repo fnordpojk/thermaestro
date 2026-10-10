@@ -305,6 +305,49 @@ PAST_DEADLINE = {
 }
 
 
+KINDS = {
+    "comfort_band": mark("Comfort"),
+    "hot_water_by": mark("Hot water by"),
+    "hot_water_floor": mark("Lowest hot-water temperature"),
+    "cost_stance": mark("Cost and comfort"),
+    "addition_policy": mark("The addition"),
+    "pool": mark("The pool"),
+    "power_peak": mark("Power limit"),
+    "quiet_hours": mark("Quiet hours"),
+    "warmer": mark("Warmer, please"),
+    "bath": mark("A bath"),
+    "guests": mark("Guests"),
+    "away": mark("Away"),
+    "hands_off": mark("Hands off"),
+    "fireplace": mark("A fireplace is on"),
+    "boost_now": mark("Boost now"),
+}
+RANKS = {
+    "comfort_low": mark("Rooms not below their band"),
+    "must_deadlines": mark("Hot water that must be ready"),
+    "should_deadlines": mark("Hot water that should be ready"),
+    "comfort_high": mark("Rooms not above their band"),
+    "power_peak": mark("The power limit"),
+}
+POLICIES = {
+    "pump": mark("As the pump does it"),
+    "when_needed": mark("Only when the compressor can't keep up"),
+    "not_when_expensive": mark("Not in dear hours"),
+    "limit": mark("Within a power limit"),
+}
+STATES = {
+    "received": mark("received"),
+    "scheduled": mark("scheduled"),
+    "active": mark("active"),
+    "at_risk": mark("at risk"),
+    "giving_way": mark("giving way"),
+    "met": mark("met"),
+    "missed": mark("missed"),
+    "finished": mark("finished"),
+    "rejected": mark("refused"),
+}
+
+
 def lever(path: str) -> str:
     name = path.rpartition("/")[2]
     return i18n._(LEVERS[name]) if name in LEVERS else name

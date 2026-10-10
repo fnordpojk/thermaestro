@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Intents") }}{% endblock %}
+{% block main %}
+{% set names = {"house": _("The whole house")} %}
+{% for group in scopes.values() %}{% for ref, label in group %}{% set ignored = names.update({ref: label}) %}{% endfor %}{% endfor %}
+{% macro days(prefix) %}
+<span class="days">{% for d in range(7) %}<label class="check"><input type="checkbox" name="{{ prefix }}" value="{{ d }}"> {{ d | weekday }}</label>{% endfor %}</span>
+{% endmacro %}
+{% macro scope_select(group, name="scope") %}
+<select name="{{ name }}" required>{% for ref, label in scopes[group] %}<option value="{{ ref }}">{{ label }}</option>{% endfor %}</select>
+{% endmacro %}
+<h1>{{ _("Intents") }}</h1>
+<p>{{ _("What the household wants. Thermaestro plans for it, ranks what gives way when not everything can be met, and says so.") }}</p>
+
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+{% if answer %}
+<div class="notice{% if not answer.accepted %} error{% endif %}">
+  <p><strong>{% if answer.accepted %}{{ _("Asked for.") }}{% else %}{{ _("Refused.") }}{% endif %}</strong></p>
+  <ul>{% for m in answer.messages %}<li>{{ m }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<section id="now">
+<h2>{{ _("Now") }}</h2>
+{% if force.hands_off_until %}<p class="notice">{{ _("Hands off until %(until)s: Thermaestro changes nothing on the pump.", until=force.hands_off_until | when) }}</p>{% endif %}
+<ul>
+{% for b in force.bounds %}
+  <li>{{ names.get(b.scope, b.scope) }}:
+    {% if b.target == "room_temp" %}{{ _("rooms %(low)s–%(high)s °C", low=b.low | num(1), high=b.high | num(1)) }}{% if b.scope in reach and force.slider is not none %} · {{ _("price may move the target up to %(reach)s °C either way", reach=(reach[b.scope] * force.slider) | num(1)) }}{% endif %}
+    {% elif b.target == "offset_shift" %}{{ _("no room sensor: the heat shifted by price at most %(steps)s steps", steps=b.high | num(0)) }}
+    {% elif b.target == "tank_top_temp" %}{{ _("hot water at least %(temp)s °C", temp=b.low | num(1)) }}
+    {% elif b.target == "pool_temp" %}{{ _("pool %(low)s–%(high)s °C", low=b.low | num(1), high=b.high | num(1)) }}
+    {% elif b.target == "house_power" %}{{ _("the house at most %(kw)s kW", kw=b.high | num(1)) }}
+    {% elif b.target == "addition" %}{{ _("the addition: %(policy)s", policy=_(policies[b.value]) if b.value in policies else b.value) }}
+    {% elif b.target == "quiet" %}{{ _("quiet hours") }}
+    {% else %}{{ b.target }}{% endif %}
+  </li>
+{% else %}
+  <li>{{ _("Nothing yet: the pump runs on its own settings.") }}</li>
+{% endfor %}
+</ul>
+{% if force.slider is none %}<p class="hint">{{ _("No cost stance: nothing is moved by price.") }}</p>{% endif %}
+</section>
+
+<section id="asked">
+<h2>{{ _("Asked for") }}</h2>
+<table>
+  <thead><tr><th>{{ _("What") }}</th><th>{{ _("For") }}</th><th>{{ _("Until") }}</th><th>{{ _("By") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for v in views %}{% set i = v.intent %}
+    <tr>
+      <td>{{ _(kinds[i.kind]) if i.kind in kinds else i.kind }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}{% if not i.confirmed %} <small>{{ _("taken from how the pump runs") }}</small>{% endif %}
+        {% if v.paused %}<br><small>{{ _("set aside: %(why)s", why=v.paused) }}</small>{% endif %}</td>
+      <td>{{ names.get(i.scope, i.scope) }}</td>
+      <td>{% if v.end %}{% if v.when_met %}{{ _("until done, at the latest %(end)s", end=v.end | when) }}{% else %}{{ v.end | when }}{% endif %}{% else %}{{ _("always") }}{% endif %}</td>
+      <td>{{ i.principal.removeprefix("user:") }}</td>
+      <td>
+        {% if not i.confirmed and can("intent.standing.write") %}
+        <form method="post" action="/intents/{{ i.id }}/confirm" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">{{ _("Keep it") }}</button></form>
+        {% endif %}
+        <form method="post" action="/intents/{{ i.id }}/end" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">{{ _("End") }}</button></form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5">{{ _("Nothing asked for yet.") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</section>
+
+<section id="for-a-while">
+<h2>{{ _("For a while") }}</h2>
+{% include "ask-quick.html" %}
+</section>
+
+{% if can("intent.standing.write") or can("intent.slider.write") %}
+<section id="always">
+<h2>{{ _("Always") }}</h2>
+{% if scopes.systems %}
+<details><summary>{{ _("Comfort: a band for a climate system or a room, on a weekly pattern") }}</summary>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="comfort_band">
+  <label>{{ _("For") }}
+    <select name="scope" required>{% for ref, label in scopes.systems + scopes.rooms %}<option value="{{ ref }}">{{ label }}</option>{% endfor %}</select></label>
+  {% for i in range(rows.pattern) %}
+  <fieldset><legend>{{ _("Step %(n)s", n=i + 1) }}</legend>
+    <label>{{ _("Level") }}
+      <select name="p{{ i }}.level"><option value="">–</option>{% for lid, lv in levels.items() if lv.low is not none %}<option value="{{ lid }}">{{ lv.name }} ({{ lv.low | num(1) }}–{{ lv.high | num(1) }} °C)</option>{% endfor %}</select></label>
+    {{ days("p" ~ i ~ ".days") }}
+    <label>{{ _("From") }} <input type="time" name="p{{ i }}.start"></label>
+    <label>{{ _("To") }} <input type="time" name="p{{ i }}.end"></label>
+  </fieldset>
+  {% endfor %}
+  <p class="hint">{{ _("No days ticked: every day. No times: all day. A step that ends before it starts runs past midnight.") }}</p>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="comfort_band"><input type="hidden" name="no_sensor" value="1">
+  <p class="hint">{{ _("A climate system without a room sensor: its normal heat, moved by price at most this many of the pump's offset steps.") }}</p>
+  <label>{{ _("For") }} {{ scope_select("systems") }}</label>
+  <label>{{ _("Steps") }} <input name="steps" inputmode="numeric" value="2"></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+</details>
+{% endif %}
+{% if scopes.tanks %}
+<details><summary>{{ _("Hot water: ready by a time, and its lowest temperature") }}</summary>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="hot_water_by">
+  <label>{{ _("For") }} {{ scope_select("tanks") }}</label>
+  {% for i in range(rows.deadlines) %}
+  <fieldset><legend>{{ _("By") }}</legend>
+    <label>{{ _("Time") }} <input type="time" name="d{{ i }}.by"></label>
+    <label>{{ _("At least, °C") }} <input name="d{{ i }}.temp" inputmode="decimal"></label>
+    {{ days("d" ~ i ~ ".days") }}
+  </fieldset>
+  {% endfor %}
+  <label>{{ _("How much it matters") }}
+    <select name="strength"><option value="should">{{ _("should be ready") }}</option><option value="must">{{ _("must be ready") }}</option></select></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="hot_water_floor">
+  <label>{{ _("For") }} {{ scope_select("tanks") }}</label>
+  <label>{{ _("Never below, °C") }} <input name="temp" inputmode="decimal" required></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+</details>
+{% endif %}
+<details><summary>{{ _("Cost and comfort: what gives way first, and how much comfort may give for savings") }}</summary>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="cost_stance">
+  <label>{{ _("Savings, in percent") }} <small>{{ _("0: comfort first, prices only where nothing gives; 100: as much of each band as it allows") }}</small>
+    <input type="range" name="slider" min="0" max="100" step="5" value="{{ ((force.slider or 0) * 100) | int }}"></label>
+  <fieldset><legend>{{ _("When not everything can be met, these give way last to first") }}</legend>
+  {% for n in range(1, 6) %}
+  <label>{{ n }}.
+    <select name="rank{{ n }}">{% for key, name in ranks.items() %}<option value="{{ key }}"{% if force.ranking[n - 1] == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+  {% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+</details>
+<details><summary>{{ _("The addition, the pool, a power limit, quiet hours") }}</summary>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="addition_policy">
+  <label>{{ _("The addition") }}
+    <select name="policy">{% for key, name in policies.items() %}<option value="{{ key }}">{{ _(name) }}</option>{% endfor %}</select></label>
+  <label>{{ _("Power limit, kW") }} <small>{{ _("with a power limit only") }}</small> <input name="kw" inputmode="decimal"></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+{% if scopes.pools %}
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="pool">
+  <label>{{ _("For") }} {{ scope_select("pools") }}</label>
+  <label>{{ _("Level") }}
+    <select name="level" required>{% for lid, lv in levels.items() if lv.low is not none %}<option value="{{ lid }}">{{ lv.name }}</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+{% endif %}
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="power_peak">
+  <label>{{ _("The house at most, kW") }} <input name="kw" inputmode="decimal" required></label>
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+<form method="post" action="/intents" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="quiet_hours">
+  {% for i in range(rows.spans) %}
+  <fieldset><legend>{{ _("Quiet") }}</legend>
+    {{ days("s" ~ i ~ ".days") }}
+    <label>{{ _("From") }} <input type="time" name="s{{ i }}.start"></label>
+    <label>{{ _("To") }} <input type="time" name="s{{ i }}.end"></label>
+  </fieldset>
+  {% endfor %}
+  <button type="submit">{{ _("Ask for it") }}</button>
+</form>
+</details>
+</section>
+{% endif %}
+
+<section id="levels">
+<h2>{{ _("Levels") }}</h2>
+<p>{{ _("The household's own named settings, used by name: changing one changes every intent that names it.") }}</p>
+<ul>
+{% for lid, lv in levels.items() %}
+  <li>{{ lv.name }}, {{ names.get(lv.scope, lv.scope) }}: {% if lv.top is not none %}{{ lv.top | num(1) }} °C{% else %}{{ lv.low | num(1) }}–{{ lv.high | num(1) }} °C{% endif %}
+  {% if can("intent.levels.write") %}<form method="post" action="/levels/{{ lid }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">{{ _("Remove") }}</button></form>{% endif %}</li>
+{% else %}
+  <li>{{ _("None yet.") }}</li>
+{% endfor %}
+</ul>
+{% if can("intent.levels.write") %}
+<form method="post" action="/levels/new" class="grid" data-level-form>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64"></label>
+  <label>{{ _("For") }}
+    <select name="scope" required>{% for ref, label in scopes.systems + scopes.rooms + scopes.tanks + scopes.pools %}<option value="{{ ref }}">{{ label }}</option>{% endfor %}</select></label>
+  <label>{{ _("From, °C") }} <input name="low" inputmode="decimal"></label>
+  <label>{{ _("To, °C") }} <input name="high" inputmode="decimal"></label>
+  <label>{{ _("Or a hot-water top, °C") }} <input name="top" inputmode="decimal"></label>
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+{% endif %}
+</section>
+{% endblock %}

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from ..core.audit import AuditLog
     from ..core.executor import Executor
     from ..core.host import PluginHost
+    from ..core.sensors import SensorHub
     from ..intents import Intents
     from ..planner import Planner
     from ..store import Database
@@ -42,8 +43,13 @@ class ControlOperations:
         intents: Intents | None
         executor: Executor | None
         planner: Planner | None
+        sensors: SensorHub | None
 
         def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None: ...
+
+        def node_label(
+            self, caller: Caller, instance: str, node: str, *, built_in: bool = False
+        ) -> str: ...
 
     # --- intents ---------------------------------------------------------------------------
 
@@ -137,6 +143,45 @@ class ControlOperations:
             "ranking": list(found.ranking),
             "slider": found.slider,
         }
+
+    async def intent_views(self, caller: "Caller") -> list[dict[str, Any]]:
+        """The open intents for a page: temporary ones first, each with its end, whether
+        it ends when met, and why it is paused if it is."""
+        caller.principal.require("plan.read")
+        resolver = await self._intents().resolver()
+        force = resolver.in_force(clock.now())
+        out = []
+        for intent in sorted(
+            resolver.intents, key=lambda i: (i.tier not in ("temporary", "hands_off"), i.created)
+        ):
+            end = resolver.end(intent)
+            out.append(
+                {
+                    "intent": intent,
+                    "end": end.isoformat() if end else None,
+                    "when_met": intent.validity.ends == "when_met",
+                    "paused": force.paused.get(intent.id),
+                }
+            )
+        return out
+
+    def intent_scopes(self, caller: "Caller") -> dict[str, list[tuple[str, str]]]:
+        """What an intent can name, with each one's name: climate systems, hot-water tanks,
+        pools, and rooms."""
+        caller.principal.require("plan.read")
+        kinds = {"climate_system": "systems", "dhw_tank": "tanks", "pool": "pools"}
+        out: dict[str, list[tuple[str, str]]] = {"systems": [], "tanks": [], "pools": []}
+        for instance_id, instance in sorted((self.host.instances if self.host else {}).items()):
+            for node in instance.described.nodes if instance.described else ():
+                if node.kind in kinds:
+                    ref = f"{instance_id}:{node.path}"
+                    label = self.node_label(caller, instance_id, node.path)
+                    out[kinds[node.kind]].append((ref, label))
+        rooms = self.sensors.rooms if self.sensors is not None else {}
+        out["rooms"] = sorted(
+            ((f"room:{id}", r.name) for id, r in rooms.items()), key=lambda x: x[1]
+        )
+        return out
 
     async def level_list(self, caller: "Caller") -> dict[str, Level]:
         caller.principal.require("plan.read")

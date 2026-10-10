@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 02:59+0200\n"
+"POT-Creation-Date: 2026-10-10 03:24+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -58,6 +58,13 @@ msgstr "* från en reservserie, där lagrets egen serie saknar pris."
 msgid "0 picks a free one"
 msgstr "0 väljer en ledig"
 
+msgid ""
+"0: comfort first, prices only where nothing gives; 100: as much of each band as it "
+"allows"
+msgstr ""
+"0: komforten först, priset bara där inget ger vika; 100: så mycket av varje intervall"
+" som det tillåter"
+
 msgid "1 year"
 msgstr "1 år"
 
@@ -94,6 +101,22 @@ msgstr ""
 "Kopiera filen till ett USB-minne och läs in den i pumpens USB-meny (7.2). Pumpen är "
 "kinkig med USB-minnen: sådana som är större än 4 GB, eller tillverkade under ungefär "
 "de senaste 15 åren, godtas ofta inte. Allt fungerar utan den, fast långsammare."
+
+msgid "A bath"
+msgstr "Ett bad"
+
+msgid "A bath: at least, °C"
+msgstr "Ett bad: minst, °C"
+
+msgid ""
+"A climate system without a room sensor: its normal heat, moved by price at most this "
+"many of the pump's offset steps."
+msgstr ""
+"Ett klimatsystem utan rumsgivare: dess vanliga värme, flyttad efter priset högst så "
+"här många av pumpens förskjutningssteg."
+
+msgid "A fireplace is on"
+msgstr "En brasa brinner"
 
 msgid "A private well"
 msgstr "Egen brunn"
@@ -195,6 +218,9 @@ msgstr "Alla pumpens värden"
 msgid "Also each sensor's own values"
 msgstr "Även varje sensors egna värden"
 
+msgid "Always"
+msgstr "Alltid"
+
 msgid "Amount per kWh"
 msgstr "Belopp per kWh"
 
@@ -222,14 +248,38 @@ msgstr "Område"
 msgid "Areas that aren't rooms yet"
 msgstr "Områden som inte är rum än"
 
+msgid "As the pump does it"
+msgstr "Som pumpen gör"
+
+msgid "Ask for a while"
+msgstr "Be om något en stund"
+
+msgid "Ask for it"
+msgstr "Be om det"
+
+msgid "Asked for"
+msgstr "Begärt"
+
+msgid "Asked for."
+msgstr "Begärt."
+
 msgid "At"
 msgstr "Tid"
+
+msgid "At least, °C"
+msgstr "Minst, °C"
 
 msgid "Audit log"
 msgstr "Granskningslogg"
 
 msgid "Average"
 msgstr "Genomsnittligt"
+
+msgid "Away"
+msgstr "Bortrest"
+
+msgid "Away until"
+msgstr "Bortrest till"
 
 msgid "Back to the list"
 msgstr "Tillbaka till listan"
@@ -249,6 +299,9 @@ msgstr ""
 
 msgid "Bidding zone"
 msgstr "Elområde"
+
+msgid "Boost now"
+msgstr "Extra varmvatten nu"
 
 msgid "Brine"
 msgstr "Köldbärare"
@@ -273,6 +326,9 @@ msgstr "Köldbärare, för värmen som tas ur marken"
 
 msgid "Browser"
 msgstr "Webbläsare"
+
+msgid "By"
+msgstr "Av"
 
 msgid "CO₂"
 msgstr "CO₂"
@@ -349,6 +405,12 @@ msgstr "Färger: mörka"
 msgid "Colors: light"
 msgstr "Färger: ljusa"
 
+msgid "Comfort"
+msgstr "Komfort"
+
+msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
+msgstr "Komfort: ett intervall för ett klimatsystem eller ett rum, efter ett veckoschema"
+
 msgid "Compressor"
 msgstr "Kompressor"
 
@@ -370,8 +432,19 @@ msgstr "Styrning"
 msgid "Control port"
 msgstr "Kontrollport"
 
+msgid "Cooler, please"
+msgstr "Svalare, tack"
+
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopiera den nu: den visas bara den här gången."
+
+msgid "Cost and comfort"
+msgstr "Kostnad och komfort"
+
+msgid "Cost and comfort: what gives way first, and how much comfort may give for savings"
+msgstr ""
+"Kostnad och komfort: vad som ger vika först, och hur mycket komforten får ge för "
+"besparingar"
 
 msgid "Coverage"
 msgstr "Täckning"
@@ -481,6 +554,9 @@ msgstr "Elpris"
 msgid "Electricity used"
 msgstr "Använd el"
 
+msgid "End"
+msgstr "Avsluta"
+
 msgid "Energy"
 msgstr "Energi"
 
@@ -540,6 +616,12 @@ msgstr "Första administratören"
 msgid "Flow"
 msgstr "Flöde"
 
+msgid "For"
+msgstr "För"
+
+msgid "For a while"
+msgstr "En stund"
+
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "För prognoser och solen. Koordinater med decimalpunkt, till exempel 59.33."
 
@@ -572,6 +654,9 @@ msgstr "Från Home Assistant"
 msgid "From Home Assistant's areas"
 msgstr "Från Home Assistants områden"
 
+msgid "From, °C"
+msgstr "Från, °C"
+
 msgid "Get it from Open-Meteo's archive"
 msgstr "Hämta det från Open-Meteos arkiv"
 
@@ -600,6 +685,9 @@ msgstr "Grupp"
 msgid "Groups"
 msgstr "Grupper"
 
+msgid "Guests"
+msgstr "Gäster"
+
 msgid "Gusts"
 msgstr "Byar"
 
@@ -608,6 +696,16 @@ msgstr "HTTPS"
 
 msgid "HTTPS is off."
 msgstr "HTTPS är avstängt."
+
+msgid "Hands off"
+msgstr "Rör inget"
+
+msgid "Hands off until"
+msgstr "Rör inget till"
+
+#, python-format
+msgid "Hands off until %(until)s: Thermaestro changes nothing on the pump."
+msgstr "Rör inget till %(until)s: Thermaestro ändrar ingenting på pumpen."
 
 msgid "Health"
 msgstr "Hälsa"
@@ -651,6 +749,18 @@ msgstr "Home Assistant erbjuder inget som Thermaestro kan använda."
 msgid "Hot water"
 msgstr "Varmvatten"
 
+msgid "Hot water by"
+msgstr "Varmvatten till"
+
+msgid "Hot water that must be ready"
+msgstr "Varmvatten som måste vara klart"
+
+msgid "Hot water that should be ready"
+msgstr "Varmvatten som bör vara klart"
+
+msgid "Hot water: ready by a time, and its lowest temperature"
+msgstr "Varmvatten: klart till en tid, och dess lägsta temperatur"
+
 msgid "Hot-water mode"
 msgstr "Varmvattenläge"
 
@@ -659,6 +769,9 @@ msgstr "Huset"
 
 msgid "How each has done at this house"
 msgstr "Hur var och en har klarat sig vid det här huset"
+
+msgid "How much it matters"
+msgstr "Hur viktigt det är"
 
 msgid "Humidity"
 msgstr "Luftfuktighet"
@@ -669,6 +782,9 @@ msgstr "ISO 8601 (2026-10-06)"
 msgid "Instance"
 msgstr "Instans"
 
+msgid "Intents"
+msgstr "Önskemål"
+
 msgid "Its own control"
 msgstr "Egen styrning"
 
@@ -677,6 +793,9 @@ msgstr "JSON-fält"
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Fortsätt värma tills den är nådd, eller nästa infaller"
+
+msgid "Keep it"
+msgstr "Behåll"
 
 msgid "Keep the change, and take it over from there"
 msgstr "Behåll ändringen och ta över därifrån"
@@ -717,6 +836,12 @@ msgstr ""
 "Släppt efter en ändring gjord någon annanstans: %(why)s. Thermaestro skriver inte "
 "över den."
 
+msgid "Level"
+msgstr "Nivå"
+
+msgid "Levels"
+msgstr "Nivåer"
+
 msgid "Levy"
 msgstr "Avgift"
 
@@ -749,6 +874,9 @@ msgstr "Longitud"
 
 msgid "Low-energy house"
 msgstr "Lågenergihus"
+
+msgid "Lowest hot-water temperature"
+msgstr "Lägsta varmvattentemperatur"
 
 msgid "MQTT broker"
 msgstr "MQTT-broker"
@@ -811,6 +939,9 @@ msgstr "Namn"
 msgid "Needs attention"
 msgstr "Behöver åtgärdas"
 
+msgid "Never below, °C"
+msgstr "Aldrig under, °C"
+
 msgid "New group"
 msgstr "Ny grupp"
 
@@ -836,6 +967,16 @@ msgstr "NibeGW (vanlig)"
 
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
+
+msgid "No cost stance: nothing is moved by price."
+msgstr "Ingen kostnadsinställning: inget flyttas efter priset."
+
+msgid ""
+"No days ticked: every day. No times: all day. A step that ends before it starts runs "
+"past midnight."
+msgstr ""
+"Inga dagar ikryssade: varje dag. Inga tider: hela dagen. Ett steg som slutar före det"
+" börjar går över midnatt."
 
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
@@ -877,14 +1018,23 @@ msgstr "Ingen källa ger priser än. Välj källa för ditt elområdes spotpris 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
 
+msgid "None yet."
+msgstr "Inga än."
+
 msgid "Not done"
 msgstr "Inte gjort"
+
+msgid "Not in dear hours"
+msgstr "Inte under dyra timmar"
 
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pumpen."
 
 msgid "Not said"
 msgstr "Inte angivet"
+
+msgid "Nothing asked for yet."
+msgstr "Inget begärt än."
 
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
@@ -901,6 +1051,12 @@ msgstr "Inget valdes."
 
 msgid "Nothing yet: a provider shows here once it has sent its first forecast."
 msgstr "Inget än: en leverantör visas här när den har skickat sin första prognos."
+
+msgid "Nothing yet: the pump runs on its own settings."
+msgstr "Inget än: pumpen går på sina egna inställningar."
+
+msgid "Now"
+msgstr "Nu"
 
 msgid "Now from"
 msgstr "Nu från"
@@ -920,12 +1076,18 @@ msgstr "Av"
 msgid "One extra charge"
 msgstr "En extra laddning"
 
+msgid "One extra charge of hot water now"
+msgstr "En extra laddning varmvatten nu"
+
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
 "above and set Where to outdoors."
 msgstr ""
 "Bara givare placerade utomhus erbjuds. För en som redan lagts till: öppna dess Ändra "
 "ovan och sätt Var till utomhus."
+
+msgid "Only when the compressor can't keep up"
+msgstr "Bara när kompressorn inte räcker till"
 
 msgid "Open"
 msgstr "Öppen"
@@ -936,6 +1098,9 @@ msgstr "Open-Meteos arkiv, %(period)s"
 
 msgid "Operator"
 msgstr "Huvudman"
+
+msgid "Or a hot-water top, °C"
+msgstr "Eller en varmvattentopp, °C"
 
 msgid "Outcome"
 msgstr "Utfall"
@@ -1001,6 +1166,12 @@ msgstr "Effekt"
 msgid "Power from the grid"
 msgstr "Effekt från nätet"
 
+msgid "Power limit"
+msgstr "Effektgräns"
+
+msgid "Power limit, kW"
+msgstr "Effektgräns, kW"
+
 msgid "Power to the grid"
 msgstr "Effekt till nätet"
 
@@ -1037,6 +1208,12 @@ msgstr "Värmepump"
 msgid "Quantity"
 msgstr "Storhet"
 
+msgid "Quiet"
+msgstr "Tyst"
+
+msgid "Quiet hours"
+msgstr "Tysta timmar"
+
 msgid "Radiators"
 msgstr "Radiatorer"
 
@@ -1054,6 +1231,9 @@ msgstr "Läsport"
 
 msgid "Read the picked ones"
 msgstr "Läs de valda"
+
+msgid "Refused."
+msgstr "Nekat."
 
 msgid "Region"
 msgstr "Region"
@@ -1094,6 +1274,12 @@ msgstr "Rumstemperatur"
 msgid "Rooms"
 msgstr "Rum"
 
+msgid "Rooms not above their band"
+msgstr "Rum inte över sitt intervall"
+
+msgid "Rooms not below their band"
+msgstr "Rum inte under sitt intervall"
+
 msgid "S-series"
 msgstr "S-serien"
 
@@ -1108,6 +1294,9 @@ msgstr "Spara och välj entiteter"
 
 msgid "Save and connect"
 msgstr "Spara och anslut"
+
+msgid "Savings, in percent"
+msgstr "Besparing, i procent"
 
 msgid "Security token"
 msgstr "Säkerhetstoken"
@@ -1206,6 +1395,10 @@ msgstr "Tillstånd"
 msgid "State:"
 msgstr "Tillstånd:"
 
+#, python-format
+msgid "Step %(n)s"
+msgstr "Steg %(n)s"
+
 msgid "Steps"
 msgstr "Steg"
 
@@ -1249,6 +1442,12 @@ msgstr "Temperatur, 10:e percentilen"
 msgid "Temperature, 90th percentile"
 msgstr "Temperatur, 90:e percentilen"
 
+msgid "The addition"
+msgstr "Tillsatsen"
+
+msgid "The addition, the pool, a power limit, quiet hours"
+msgstr "Tillsatsen, poolen, en effektgräns, tysta timmar"
+
 msgid ""
 "The annual mean temperature and how far the warmest month's mean is from the "
 "coldest's. Thermaestro estimates the cold water's temperature from them."
@@ -1288,11 +1487,27 @@ msgstr ""
 msgid "The house"
 msgstr "Huset"
 
+msgid "The house at most, kW"
+msgstr "Huset högst, kW"
+
+msgid ""
+"The household's own named settings, used by name: changing one changes every intent "
+"that names it."
+msgstr ""
+"Hushållets egna namngivna inställningar, använda med namn: ändras en ändras varje "
+"önskemål som nämner den."
+
 msgid "The location's climate"
 msgstr "Platsens klimat"
 
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
+
+msgid "The pool"
+msgstr "Poolen"
+
+msgid "The power limit"
+msgstr "Effektgränsen"
 
 msgid ""
 "The pump doesn't measure the brine flow. With a flow from the installation (its "
@@ -1327,6 +1542,9 @@ msgstr "Värdena kunde inte hämtas."
 
 msgid "The water"
 msgstr "Vattnet"
+
+msgid "The whole house"
+msgstr "Hela huset"
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestros gateway (med nyckel)"
@@ -1386,6 +1604,9 @@ msgstr ""
 "Kryssa i vad Thermaestro ska läsa. Varje valt värde blir en givare; namn och rum "
 "kommer härnäst."
 
+msgid "Time"
+msgstr "Tid"
+
 msgid "Time range"
 msgstr "Tidsintervall"
 
@@ -1394,6 +1615,12 @@ msgstr "Tidszon"
 
 msgid "Times are in the house's time zone."
 msgstr "Tider anges i husets tidszon."
+
+msgid "To"
+msgstr "Till"
+
+msgid "To, °C"
+msgstr "Till, °C"
 
 msgid "Today"
 msgstr "Idag"
@@ -1418,6 +1645,9 @@ msgstr "Golvvärme"
 
 msgid "Unit"
 msgstr "Enhet"
+
+msgid "Until"
+msgstr "Till"
 
 msgid "User"
 msgstr "Användare"
@@ -1445,6 +1675,12 @@ msgstr "Ventilation"
 
 msgid "View"
 msgstr "Visning"
+
+msgid "Warmer or cooler lasts until the pattern next changes."
+msgstr "Varmare eller svalare gäller tills schemat ändras nästa gång."
+
+msgid "Warmer, please"
+msgstr "Varmare, tack"
 
 msgid "Water"
 msgstr "Vatten"
@@ -1486,11 +1722,21 @@ msgstr ""
 msgid "What shadow would have done"
 msgstr "Vad skuggan skulle ha gjort"
 
+msgid ""
+"What the household wants. Thermaestro plans for it, ranks what gives way when not "
+"everything can be met, and says so."
+msgstr ""
+"Vad hushållet vill. Thermaestro planerar för det, rangordnar vad som ger vika när "
+"inte allt kan uppfyllas, och säger det."
+
 msgid "What the rights allow"
 msgstr "Vad rättigheterna tillåter"
 
 msgid "When"
 msgstr "När"
+
+msgid "When not everything can be met, these give way last to first"
+msgstr "När inte allt kan uppfyllas ger dessa vika sist till först"
 
 msgid "Where"
 msgstr "Var"
@@ -1531,6 +1777,9 @@ msgstr "Vindriktning"
 
 msgid "Window open"
 msgstr "Fönster öppet"
+
+msgid "Within a power limit"
+msgstr "Inom en effektgräns"
 
 msgid ""
 "Without it or humidity, there's no defrost estimate, and indoor humidity can't be "
@@ -1608,6 +1857,9 @@ msgstr "ett användarnamn är 1 till 64 bokstäver, siffror eller . _ @ -"
 msgid "a zoning controller"
 msgstr "en zonstyrning"
 
+msgid "active"
+msgstr "aktivt"
+
 msgid "add, change and remove plugin instances"
 msgstr "lägga till, ändra och ta bort tilläggsinstanser"
 
@@ -1622,6 +1874,9 @@ msgstr "tillsats"
 
 msgid "all"
 msgstr "alla"
+
+msgid "always"
+msgstr "alltid"
 
 msgid "an S-series pump's must be chosen"
 msgstr "måste väljas för en pump i S-serien"
@@ -1659,9 +1914,18 @@ msgstr "minst 15 tecken"
 msgid "at least 15 characters; a sentence is easy to remember"
 msgstr "minst 15 tecken; en mening är lätt att komma ihåg"
 
+msgid "at most 48 hours"
+msgstr "högst 48 timmar"
+
+msgid "at risk"
+msgstr "i fara"
+
 #, python-format
 msgid "at the brine pump's speed, %%"
 msgstr "vid köldbärarpumpens hastighet, %%"
+
+msgid "by"
+msgstr "till"
 
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
@@ -1754,6 +2018,9 @@ msgstr "misslyckades"
 msgid "fallback"
 msgstr "reserv"
 
+msgid "finished"
+msgstr "avslutat"
+
 #, python-format
 msgid "firmware %(version)s"
 msgstr "programvara %(version)s"
@@ -1778,6 +2045,9 @@ msgstr "enligt dess dokumentation"
 msgid "gives the formats"
 msgstr "ger formaten"
 
+msgid "giving way"
+msgstr "ger vika"
+
 msgid "good"
 msgstr "god"
 
@@ -1792,6 +2062,10 @@ msgstr "högsta"
 
 msgid "hot water"
 msgstr "varmvatten"
+
+#, python-format
+msgid "hot water at least %(temp)s °C"
+msgstr "varmvatten minst %(temp)s °C"
 
 msgid "idle"
 msgstr "vila"
@@ -1818,14 +2092,27 @@ msgstr "lägsta"
 msgid "mean"
 msgstr "medel"
 
+msgid "met"
+msgstr "uppfyllt"
+
+msgid "missed"
+msgstr "missat"
+
 msgid "missing"
 msgstr "saknas"
 
 msgid "mm per hour"
 msgstr "mm per timme"
 
+msgid "must be ready"
+msgstr "måste vara klart"
+
 msgid "no"
 msgstr "nej"
+
+#, python-format
+msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
+msgstr "ingen rumsgivare: värmen flyttas efter priset högst %(steps)s steg"
 
 msgid "no room yet"
 msgstr "inget rum än"
@@ -1881,8 +2168,16 @@ msgstr "punkt (4.5)"
 msgid "pool"
 msgstr "pool"
 
+#, python-format
+msgid "pool %(low)s–%(high)s °C"
+msgstr "pool %(low)s–%(high)s °C"
+
 msgid "preselected from this browser"
 msgstr "förvald från den här webbläsaren"
+
+#, python-format
+msgid "price may move the target up to %(reach)s °C either way"
+msgstr "priset får flytta målet upp till %(reach)s °C åt vardera hållet"
 
 #, python-format
 msgid "propylene glycol, about 30 %%"
@@ -1890,6 +2185,9 @@ msgstr "propylenglykol, omkring 30 %%"
 
 msgid "publishing"
 msgstr "publicerar"
+
+msgid "quiet hours"
+msgstr "tysta timmar"
 
 msgid "radiator valves with an interface"
 msgstr "radiatorventiler med gränssnitt"
@@ -1903,14 +2201,27 @@ msgstr "läses nu"
 msgid "read the audit log"
 msgstr "läsa granskningsloggen"
 
+msgid "received"
+msgstr "mottaget"
+
 msgid "reference"
 msgstr "referens"
+
+msgid "refused"
+msgstr "nekat"
 
 msgid "restarting"
 msgstr "startar om"
 
+#, python-format
+msgid "rooms %(low)s–%(high)s °C"
+msgstr "rum %(low)s–%(high)s °C"
+
 msgid "running"
 msgstr "går"
+
+msgid "scheduled"
+msgstr "schemalagt"
 
 msgid "see devices, values and their history"
 msgstr "se enheter, värden och deras historik"
@@ -1925,8 +2236,15 @@ msgid "seen in running"
 msgstr "sett under drift"
 
 #, python-format
+msgid "set aside: %(why)s"
+msgstr "åsidosatt: %(why)s"
+
+#, python-format
 msgid "set to %(value)s"
 msgstr "satt till %(value)s"
+
+msgid "should be ready"
+msgstr "bör vara klart"
 
 msgid "stale"
 msgstr "inaktuellt"
@@ -1943,6 +2261,9 @@ msgstr "stannar"
 msgid "sweeping"
 msgstr "rensar"
 
+msgid "taken from how the pump runs"
+msgstr "hämtat från hur pumpen går"
+
 msgid ""
 "that password is too easy to guess: it is a common one, a common one with digits or "
 "symbols around it, a repeat or a run, or contains the user name or the product's"
@@ -1953,6 +2274,10 @@ msgstr ""
 
 msgid "that would leave no user who can manage users"
 msgstr "då skulle ingen användare kunna hantera användare"
+
+#, python-format
+msgid "the addition: %(policy)s"
+msgstr "tillsatsen: %(policy)s"
 
 msgid "the day it falls on"
 msgstr "dagen den infaller"
@@ -1965,6 +2290,10 @@ msgstr "vardagsvärdena"
 
 msgid "the gateway's, or an S-series pump's own"
 msgstr "gatewayens, eller en S-seriepumps egen"
+
+#, python-format
+msgid "the house at most %(kw)s kW"
+msgstr "huset högst %(kw)s kW"
 
 msgid "the main provider"
 msgstr "huvudleverantören"
@@ -2015,6 +2344,14 @@ msgstr "osäkert"
 msgid "unknown"
 msgstr "okänt"
 
+#, python-format
+msgid "until %(end)s"
+msgstr "till %(end)s"
+
+#, python-format
+msgid "until done, at the latest %(end)s"
+msgstr "tills det är klart, senast %(end)s"
+
 msgid "up"
 msgstr "igång"
 
@@ -2026,6 +2363,9 @@ msgstr "varning"
 
 msgid "where the values go"
 msgstr "dit värdena skickas"
+
+msgid "with a power limit only"
+msgstr "bara med en effektgräns"
 
 msgid "wrong user name or password"
 msgstr "fel användarnamn eller lösenord"

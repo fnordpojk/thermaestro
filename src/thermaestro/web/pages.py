@@ -270,7 +270,24 @@ async def status_page(request: Request, who: Logged) -> Response:
             "zone": i18n.zone_name(),
             "formats": i18n.formats.get(),
         }
-    return render(request, "status.html", who, glance=glance, part=None, **_overview(request, who))
+    asking: dict[str, Any] = {}
+    s = services(request)
+    if who.principal.allows("plan.read") and s.intents is not None:
+        views = await s.intent_views(who)
+        asking = {
+            "scopes": s.intent_scopes(who),
+            "levels": await s.level_list(who),
+            "temporary": [v for v in views if v["intent"].tier in ("temporary", "hands_off")],
+        }
+    return render(
+        request,
+        "status.html",
+        who,
+        glance=glance,
+        asking=asking,
+        part=None,
+        **_overview(request, who),
+    )
 
 
 @router.get("/status/values")
