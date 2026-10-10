@@ -24,6 +24,40 @@
 </form>
 </section>
 
+<section id="home">
+<h2>{{ _("About the house") }}</h2>
+<p>{{ _("Thermaestro starts from these until it has learned the house: how slowly each climate system answers, how much heat the house holds, and how cold the water comes in.") }}</p>
+<form method="post" action="/settings/home" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for ref, label in systems %}
+  <label>{{ _("What heats %(system)s", system=label) }}
+    <select name="emitter:{{ ref }}">
+      {% for key, name in labels.EMITTERS.items() %}<option value="{{ key }}"{% if home.emitters.get(ref, "unknown") == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+    </select></label>
+  {% endfor %}
+  <label>{{ _("The house") }}
+    <select name="house">
+      {% for key, name in labels.HOUSES.items() %}<option value="{{ key }}"{% if home.house == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("The water") }}
+    <select name="water">
+      {% for key, name in labels.WATERS.items() %}<option value="{{ key }}"{% if home.water == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("Public holidays") }} <small>{{ _("a country, and maybe a region: SE, DE-BY; empty: none") }}</small>
+    <input name="holidays" maxlength="6" value="{{ home.holidays or '' }}"></label>
+  <label>{{ _("A public holiday counts as") }}
+    <select name="holidays_as">
+      <option value=""{% if home.holidays_as is none %} selected{% endif %}>{{ _("the day it falls on") }}</option>
+      {% for day in range(7) %}<option value="{{ day }}"{% if home.holidays_as == day %} selected{% endif %}>{{ day | weekday }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _("After a missed hot-water deadline") }}
+    <select name="past_deadline">
+      {% for key, name in labels.PAST_DEADLINE.items() %}<option value="{{ key }}"{% if home.past_deadline == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+    </select></label>
+  {% if can("settings.write") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
+</form>
+</section>
+
 <section id="climate">
 <h2>{{ _("The location's climate") }}</h2>
 <p>{{ _("The annual mean temperature and how far the warmest month's mean is from the coldest's. Thermaestro estimates the cold water's temperature from them.") }}</p>

@@ -8,12 +8,12 @@ from pathlib import Path
 import httpx
 import pytest
 from test_core_executor import OFFSET, Rig, rig
-from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of
+from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of, form
 
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.core import AuditLog, Values
 from thermaestro.intents import Capabilities, Intents
-from thermaestro.store import Control, SecretStore
+from thermaestro.store import Control, Home, SecretStore
 from thermaestro.web import Services, create_app
 
 CS = "dev:hp1"
@@ -191,3 +191,62 @@ async def test_the_plan_before_the_planner_runs(tmp_path: Path) -> None:
             "decisions": [],
             "notices": [],
         }
+
+
+# --- the pages ----------------------------------------------------------------------------
+
+
+async def test_the_control_page_switches_a_lever(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        await login(client, "admin")
+        page = (await client.get("/setup/control")).text
+        assert "the schedule is off" in page
+        assert f'action="/levers/{OFFSET}/mode"' in page
+        assert "alarm" not in page.lower()  # a person's lever, not a setting to hand over
+        done = await form(client, "/setup/control", f"/levers/{OFFSET}/mode", mode="shadow")
+        assert done.status_code == 303
+        assert (await r.db.get(Control) or Control()).levers == {OFFSET: "shadow"}
+        confirmed = await form(
+            client, "/setup/control", f"/levers/{MODE}/confirmed-off", features="the schedule"
+        )
+        assert confirmed.status_code == 303
+        assert (await r.db.get(Control) or Control()).confirmed_off == {MODE: ("the schedule",)}
+        refused = await form(client, "/setup/control", f"/levers/{OFFSET}/mode", mode="on")
+        assert refused.status_code == 400
+        assert "a lever is off, shadow, control" in refused.text
+
+
+async def test_the_household_sees_the_settings_but_cant_switch_them(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, _, client):
+        await login(client, "kid")
+        page = await client.get("/setup/control")
+        assert page.status_code in (200, 403)
+        if page.status_code == 200:
+            assert f'action="/levers/{OFFSET}/mode"' not in page.text
+
+
+async def test_the_house_questions(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        await login(client, "admin")
+        page = (await client.get("/setup/house")).text
+        assert 'name="past_deadline"' in page
+        done = await form(
+            client,
+            "/setup/house",
+            "/settings/home",
+            house="well_insulated",
+            water="well",
+            holidays="se",
+            holidays_as="6",
+            past_deadline="stop",
+        )
+        assert done.status_code == 303, done.text
+        home = await r.db.get(Home)
+        assert home is not None
+        assert (home.house, home.water, home.holidays, home.holidays_as) == (
+            "well_insulated",
+            "well",
+            "SE",
+            6,
+        )
+        assert home.past_deadline == "stop"

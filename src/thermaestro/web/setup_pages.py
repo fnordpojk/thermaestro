@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from ..auth import AccountError
 from ..cap.vocabulary import WEATHER
+from . import labels
 from .app import caller, services
 from .i18n import mark
 from .operations import Caller, NeedsConfirmation
@@ -27,6 +28,7 @@ TOPICS = {
     "sensors": mark("Sensors"),
     "prices": mark("Prices"),
     "weather": mark("Weather"),
+    "control": mark("Control"),
 }
 
 FIXED_ROLES = (
@@ -66,6 +68,7 @@ async def _house(request: Request, who: Caller) -> dict[str, Any]:
         except (AccountError, TimeoutError):
             continue  # the page doesn't wait for a Home Assistant that isn't answering
     return {
+        "home": await s.home_settings(who),
         "areas": {id: names for id, names in areas.items() if names},
         "location": await s.location(who),
         "zones": time_zones(),
@@ -203,6 +206,34 @@ async def _weather(request: Request, who: Caller) -> dict[str, Any]:
     }
 
 
+async def _control(request: Request, who: Caller) -> dict[str, Any]:
+    from ..core.executor import split
+
+    s = services(request)
+    rows, budgets = [], {}
+    for lever in await s.levers(who):
+        instance, path = split(lever["lever"])
+        node = path.rpartition("/")[0]
+        rows.append({**lever, "part": s.node_label(who, instance, node)})
+        budgets[s.node_label(who, instance, path.split("/")[0])] = (
+            lever["writes_today"],
+            lever["budget"],
+        )
+    plugins = await s.plugins(who)
+    open_ports = [
+        (id, p.settings.get("host"), p.settings.get("write_port", 10000))
+        for id, p in plugins.items()
+        if p.plugin == "nibe" and p.settings.get("protocol", "nibegw") == "nibegw"
+    ]
+    return {
+        "levers": rows,
+        "budgets": budgets,
+        "notices": s.plan(who)["notices"] if who.principal.allows("plan.read") else [],
+        "open_ports": open_ports,
+        "modes": labels.MODES,
+    }
+
+
 CONTEXTS = {
     "house": _house,
     "pump": _pump,
@@ -210,6 +241,7 @@ CONTEXTS = {
     "sensors": _sensors,
     "prices": _prices,
     "weather": _weather,
+    "control": _control,
 }
 
 

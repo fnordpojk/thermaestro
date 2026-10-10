@@ -268,6 +268,52 @@ def own_device(kind: str) -> str:
     return i18n._(OWN_DEVICES[kind]) if kind in OWN_DEVICES else kind
 
 
+LEVERS = {
+    "heating.offset": mark("Heating offset"),
+    "mode": mark("Hot-water mode"),
+    "block": mark("Hold its heating off"),
+    "boost_once": mark("One extra charge"),
+    "stop_temp": mark("Stop temperature"),
+    "start_temp": mark("Start temperature"),
+    "max_power": mark("Most power"),
+    "alarm.reset": mark("Reset the alarm"),
+}
+"""The settings Thermaestro could change, by their standard name."""
+MODES = {"off": mark("Off"), "shadow": mark("Shadow"), "control": mark("Control")}
+EMITTERS = {
+    "unknown": mark("Not said"),
+    "radiators": mark("Radiators"),
+    "floor": mark("Underfloor heating"),
+    "radiators_and_floor": mark("Radiators and underfloor heating"),
+    "fan_coils": mark("Fan coils"),
+}
+HOUSES = {
+    "unknown": mark("Not said"),
+    "poorly_insulated": mark("Poorly insulated"),
+    "average": mark("Average"),
+    "well_insulated": mark("Well insulated"),
+    "low_energy": mark("Low-energy house"),
+}
+WATERS = {
+    "unknown": mark("Not said"),
+    "municipal": mark("Municipal water"),
+    "well": mark("A private well"),
+}
+PAST_DEADLINE = {
+    "keep_heating": mark("Keep heating until it is met, or the next one is due"),
+    "stop": mark("Stop at the deadline"),
+}
+
+
+def lever(path: str) -> str:
+    name = path.rpartition("/")[2]
+    return i18n._(LEVERS[name]) if name in LEVERS else name
+
+
+def choice(table: dict[str, str], key: str) -> str:
+    return i18n._(table[key]) if key in table else key
+
+
 QUALITY_COLORS = {
     "good": "green",
     "stale": "yellow",

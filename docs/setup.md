@@ -6,7 +6,7 @@ This walks through a new installation: installing it, the first start, and the s
 
 Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT.
 
-It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. For now only [the API](api.md#levers-and-the-plan) switches one to shadow (decide and record, change nothing) or control; the web pages for it come next.
+It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). Entering what the household wants on a page of its own comes next; until then, intents are entered through the API.
 
 If you want to help with a model Thermaestro doesn't know yet, [the read-only probe](probe.md) makes a report to send with an issue.
 
@@ -92,7 +92,7 @@ Everyone logs in, also on the home network. Changes under some rights (users, se
 
 ## The setup pages
 
-**Setup** in the menu has six topics: House, Pump, External, Sensors, Prices and Weather. They can be done in any order, but some need others first:
+**Setup** in the menu has seven topics: House, Pump, External, Sensors, Prices, Weather and Control. They can be done in any order, but some need others first:
 
 - weather forecasts need the location, under House;
 - sensors from Home Assistant need Home Assistant, under External;
@@ -104,6 +104,7 @@ A good order is House (location), Pump, External, Sensors, then Prices and Weath
 
 - **Location:** latitude and longitude with a decimal point, such as 59.33, and the time zone. The time zone is preselected from the browser. The location is for forecasts and the sun's position.
 - **The location's climate:** the annual mean temperature and how far the warmest month's mean is from the coldest's. Thermaestro estimates the cold water's temperature from them. With Open-Meteo added under Weather, **Get it from Open-Meteo's archive** fills it in; otherwise enter it yourself.
+- **About the house:** what heats each climate system (radiators, underfloor heating, both, fan coils), how well the house is insulated, whether the water comes from a private well or the municipal supply, the public holidays' calendar (a country, and maybe a region, such as `SE` or `DE-BY`) and which day of the week a holiday counts as, and what to do after a missed hot-water deadline. Thermaestro starts from these until it has learned the house: underfloor heating answers far more slowly than radiators, so it plans earlier for it.
 - **Rooms:** a name, the climate system that heats the room, and the room's own control (none, a simple thermostat, a smart thermostat, radiator valves, a zone controller, or unknown). A room's temperature is the mean of its sensors, or its reference sensor alone. With Home Assistant connected, its areas can be made into rooms in one go.
 
 ### Pump
@@ -193,6 +194,20 @@ Forecasts for the location, which must be set first, under House.
 - **Home Assistant:** a weather entity's hourly forecast, to stand in while the chosen provider has none. Offered once Home Assistant is connected.
 
 Several can run side by side. **Which provider for what** sets the main provider, a fallback, and another provider for any quantity. **What each provider gives** lists each one's quantities, steps and reach, and its terms. After some days, the **Weather** page shows how each has done at this house.
+
+### Control
+
+Each setting Thermaestro could change, by part of the pump: the heating offset of each climate system, the hot-water mode, holding hot-water charges off, one extra charge, the addition's stop temperature and power, and the pool's where there is one. Each is:
+
+- **Off** (the start): Thermaestro reads and plans, and changes nothing.
+- **Shadow:** it decides as it would in control, shows what it would have done at the bottom of the page, and changes nothing.
+- **Control:** it makes the change, reads it back, limits how often it changes, and puts it back as it found it when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering.
+
+Switching needs the password again. A setting the pump has its own feature for (its hot-water schedule, Smart Price Adaption, its room control) asks you to confirm the feature is off first: two controllers on one setting fight. A setting someone changed elsewhere (the pump's menu, NibePi) is let go and never written over; **Keep the change** takes it over again from there.
+
+On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
+
+The page shows the day's changes against the planner's budget (about 50 a day).
 
 ## Users and groups
 

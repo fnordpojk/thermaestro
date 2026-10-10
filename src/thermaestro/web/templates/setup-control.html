@@ -1,0 +1,69 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<p>{{ _("Each setting Thermaestro could change starts off: Thermaestro reads and plans, and changes nothing. In shadow it decides and shows what it would do, and still changes nothing. In control it makes the change, reads it back, and puts it back as it found it when it stops or something goes wrong.") }}</p>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+
+{% for id, host, port in open_ports %}
+<p class="notice">{{ _("The pump's gateway at %(host)s takes plain NibeGW writes on port %(port)s: anyone on your network can change the pump's settings through it, not only Thermaestro. The Thermaestro gateway protocol, with its key, closes that.", host=host, port=port) }} <a href="/setup/pump">{{ _("Pump") }}</a></p>
+{% endfor %}
+
+{% if budgets %}
+<p>{% for device, (used, budget) in budgets.items() %}{{ _("%(device)s: %(used)s changes in the last day, of about %(budget)s planned at most.", device=device, used=used, budget=budget) }} {% endfor %}</p>
+{% endif %}
+
+<section id="levers">
+<h2>{{ _("Settings") }}</h2>
+{% for lv in levers if not lv.unavailable and lv.lever.rpartition("/")[2] != "alarm.reset" %}
+<div class="lever">
+  <h3>{{ lv.part }} · {{ lv.lever | lever }}</h3>
+  <p>
+    {{ _("Now:") }} <strong>{{ _(modes[lv.mode]) }}</strong>
+    {% if lv.claimed %}
+    · {{ _("found at %(value)s", value=lv.baseline if lv.baseline is not none else "–") }}
+    {% if lv.held %}· {{ _("held now") }}{% elif lv.last is not none %}· {{ _("set to %(value)s", value=lv.last) }}{% endif %}
+    {% endif %}
+  </p>
+  {% if lv.drift %}
+  <p class="notice">{{ _("Let go after a change made elsewhere: %(why)s. Thermaestro doesn't write over it.", why=lv.drift) }}</p>
+  {% if can("levers.control") %}
+  <form method="post" action="/levers/{{ lv.lever }}/accept-drift" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">{{ _("Keep the change, and take it over from there") }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% if not lv.works %}<p class="hint">{{ _("Not known well enough to be changed unattended on this pump.") }}</p>{% endif %}
+  {% if lv.competing %}
+  <form method="post" action="/levers/{{ lv.lever }}/confirmed-off" class="grid">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <fieldset><legend>{{ _("The pump's own features that change the same, and must be off") }}</legend>
+    {% for f in lv.competing %}<label class="check"><input type="checkbox" name="features" value="{{ f.name }}"{% if f.confirmed_off %} checked{% endif %}{% if not can("levers.control") %} disabled{% endif %}> {{ _("%(feature)s is off", feature=f.name) }}</label>{% endfor %}
+    </fieldset>
+    {% if can("levers.control") %}<button type="submit">{{ _("Save") }}</button>{% endif %}
+  </form>
+  {% endif %}
+  {% if can("levers.control") %}
+  <form method="post" action="/levers/{{ lv.lever }}/mode" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>{{ _("Mode") }}
+      <select name="mode">
+        {% for key, name in modes.items() %}<option value="{{ key }}"{% if key == lv.mode %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+      </select></label>
+    <button type="submit">{{ _("Save") }}</button>
+  </form>
+  {% endif %}
+</div>
+{% else %}
+<p class="notice">{{ _("No settings to change yet: connect a pump first.") }} <a href="/setup/pump">{{ _("Pump") }}</a></p>
+{% endfor %}
+</section>
+
+{% if notices %}
+<section id="shadow">
+<h2>{{ _("What shadow would have done") }}</h2>
+<ul>
+{% for n in notices %}<li>{{ n.t | when }}: {{ n.lever | lever }}, {{ n.text }}</li>{% endfor %}
+</ul>
+</section>
+{% endif %}
+{% endblock %}

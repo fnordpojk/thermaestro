@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 00:58+0200\n"
+"POT-Creation-Date: 2026-10-10 02:59+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -14,6 +14,16 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned at most."
+msgstr ""
+"%(device)s: %(used)s ändringar det senaste dygnet, av högst omkring %(budget)s "
+"planerade."
+
+#, python-format
+msgid "%(feature)s is off"
+msgstr "%(feature)s är avstängd"
 
 #, python-format
 msgid "%(n)s d"
@@ -85,6 +95,12 @@ msgstr ""
 "kinkig med USB-minnen: sådana som är större än 4 GB, eller tillverkade under ungefär "
 "de senaste 15 åren, godtas ofta inte. Allt fungerar utan den, fast långsammare."
 
+msgid "A private well"
+msgstr "Egen brunn"
+
+msgid "A public holiday counts as"
+msgstr "En helgdag räknas som"
+
 msgid ""
 "A room is suggested from the entity's area: the room of that name, or a new room made"
 " from the area."
@@ -125,6 +141,9 @@ msgstr ""
 msgid "API tokens"
 msgstr "API-tokens"
 
+msgid "About the house"
+msgstr "Om huset"
+
 msgid "Absolute humidity"
 msgstr "Absolut luftfuktighet"
 
@@ -157,6 +176,9 @@ msgstr "Tillsats"
 
 msgid "Address"
 msgstr "Adress"
+
+msgid "After a missed hot-water deadline"
+msgstr "Efter en missad varmvattentid"
 
 msgid "Air pressure"
 msgstr "Lufttryck"
@@ -205,6 +227,9 @@ msgstr "Tid"
 
 msgid "Audit log"
 msgstr "Granskningslogg"
+
+msgid "Average"
+msgstr "Genomsnittligt"
 
 msgid "Back to the list"
 msgstr "Tillbaka till listan"
@@ -339,6 +364,9 @@ msgstr "Bekräfta och fortsätt"
 msgid "Connect Home Assistant under External to choose its entities here."
 msgstr "Anslut Home Assistant under Externt för att välja dess entiteter här."
 
+msgid "Control"
+msgstr "Styrning"
+
 msgid "Control port"
 msgstr "Kontrollport"
 
@@ -424,6 +452,17 @@ msgstr ""
 "temperatur är medelvärdet av dess givare, eller dess referensgivare ensam."
 
 msgid ""
+"Each setting Thermaestro could change starts off: Thermaestro reads and plans, and "
+"changes nothing. In shadow it decides and shows what it would do, and still changes "
+"nothing. In control it makes the change, reads it back, and puts it back as it found "
+"it when it stops or something goes wrong."
+msgstr ""
+"Varje inställning Thermaestro kan ändra börjar avstängd: Thermaestro läser och "
+"planerar, och ändrar ingenting. I skugga bestämmer den och visar vad den skulle göra,"
+" och ändrar fortfarande ingenting. I styrning gör den ändringen, läser tillbaka den "
+"och återställer den som den hittade den när den stannar eller något går fel."
+
+msgid ""
 "Each value is a band over the time it held, with its total time in the period below. "
 "Striped: times the value wasn't valid."
 msgstr ""
@@ -488,6 +527,9 @@ msgstr "Reserv, när den valda inte har något"
 
 msgid "Fallbacks, in this order"
 msgstr "Reserver, i denna ordning"
+
+msgid "Fan coils"
+msgstr "Fläktkonvektorer"
 
 msgid "Fan speed"
 msgstr "Fläkthastighet"
@@ -585,8 +627,14 @@ msgstr "Producerad värme"
 msgid "Heating"
 msgstr "Värmer"
 
+msgid "Heating offset"
+msgstr "Förskjutning värmekurva"
+
 msgid "Heating stop"
 msgstr "Värmestopp"
+
+msgid "Hold its heating off"
+msgstr "Håll uppvärmningen borta"
 
 msgid "Holds until"
 msgstr "Räcker till"
@@ -602,6 +650,9 @@ msgstr "Home Assistant erbjuder inget som Thermaestro kan använda."
 
 msgid "Hot water"
 msgstr "Varmvatten"
+
+msgid "Hot-water mode"
+msgstr "Varmvattenläge"
 
 msgid "House"
 msgstr "Huset"
@@ -623,6 +674,12 @@ msgstr "Egen styrning"
 
 msgid "JSON field"
 msgstr "JSON-fält"
+
+msgid "Keep heating until it is met, or the next one is due"
+msgstr "Fortsätt värma tills den är nådd, eller nästa infaller"
+
+msgid "Keep the change, and take it over from there"
+msgstr "Behåll ändringen och ta över därifrån"
 
 msgid "Key (pre-shared)"
 msgstr "Nyckel (delad i förväg)"
@@ -654,6 +711,12 @@ msgstr "Lager"
 msgid "Layers"
 msgstr "Lager"
 
+#, python-format
+msgid "Let go after a change made elsewhere: %(why)s. Thermaestro doesn't write over it."
+msgstr ""
+"Släppt efter en ändring gjord någon annanstans: %(why)s. Thermaestro skriver inte "
+"över den."
+
 msgid "Levy"
 msgstr "Avgift"
 
@@ -684,6 +747,9 @@ msgstr "Långlivad åtkomsttoken"
 msgid "Longitude"
 msgstr "Longitud"
 
+msgid "Low-energy house"
+msgstr "Lågenergihus"
+
 msgid "MQTT broker"
 msgstr "MQTT-broker"
 
@@ -712,6 +778,9 @@ msgstr "Modbus TCP (en pump i S-serien)"
 msgid "Modbus port"
 msgstr "Modbus-port"
 
+msgid "Mode"
+msgstr "Läge"
+
 msgid "Model"
 msgstr "Modell"
 
@@ -724,8 +793,14 @@ msgstr "Månadsspridning, K"
 msgid "More"
 msgstr "Mer"
 
+msgid "Most power"
+msgstr "Högsta effekt"
+
 msgid "Motion"
 msgstr "Rörelse"
+
+msgid "Municipal water"
+msgstr "Kommunalt vatten"
 
 msgid "Name"
 msgstr "Namn"
@@ -790,6 +865,9 @@ msgstr "Inga rum än."
 msgid "No sensors yet."
 msgstr "Inga givare än."
 
+msgid "No settings to change yet: connect a pump first."
+msgstr "Inga inställningar att ändra än: anslut först en värmepump."
+
 msgid "No source offers prices yet."
 msgstr "Ingen källa erbjuder priser än."
 
@@ -801,6 +879,12 @@ msgstr "Inga värden under den här perioden."
 
 msgid "Not done"
 msgstr "Inte gjort"
+
+msgid "Not known well enough to be changed unattended on this pump."
+msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pumpen."
+
+msgid "Not said"
+msgstr "Inte angivet"
 
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
@@ -829,6 +913,12 @@ msgstr "Uppmätt"
 
 msgid "Occupied"
 msgstr "Upptaget"
+
+msgid "Off"
+msgstr "Av"
+
+msgid "One extra charge"
+msgstr "En extra laddning"
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -899,6 +989,9 @@ msgstr "Peka på ett värde för att se varför."
 msgid "Pool"
 msgstr "Pool"
 
+msgid "Poorly insulated"
+msgstr "Dåligt isolerat"
+
 msgid "Port"
 msgstr "Port"
 
@@ -929,6 +1022,9 @@ msgstr "Leverantör"
 msgid "Providers"
 msgstr "Leverantörer"
 
+msgid "Public holidays"
+msgstr "Helgdagar"
+
 msgid "Publish to Home Assistant"
 msgstr "Publicera till Home Assistant"
 
@@ -940,6 +1036,12 @@ msgstr "Värmepump"
 
 msgid "Quantity"
 msgstr "Storhet"
+
+msgid "Radiators"
+msgstr "Radiatorer"
+
+msgid "Radiators and underfloor heating"
+msgstr "Radiatorer och golvvärme"
 
 msgid "Rate in percent"
 msgstr "Sats i procent"
@@ -964,6 +1066,9 @@ msgstr "Ta bort den här användaren"
 
 msgid "Requirements"
 msgstr "Krav"
+
+msgid "Reset the alarm"
+msgstr "Återställ larmet"
 
 msgid "Restarts"
 msgstr "Omstarter"
@@ -1044,6 +1149,9 @@ msgstr "Ställ in MQTT-mäklaren under Externt för att lägga till MQTT-givare 
 msgid "Setpoint"
 msgstr "Börvärde"
 
+msgid "Settings"
+msgstr "Inställningar"
+
 msgid "Settings read from the pump"
 msgstr "Inställningar lästa från pumpen"
 
@@ -1052,6 +1160,9 @@ msgstr "Inställningar"
 
 msgid "Setup code"
 msgstr "Installationskod"
+
+msgid "Shadow"
+msgstr "Skugga"
 
 msgid "Show its sources"
 msgstr "Visa dess källor"
@@ -1097,6 +1208,9 @@ msgstr "Tillstånd:"
 
 msgid "Steps"
 msgstr "Steg"
+
+msgid "Stop at the deadline"
+msgstr "Sluta vid tiden"
 
 msgid "Stop temperature"
 msgstr "Stopptemperatur"
@@ -1171,6 +1285,9 @@ msgstr ""
 "Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
 "protokollet den talar."
 
+msgid "The house"
+msgstr "Huset"
+
 msgid "The location's climate"
 msgstr "Platsens klimat"
 
@@ -1189,11 +1306,27 @@ msgstr ""
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"
 
+#, python-format
+msgid ""
+"The pump's gateway at %(host)s takes plain NibeGW writes on port %(port)s: anyone on "
+"your network can change the pump's settings through it, not only Thermaestro. The "
+"Thermaestro gateway protocol, with its key, closes that."
+msgstr ""
+"Pumpens gateway på %(host)s tar emot vanliga NibeGW-skrivningar på port %(port)s: vem"
+" som helst på ditt nätverk kan ändra pumpens inställningar genom den, inte bara "
+"Thermaestro. Thermaestros gatewayprotokoll, med sin nyckel, stänger det."
+
+msgid "The pump's own features that change the same, and must be off"
+msgstr "Pumpens egna funktioner som ändrar samma sak, och måste vara avstängda"
+
 msgid "The same again"
 msgstr "Samma igen"
 
 msgid "The values could not be loaded."
 msgstr "Värdena kunde inte hämtas."
+
+msgid "The water"
+msgstr "Vattnet"
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestros gateway (med nyckel)"
@@ -1206,6 +1339,13 @@ msgstr ""
 "Thermaestro läser de entiteter du väljer, via Home Assistants WebSocket-API. Skapa en"
 " långlivad åtkomsttoken i Home Assistant (din profil, Säkerhet) och ange den här; den"
 " sparas i hemlighetsfilen."
+
+msgid ""
+"Thermaestro starts from these until it has learned the house: how slowly each climate"
+" system answers, how much heat the house holds, and how cold the water comes in."
+msgstr ""
+"Thermaestro utgår från detta tills den har lärt sig huset: hur långsamt varje "
+"klimatsystem svarar, hur mycket värme huset håller och hur kallt vattnet kommer in."
 
 msgid ""
 "This installation's certificate is its own, not from an authority, so the browser "
@@ -1273,6 +1413,9 @@ msgstr "Prefix för ämnen"
 msgid "Total"
 msgstr "Totalt"
 
+msgid "Underfloor heating"
+msgstr "Golvvärme"
+
 msgid "Unit"
 msgstr "Enhet"
 
@@ -1315,11 +1458,18 @@ msgstr "Väder"
 msgid "Weather entity"
 msgstr "Väderentitet"
 
+msgid "Well insulated"
+msgstr "Välisolerat"
+
 msgid "What"
 msgstr "Vad"
 
 msgid "What each provider gives"
 msgstr "Vad varje leverantör ger"
+
+#, python-format
+msgid "What heats %(system)s"
+msgstr "Vad som värmer %(system)s"
 
 msgid "What it belongs to"
 msgstr "Det som det hör till"
@@ -1332,6 +1482,9 @@ msgstr ""
 "Vad en kWh till kostar är en stapel av lager: spotpriset, leverantörens påslag, "
 "skatter och nätavgifter, och moms. Thermaestro lägger ihop dem per kvart, och vägrar "
 "en stapel som räknar något två gånger."
+
+msgid "What shadow would have done"
+msgstr "Vad skuggan skulle ha gjort"
 
 msgid "What the rights allow"
 msgstr "Vad rättigheterna tillåter"
@@ -1433,6 +1586,9 @@ msgid ""
 "Your own names replace the built-in ones for everyone; leave a field empty for the "
 "built-in name."
 msgstr "Egna namn ersätter de inbyggda för alla; lämna ett fält tomt för det inbyggda namnet."
+
+msgid "a country, and maybe a region: SE, DE-BY; empty: none"
+msgstr "ett land, och kanske en region: SE, DE-BY; tomt: inga"
 
 msgid "a password can have at most 256 characters"
 msgstr "ett lösenord får ha högst 256 tecken"
@@ -1602,6 +1758,10 @@ msgstr "reserv"
 msgid "firmware %(version)s"
 msgstr "programvara %(version)s"
 
+#, python-format
+msgid "found at %(value)s"
+msgstr "hittad på %(value)s"
+
 msgid "found to be false"
 msgstr "befunnet felaktigt"
 
@@ -1623,6 +1783,9 @@ msgstr "god"
 
 msgid "heating"
 msgstr "värme"
+
+msgid "held now"
+msgstr "hålls nu"
 
 msgid "highest"
 msgstr "högsta"
@@ -1761,6 +1924,10 @@ msgstr "sett i dess svar"
 msgid "seen in running"
 msgstr "sett under drift"
 
+#, python-format
+msgid "set to %(value)s"
+msgstr "satt till %(value)s"
+
 msgid "stale"
 msgstr "inaktuellt"
 
@@ -1786,6 +1953,9 @@ msgstr ""
 
 msgid "that would leave no user who can manage users"
 msgstr "då skulle ingen användare kunna hantera användare"
+
+msgid "the day it falls on"
+msgstr "dagen den infaller"
 
 msgid "the diagnostic values"
 msgstr "de diagnostiska värdena"

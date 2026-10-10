@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 00:58+0200\n"
+"POT-Creation-Date: 2026-10-10 02:59+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -14,6 +14,16 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned at most."
+msgstr ""
+"%(device)s: %(used)s Änderungen in den letzten 24 Stunden, von höchstens etwa "
+"%(budget)s geplanten."
+
+#, python-format
+msgid "%(feature)s is off"
+msgstr "%(feature)s ist aus"
 
 #, python-format
 msgid "%(n)s d"
@@ -86,6 +96,12 @@ msgstr ""
 "GB oder aus etwa den letzten 15 Jahren werden oft nicht angenommen. Ohne die Datei "
 "funktioniert alles, nur langsamer."
 
+msgid "A private well"
+msgstr "Ein eigener Brunnen"
+
+msgid "A public holiday counts as"
+msgstr "Ein Feiertag zählt als"
+
 msgid ""
 "A room is suggested from the entity's area: the room of that name, or a new room made"
 " from the area."
@@ -127,6 +143,9 @@ msgstr ""
 msgid "API tokens"
 msgstr "API-Tokens"
 
+msgid "About the house"
+msgstr "Über das Haus"
+
 msgid "Absolute humidity"
 msgstr "Absolute Luftfeuchte"
 
@@ -159,6 +178,9 @@ msgstr "Zusatzheizung"
 
 msgid "Address"
 msgstr "Adresse"
+
+msgid "After a missed hot-water deadline"
+msgstr "Nach einer verpassten Warmwasserzeit"
 
 msgid "Air pressure"
 msgstr "Luftdruck"
@@ -208,6 +230,9 @@ msgstr "Zeit"
 
 msgid "Audit log"
 msgstr "Prüfprotokoll"
+
+msgid "Average"
+msgstr "Durchschnittlich"
 
 msgid "Back to the list"
 msgstr "Zurück zur Liste"
@@ -342,6 +367,9 @@ msgstr "Bestätigen und fortfahren"
 msgid "Connect Home Assistant under External to choose its entities here."
 msgstr "Verbinden Sie Home Assistant unter Extern, um hier seine Entitäten zu wählen."
 
+msgid "Control"
+msgstr "Steuerung"
+
 msgid "Control port"
 msgstr "Steuerport"
 
@@ -428,6 +456,18 @@ msgstr ""
 "allein."
 
 msgid ""
+"Each setting Thermaestro could change starts off: Thermaestro reads and plans, and "
+"changes nothing. In shadow it decides and shows what it would do, and still changes "
+"nothing. In control it makes the change, reads it back, and puts it back as it found "
+"it when it stops or something goes wrong."
+msgstr ""
+"Jede Einstellung, die Thermaestro ändern könnte, ist zunächst aus: Thermaestro liest "
+"und plant und ändert nichts. Im Schatten entscheidet es und zeigt, was es tun würde, "
+"und ändert weiterhin nichts. In der Steuerung nimmt es die Änderung vor, liest sie "
+"zurück und stellt sie wieder her, wie es sie vorgefunden hat, wenn es stoppt oder "
+"etwas schiefgeht."
+
+msgid ""
 "Each value is a band over the time it held, with its total time in the period below. "
 "Striped: times the value wasn't valid."
 msgstr ""
@@ -493,6 +533,9 @@ msgstr "Ersatz, solange der gewählte nichts hat"
 
 msgid "Fallbacks, in this order"
 msgstr "Ersatz, in dieser Reihenfolge"
+
+msgid "Fan coils"
+msgstr "Gebläsekonvektoren"
 
 msgid "Fan speed"
 msgstr "Lüfterdrehzahl"
@@ -592,8 +635,14 @@ msgstr "Erzeugte Wärme"
 msgid "Heating"
 msgstr "Heizt"
 
+msgid "Heating offset"
+msgstr "Heizkurvenverschiebung"
+
 msgid "Heating stop"
 msgstr "Heizgrenze"
+
+msgid "Hold its heating off"
+msgstr "Seine Heizung zurückhalten"
 
 msgid "Holds until"
 msgstr "Reicht bis"
@@ -609,6 +658,9 @@ msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 
 msgid "Hot water"
 msgstr "Warmwasser"
+
+msgid "Hot-water mode"
+msgstr "Warmwassermodus"
 
 msgid "House"
 msgstr "Haus"
@@ -630,6 +682,12 @@ msgstr "Eigene Regelung"
 
 msgid "JSON field"
 msgstr "JSON-Feld"
+
+msgid "Keep heating until it is met, or the next one is due"
+msgstr "Weiterheizen, bis sie erreicht ist oder die nächste fällig wird"
+
+msgid "Keep the change, and take it over from there"
+msgstr "Die Änderung behalten und von dort übernehmen"
 
 msgid "Key (pre-shared)"
 msgstr "Schlüssel (vorab vereinbart)"
@@ -661,6 +719,12 @@ msgstr "Schicht"
 msgid "Layers"
 msgstr "Schichten"
 
+#, python-format
+msgid "Let go after a change made elsewhere: %(why)s. Thermaestro doesn't write over it."
+msgstr ""
+"Freigegeben nach einer anderswo gemachten Änderung: %(why)s. Thermaestro überschreibt"
+" sie nicht."
+
 msgid "Levy"
 msgstr "Umlage"
 
@@ -691,6 +755,9 @@ msgstr "Langlebiges Zugriffstoken"
 msgid "Longitude"
 msgstr "Längengrad"
 
+msgid "Low-energy house"
+msgstr "Niedrigenergiehaus"
+
 msgid "MQTT broker"
 msgstr "MQTT-Broker"
 
@@ -719,6 +786,9 @@ msgstr "Modbus TCP (eine Pumpe der S-Serie)"
 msgid "Modbus port"
 msgstr "Modbus-Port"
 
+msgid "Mode"
+msgstr "Modus"
+
 msgid "Model"
 msgstr "Modell"
 
@@ -731,8 +801,14 @@ msgstr "Monatsspanne, K"
 msgid "More"
 msgstr "Mehr"
 
+msgid "Most power"
+msgstr "Höchste Leistung"
+
 msgid "Motion"
 msgstr "Bewegung"
+
+msgid "Municipal water"
+msgstr "Leitungswasser"
 
 msgid "Name"
 msgstr "Name"
@@ -797,6 +873,9 @@ msgstr "Noch keine Räume."
 msgid "No sensors yet."
 msgstr "Noch keine Sensoren."
 
+msgid "No settings to change yet: connect a pump first."
+msgstr "Noch keine Einstellungen zu ändern: zuerst eine Wärmepumpe verbinden."
+
 msgid "No source offers prices yet."
 msgstr "Noch keine Quelle bietet Preise an."
 
@@ -810,6 +889,12 @@ msgstr "Keine Werte in diesem Zeitraum."
 
 msgid "Not done"
 msgstr "Nicht ausgeführt"
+
+msgid "Not known well enough to be changed unattended on this pump."
+msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu werden."
+
+msgid "Not said"
+msgstr "Nicht angegeben"
 
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
@@ -840,6 +925,12 @@ msgstr "Gemessen"
 
 msgid "Occupied"
 msgstr "Belegt"
+
+msgid "Off"
+msgstr "Aus"
+
+msgid "One extra charge"
+msgstr "Eine zusätzliche Ladung"
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -910,6 +1001,9 @@ msgstr "Zeigen Sie auf einen Wert, um den Grund zu sehen."
 msgid "Pool"
 msgstr "Pool"
 
+msgid "Poorly insulated"
+msgstr "Schlecht gedämmt"
+
 msgid "Port"
 msgstr "Port"
 
@@ -940,6 +1034,9 @@ msgstr "Anbieter"
 msgid "Providers"
 msgstr "Anbieter"
 
+msgid "Public holidays"
+msgstr "Feiertage"
+
 msgid "Publish to Home Assistant"
 msgstr "An Home Assistant veröffentlichen"
 
@@ -951,6 +1048,12 @@ msgstr "Wärmepumpe"
 
 msgid "Quantity"
 msgstr "Größe"
+
+msgid "Radiators"
+msgstr "Heizkörper"
+
+msgid "Radiators and underfloor heating"
+msgstr "Heizkörper und Fußbodenheizung"
 
 msgid "Rate in percent"
 msgstr "Satz in Prozent"
@@ -975,6 +1078,9 @@ msgstr "Diesen Benutzer entfernen"
 
 msgid "Requirements"
 msgstr "Anforderungen"
+
+msgid "Reset the alarm"
+msgstr "Den Alarm zurücksetzen"
 
 msgid "Restarts"
 msgstr "Neustarts"
@@ -1055,6 +1161,9 @@ msgstr "Richten Sie den MQTT-Broker unter Extern ein, um hier MQTT-Sensoren hinz
 msgid "Setpoint"
 msgstr "Sollwert"
 
+msgid "Settings"
+msgstr "Einstellungen"
+
 msgid "Settings read from the pump"
 msgstr "Aus der Pumpe gelesene Einstellungen"
 
@@ -1063,6 +1172,9 @@ msgstr "Einrichtung"
 
 msgid "Setup code"
 msgstr "Einrichtungscode"
+
+msgid "Shadow"
+msgstr "Schatten"
 
 msgid "Show its sources"
 msgstr "Quellen der Zone zeigen"
@@ -1108,6 +1220,9 @@ msgstr "Zustand:"
 
 msgid "Steps"
 msgstr "Schritte"
+
+msgid "Stop at the deadline"
+msgstr "Zur Zeit aufhören"
 
 msgid "Stop temperature"
 msgstr "Stopptemperatur"
@@ -1184,6 +1299,9 @@ msgstr ""
 "Das Gateway, das Thermaestro mit dem Bus einer Nibe-Pumpe verbindet: seine Adresse "
 "und das Protokoll, das es spricht."
 
+msgid "The house"
+msgstr "Das Haus"
+
 msgid "The location's climate"
 msgstr "Das Klima des Standorts"
 
@@ -1202,11 +1320,28 @@ msgstr ""
 msgid "The pump's connection"
 msgstr "Verbindung zur Pumpe"
 
+#, python-format
+msgid ""
+"The pump's gateway at %(host)s takes plain NibeGW writes on port %(port)s: anyone on "
+"your network can change the pump's settings through it, not only Thermaestro. The "
+"Thermaestro gateway protocol, with its key, closes that."
+msgstr ""
+"Das Gateway der Pumpe unter %(host)s nimmt einfache NibeGW-Schreibvorgänge auf Port "
+"%(port)s an: Jeder in Ihrem Netzwerk kann darüber die Einstellungen der Pumpe ändern,"
+" nicht nur Thermaestro. Das Thermaestro-Gateway-Protokoll mit seinem Schlüssel "
+"schließt das."
+
+msgid "The pump's own features that change the same, and must be off"
+msgstr "Die eigenen Funktionen der Pumpe, die dasselbe ändern und aus sein müssen"
+
 msgid "The same again"
 msgstr "Noch einmal"
 
 msgid "The values could not be loaded."
 msgstr "Die Werte konnten nicht geladen werden."
+
+msgid "The water"
+msgstr "Das Wasser"
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestro-Gateway (mit Schlüssel)"
@@ -1219,6 +1354,13 @@ msgstr ""
 "Thermaestro liest die Entitäten, die Sie wählen, über die WebSocket-API von Home "
 "Assistant. Erstellen Sie in Home Assistant ein langlebiges Zugriffstoken (Ihr Profil,"
 " Sicherheit) und geben Sie es hier ein; es wird in der Geheimnisdatei gespeichert."
+
+msgid ""
+"Thermaestro starts from these until it has learned the house: how slowly each climate"
+" system answers, how much heat the house holds, and how cold the water comes in."
+msgstr ""
+"Thermaestro geht davon aus, bis es das Haus gelernt hat: wie langsam jedes Heizsystem"
+" reagiert, wie viel Wärme das Haus hält und wie kalt das Wasser hereinkommt."
 
 msgid ""
 "This installation's certificate is its own, not from an authority, so the browser "
@@ -1287,6 +1429,9 @@ msgstr "Topic-Präfix"
 msgid "Total"
 msgstr "Gesamt"
 
+msgid "Underfloor heating"
+msgstr "Fußbodenheizung"
+
 msgid "Unit"
 msgstr "Einheit"
 
@@ -1329,11 +1474,18 @@ msgstr "Wetter"
 msgid "Weather entity"
 msgstr "Wetter-Entität"
 
+msgid "Well insulated"
+msgstr "Gut gedämmt"
+
 msgid "What"
 msgstr "Was"
 
 msgid "What each provider gives"
 msgstr "Was jeder Anbieter liefert"
+
+#, python-format
+msgid "What heats %(system)s"
+msgstr "Was %(system)s heizt"
 
 msgid "What it belongs to"
 msgstr "Wozu er gehört"
@@ -1347,6 +1499,9 @@ msgstr ""
 "Aufschläge des Lieferanten, Steuern und Netzentgelte, und die Mehrwertsteuer. "
 "Thermaestro addiert sie je Viertelstunde und lehnt einen Stapel ab, der etwas doppelt"
 " zählt."
+
+msgid "What shadow would have done"
+msgstr "Was der Schatten getan hätte"
 
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
@@ -1458,6 +1613,9 @@ msgid ""
 msgstr ""
 "Eigene Namen ersetzen die eingebauten für alle; lassen Sie ein Feld leer für den "
 "eingebauten Namen."
+
+msgid "a country, and maybe a region: SE, DE-BY; empty: none"
+msgstr "ein Land und vielleicht eine Region: SE, DE-BY; leer: keine"
 
 msgid "a password can have at most 256 characters"
 msgstr "ein Passwort darf höchstens 256 Zeichen haben"
@@ -1627,6 +1785,10 @@ msgstr "Ersatz"
 msgid "firmware %(version)s"
 msgstr "Firmware %(version)s"
 
+#, python-format
+msgid "found at %(value)s"
+msgstr "vorgefunden bei %(value)s"
+
 msgid "found to be false"
 msgstr "als falsch befunden"
 
@@ -1648,6 +1810,9 @@ msgstr "gut"
 
 msgid "heating"
 msgstr "Heizung"
+
+msgid "held now"
+msgstr "jetzt gehalten"
 
 msgid "highest"
 msgstr "höchster"
@@ -1788,6 +1953,10 @@ msgstr "in seinen Antworten gesehen"
 msgid "seen in running"
 msgstr "im Betrieb gesehen"
 
+#, python-format
+msgid "set to %(value)s"
+msgstr "gesetzt auf %(value)s"
+
 msgid "stale"
 msgstr "veraltet"
 
@@ -1813,6 +1982,9 @@ msgstr ""
 
 msgid "that would leave no user who can manage users"
 msgstr "dann könnte kein Benutzer mehr Benutzer verwalten"
+
+msgid "the day it falls on"
+msgstr "den Tag, auf den er fällt"
 
 msgid "the diagnostic values"
 msgstr "den Diagnosewerten"

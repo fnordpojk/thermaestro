@@ -4,7 +4,7 @@ Thermaestro plans a home's heating and hot water around electricity prices, the 
 
 It is brand-neutral: heat pumps, sensors, meters, price sources and weather forecasts come in through plugins. Nibe is the first. It is meant to replace NibePi, and is open source under the AGPL.
 
-**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. The API can already ask for intents and switch a pump's settings to shadow or control; the web pages for them, and requests over MQTT, come next. There is no release yet; the Docker Compose file builds it from this repository.
+**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, and the API takes the household's intents; pages for entering intents and for the plan, and requests over MQTT, come next. There is no release yet; the Docker Compose file builds it from this repository.
 
 ## Features
 

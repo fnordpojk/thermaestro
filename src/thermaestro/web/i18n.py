@@ -83,6 +83,11 @@ def regions(language: str) -> list[tuple[str, str]]:
     return sorted(out, key=lambda pair: pair[1])
 
 
+def weekday(day: int) -> str:
+    """A day of the week by its number, 0 Monday, in the page's language."""
+    return str(Locale.parse(current.get()).days["format"]["wide"][day]).capitalize()
+
+
 def country(code: str) -> str:
     """A country's name in the language in use."""
     return str(Locale.parse(current.get()).territories.get(code, code))
