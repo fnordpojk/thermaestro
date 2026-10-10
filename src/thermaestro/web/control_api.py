@@ -234,3 +234,60 @@ async def shadow_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="thermaestro-shadow.csv"'},
     )
+
+
+# --- from NibePi ---------------------------------------------------------------------------
+
+
+class NibePiFile(BaseModel):
+    config: str
+    """The file's text."""
+
+
+class NibePiChoice(BaseModel):
+    items: list[str]
+    """The parts to make, as `<kind>:<id>` from the draft."""
+    timezone: str | None = None
+    model: str | None = None
+
+
+@router.post("/import/nibepi")
+@action("nibepi_import.read")
+async def read_nibepi(body: NibePiFile, request: Request, who: Logged) -> dict[str, Any]:
+    """Read NibePi's config.json into a draft, kept half an hour for this user: the parts
+    it would make (`items`, each `{key, kind, id, body, what, optional}`), the secrets it
+    would keep (by name only), every key's fate (`rows`), and notes. Nothing is made."""
+    token, kept = await services(request).read_nibepi(who, body.config)
+    draft = kept.draft
+    return {
+        "token": token,
+        "line": draft.line,
+        "items": [
+            {
+                "key": f"{i.kind}:{i.id}",
+                "kind": i.kind,
+                "id": i.id,
+                "body": i.body,
+                "what": i.what,
+                "optional": i.optional,
+            }
+            for i in draft.items
+        ],
+        "secrets": sorted(draft.secrets),
+        "rows": [{"key": r.key, "outcome": r.outcome, "note": r.note} for r in draft.rows],
+        "notes": draft.notes,
+        "timezone": draft.timezone,
+        "localhost_broker": draft.localhost_broker,
+        "broker_answers": kept.broker,
+    }
+
+
+@router.post("/import/nibepi/{token}")
+@action("nibepi_import.apply")
+async def apply_nibepi(
+    token: str, body: NibePiChoice, request: Request, who: Logged
+) -> dict[str, list[str]]:
+    """Make the chosen parts of a draft, as setup would: `{done, problems}`."""
+    return await services(request).apply_nibepi(
+        who, token, body.items, timezone=body.timezone, model=body.model
+    )

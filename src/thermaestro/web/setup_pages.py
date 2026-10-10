@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, Response
 from ..auth import AccountError
 from ..cap.vocabulary import WEATHER
 from . import labels
-from .app import caller, services
+from .app import action, caller, services
 from .i18n import mark
 from .operations import Caller, NeedsConfirmation
 from .pages import _message, back, render, time_zones
@@ -29,6 +29,7 @@ TOPICS = {
     "prices": mark("Prices"),
     "weather": mark("Weather"),
     "control": mark("Control"),
+    "nibepi": mark("From NibePi"),
 }
 
 FIXED_ROLES = (
@@ -251,6 +252,19 @@ async def _control(request: Request, who: Caller) -> dict[str, Any]:
     }
 
 
+async def _nibepi(request: Request, who: Caller) -> dict[str, Any]:
+    """Nothing until a file is read; then its draft, by the token in the query."""
+    empty: dict[str, Any] = {"result": None, "error": None}
+    token = request.query_params.get("draft")
+    if not token:
+        return {"draft": None, "token": None, "kept": None, "zones": time_zones(), **empty}
+    try:
+        kept = services(request).nibepi_draft(who, token)
+    except AccountError:
+        return {"draft": None, "token": None, "kept": None, "zones": time_zones(), **empty}
+    return {"draft": kept.draft, "token": token, "kept": kept, "zones": time_zones(), **empty}
+
+
 CONTEXTS = {
     "house": _house,
     "pump": _pump,
@@ -259,6 +273,7 @@ CONTEXTS = {
     "prices": _prices,
     "weather": _weather,
     "control": _control,
+    "nibepi": _nibepi,
 }
 
 
@@ -318,3 +333,58 @@ async def old_rooms(_: Logged) -> Response:
 @router.get("/diagnostics")
 async def old_diagnostics(_: Logged) -> Response:
     return back("/system/health")
+
+
+# --- from NibePi ---------------------------------------------------------------------------
+
+UPLOAD_MOST = 1_000_000
+"""A config.json is a few kilobytes; anything far larger is something else."""
+
+
+@router.post("/setup/nibepi")
+@action("nibepi_import.read")
+async def read_nibepi(request: Request, who: Logged) -> Response:
+    """Read an uploaded config.json into a draft, shown for checking."""
+    async with request.form() as form:
+        upload = form.get("config")
+        data = (
+            await upload.read(UPLOAD_MOST + 1)
+            if upload is not None and not isinstance(upload, str)
+            else None
+        )
+    if data is None:
+        return await show(
+            request, who, "nibepi", 400, error=_message(AccountError("choose the file"))
+        )
+    if len(data) > UPLOAD_MOST:
+        return await show(
+            request, who, "nibepi", 400, error=_message(AccountError("that file is too large"))
+        )
+    try:
+        token, _ = await services(request).read_nibepi(who, data.decode("utf-8", errors="replace"))
+    except AccountError as e:
+        return await show(request, who, "nibepi", 400, error=_message(e))
+    return back(f"/setup/nibepi?draft={token}#draft")
+
+
+@router.post("/setup/nibepi/{token}/confirm")
+@action("nibepi_import.apply")
+async def apply_nibepi(request: Request, who: Logged, token: str) -> Response:
+    """Make the ticked parts of a draft."""
+    form = await request.form()
+    chosen = [i for i in form.getlist("items") if isinstance(i, str)]
+    timezone = form.get("timezone")
+    model = form.get("model")
+    try:
+        result = await services(request).apply_nibepi(
+            who,
+            token,
+            chosen,
+            timezone=timezone if isinstance(timezone, str) and timezone else None,
+            model=model.strip() if isinstance(model, str) and model.strip() else None,
+        )
+    except NeedsConfirmation:
+        raise
+    except AccountError as e:
+        return await show(request, who, "nibepi", 400, error=_message(e))
+    return await show(request, who, "nibepi", result=result)

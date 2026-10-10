@@ -1,6 +1,7 @@
 """Control over the API: asking for intents and ending them, levels, setup's answers about
 the house, the levers' modes, and the plan."""
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, time, timedelta
@@ -458,6 +459,61 @@ async def test_now_says_how_far_price_may_move_the_target(tmp_path: Path) -> Non
         )
         page = (await client.get("/intents")).text
         assert "price may move the target up to 0.75 °C either way" in page  # 1 - 0.25
+
+
+async def test_coming_from_nibepi(tmp_path: Path) -> None:
+    from nibepi_configs import BROKER_PASSWORD, line_ours
+
+    from thermaestro.store import Mqtt, Room, Sensor
+
+    async with site(tmp_path) as (_, services, client):
+        headers = await login(client, "admin")
+        page = (await client.get("/setup/nibepi")).text
+        assert 'enctype="multipart/form-data"' in page
+        upload = {"config": ("config.json", json.dumps(line_ours()), "application/json")}
+        read = await client.post("/setup/nibepi", data={"csrf": csrf_of(page)}, files=upload)
+        assert read.status_code == 303, read.text
+        location = read.headers["location"]
+        draft = (await client.get(location)).text
+        assert "the MQTT broker at localhost:1883" in draft
+        assert BROKER_PASSWORD not in draft
+        token = location.split("draft=")[1].split("#")[0]
+        chosen = ["location:", "mqtt:", "room:living-room", "sensor:living-room", "sensor:hall"]
+        made = await client.post(
+            f"/setup/nibepi/{token}/confirm",
+            data={"csrf": csrf_of(draft), "items": chosen, "timezone": "Europe/Stockholm"},
+        )
+        assert made.status_code == 200, made.text
+        assert "Made:" in made.text
+        mqtt = await services.db.get(Mqtt)
+        assert mqtt is not None
+        assert (mqtt.host, mqtt.password) == ("localhost", "mqtt.password")
+        secret = await services.secrets.get("mqtt.password")
+        assert secret is not None
+        assert secret.get_secret_value() == BROKER_PASSWORD
+        rooms = await services.db.all(Room)
+        assert [r.name for r in rooms.values()] == ["Living room"]
+        sensors = {s.name: s for s in (await services.db.all(Sensor)).values()}
+        assert sensors["Living room"].room == next(iter(rooms))
+        assert sensors["Hall"].room is None
+        assert "Office" not in sensors  # not ticked
+        gone = await client.post(
+            f"/setup/nibepi/{token}/confirm", data={"csrf": csrf_of(draft), "items": chosen}
+        )
+        assert "that draft is gone" in gone.text
+        # Over the API: the draft, with secrets by name only.
+        answer = await client.post(
+            "/api/v1/import/nibepi", json={"config": json.dumps(line_ours())}, headers=headers
+        )
+        assert answer.status_code == 200, answer.text
+        body = answer.json()
+        assert body["secrets"] == ["mqtt.password"]
+        assert BROKER_PASSWORD not in answer.text
+        assert {"key": "pump:pump", "optional": False}.items() <= next(
+            i for i in body["items"] if i["kind"] == "pump"
+        ).items()
+        refused = await client.post("/api/v1/import/nibepi", json={"config": "{}"}, headers=headers)
+        assert refused.status_code == 400
 
 
 async def test_the_overview_asks_for_a_while(

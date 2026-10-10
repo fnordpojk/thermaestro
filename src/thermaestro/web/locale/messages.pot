@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 23:29+0200\n"
+"POT-Creation-Date: 2026-10-11 00:33+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -133,6 +133,9 @@ msgid ""
 msgstr ""
 
 msgid "A bath"
+msgstr ""
+
+msgid "A broker answers on this host: it will be used."
 msgstr ""
 
 msgid ""
@@ -351,6 +354,9 @@ msgid "Base"
 msgstr ""
 
 msgid "Base price per kWh"
+msgstr ""
+
+msgid "Became"
 msgstr ""
 
 msgid ""
@@ -660,6 +666,9 @@ msgstr ""
 msgid "Entity"
 msgstr ""
 
+msgid "Every key in the file"
+msgstr ""
+
 msgid "Everyday"
 msgstr ""
 
@@ -738,6 +747,15 @@ msgid "From Home Assistant"
 msgstr ""
 
 msgid "From Home Assistant's areas"
+msgstr ""
+
+msgid "From NibePi"
+msgstr ""
+
+#, python-format
+msgid ""
+"From NibePi's %(line)s. Untick anything you don't want; the ticked parts "
+"are made as setup would make them."
 msgstr ""
 
 msgid "From, °C"
@@ -921,6 +939,9 @@ msgstr ""
 msgid "Keep the change, and take it over from there"
 msgstr ""
 
+msgid "Key"
+msgstr ""
+
 msgid "Key (pre-shared)"
 msgstr ""
 
@@ -1015,10 +1036,16 @@ msgstr ""
 msgid "Made"
 msgstr ""
 
+msgid "Made:"
+msgstr ""
+
 msgid "Main provider"
 msgstr ""
 
 msgid "Make a display link"
+msgstr ""
+
+msgid "Make it"
 msgstr ""
 
 msgid "Make rooms of the ticked ones"
@@ -1114,7 +1141,15 @@ msgstr ""
 msgid "NibeGW (plain)"
 msgstr ""
 
+msgid "NibePi's config.json"
+msgstr ""
+
 msgid "No administrator exists yet."
+msgstr ""
+
+msgid ""
+"No broker answers on this host. Install one before confirming, or untick "
+"the broker and set it later: see the notes below."
 msgstr ""
 
 msgid "No cost stance: nothing is moved by price."
@@ -1203,10 +1238,16 @@ msgstr ""
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr ""
 
+msgid "Not made:"
+msgstr ""
+
 msgid "Not said"
 msgstr ""
 
 msgid "Note"
+msgstr ""
+
+msgid "Notes"
 msgstr ""
 
 msgid "Nothing asked for yet."
@@ -1224,6 +1265,9 @@ msgstr ""
 msgid ""
 "Nothing to compare yet. Forecasts are kept from now on, and compared as "
 "their hours come."
+msgstr ""
+
+msgid "Nothing to make from this file."
 msgstr ""
 
 msgid "Nothing was picked."
@@ -1456,6 +1500,19 @@ msgstr ""
 msgid "Reaches"
 msgstr ""
 
+msgid ""
+"Read NibePi's config.json to bring its pump connection, MQTT broker, "
+"sensors and rooms, location and prices over, with its secrets. You see "
+"what it would make first; nothing changes until you confirm, and nothing "
+"is written to the pump."
+msgstr ""
+
+msgid "Read another file"
+msgstr ""
+
+msgid "Read it"
+msgstr ""
+
 msgid "Read port"
 msgstr ""
 
@@ -1539,6 +1596,12 @@ msgid "Season from"
 msgstr ""
 
 msgid "Season to"
+msgstr ""
+
+#, python-format
+msgid ""
+"Secrets kept in the secrets file with what needs them: %(names)s. They're"
+" never shown."
 msgstr ""
 
 msgid "Security token"
@@ -1714,6 +1777,9 @@ msgid "Temperature, 10th percentile"
 msgstr ""
 
 msgid "Temperature, 90th percentile"
+msgstr ""
+
+msgid "The S-series pump's model"
 msgstr ""
 
 msgid "The addition"
@@ -2023,6 +2089,9 @@ msgstr ""
 msgid "What it belongs to"
 msgstr ""
 
+msgid "What it would make"
+msgstr ""
+
 msgid ""
 "What one more kWh costs is a stack of layers: the spot price, the "
 "supplier's adders, taxes and grid fees, and VAT. Thermaestro adds them "
@@ -2229,6 +2298,9 @@ msgstr ""
 msgid "announced"
 msgstr ""
 
+msgid "as NibePi had it; may be out of date"
+msgstr ""
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr ""
 
@@ -2281,6 +2353,9 @@ msgstr ""
 
 #, python-format
 msgid "by %(time)s"
+msgstr ""
+
+msgid "carried over"
 msgstr ""
 
 msgid "change the installation's settings"
@@ -2506,6 +2581,9 @@ msgstr ""
 
 #, python-format
 msgid "layer %(layer)s"
+msgstr ""
+
+msgid "left out"
 msgstr ""
 
 #, python-format
@@ -2876,6 +2954,9 @@ msgstr ""
 msgid "transitional"
 msgstr ""
 
+msgid "translated"
+msgstr ""
+
 msgid "uncertain"
 msgstr ""
 
@@ -2891,6 +2972,9 @@ msgid "until done, at the latest %(end)s"
 msgstr ""
 
 msgid "up"
+msgstr ""
+
+msgid "usually /etc/nibepi/config.json, or in NibePi's Docker volume"
 msgstr ""
 
 msgid "waiting"

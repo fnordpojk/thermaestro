@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 23:29+0200\n"
+"POT-Creation-Date: 2026-10-11 00:33+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -139,6 +139,9 @@ msgstr ""
 
 msgid "A bath"
 msgstr "Ein Bad"
+
+msgid "A broker answers on this host: it will be used."
+msgstr "Auf diesem Rechner antwortet ein Broker: er wird verwendet."
 
 msgid ""
 "A climate system without a room sensor: its normal heat, moved by price at most this "
@@ -379,6 +382,9 @@ msgstr "Grundpreis"
 
 msgid "Base price per kWh"
 msgstr "Grundpreis je kWh"
+
+msgid "Became"
+msgstr "Wurde zu"
 
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
@@ -708,6 +714,9 @@ msgstr "Geben Sie Ihr Passwort erneut ein"
 msgid "Entity"
 msgstr "Entität"
 
+msgid "Every key in the file"
+msgstr "Jeder Schlüssel in der Datei"
+
 msgid "Everyday"
 msgstr "Alltägliche"
 
@@ -792,6 +801,17 @@ msgstr "Aus Home Assistant"
 
 msgid "From Home Assistant's areas"
 msgstr "Aus den Bereichen von Home Assistant"
+
+msgid "From NibePi"
+msgstr "Von NibePi"
+
+#, python-format
+msgid ""
+"From NibePi's %(line)s. Untick anything you don't want; the ticked parts are made as "
+"setup would make them."
+msgstr ""
+"Aus NibePis %(line)s. Entferne das Häkchen bei allem, was du nicht willst; das "
+"Angekreuzte wird so angelegt, wie die Einrichtung es anlegen würde."
 
 msgid "From, °C"
 msgstr "Von, °C"
@@ -985,6 +1005,9 @@ msgstr "Behalten"
 msgid "Keep the change, and take it over from there"
 msgstr "Die Änderung behalten und von dort übernehmen"
 
+msgid "Key"
+msgstr "Schlüssel"
+
 msgid "Key (pre-shared)"
 msgstr "Schlüssel (vorab vereinbart)"
 
@@ -1079,11 +1102,17 @@ msgstr "MQTT-Broker"
 msgid "Made"
 msgstr "Erstellt"
 
+msgid "Made:"
+msgstr "Angelegt:"
+
 msgid "Main provider"
 msgstr "Hauptanbieter"
 
 msgid "Make a display link"
 msgstr "Bildschirm-Link erstellen"
+
+msgid "Make it"
+msgstr "Anlegen"
 
 msgid "Make rooms of the ticked ones"
 msgstr "Räume aus den angekreuzten machen"
@@ -1182,8 +1211,19 @@ msgstr "Weiter: Namen und Räume"
 msgid "NibeGW (plain)"
 msgstr "NibeGW (einfach)"
 
+msgid "NibePi's config.json"
+msgstr "NibePis config.json"
+
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
+
+msgid ""
+"No broker answers on this host. Install one before confirming, or untick the broker "
+"and set it later: see the notes below."
+msgstr ""
+"Auf diesem Rechner antwortet kein Broker. Installiere einen, bevor du bestätigst, "
+"oder entferne das Häkchen beim Broker und richte ihn später ein: siehe die Hinweise "
+"unten."
 
 msgid "No cost stance: nothing is moved by price."
 msgstr "Keine Kosteneinstellung: nichts wird nach dem Preis verschoben."
@@ -1280,11 +1320,17 @@ msgstr "Nicht in teuren Stunden"
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu werden."
 
+msgid "Not made:"
+msgstr "Nicht angelegt:"
+
 msgid "Not said"
 msgstr "Nicht angegeben"
 
 msgid "Note"
 msgstr "Notiz"
+
+msgid "Notes"
+msgstr "Hinweise"
 
 msgid "Nothing asked for yet."
 msgstr "Noch nichts gewünscht."
@@ -1304,6 +1350,9 @@ msgid ""
 msgstr ""
 "Noch nichts zu vergleichen. Vorhersagen werden ab jetzt aufbewahrt und verglichen, "
 "sobald ihre Stunden kommen."
+
+msgid "Nothing to make from this file."
+msgstr "Aus dieser Datei ist nichts anzulegen."
 
 msgid "Nothing was picked."
 msgstr "Nichts wurde gewählt."
@@ -1545,6 +1594,22 @@ msgstr "Satz in Prozent"
 msgid "Reaches"
 msgstr "Reicht bis"
 
+msgid ""
+"Read NibePi's config.json to bring its pump connection, MQTT broker, sensors and "
+"rooms, location and prices over, with its secrets. You see what it would make first; "
+"nothing changes until you confirm, and nothing is written to the pump."
+msgstr ""
+"Lies NibePis config.json, um seine Pumpenverbindung, seinen MQTT-Broker, seine "
+"Sensoren und Räume, seinen Standort und seine Preise samt Geheimnissen zu übernehmen."
+" Du siehst zuerst, was daraus würde; nichts ändert sich, bevor du bestätigst, und "
+"nichts wird in die Pumpe geschrieben."
+
+msgid "Read another file"
+msgstr "Eine andere Datei lesen"
+
+msgid "Read it"
+msgstr "Lesen"
+
 msgid "Read port"
 msgstr "Leseport"
 
@@ -1629,6 +1694,12 @@ msgstr "Saison von"
 
 msgid "Season to"
 msgstr "Saison bis"
+
+#, python-format
+msgid "Secrets kept in the secrets file with what needs them: %(names)s. They're never shown."
+msgstr ""
+"Geheimnisse, die mit dem, was sie braucht, in der Geheimnisdatei abgelegt werden: "
+"%(names)s. Sie werden nie angezeigt."
 
 msgid "Security token"
 msgstr "Sicherheitstoken"
@@ -1808,6 +1879,9 @@ msgstr "Temperatur, 10. Perzentil"
 
 msgid "Temperature, 90th percentile"
 msgstr "Temperatur, 90. Perzentil"
+
+msgid "The S-series pump's model"
+msgstr "Das Modell der S-Serien-Pumpe"
 
 msgid "The addition"
 msgstr "Der Zuheizer"
@@ -2156,6 +2230,9 @@ msgstr "Was %(system)s heizt"
 msgid "What it belongs to"
 msgstr "Wozu er gehört"
 
+msgid "What it would make"
+msgstr "Was daraus würde"
+
 msgid ""
 "What one more kWh costs is a stack of layers: the spot price, the supplier's adders, "
 "taxes and grid fees, and VAT. Thermaestro adds them per 15 minutes, and refuses a "
@@ -2386,6 +2463,9 @@ msgstr "bei einer Pumpe der S-Serie zu wählen"
 msgid "announced"
 msgstr "angekündigt"
 
+msgid "as NibePi had it; may be out of date"
+msgstr "wie NibePi es hatte; vielleicht veraltet"
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr "wie in der MQTT-Integration von Home Assistant eingestellt"
 
@@ -2439,6 +2519,9 @@ msgstr "weg bis Sonntag"
 #, python-format
 msgid "by %(time)s"
 msgstr "bis spätestens %(time)s"
+
+msgid "carried over"
+msgstr "übernommen"
 
 msgid "change the installation's settings"
 msgstr "die Einstellungen der Installation ändern"
@@ -2664,6 +2747,9 @@ msgstr "zuletzt gehört"
 #, python-format
 msgid "layer %(layer)s"
 msgstr "Schicht %(layer)s"
+
+msgid "left out"
+msgstr "ausgelassen"
 
 #, python-format
 msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot layer"
@@ -3039,6 +3125,9 @@ msgstr "Übertragung"
 msgid "transitional"
 msgstr "im Übergang"
 
+msgid "translated"
+msgstr "übersetzt"
+
 msgid "uncertain"
 msgstr "unsicher"
 
@@ -3055,6 +3144,9 @@ msgstr "bis es erledigt ist, spätestens %(end)s"
 
 msgid "up"
 msgstr "läuft"
+
+msgid "usually /etc/nibepi/config.json, or in NibePi's Docker volume"
+msgstr "meist /etc/nibepi/config.json, oder in NibePis Docker-Volume"
 
 msgid "waiting"
 msgstr "wartet"
@@ -3098,52 +3190,4 @@ msgstr "ja"
 
 msgid "your token"
 msgstr "Ihr Token"
-
-#~ msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
-#~ msgstr "Noch keine Quelle bietet Preise an. Fügen Sie oben Tibber oder ENTSO-E hinzu."
-
-#~ msgid ""
-#~ "The layer %(layer)s already includes the spot"
-#~ " price, so the source chosen here isn't "
-#~ "added to the stack. Its prices are kept"
-#~ " current beside it, and can take that "
-#~ "layer's place under Layers."
-#~ msgstr ""
-#~ "Die Schicht %(layer)s enthält den Spotpreis "
-#~ "bereits, daher wird die hier gewählte Quelle"
-#~ " nicht zum Stapel hinzugefügt. Ihre Preise "
-#~ "werden daneben aktuell gehalten und können "
-#~ "unter Schichten den Platz dieser Schicht "
-#~ "einnehmen."
-
-#~ msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
-#~ msgstr "%(total)s abzüglich %(spot)s: was der Lieferant aufschlägt, ohne Mehrwertsteuer"
-
-#~ msgid ""
-#~ "The layer %(layer)s already includes the spot"
-#~ " price. Saving a source here splits it "
-#~ "into the spot price, from that source, "
-#~ "and what the supplier adds, once VAT is"
-#~ " set below."
-#~ msgstr ""
-#~ "Die Schicht %(layer)s enthält den Spotpreis "
-#~ "bereits. Das Speichern einer Quelle hier teilt"
-#~ " sie in den Spotpreis, aus dieser Quelle,"
-#~ " und den Aufschlag des Lieferanten auf, "
-#~ "sobald unten die Mehrwertsteuer angegeben ist."
-
-#~ msgid "A bath: at least, °C"
-#~ msgstr "Ein Bad: mindestens, °C"
-
-#~ msgid "Cooler, please"
-#~ msgstr "Kühler, bitte"
-
-#~ msgid "Hands off until"
-#~ msgstr "Finger weg bis"
-
-#~ msgid "One extra charge of hot water now"
-#~ msgstr "Jetzt eine zusätzliche Warmwasserladung"
-
-#~ msgid "by"
-#~ msgstr "bis"
 

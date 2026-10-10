@@ -65,9 +65,19 @@ def main(argv: list[str] | None = None) -> int:
     probe.add_argument("--minutes", type=float, default=5.0, help="how long to capture")
     probe.add_argument("--out", type=Path, default=Path(), help="the directory to write to")
     _rig_arguments(commands)
+    imports = commands.add_parser("import", help="read another controller's settings")
+    import_commands = imports.add_subparsers(dest="import_command", required=True)
+    nibepi = import_commands.add_parser(
+        "nibepi",
+        help="read NibePi's config.json and say what Thermaestro would make of it; nothing"
+        " is changed: confirm it under Setup → From NibePi",
+    )
+    nibepi.add_argument("config", type=Path, help="NibePi's config.json")
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
         return _logset(args.model, args.output)
+    if args.command == "import":
+        return _import_nibepi(args.config)
     if args.command == "status":
         return _status(args.url, os.environ.get("THERMAESTRO_TOKEN", ""))
 
@@ -106,6 +116,29 @@ def _logset(model_name: str, output: Path) -> int:
     registers = [r for r in profile.LOG_SET if r in model]
     output.write_bytes(logset.render(model, registers, day=date.today()))
     sys.stdout.write(f"wrote {output}: {len(registers)} registers\n")
+    return 0
+
+
+def _import_nibepi(config: Path) -> int:
+    """What a NibePi config.json would become: the settings, and every key's fate."""
+    from .migrate.nibepi import NotNibePi, read
+
+    try:
+        draft = read(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, NotNibePi) as e:
+        sys.stderr.write(f"{config}: {e}\n")
+        return 2
+    out = [f"NibePi line: {draft.line}", "", "Thermaestro would make:"]
+    for item in draft.items:
+        out.append(f"  {'[ ]' if item.optional else '[x]'} {item.what}")
+    if draft.secrets:
+        out.append(f"  [x] secrets kept: {', '.join(sorted(draft.secrets))}")
+    out += ["", "Notes:", *(f"  - {n}" for n in draft.notes)] if draft.notes else []
+    width = max((len(r.key) for r in draft.rows), default=0)
+    out += ["", "Every key:"]
+    out += [f"  {r.key:<{width}}  {r.outcome:<10}  {r.note}" for r in draft.rows]
+    out += ["", "Nothing was changed. Confirm it under Setup → From NibePi."]
+    sys.stdout.write("\n".join(out) + "\n")
     return 0
 
 

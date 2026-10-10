@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 23:29+0200\n"
+"POT-Creation-Date: 2026-10-11 00:33+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -138,6 +138,9 @@ msgstr ""
 
 msgid "A bath"
 msgstr "Ett bad"
+
+msgid "A broker answers on this host: it will be used."
+msgstr "En broker svarar på den här datorn: den används."
 
 msgid ""
 "A climate system without a room sensor: its normal heat, moved by price at most this "
@@ -374,6 +377,9 @@ msgstr "Grund"
 
 msgid "Base price per kWh"
 msgstr "Grundpris per kWh"
+
+msgid "Became"
+msgstr "Blev"
 
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
@@ -698,6 +704,9 @@ msgstr "Ange ditt lösenord igen"
 msgid "Entity"
 msgstr "Entitet"
 
+msgid "Every key in the file"
+msgstr "Varje nyckel i filen"
+
 msgid "Everyday"
 msgstr "Vardagliga"
 
@@ -780,6 +789,17 @@ msgstr "Från Home Assistant"
 
 msgid "From Home Assistant's areas"
 msgstr "Från Home Assistants områden"
+
+msgid "From NibePi"
+msgstr "Från NibePi"
+
+#, python-format
+msgid ""
+"From NibePi's %(line)s. Untick anything you don't want; the ticked parts are made as "
+"setup would make them."
+msgstr ""
+"Från NibePis %(line)s. Kryssa ur det du inte vill ha; det ikryssade görs som "
+"inställningarna skulle göra det."
 
 msgid "From, °C"
 msgstr "Från, °C"
@@ -973,6 +993,9 @@ msgstr "Behåll"
 msgid "Keep the change, and take it over from there"
 msgstr "Behåll ändringen och ta över därifrån"
 
+msgid "Key"
+msgstr "Nyckel"
+
 msgid "Key (pre-shared)"
 msgstr "Nyckel (delad i förväg)"
 
@@ -1067,11 +1090,17 @@ msgstr "MQTT-broker"
 msgid "Made"
 msgstr "Skapad"
 
+msgid "Made:"
+msgstr "Gjort:"
+
 msgid "Main provider"
 msgstr "Huvudleverantör"
 
 msgid "Make a display link"
 msgstr "Skapa en skärmlänk"
+
+msgid "Make it"
+msgstr "Gör det"
 
 msgid "Make rooms of the ticked ones"
 msgstr "Gör rum av de ikryssade"
@@ -1170,8 +1199,18 @@ msgstr "Nästa: namn och rum"
 msgid "NibeGW (plain)"
 msgstr "NibeGW (vanlig)"
 
+msgid "NibePi's config.json"
+msgstr "NibePis config.json"
+
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
+
+msgid ""
+"No broker answers on this host. Install one before confirming, or untick the broker "
+"and set it later: see the notes below."
+msgstr ""
+"Ingen broker svarar på den här datorn. Installera en innan du bekräftar, eller kryssa"
+" ur brokern och ställ in den senare: se anteckningarna nedan."
 
 msgid "No cost stance: nothing is moved by price."
 msgstr "Ingen kostnadsinställning: inget flyttas efter priset."
@@ -1265,11 +1304,17 @@ msgstr "Inte under dyra timmar"
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pumpen."
 
+msgid "Not made:"
+msgstr "Inte gjort:"
+
 msgid "Not said"
 msgstr "Inte angivet"
 
 msgid "Note"
 msgstr "Anteckning"
+
+msgid "Notes"
+msgstr "Anteckningar"
 
 msgid "Nothing asked for yet."
 msgstr "Inget begärt än."
@@ -1289,6 +1334,9 @@ msgid ""
 msgstr ""
 "Inget att jämföra än. Prognoser sparas från och med nu och jämförs när deras timmar "
 "kommer."
+
+msgid "Nothing to make from this file."
+msgstr "Inget att göra av den här filen."
 
 msgid "Nothing was picked."
 msgstr "Inget valdes."
@@ -1527,6 +1575,21 @@ msgstr "Sats i procent"
 msgid "Reaches"
 msgstr "Räcker till"
 
+msgid ""
+"Read NibePi's config.json to bring its pump connection, MQTT broker, sensors and "
+"rooms, location and prices over, with its secrets. You see what it would make first; "
+"nothing changes until you confirm, and nothing is written to the pump."
+msgstr ""
+"Läs NibePis config.json för att ta över dess pumpanslutning, MQTT-broker, givare och "
+"rum, plats och priser, med dess hemligheter. Du ser först vad det skulle bli; inget "
+"ändras förrän du bekräftar, och inget skrivs till pumpen."
+
+msgid "Read another file"
+msgstr "Läs en annan fil"
+
+msgid "Read it"
+msgstr "Läs den"
+
 msgid "Read port"
 msgstr "Läsport"
 
@@ -1611,6 +1674,12 @@ msgstr "Säsong från"
 
 msgid "Season to"
 msgstr "Säsong till"
+
+#, python-format
+msgid "Secrets kept in the secrets file with what needs them: %(names)s. They're never shown."
+msgstr ""
+"Hemligheter som sparas i hemlighetsfilen tillsammans med det som behöver dem: "
+"%(names)s. De visas aldrig."
 
 msgid "Security token"
 msgstr "Säkerhetstoken"
@@ -1790,6 +1859,9 @@ msgstr "Temperatur, 10:e percentilen"
 
 msgid "Temperature, 90th percentile"
 msgstr "Temperatur, 90:e percentilen"
+
+msgid "The S-series pump's model"
+msgstr "S-seriepumpens modell"
 
 msgid "The addition"
 msgstr "Tillsatsen"
@@ -2131,6 +2203,9 @@ msgstr "Vad som värmer %(system)s"
 msgid "What it belongs to"
 msgstr "Det som det hör till"
 
+msgid "What it would make"
+msgstr "Vad det skulle bli"
+
 msgid ""
 "What one more kWh costs is a stack of layers: the spot price, the supplier's adders, "
 "taxes and grid fees, and VAT. Thermaestro adds them per 15 minutes, and refuses a "
@@ -2349,6 +2424,9 @@ msgstr "måste väljas för en pump i S-serien"
 msgid "announced"
 msgstr "aviserad"
 
+msgid "as NibePi had it; may be out of date"
+msgstr "som NibePi hade det; kan vara inaktuellt"
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr "som det är satt i Home Assistants MQTT-integration"
 
@@ -2402,6 +2480,9 @@ msgstr "borta till söndag"
 #, python-format
 msgid "by %(time)s"
 msgstr "senast %(time)s"
+
+msgid "carried over"
+msgstr "överfört"
 
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
@@ -2627,6 +2708,9 @@ msgstr "senast hörd"
 #, python-format
 msgid "layer %(layer)s"
 msgstr "lager %(layer)s"
+
+msgid "left out"
+msgstr "utelämnat"
 
 #, python-format
 msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot layer"
@@ -2998,6 +3082,9 @@ msgstr "överföring"
 msgid "transitional"
 msgstr "övergående"
 
+msgid "translated"
+msgstr "översatt"
+
 msgid "uncertain"
 msgstr "osäkert"
 
@@ -3014,6 +3101,9 @@ msgstr "tills det är klart, senast %(end)s"
 
 msgid "up"
 msgstr "igång"
+
+msgid "usually /etc/nibepi/config.json, or in NibePi's Docker volume"
+msgstr "oftast /etc/nibepi/config.json, eller i NibePis Docker-volym"
 
 msgid "waiting"
 msgstr "väntar"
@@ -3057,51 +3147,4 @@ msgstr "ja"
 
 msgid "your token"
 msgstr "din token"
-
-#~ msgid "No source offers prices yet. Add Tibber or ENTSO-E above."
-#~ msgstr "Ingen källa erbjuder priser än. Lägg till Tibber eller ENTSO-E ovan."
-
-#~ msgid ""
-#~ "The layer %(layer)s already includes the spot"
-#~ " price, so the source chosen here isn't "
-#~ "added to the stack. Its prices are kept"
-#~ " current beside it, and can take that "
-#~ "layer's place under Layers."
-#~ msgstr ""
-#~ "Lagret %(layer)s innehåller redan spotpriset, så "
-#~ "källan som väljs här läggs inte till i"
-#~ " stapeln. Dess priser hålls aktuella bredvid, "
-#~ "och kan ta det lagrets plats under "
-#~ "Lager."
-
-#~ msgid "%(total)s less %(spot)s: what the supplier adds, without VAT"
-#~ msgstr "%(total)s minus %(spot)s: det leverantören lägger till, utan moms"
-
-#~ msgid ""
-#~ "The layer %(layer)s already includes the spot"
-#~ " price. Saving a source here splits it "
-#~ "into the spot price, from that source, "
-#~ "and what the supplier adds, once VAT is"
-#~ " set below."
-#~ msgstr ""
-#~ "Lagret %(layer)s innehåller redan spotpriset. Att"
-#~ " spara en källa här delar upp det i"
-#~ " spotpriset, från den källan, och det "
-#~ "leverantören lägger till, när moms är angiven"
-#~ " nedan."
-
-#~ msgid "A bath: at least, °C"
-#~ msgstr "Ett bad: minst, °C"
-
-#~ msgid "Cooler, please"
-#~ msgstr "Svalare, tack"
-
-#~ msgid "Hands off until"
-#~ msgstr "Rör inget till"
-
-#~ msgid "One extra charge of hot water now"
-#~ msgstr "En extra laddning varmvatten nu"
-
-#~ msgid "by"
-#~ msgstr "till"
 

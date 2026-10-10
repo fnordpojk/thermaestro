@@ -92,7 +92,7 @@ Everyone logs in, also on the home network. Changes under some rights (users, se
 
 ## The setup pages
 
-**Setup** in the menu has seven topics: House, Pump, External, Sensors, Prices, Weather and Control. They can be done in any order, but some need others first:
+**Setup** in the menu has eight topics: House, Pump, External, Sensors, Prices, Weather, Control and From NibePi. Coming from NibePi, start with the last: it fills in much of the rest from NibePi's settings (see [Coming from NibePi](nibepi.md)). The topics can be done in any order, but some need others first:
 
 - weather forecasts need the location, under House;
 - sensors from Home Assistant need Home Assistant, under External;
@@ -214,6 +214,12 @@ Switching needs the password again. A setting the pump has its own feature for (
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
 
 The page shows the day's changes against the planner's budget (about 50 a day).
+
+### From NibePi
+
+Choose NibePi's `config.json` and **Read it**. The page shows what it would make: the pump's connection, the MQTT broker and Home Assistant discovery, the location and its time zone, sensors and rooms, and prices (the spot price for NibePi's area, or Tibber), with the MQTT password and the Tibber token kept in the secrets file. NibePi's VAT and fees are offered unticked, since they may be out of date. Untick what you don't want, and **Make it**: the password is asked again, and each part is made as its own topic would make it. If NibePi's broker ran on NibePi's own host, the page says whether one answers on Thermaestro's.
+
+**Every key in the file** lists what became of each setting, and why one was left out. Nothing is written to the pump. `thermaestro import nibepi config.json` shows the same on the host, and makes nothing. The guide is [Coming from NibePi](nibepi.md).
 
 ## What the household wants: the Intents page
 

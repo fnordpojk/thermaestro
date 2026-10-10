@@ -326,6 +326,11 @@ KINDS = {
     "boost_now": mark("Boost now"),
 }
 COOLER = mark("Cooler, please")
+IMPORTED = {
+    "carried": mark("carried over"),
+    "translated": mark("translated"),
+    "left_out": mark("left out"),
+}
 RULE_TYPES = {
     "tou": mark("Time-of-use price"),
     "interval_peak": mark("Power charge"),

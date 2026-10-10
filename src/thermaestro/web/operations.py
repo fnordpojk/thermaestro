@@ -50,6 +50,7 @@ from ..store.errors import name_fields
 from . import i18n, labels
 from .control_operations import ControlOperations
 from .discovery_operations import DiscoveryOperations
+from .migrate_operations import MigrateOperations
 from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
 from .weather_operations import WeatherOperations
@@ -91,7 +92,12 @@ class Caller:
 
 @dataclass
 class Services(
-    SensorOperations, PriceOperations, WeatherOperations, DiscoveryOperations, ControlOperations
+    SensorOperations,
+    PriceOperations,
+    WeatherOperations,
+    DiscoveryOperations,
+    ControlOperations,
+    MigrateOperations,
 ):
     accounts: Accounts
     db: Database

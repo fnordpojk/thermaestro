@@ -307,7 +307,14 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 | Method and path | Right | Body → answer |
 |---|---|---|
 | `GET /home` | `settings.read` | The answers |
-| `PUT /home` | `settings.write` | `{"emitters": {"pump:hp1/cs1": "floor"}, "house": "average", "water": "well", "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`. Emitters: `radiators`, `floor`, `radiators_and_floor`, `fan_coils`, `unknown`; house: `poorly_insulated`, `average`, `well_insulated`, `low_energy`, `unknown`; water: `municipal`, `well`, `unknown`. A field left out takes its default. |
+| `PUT /home` | `settings.write` | `{"emitters": {"pump:hp1/cs1": "slab"}, "house": "average", "water": "well", "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`. Emitters: `radiators`, `fan_coils`, `floor_light` (underfloor heating in boards or grooves), `slab` (in a concrete slab), `radiators_and_floor_light`, `radiators_and_slab`, `unknown`; house: `poorly_insulated`, `average`, `well_insulated`, `low_energy`, `unknown`; water: `municipal`, `well`, `unknown`. A field left out takes its default. `check_emitters` lists the climate systems whose answer was plain floor heating, taken as a slab, to be checked; answering again clears it. |
+
+### Coming from NibePi
+
+| Method and path | Right | Body → answer |
+|---|---|---|
+| `POST /import/nibepi` | `settings.write` | `{config}`, the text of NibePi's `config.json` → a draft, kept for this user for half an hour: `{token, line, items, secrets, rows, notes, timezone, localhost_broker, broker_answers}`. `items` are what it would make, each `{key, kind, id, body, what, optional}`; `secrets` the secrets it would keep, by name only; `rows` every key in the file with what became of it (`carried`, `translated`, `left_out`) and why. Nothing is made. |
+| `POST /import/nibepi/{token}` | `plugins.manage` ⚿ | `{items, timezone, model}`: the `key`s of the items to make, the location's time zone, and an S-series pump's model when the draft has none → `{done, problems}`. Each is made as setup would make it; one refused doesn't stop the others. |
 
 ### Levers and the plan
 

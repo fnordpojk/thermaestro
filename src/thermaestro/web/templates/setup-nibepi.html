@@ -1,0 +1,69 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<p>{{ _("Read NibePi's config.json to bring its pump connection, MQTT broker, sensors and rooms, location and prices over, with its secrets. You see what it would make first; nothing changes until you confirm, and nothing is written to the pump.") }}</p>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+{% if result %}
+<div class="notice{% if result.problems %} error{% endif %}">
+  {% if result.done %}<p><strong>{{ _("Made:") }}</strong></p><ul>{% for d in result.done %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}
+  {% if result.problems %}<p><strong>{{ _("Not made:") }}</strong></p><ul>{% for p in result.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+
+{% if not draft %}
+<form method="post" action="/setup/nibepi" enctype="multipart/form-data" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("NibePi's config.json") }} <small>{{ _("usually /etc/nibepi/config.json, or in NibePi's Docker volume") }}</small>
+    <input type="file" name="config" accept=".json,application/json" required></label>
+  <button type="submit">{{ _("Read it") }}</button>
+</form>
+{% else %}
+<section id="draft">
+<h2>{{ _("What it would make") }}</h2>
+<p class="hint">{{ _("From NibePi's %(line)s. Untick anything you don't want; the ticked parts are made as setup would make them.", line=draft.line) }}</p>
+{% if draft.localhost_broker %}
+<p class="notice{% if not kept.broker %} error{% endif %}">{% if kept.broker %}{{ _("A broker answers on this host: it will be used.") }}{% else %}{{ _("No broker answers on this host. Install one before confirming, or untick the broker and set it later: see the notes below.") }}{% endif %}</p>
+{% endif %}
+<form method="post" action="/setup/nibepi/{{ token }}/confirm" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset><legend>{{ _("Settings") }}</legend>
+  {% for item in draft.items %}
+    <label class="check"><input type="checkbox" name="items" value="{{ item.kind }}:{{ item.id }}"{% if not item.optional %} checked{% endif %}> {{ item.what }}{% if item.optional %} <small>{{ _("as NibePi had it; may be out of date") }}</small>{% endif %}</label>
+  {% else %}
+    <p>{{ _("Nothing to make from this file.") }}</p>
+  {% endfor %}
+  </fieldset>
+  {% if draft.secrets %}<p class="hint">{{ _("Secrets kept in the secrets file with what needs them: %(names)s. They're never shown.", names=draft.secrets | list | sort | join(", ")) }}</p>{% endif %}
+  {% if draft.item("location:") %}
+  {% set chosen = draft.timezone %}
+  <label>{{ _("Time zone") }}
+    <select name="timezone" required>
+      {% for region, places in zones.items() %}
+      <optgroup label="{{ region }}">
+        {% for name, label in places %}<option value="{{ name }}"{% if name == chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+      <optgroup label="UTC"><option value="UTC"{% if not chosen %} selected{% endif %}>UTC</option></optgroup>
+    </select></label>
+  {% endif %}
+  {% set pump = draft.item("pump:pump") %}
+  {% if pump and pump.body.get("protocol") == "modbus-tcp" and not pump.body.get("model") %}
+  <label>{{ _("The S-series pump's model") }} <input name="model" required placeholder="S1255"></label>
+  {% endif %}
+  <button type="submit">{{ _("Make it") }}</button>
+</form>
+{% if draft.notes %}
+<h3>{{ _("Notes") }}</h3>
+<ul>{% for n in draft.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+{% endif %}
+<details id="nibepi-report"><summary>{{ _("Every key in the file") }}</summary>
+<table>
+  <thead><tr><th>{{ _("Key") }}</th><th>{{ _("Became") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for r in draft.rows %}<tr><td><code>{{ r.key }}</code></td><td>{{ _(labels.IMPORTED[r.outcome]) }}</td><td>{{ r.note }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</details>
+<p><a href="/setup/nibepi">{{ _("Read another file") }}</a></p>
+</section>
+{% endif %}
+{% endblock %}
