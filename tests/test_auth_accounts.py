@@ -138,6 +138,7 @@ async def test_the_seeded_groups(accounts: Accounts) -> None:
             }
         ),
         "Viewers": frozenset({"points.read"}),
+        "MQTT": frozenset(),  # requests over MQTT: nothing until the administrator says
     }
 
 
