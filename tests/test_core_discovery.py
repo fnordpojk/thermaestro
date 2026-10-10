@@ -511,7 +511,7 @@ async def test_requests_over_mqtt(broker: int, tmp_path: Path) -> None:  # noqa:
         async with listening(broker) as heard:
             publisher.start(Plain())
             await until(
-                lambda: heard.last(f"thermaestro/{ID}/state/{key('thermaestro', 'intents')}")
+                lambda: heard.last(f"thermaestro/{ID}/state/{key('thermaestro', 'deadline')}")
             )
             devices = {ME, f"{ME}_{key('pump', 'hp1')}"}
             pump_config = heard.configs(f"{ME}_{key('pump', 'hp1')}")[-1]
