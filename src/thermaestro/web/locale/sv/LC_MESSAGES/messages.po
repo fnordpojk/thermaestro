@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 21:30+0200\n"
+"POT-Creation-Date: 2026-10-10 22:02+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -2581,6 +2581,9 @@ msgstr "förvald från den här webbläsaren"
 msgid "price"
 msgstr "priset"
 
+msgid "price doesn't move the target: the savings slider is at 0"
+msgstr "priset flyttar inte målet: besparingsreglaget står på 0"
+
 #, python-format
 msgid "price may move the target up to %(reach)s °C either way"
 msgstr "priset får flytta målet upp till %(reach)s °C åt vardera hållet"
@@ -2709,6 +2712,14 @@ msgstr "tillsatsen högst %(kw)s kW"
 #, python-format
 msgid "the addition: %(policy)s"
 msgstr "tillsatsen: %(policy)s"
+
+#, python-format
+msgid ""
+"the band is too narrow for price to move the target, which stays %(edge)s °C inside "
+"each edge"
+msgstr ""
+"intervallet är för smalt för att priset ska flytta målet, som håller sig %(edge)s °C "
+"innanför varje kant"
 
 msgid "the day it falls on"
 msgstr "dagen den infaller"

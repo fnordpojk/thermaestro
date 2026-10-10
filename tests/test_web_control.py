@@ -439,6 +439,26 @@ async def test_shadow_beside_the_pump(tmp_path: Path) -> None:
         assert (await client.get("/shadow?day=nonsense")).status_code == 200  # said, not raised
 
 
+async def test_now_says_how_far_price_may_move_the_target(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, services, client):
+        await login(client, "admin")
+        assert services.intents is not None
+        await form(
+            client, "/intents", "/levels/new", name="Narrow", scope=CS, low="19", high="19,5"
+        )
+        await form(
+            client, "/intents", "/intents", kind="comfort_band", scope=CS, **{"p0.level": "narrow"}
+        )
+        await form(client, "/intents", "/intents", kind="cost_stance", slider="100")
+        page = (await client.get("/intents")).text
+        assert "the band is too narrow for price to move the target" in page
+        await form(
+            client, "/intents", "/levels/narrow", name="Narrow", scope=CS, low="19", high="21"
+        )
+        page = (await client.get("/intents")).text
+        assert "price may move the target up to 0.75 °C either way" in page  # 1 - 0.25
+
+
 async def test_the_overview_asks_for_a_while(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

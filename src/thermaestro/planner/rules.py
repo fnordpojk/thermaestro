@@ -53,8 +53,9 @@ KP = {
     "unknown": 1.0,
 }
 """Offset steps per °C a room is off its target, by emitter: a slow floor gets less."""
-EDGE_MARGIN = 0.5
-"""How far inside the band price may move a room's target: never to the edge itself."""
+EDGE_MARGIN = 0.25
+"""How far inside the band price may move a room's target: never to the edge itself, but
+near it, so that a band of 2 °C leaves price ±0.75 °C."""
 DEADBAND = 0.75
 """How far, in steps, the loop must want the offset from where it is before it changes it
 within the band: less would flip it back and forth."""

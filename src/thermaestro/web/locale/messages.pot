@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 21:30+0200\n"
+"POT-Creation-Date: 2026-10-10 22:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2470,6 +2470,9 @@ msgstr ""
 msgid "price"
 msgstr ""
 
+msgid "price doesn't move the target: the savings slider is at 0"
+msgstr ""
+
 #, python-format
 msgid "price may move the target up to %(reach)s °C either way"
 msgstr ""
@@ -2595,6 +2598,12 @@ msgstr ""
 
 #, python-format
 msgid "the addition: %(policy)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"the band is too narrow for price to move the target, which stays %(edge)s"
+" °C inside each edge"
 msgstr ""
 
 msgid "the day it falls on"

@@ -214,6 +214,7 @@ async def _intents_page(
         ranks=RANKS,
         policies=POLICIES,
         states=STATES,
+        edge=EDGE_MARGIN,
         rows={"pattern": PATTERN_ROWS, "deadlines": DEADLINE_ROWS, "spans": SPAN_ROWS},
         **{"answer": None, "error": None, **extra},
     )
