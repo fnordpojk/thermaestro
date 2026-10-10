@@ -268,6 +268,39 @@ MIGRATIONS: tuple[str, ...] = (
         found TEXT NOT NULL CHECK (json_valid(found))
     ) STRICT;
     """,
+    # 16: underfloor heating splits into a light floor and a slab; what was answered as
+    # underfloor heating meant a slab and becomes one, marked to be checked
+    """
+    UPDATE settings SET body = json_set(
+        body,
+        '$.check_emitters',
+        json((
+            SELECT json_group_array(key) FROM json_each(body, '$.emitters')
+            WHERE value IN ('floor', 'radiators_and_floor')
+        ))
+    )
+    WHERE kind = 'home' AND EXISTS (
+        SELECT 1 FROM json_each(body, '$.emitters') WHERE value IN ('floor', 'radiators_and_floor')
+    );
+    UPDATE settings SET body = json_set(
+        body,
+        '$.emitters',
+        json((
+            SELECT json_group_object(
+                key,
+                CASE value
+                    WHEN 'floor' THEN 'slab'
+                    WHEN 'radiators_and_floor' THEN 'radiators_and_slab'
+                    ELSE value
+                END
+            )
+            FROM json_each(body, '$.emitters')
+        ))
+    )
+    WHERE kind = 'home' AND EXISTS (
+        SELECT 1 FROM json_each(body, '$.emitters') WHERE value IN ('floor', 'radiators_and_floor')
+    );
+    """,
 )
 VERSION = len(MIGRATIONS)
 

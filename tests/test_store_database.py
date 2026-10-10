@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import stat
 from contextlib import closing
@@ -66,6 +67,40 @@ async def test_emitters_taken_from_the_pump_are_forgotten(tmp_path: Path) -> Non
         raw.execute("PRAGMA user_version = 11")
     async with await Database.open(path) as db:
         assert await db.get(Home) == Home(water="well")
+
+
+async def test_underfloor_heating_answered_before_the_split_is_a_slab(tmp_path: Path) -> None:
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path):
+        pass
+    old = {
+        "emitters": {
+            "pump:hp1/cs1": "floor",
+            "pump:hp1/cs2": "radiators_and_floor",
+            "pump:hp1/cs3": "radiators",
+        },
+        "water": "well",
+    }
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute(
+            "INSERT INTO settings (kind, id, body, updated) VALUES ('home', '', ?, '2026-10-10')",
+            (json.dumps(old),),
+        )
+        raw.execute("PRAGMA user_version = 15")
+    async with await Database.open(path) as db:
+        home = await db.get(Home)
+    assert home is not None
+    assert home.emitters == {
+        "pump:hp1/cs1": "slab",
+        "pump:hp1/cs2": "radiators_and_slab",
+        "pump:hp1/cs3": "radiators",
+    }
+    assert set(home.check_emitters) == {"pump:hp1/cs1", "pump:hp1/cs2"}
+    # Run again (as after a restore): nothing more changes.
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 15")
+    async with await Database.open(path) as db:
+        assert await db.get(Home) == home
 
 
 async def test_a_stored_remainder_is_a_suppliers_total_again(tmp_path: Path) -> None:

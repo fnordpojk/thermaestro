@@ -26,16 +26,20 @@ CHECK_SPAN = timedelta(days=7)
 RESPONSE_H: dict[str, float] = {
     "radiators": 2.0,
     "fan_coils": 1.0,
-    "radiators_and_floor": 6.0,
-    "floor": 12.0,
+    "floor_light": 3.0,
+    "slab": 12.0,
+    "radiators_and_floor_light": 3.0,
+    "radiators_and_slab": 6.0,
     "unknown": 4.0,
 }
 """How long a change of heat takes to show in the room, by emitter, until it is learned."""
 EMITTER_WORDS = {
     "radiators": "the radiators",
     "fan_coils": "the fan coils",
-    "radiators_and_floor": "the heating",
-    "floor": "the floor heating",
+    "floor_light": "the floor heating",
+    "slab": "the floor heating",
+    "radiators_and_floor_light": "the heating",
+    "radiators_and_slab": "the heating",
     "unknown": "the heating",
 }
 

@@ -282,7 +282,7 @@ CAPS = Capabilities(
     offset=frozenset({CS}),
     tanks=frozenset({TANK}),
     block=frozenset({TANK}),
-    emitters={CS: "floor"},
+    emitters={CS: "slab"},
 )
 
 

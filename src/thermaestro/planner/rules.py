@@ -48,11 +48,13 @@ CHARGE_S = 3600.0
 KP = {
     "radiators": 1.5,
     "fan_coils": 2.0,
-    "radiators_and_floor": 1.0,
-    "floor": 0.75,
+    "floor_light": 1.25,
+    "slab": 0.75,
+    "radiators_and_floor_light": 1.25,
+    "radiators_and_slab": 1.0,
     "unknown": 1.0,
 }
-"""Offset steps per °C a room is off its target, by emitter: a slow floor gets less."""
+"""Offset steps per °C a room is off its target, by emitter: a slow slab gets less."""
 EDGE_MARGIN = 0.25
 """How far inside the band price may move a room's target: never to the edge itself, but
 near it, so that a band of 2 °C leaves price ±0.75 °C."""

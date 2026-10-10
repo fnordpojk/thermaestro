@@ -137,10 +137,10 @@ async def test_levels(tmp_path: Path) -> None:
 async def test_setup_answers_about_the_house(tmp_path: Path) -> None:
     async with site(tmp_path) as (_, _, client):
         headers = await login(client, "admin")
-        body = {"emitters": {CS: "floor"}, "house": "average", "water": "well", "holidays": "SE"}
+        body = {"emitters": {CS: "slab"}, "house": "average", "water": "well", "holidays": "SE"}
         put = await client.put("/api/v1/home", json=body, headers=headers)
         assert put.status_code == 200, put.text
-        assert (await client.get("/api/v1/home")).json()["emitters"] == {CS: "floor"}
+        assert (await client.get("/api/v1/home")).json()["emitters"] == {CS: "slab"}
         bad = await client.put("/api/v1/home", json={"water": "lake"}, headers=headers)
         assert bad.status_code == 400
 

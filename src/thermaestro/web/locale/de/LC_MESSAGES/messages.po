@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 23:09+0200\n"
+"POT-Creation-Date: 2026-10-10 23:29+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -453,6 +453,11 @@ msgstr "Ladetemperatur"
 msgid "Chart"
 msgstr "Diagramm"
 
+msgid "Check this: underfloor heating is now two kinds, and this was taken as a slab."
+msgstr ""
+"Bitte prüfen: Fußbodenheizung gibt es jetzt in zwei Arten, und dies wurde als Heizung"
+" im Estrich angenommen."
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr "Geprüft gegen %(series)s: gleich in allen %(n)s Viertelstunden."
@@ -738,6 +743,9 @@ msgstr "Kamin"
 
 msgid "First administrator"
 msgstr "Erster Administrator"
+
+msgid "Floor heating in a concrete slab"
+msgstr "Fußbodenheizung im Beton-Estrich"
 
 msgid "Flow"
 msgstr "Durchfluss"
@@ -1525,8 +1533,11 @@ msgstr "Ruhezeiten"
 msgid "Radiators"
 msgstr "Heizkörper"
 
-msgid "Radiators and underfloor heating"
-msgstr "Heizkörper und Fußbodenheizung"
+msgid "Radiators and slab heating"
+msgstr "Heizkörper und Fußbodenheizung im Estrich"
+
+msgid "Radiators and underfloor heating in boards"
+msgstr "Heizkörper und Fußbodenheizung in Platten"
 
 msgid "Rate in percent"
 msgstr "Satz in Prozent"
@@ -2047,8 +2058,8 @@ msgstr "Topic-Präfix"
 msgid "Total"
 msgstr "Gesamt"
 
-msgid "Underfloor heating"
-msgstr "Fußbodenheizung"
+msgid "Underfloor heating in boards or grooves"
+msgstr "Fußbodenheizung in Platten oder Nuten"
 
 msgid "Unit"
 msgstr "Einheit"

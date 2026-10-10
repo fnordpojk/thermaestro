@@ -576,7 +576,17 @@ class Climate(Setting):
         return self
 
 
-Emitter = Literal["unknown", "radiators", "floor", "radiators_and_floor", "fan_coils"]
+Emitter = Literal[
+    "unknown",
+    "radiators",
+    "fan_coils",
+    "floor_light",
+    "slab",
+    "radiators_and_floor_light",
+    "radiators_and_slab",
+]
+"""What gives off a climate system's heat. `floor_light`: loops just under the floor,
+in grooved insulation or boards; `slab`: loops cast in a concrete slab, far slower."""
 
 
 class Home(Setting):
@@ -588,6 +598,9 @@ class Home(Setting):
     emitters: dict[PointRef, Emitter] = Field(default_factory=dict)
     """Per climate system's node (`pump:hp1/cs1`): what gives off its heat. How slow a
     system is starts from this, until it is learned."""
+    check_emitters: tuple[PointRef, ...] = ()
+    """Climate systems whose answer was carried over from an earlier, coarser choice
+    ("underfloor heating", now taken as a slab): to be checked; answering again clears it."""
     house: Literal["unknown", "poorly_insulated", "average", "well_insulated", "low_energy"] = (
         "unknown"
     )

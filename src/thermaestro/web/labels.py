@@ -284,9 +284,11 @@ MODES = {"off": mark("Off"), "shadow": mark("Shadow"), "control": mark("Control"
 EMITTERS = {
     "unknown": mark("Not said"),
     "radiators": mark("Radiators"),
-    "floor": mark("Underfloor heating"),
-    "radiators_and_floor": mark("Radiators and underfloor heating"),
     "fan_coils": mark("Fan coils"),
+    "floor_light": mark("Underfloor heating in boards or grooves"),
+    "slab": mark("Floor heating in a concrete slab"),
+    "radiators_and_floor_light": mark("Radiators and underfloor heating in boards"),
+    "radiators_and_slab": mark("Radiators and slab heating"),
 }
 HOUSES = {
     "unknown": mark("Not said"),

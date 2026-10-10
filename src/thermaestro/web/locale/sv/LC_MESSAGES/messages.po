@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 23:09+0200\n"
+"POT-Creation-Date: 2026-10-10 23:29+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -448,6 +448,9 @@ msgstr "Laddningstemperatur"
 msgid "Chart"
 msgstr "Diagram"
 
+msgid "Check this: underfloor heating is now two kinds, and this was taken as a slab."
+msgstr "Kontrollera: golvvärme är nu två slag, och detta togs som golvvärme i betongplatta."
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr "Kontrollerat mot %(series)s: samma i alla %(n)s kvartar."
@@ -730,6 +733,9 @@ msgstr "Brasa"
 
 msgid "First administrator"
 msgstr "Första administratören"
+
+msgid "Floor heating in a concrete slab"
+msgstr "Golvvärme i betongplatta"
 
 msgid "Flow"
 msgstr "Flöde"
@@ -1509,8 +1515,11 @@ msgstr "Tysta timmar"
 msgid "Radiators"
 msgstr "Radiatorer"
 
-msgid "Radiators and underfloor heating"
-msgstr "Radiatorer och golvvärme"
+msgid "Radiators and slab heating"
+msgstr "Radiatorer och golvvärme i betongplatta"
+
+msgid "Radiators and underfloor heating in boards"
+msgstr "Radiatorer och golvvärme i skivor"
 
 msgid "Rate in percent"
 msgstr "Sats i procent"
@@ -2027,8 +2036,8 @@ msgstr "Prefix för ämnen"
 msgid "Total"
 msgstr "Totalt"
 
-msgid "Underfloor heating"
-msgstr "Golvvärme"
+msgid "Underfloor heating in boards or grooves"
+msgstr "Golvvärme i spårade skivor"
 
 msgid "Unit"
 msgstr "Enhet"

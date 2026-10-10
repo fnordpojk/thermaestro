@@ -33,7 +33,7 @@
   <label>{{ _("What heats %(system)s", system=label) }}
     <select name="emitter:{{ ref }}">
       {% for key, name in labels.EMITTERS.items() %}<option value="{{ key }}"{% if home.emitters.get(ref, "unknown") == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}
-    </select></label>
+    </select>{% if ref in home.check_emitters %} <small class="error">{{ _("Check this: underfloor heating is now two kinds, and this was taken as a slab.") }}</small>{% endif %}</label>
   {% endfor %}
   <label>{{ _("The house") }}
     <select name="house">

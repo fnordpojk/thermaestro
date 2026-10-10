@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 23:09+0200\n"
+"POT-Creation-Date: 2026-10-10 23:29+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -422,6 +422,11 @@ msgstr ""
 msgid "Chart"
 msgstr ""
 
+msgid ""
+"Check this: underfloor heating is now two kinds, and this was taken as a "
+"slab."
+msgstr ""
+
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
 msgstr ""
@@ -689,6 +694,9 @@ msgid "Fireplace"
 msgstr ""
 
 msgid "First administrator"
+msgstr ""
+
+msgid "Floor heating in a concrete slab"
 msgstr ""
 
 msgid "Flow"
@@ -1436,7 +1444,10 @@ msgstr ""
 msgid "Radiators"
 msgstr ""
 
-msgid "Radiators and underfloor heating"
+msgid "Radiators and slab heating"
+msgstr ""
+
+msgid "Radiators and underfloor heating in boards"
 msgstr ""
 
 msgid "Rate in percent"
@@ -1918,7 +1929,7 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-msgid "Underfloor heating"
+msgid "Underfloor heating in boards or grooves"
 msgstr ""
 
 msgid "Unit"

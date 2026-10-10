@@ -122,7 +122,7 @@ async def home(request: Request, who: Logged) -> dict[str, Any]:
 @router.put("/home")
 @action("home.write")
 async def set_home(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
-    """`{"emitters": {"pump:hp1/cs1": "floor"}, "house": "average", "water": "well",
+    """`{"emitters": {"pump:hp1/cs1": "slab"}, "house": "average", "water": "well",
     "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`."""
     return (await services(request).set_home(who, body)).model_dump(mode="json")
 
