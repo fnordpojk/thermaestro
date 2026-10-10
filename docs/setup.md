@@ -203,7 +203,7 @@ Each setting Thermaestro could change, by part of the pump: the heating offset o
 - **Shadow:** it decides as it would in control, shows what it would have done at the bottom of the page, and changes nothing.
 - **Control:** it makes the change, reads it back, limits how often it changes, and puts it back as it found it when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering.
 
-Switching needs the password again. A setting the pump has its own feature for (its hot-water schedule, Smart Price Adaption, its room control) asks you to confirm the feature is off first: two controllers on one setting fight. A setting someone changed elsewhere (the pump's menu, NibePi) is let go and never written over; **Keep the change** takes it over again from there.
+Switching needs the password again. A setting the pump has its own feature for (its hot-water schedule, Smart Price Adaption) asks you to confirm the feature is off first: two controllers on one setting fight. The heating offset also needs the pump's own room control off, which Thermaestro reads from the pump itself. A setting someone changed elsewhere (the pump's menu, NibePi) is let go and never written over; **Keep the change** takes it over again from there.
 
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
 
