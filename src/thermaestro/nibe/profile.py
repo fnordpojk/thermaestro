@@ -70,6 +70,9 @@ class Snapshot:
     idle: Mapping[int, float] = field(default_factory=dict)
     """For each heat meter: seconds the pump has produced for its purpose since the meter
     last changed."""
+    returned: float | None = None
+    """When the demand last left hot water or pool (monotonic seconds); None while it is on
+    one of them, or before it was seen to leave."""
 
 
 METERS = {
@@ -141,6 +144,23 @@ def changing(compressor: int, states: Mapping[int, str], moving: frozenset[int])
 def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
     if s.charge_started is not None and s.now - s.charge_started < CHARGE_SETTLE_S:
         return "transitional", "a hot-water charge started"
+    return None
+
+
+RETURN_SETTLE_S = 600.0
+"""How long after a hot-water charge or the pool's heating the supply and return sensors
+still see its water: about 5 minutes at the supply and 2 at the return, measured on an
+F1245 after one charge; twice that for now."""
+SETTLING = "water from the hot-water charge or the pool's heating still passes the sensor"
+RETURN_VALIDITY = (
+    f"transitional for {durations.text(RETURN_SETTLE_S)} after the demand leaves hot water or pool"
+)
+
+
+def returning(s: Snapshot) -> tuple[Quality, str] | None:
+    """Transitional for a while after the heating medium comes back to the climate system."""
+    if s.returned is not None and s.now - s.returned < RETURN_SETTLE_S:
+        return "transitional", SETTLING
     return None
 
 
@@ -248,13 +268,16 @@ def system_points(system: System) -> list[PointDef]:
         PointDef(
             f"{cs}/supply.temp",
             system.supply,
-            rules=(diverted_by_demand, *FLOW_RULES, defrost) if system.number == 1 else (),
+            rules=(diverted_by_demand, *FLOW_RULES, defrost, returning)
+            if system.number == 1
+            else (),
             validity=(
                 (
                     f"no_flow while the demand ({PRIO}) is hot water or pool",
                     f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
                     f"transitional while compressor {COMPRESSOR} starts or stops",
                     f"transitional while the outdoor unit defrosts ({DEFROST})",
+                    RETURN_VALIDITY,
                 )
                 if system.number == 1
                 else ()
@@ -310,11 +333,12 @@ CS1_POINTS = (
     PointDef(
         "cs1/return.temp",
         40012,
-        rules=(diverted_by_demand, *FLOW_RULES, defrost),
+        rules=(diverted_by_demand, *FLOW_RULES, defrost, returning),
         validity=(
             f"no_flow while the demand ({PRIO}) is hot water or pool",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
             f"transitional while the outdoor unit defrosts ({DEFROST})",
+            RETURN_VALIDITY,
         ),
     ),
     PointDef("cs1/pump.state", 43431, enum=PUMP_STATE),
@@ -542,6 +566,8 @@ class Family:
     lever_paths: tuple[str, ...]
     """Every lever `levers` can offer, below the unit."""
     prio_hot_water: int = PRIO_HOT_WATER
+    prio_elsewhere: frozenset[int] = frozenset({PRIO_HOT_WATER, *PRIO_POOL})
+    """The demands that send the heating medium past the climate system: hot water, pool."""
     word_swap: int | None = None
     """The register that sets the word order of 32-bit values; None where it is fixed."""
     firmware: tuple[int, int] | None = None

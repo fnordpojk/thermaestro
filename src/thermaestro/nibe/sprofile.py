@@ -20,6 +20,7 @@ from .profile import (
     DIVERTED,
     METER_IDLE_S,
     POOLED,
+    RETURN_VALIDITY,
     SUPPLY_STOPPED,
     UNIT,
     Family,
@@ -32,6 +33,7 @@ from .profile import (
     defrosting,
     diverted,
     no_flow,
+    returning,
 )
 
 PRIO = 31028
@@ -65,6 +67,7 @@ CS1_RULES = (
     diverted(POOL_VALVE, {1: POOLED}),
     *FLOW_RULES,
     defrosting(DEFROST),
+    returning,
 )
 BRINE_RULES = (no_flow(BRINE_PUMP_SPEED, BRINE_STOPPED),)
 
@@ -109,6 +112,7 @@ CS1_POINTS = (
             f"no_flow while the demand ({PRIO}) is pool or the pool's valve ({POOL_VALVE}) is open",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
             f"transitional while the outdoor unit defrosts ({DEFROST})",
+            RETURN_VALIDITY,
         ),
     ),
     PointDef(
@@ -120,6 +124,7 @@ CS1_POINTS = (
             f"no_flow while the demand ({PRIO}) is pool or the pool's valve ({POOL_VALVE}) is open",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
             f"transitional while the outdoor unit defrosts ({DEFROST})",
+            RETURN_VALIDITY,
         ),
     ),
     PointDef("cs1/room.temp", 30026),

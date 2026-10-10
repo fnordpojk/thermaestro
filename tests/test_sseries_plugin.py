@@ -202,9 +202,12 @@ async def test_pool_heating_and_defrosting(plugin: NibePlugin, spump: SimSPump) 
     await until(lambda: value(plugin, "demand")[0] == "pool")
     assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.POOLED)
     spump.registers[31028] = 30
+    await until(lambda: value(plugin, "demand")[0] == "heating")
+    # The pool's water still passes the sensors for a while.
+    assert value(plugin, "cs1/supply.temp")[1:] == ("transitional", profile.SETTLING)
     spump.registers[31805] = 1  # the outdoor unit defrosts
-    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "transitional")
-    assert value(plugin, "cs1/supply.temp")[2] == profile.DEFROSTING
+    await until(lambda: value(plugin, "cs1/supply.temp")[2] == profile.DEFROSTING)
+    assert value(plugin, "cs1/supply.temp")[1] == "transitional"
 
 
 async def test_flow_rules(plugin: NibePlugin, spump: SimSPump) -> None:

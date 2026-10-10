@@ -185,7 +185,9 @@ async def test_flow_rules(plugin: NibePlugin, stocked: SimPump) -> None:
     assert value(plugin, "brine/brine.in.temp")[1] == "transitional"
 
 
-async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
+async def test_a_hot_water_charge(
+    plugin: NibePlugin, stocked: SimPump, monkeypatch: pytest.MonkeyPatch
+) -> None:
     stocked.registers[43086] = 20  # prio: hot water
     await until(lambda: value(plugin, "demand")[0] == "dhw")
     assert value(plugin, "diverter") == ("dhw", "good", None)
@@ -196,6 +198,12 @@ async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
     await until(lambda: value(plugin, "demand")[0] == "idle")
     assert value(plugin, "diverter")[:2] == (None, "unknown")
     assert value(plugin, "dhw/temp.charge")[1] == "good"
+    # The charge's water still passes the supply and return sensors for a while.
+    assert value(plugin, "cs1/supply.temp") == (35.0, "transitional", profile.SETTLING)
+    assert value(plugin, "cs1/return.temp")[1:] == ("transitional", profile.SETTLING)
+    monkeypatch.setattr(profile, "RETURN_SETTLE_S", 0.5)
+    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "good")
+    assert value(plugin, "cs1/return.temp")[1] == "good"
 
 
 async def test_pool_heating(plugin: NibePlugin, stocked: SimPump) -> None:
@@ -203,6 +211,9 @@ async def test_pool_heating(plugin: NibePlugin, stocked: SimPump) -> None:
     await until(lambda: value(plugin, "demand")[0] == "pool")
     assert value(plugin, "cs1/supply.temp")[1:] == ("no_flow", profile.POOLED)
     assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.POOLED)
+    stocked.registers[43086] = 30  # heating: the pool's water passes for a while
+    await until(lambda: value(plugin, "demand")[0] == "heating")
+    assert value(plugin, "cs1/supply.temp")[1:] == ("transitional", profile.SETTLING)
 
 
 async def test_a_heat_meter_that_doesnt_count(

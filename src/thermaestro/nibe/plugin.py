@@ -177,6 +177,8 @@ class NibePlugin:
         self._tick = asyncio.Event()
         self._read_lock = asyncio.Lock()
         self._charge_started: float | None = None
+        self._returned: float | None = None
+        """When the demand last left hot water or pool."""
         self._meter_idle: dict[int, float] = {}
         """Per heat meter: seconds of production for its purpose since it last changed."""
         self._last_store: float | None = None
@@ -444,10 +446,16 @@ class NibePlugin:
         if register == self.family.prio:
             prio = words_[0] & 0xFF
             previous = self._samples.get(register)
+            before = None if previous is None else previous.words[0] & 0xFF
             if prio != self.family.prio_hot_water:
                 self._charge_started = None
-            elif previous is None or previous.words[0] & 0xFF != self.family.prio_hot_water:
+            elif before != self.family.prio_hot_water:
                 self._charge_started = now
+            elsewhere = self.family.prio_elsewhere
+            if prio in elsewhere:
+                self._returned = None
+            elif before in elsewhere:
+                self._returned = now
         self._samples[register] = Sample(words_, now)
         self._decoded = None
         if register in (self.family.brine_in, self.family.brine_out, self.family.brine_pump_speed):
@@ -913,7 +921,11 @@ class NibePlugin:
                         values[register] = decoded.value
             self._decoded = values
         return profile.Snapshot(
-            self._decoded, self._charge_started, clock.monotonic(), dict(self._meter_idle)
+            self._decoded,
+            self._charge_started,
+            clock.monotonic(),
+            dict(self._meter_idle),
+            self._returned,
         )
 
     def _unit(self, definition: profile.PointDef) -> str | None:
