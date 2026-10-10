@@ -546,7 +546,8 @@ class Executor:
         if check.kind == "none":
             return Result("unverifiable", "this lever can't be checked")
         if check.kind == "effect":
-            return Result("awaiting_effect", check.expectation)
+            # The expectation is what engaging does; a release only ends it.
+            return Result("awaiting_effect", None if op == "release" else check.expectation)
         if op not in ("set", "feed") or check.point is None:
             return Result("unverifiable", "a readback can't show this")
         target = params.get("value")

@@ -4,7 +4,7 @@ sees it: identification, detection, values and their quality, and nothing writte
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Callable
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,7 @@ from thermaestro_gateway.server import Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
-from thermaestro.cap.messages import Described, DeviceEvent
+from thermaestro.cap.messages import Described, DeviceEvent, Read
 from thermaestro.core import discover
 from thermaestro.nibe import logset, profile
 from thermaestro.nibe.maps import load
@@ -173,6 +173,25 @@ async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) ->
     assert value(plugin, "heat.produced{purpose=dhw,by=total}") == (1234.5, "good", None)
     assert value(plugin, "cs1/x.nibe.47011") == (-4, "good", None)
     assert plugin.envelope("hp1/outdoor.temp").unit == "degC"
+
+
+async def test_a_read_after_a_time_never_gives_an_older_value(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        read_timeout_s=0.5,
+    )
+    point = "hp1/cs1/x.nibe.47011"
+    async with running_plugin(p):
+        await until(lambda: value(p, "cs1/x.nibe.47011")[1] == "good")
+        stocked.silent_reads = 1000  # the read fails
+        asked = datetime.now(UTC)
+        (found,) = await p._read_points(Read(id=1, points=(point,), after=asked))
+    assert (found.value, found.quality) == (None, "unknown")
+    assert found.why == "no value read since it was asked"
 
 
 async def test_flow_rules(plugin: NibePlugin, stocked: SimPump) -> None:

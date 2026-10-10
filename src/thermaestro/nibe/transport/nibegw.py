@@ -187,10 +187,12 @@ class PlainClient:
     async def read(
         self, register: int, *, after: float | None = None, timeout: float = 30.0
     ) -> Reading:
-        deadline = clock.monotonic() + timeout
         frame = nibe.read_request(register)
         if after is not None:
-            await self._settle(register, deadline)
+            # The wait for quiet comes first and isn't counted: a register read a moment
+            # ago (as before a write) is never quiet within a timeout of answer_s.
+            await self._settle(register, clock.monotonic() + self.settings.answer_s + timeout)
+        deadline = clock.monotonic() + timeout
         pending = _Read(register, frame, after, asyncio.get_running_loop().create_future())
         self._reads.append(pending)
         try:

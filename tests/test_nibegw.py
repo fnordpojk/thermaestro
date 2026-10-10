@@ -73,6 +73,16 @@ async def test_a_read_back_waits_out_a_read_taken_before_the_write(
     assert back.data[:2] == word(5)
 
 
+async def test_waiting_for_quiet_doesnt_use_up_a_read_backs_timeout(
+    client: PlainClient, pump: SimPump
+) -> None:
+    # Read a moment ago, as before a write: the register isn't quiet for answer_s yet.
+    first = await client.read(47011, timeout=5)
+    back = await client.read(47011, after=first.t_answered, timeout=FAST.answer_s)
+    assert back.data == first.data
+    assert pump.taken_reads.count(47011) == 2
+
+
 async def test_a_read_that_is_never_answered_fails(client: PlainClient, pump: SimPump) -> None:
     pump.silent_reads = 1000
     with pytest.raises(ReadFailed):

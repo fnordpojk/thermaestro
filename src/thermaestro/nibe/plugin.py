@@ -664,7 +664,16 @@ class NibePlugin:
                     await self._wait_for(definition.register, after)
                 else:
                     await self._read(definition.register, after=after)
-        return [self.envelope(path) for path in request.points]
+        found = [self.envelope(path) for path in request.points]
+        if request.after is None:
+            return found
+        # A read that failed leaves the older sample: that is no answer to this read.
+        return [
+            _missing(e.point, _now(), "no value read since it was asked")
+            if e.t_observed is not None and e.t_observed < request.after
+            else e
+            for e in found
+        ]
 
     async def _wait_for(self, register: int, after: float) -> None:
         with contextlib.suppress(TimeoutError):

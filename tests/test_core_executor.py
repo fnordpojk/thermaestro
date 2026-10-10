@@ -239,12 +239,14 @@ async def test_restore_puts_everything_back(tmp_path: Path) -> None:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         engaged = await r.executor.act(BLOCK, "engage", who="planner")
         assert engaged.outcome == "awaiting_effect"
+        assert engaged.detail is not None
         assert r.device.registers["x.fake.start"] == 25
         results = await r.executor.restore("Thermaestro is stopping")
         assert {ref: res.outcome for ref, res in results.items()} == {
             OFFSET: "verified",
             BLOCK: "awaiting_effect",
         }
+        assert results[BLOCK].detail is None  # what engaging does isn't said of a release
         assert r.device.registers["x.fake.offset"] == -4
         assert r.device.held == set()
         assert not any(c.changed for c in r.executor.claims.values())
