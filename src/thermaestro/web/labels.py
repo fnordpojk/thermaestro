@@ -348,6 +348,22 @@ STATES = {
 }
 
 
+OUTCOMES = {
+    "verified": mark("done, and read back"),
+    "not_kept": mark("accepted, but not kept"),
+    "unverifiable": mark("sent; it can't be checked"),
+    "awaiting_effect": mark("sent; its effect is awaited"),
+    "timeout": mark("no answer in time"),
+    "shadowed": mark("shadow: nothing was changed"),
+    "dropped": mark("not delivered"),
+    "device_refused": mark("the pump refused it"),
+    "refused": mark("refused"),
+    "unchanged": mark("already so"),
+    "replaced": mark("a newer request replaced it"),
+    "skipped": mark("not asked again yet"),
+}
+
+
 def lever(path: str) -> str:
     name = path.rpartition("/")[2]
     return i18n._(LEVERS[name]) if name in LEVERS else name

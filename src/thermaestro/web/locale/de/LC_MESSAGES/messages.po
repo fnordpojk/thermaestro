@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 03:24+0200\n"
+"POT-Creation-Date: 2026-10-10 03:36+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -260,11 +260,17 @@ msgstr "Für eine Weile bitten"
 msgid "Ask for it"
 msgstr "Darum bitten"
 
+msgid "Asked"
+msgstr "Gewünscht"
+
 msgid "Asked for"
 msgstr "Gewünscht"
 
 msgid "Asked for."
 msgstr "Gewünscht."
+
+msgid "Asked now"
+msgstr "Jetzt gewünscht"
 
 msgid "At"
 msgstr "Zeit"
@@ -757,6 +763,9 @@ msgstr "Home Assistant bietet nichts, was Thermaestro nutzen kann."
 msgid "Hot water"
 msgstr "Warmwasser"
 
+msgid "Hot water ahead"
+msgstr "Warmwasser voraus"
+
 msgid "Hot water by"
 msgstr "Warmwasser bis"
 
@@ -786,6 +795,9 @@ msgstr "Luftfeuchte"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
+
+msgid "In control now"
+msgstr "Jetzt gesteuert"
 
 msgid "Instance"
 msgstr "Instanz"
@@ -819,6 +831,10 @@ msgstr "Sprache und Formate"
 
 msgid "Language of the names"
 msgstr "Sprache der Namen"
+
+#, python-format
+msgid "Last decided %(when)s."
+msgstr "Zuletzt entschieden %(when)s."
 
 msgid "Last error:"
 msgstr "Letzter Fehler:"
@@ -1014,6 +1030,9 @@ msgstr "Noch keine Räume."
 msgid "No sensors yet."
 msgstr "Noch keine Sensoren."
 
+msgid "No settings to change yet."
+msgstr "Noch keine Einstellungen zu ändern."
+
 msgid "No settings to change yet: connect a pump first."
 msgstr "Noch keine Einstellungen zu ändern: zuerst eine Wärmepumpe verbinden."
 
@@ -1045,6 +1064,9 @@ msgstr "Nicht angegeben"
 
 msgid "Nothing asked for yet."
 msgstr "Noch nichts gewünscht."
+
+msgid "Nothing asked in the last day."
+msgstr "In den letzten 24 Stunden nichts gewünscht."
 
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
@@ -1149,6 +1171,9 @@ msgstr "Persönliches Zugriffstoken"
 
 msgid "Pinned to the overview"
 msgstr "An die Übersicht angeheftet"
+
+msgid "Plan"
+msgstr "Plan"
 
 #, python-format
 msgid "Plugin %(name)s"
@@ -1350,6 +1375,9 @@ msgstr "Richten Sie den MQTT-Broker unter Extern ein, um hier MQTT-Sensoren hinz
 msgid "Setpoint"
 msgstr "Sollwert"
 
+msgid "Setting"
+msgstr "Einstellung"
+
 msgid "Settings"
 msgstr "Einstellungen"
 
@@ -1504,6 +1532,10 @@ msgstr "Das Haus"
 msgid "The house at most, kW"
 msgstr "Das Haus höchstens, kW"
 
+#, python-format
+msgid "The house now: %(now)s kW, of at most %(limit)s kW."
+msgstr "Das Haus jetzt: %(now)s kW, von höchstens %(limit)s kW."
+
 msgid ""
 "The household's own named settings, used by name: changing one changes every intent "
 "that names it."
@@ -1511,11 +1543,17 @@ msgstr ""
 "Die eigenen benannten Einstellungen des Haushalts, nach Namen verwendet: Ändert man "
 "eine, ändert sich jeder Wunsch, der sie nennt."
 
+msgid "The last day"
+msgstr "Die letzten 24 Stunden"
+
 msgid "The location's climate"
 msgstr "Das Klima des Standorts"
 
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
+
+msgid "The plan"
+msgstr "Der Plan"
 
 msgid "The pool"
 msgstr "Der Pool"
@@ -1716,6 +1754,17 @@ msgstr "Gut gedämmt"
 msgid "What"
 msgstr "Was"
 
+msgid ""
+"What Thermaestro decides every 15 minutes, and why. It decides for now from what "
+"applies now; a plan that looks a day or two ahead comes with the house's model."
+msgstr ""
+"Was Thermaestro alle 15 Minuten entscheidet, und warum. Es entscheidet für jetzt aus "
+"dem, was jetzt gilt; ein Plan, der ein oder zwei Tage vorausschaut, kommt mit dem "
+"Modell des Hauses."
+
+msgid "What became of it"
+msgstr "Was daraus wurde"
+
 msgid "What each provider gives"
 msgstr "Was jeder Anbieter liefert"
 
@@ -1788,6 +1837,9 @@ msgstr "Welcher Anbieter wofür"
 
 msgid "Who"
 msgstr "Wer"
+
+msgid "Why"
+msgstr "Warum"
 
 msgid "Wind"
 msgstr "Wind"
@@ -1866,6 +1918,9 @@ msgstr ""
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr "ein Land und vielleicht eine Region: SE, DE-BY; leer: keine"
 
+msgid "a newer request replaced it"
+msgstr "eine neuere Anfrage hat sie ersetzt"
+
 msgid "a password can have at most 256 characters"
 msgstr "ein Passwort darf höchstens 256 Zeichen haben"
 
@@ -1884,6 +1939,9 @@ msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
 
+msgid "accepted, but not kept"
+msgstr "angenommen, aber nicht behalten"
+
 msgid "active"
 msgstr "aktiv"
 
@@ -1901,6 +1959,9 @@ msgstr "Zusatzheizung"
 
 msgid "all"
 msgstr "alle"
+
+msgid "already so"
+msgstr "schon so"
 
 msgid "always"
 msgstr "immer"
@@ -1934,6 +1995,10 @@ msgstr "wie von Ihnen eingestellt"
 
 msgid "assumed"
 msgstr "angenommen"
+
+#, python-format
+msgid "at least %(temp)s °C by %(when)s"
+msgstr "mindestens %(temp)s °C bis %(when)s"
 
 msgid "at least 15 characters"
 msgstr "mindestens 15 Zeichen"
@@ -1987,6 +2052,9 @@ msgstr "abgeleitet aus %(inputs)s"
 
 msgid "disabled"
 msgstr "deaktiviert"
+
+msgid "done, and read back"
+msgstr "erledigt und zurückgelesen"
 
 msgid "down"
 msgstr "ausgefallen"
@@ -2087,6 +2155,9 @@ msgstr "jetzt gehalten"
 msgid "highest"
 msgstr "höchster"
 
+msgid "hold"
+msgstr "halten"
+
 msgid "hot water"
 msgstr "Warmwasser"
 
@@ -2106,6 +2177,10 @@ msgstr "in einem Raum"
 msgid "included"
 msgstr "enthalten"
 
+#, python-format
+msgid "its cheapest time to charge, if it needs one: from %(when)s"
+msgstr "die günstigste Zeit zum Laden, falls nötig: ab %(when)s"
+
 msgid "last heard"
 msgstr "zuletzt gehört"
 
@@ -2114,6 +2189,9 @@ msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot
 msgstr ""
 "abzüglich %(spot)s: was der Lieferant aufschlägt; der Spotpreis kommt aus der "
 "Spotpreis-Schicht"
+
+msgid "let go"
+msgstr "loslassen"
 
 msgid "lowest"
 msgstr "niedrigster"
@@ -2139,6 +2217,9 @@ msgstr "muss bereit sein"
 msgid "no"
 msgstr "nein"
 
+msgid "no answer in time"
+msgstr "keine Antwort rechtzeitig"
+
 #, python-format
 msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
 msgstr ""
@@ -2163,6 +2244,12 @@ msgstr "keiner"
 msgid "none yet"
 msgstr "noch keine"
 
+msgid "not asked again yet"
+msgstr "noch nicht erneut gewünscht"
+
+msgid "not delivered"
+msgstr "nicht zugestellt"
+
 msgid "not known"
 msgstr "unbekannt"
 
@@ -2183,6 +2270,9 @@ msgstr "nichts Eigenes"
 
 msgid "off"
 msgstr "aus"
+
+msgid "off: the pump's own"
+msgstr "aus: die eigene der Pumpe"
 
 msgid "on"
 msgstr "ein"
@@ -2206,6 +2296,9 @@ msgstr "Pool %(low)s–%(high)s °C"
 msgid "preselected from this browser"
 msgstr "aus diesem Browser vorausgewählt"
 
+msgid "price"
+msgstr "der Preis"
+
 #, python-format
 msgid "price may move the target up to %(reach)s °C either way"
 msgstr "der Preis darf das Ziel um bis zu %(reach)s °C in beide Richtungen verschieben"
@@ -2216,6 +2309,9 @@ msgstr "Propylenglykol, etwa 30 %%"
 
 msgid "publishing"
 msgstr "veröffentlicht"
+
+msgid "put back as found"
+msgstr "wie vorgefunden zurückgestellt"
 
 msgid "quiet hours"
 msgstr "Ruhezeiten"
@@ -2266,6 +2362,12 @@ msgstr "in seinen Antworten gesehen"
 msgid "seen in running"
 msgstr "im Betrieb gesehen"
 
+msgid "sent; it can't be checked"
+msgstr "gesendet; kann nicht geprüft werden"
+
+msgid "sent; its effect is awaited"
+msgstr "gesendet; ihre Wirkung wird erwartet"
+
 #, python-format
 msgid "set aside: %(why)s"
 msgstr "zurückgestellt: %(why)s"
@@ -2274,11 +2376,17 @@ msgstr "zurückgestellt: %(why)s"
 msgid "set to %(value)s"
 msgstr "gesetzt auf %(value)s"
 
+msgid "shadow: nothing was changed"
+msgstr "Schatten: nichts wurde geändert"
+
 msgid "should be ready"
 msgstr "sollte bereit sein"
 
 msgid "stale"
 msgstr "veraltet"
+
+msgid "start"
+msgstr "starten"
 
 msgid "starting"
 msgstr "startet"
@@ -2322,6 +2430,9 @@ msgstr "den Alltagswerten"
 msgid "the gateway's, or an S-series pump's own"
 msgstr "die des Gateways oder die eigene einer Pumpe der S-Serie"
 
+msgid "the hot water's floor"
+msgstr "die Untergrenze des Warmwassers"
+
 #, python-format
 msgid "the house at most %(kw)s kW"
 msgstr "das Haus höchstens %(kw)s kW"
@@ -2331,6 +2442,9 @@ msgstr "der Hauptanbieter"
 
 msgid "the password you entered isn't right"
 msgstr "das eingegebene Passwort ist nicht richtig"
+
+msgid "the pump refused it"
+msgstr "die Pumpe hat abgelehnt"
 
 msgid "the pump's own"
 msgstr "der der Pumpe"

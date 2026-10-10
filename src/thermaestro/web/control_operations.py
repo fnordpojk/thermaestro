@@ -7,7 +7,8 @@ Asking for an intent needs the right its kind needs; ending someone else's needs
 change made elsewhere needs `levers.control`, with the password entered again.
 """
 
-from datetime import datetime
+import json
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from .. import clock
@@ -318,13 +319,69 @@ class ControlOperations:
 
     # --- the plan --------------------------------------------------------------------------
 
+    async def recent_acts(self, caller: "Caller", hours: float = 24.0) -> list[dict[str, Any]]:
+        """Every change asked in the last `hours`, newest first: made, shadowed or refused,
+        with who asked, why, and what became of it."""
+        caller.principal.require("plan.read")
+        since = clock.time() - hours * 3600
+
+        def read(t: Any) -> list[tuple[Any, ...]]:
+            return list(
+                t.execute(
+                    "SELECT t, lever, op, params, who, why, mode, outcome, detail FROM acts"
+                    " WHERE t >= ? ORDER BY t DESC LIMIT 500",
+                    (since,),
+                )
+            )
+
+        rows = await self.db.run(read)
+        return [
+            {
+                "t": datetime.fromtimestamp(t, UTC).isoformat(),
+                "lever": lever,
+                "op": op,
+                "params": json.loads(params),
+                "who": who,
+                "why": why,
+                "mode": mode,
+                "outcome": outcome,
+                "detail": detail,
+            }
+            for t, lever, op, params, who, why, mode, outcome, detail in rows
+        ]
+
     def plan(self, caller: "Caller") -> dict[str, Any]:
         """The planner's last round: each decision with its reason and what became of it;
-        and in shadow, what it would have done."""
+        in shadow, what it would have done; the hot-water deadlines ahead with the window
+        chosen for each charge; and the house's power against its limit."""
+        from ..planner.rules import CHARGE_S, cheapest_start
+
         caller.principal.require("plan.read")
         planner = self.planner
         last = planner.plan if planner is not None else None
+        sit = planner.situation if planner is not None else None
+        ahead = []
+        if sit is not None:
+            for d in sit.deadlines:
+                if d.t <= sit.now:
+                    continue
+                charge = sit.memory.charge_s.get(d.scope, CHARGE_S)
+                start = cheapest_start(sit.prices, sit.now, d.t, charge)
+                ahead.append(
+                    {
+                        "t": d.t.isoformat(),
+                        "scope": d.scope,
+                        "at_least": d.at_least,
+                        "strength": d.strength,
+                        "charge_from": start.isoformat() if start else None,
+                    }
+                )
+        limit = sit.force.bound("house_power", "house") if sit is not None else None
         return {
+            "ahead": ahead,
+            "house_kw": sit.house_kw if sit is not None else None,
+            "limit_kw": limit.high if limit is not None else None,
+            "ranking": list(sit.force.ranking) if sit is not None else [],
             "at": last.t.isoformat() if last else None,
             "decisions": [
                 {

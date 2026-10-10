@@ -211,6 +211,29 @@ async def _intents_page(
     )
 
 
+@router.get("/plan")
+async def plan_page(request: Request, who: Logged) -> Response:
+    from .labels import RANKS
+
+    s = services(request)
+    plan = s.plan(who)
+    return render(
+        request,
+        "plan.html",
+        who,
+        plan=plan,
+        decided={d["lever"]: d for d in plan["decisions"]},
+        levers=(
+            await s.levers(who)
+            if who.principal.allows("settings.read")
+            else [{"lever": d["lever"], "mode": "", "unavailable": None} for d in plan["decisions"]]
+        ),
+        changes=await s.recent_acts(who),
+        scopes=s.intent_scopes(who),
+        ranks=RANKS,
+    )
+
+
 @router.get("/intents")
 async def intents_page(request: Request, who: Logged) -> Response:
     return await _intents_page(request, who)

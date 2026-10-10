@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Plan") }}{% endblock %}
+{% block main %}
+{% set names = {"house": _("The whole house")} %}
+{% for group in scopes.values() %}{% for ref, label in group %}{% set ignored = names.update({ref: label}) %}{% endfor %}{% endfor %}
+{% macro asked(op, params) %}{% if op == "set" %}{{ _("set to %(value)s", value=params.value) }}{% elif op == "engage" %}{{ _("hold") }}{% elif op == "release" %}{{ _("let go") }}{% elif op == "fire" %}{{ _("start") }}{% elif op == "restore" %}{{ _("put back as found") }}{% else %}{{ op }}{% endif %}{% endmacro %}
+{% macro serves(rank) %}{% if rank == 1 %}{{ _("the hot water's floor") }}{% elif rank == 7 %}{{ _("price") }}{% elif plan.ranking and plan.ranking[rank - 2] in ranks %}{{ _(ranks[plan.ranking[rank - 2]]) }}{% endif %}{% endmacro %}
+<h1>{{ _("Plan") }}</h1>
+<p>{{ _("What Thermaestro decides every 15 minutes, and why. It decides for now from what applies now; a plan that looks a day or two ahead comes with the house's model.") }} <a href="/intents">{{ _("Intents") }}</a></p>
+{% if plan.at %}<p class="hint">{{ _("Last decided %(when)s.", when=plan.at | when) }}</p>{% endif %}
+
+<section id="now">
+<h2>{{ _("In control now") }}</h2>
+<table>
+  <thead><tr><th>{{ _("Setting") }}</th><th>{{ _("Mode") }}</th><th>{{ _("Asked now") }}</th><th>{{ _("Why") }}</th><th>{{ _("What became of it") }}</th></tr></thead>
+  <tbody>
+  {% for lv in levers if not lv.unavailable and lv.lever.rpartition("/")[2] != "alarm.reset" %}{% set d = decided.get(lv.lever) %}
+    <tr>
+      <td>{{ lv.lever | lever }}</td>
+      <td>{{ _(labels.MODES[lv.mode]) if lv.mode in labels.MODES else "" }}</td>
+      <td>{% if d %}{{ asked(d.op, d.params) }}{% else %}–{% endif %}</td>
+      <td>{% if d %}{{ d.reason }}{% if serves(d.rank) | trim %} <small>({{ serves(d.rank) | trim }})</small>{% endif %}{% elif lv.mode == "off" %}{{ _("off: the pump's own") }}{% else %}–{% endif %}</td>
+      <td>{% if d %}{{ labels.choice(labels.OUTCOMES, d.outcome) }}{% if d.detail %} <small>{{ d.detail }}</small>{% endif %}{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5">{{ _("No settings to change yet.") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</section>
+
+{% if plan.ahead %}
+<section id="hot-water">
+<h2>{{ _("Hot water ahead") }}</h2>
+<ul>
+{% for a in plan.ahead %}
+  <li>{{ names.get(a.scope, a.scope) }}: {{ _("at least %(temp)s °C by %(when)s", temp=a.at_least | num(1), when=a.t | when) }} ({% if a.strength == "must" %}{{ _("must be ready") }}{% else %}{{ _("should be ready") }}{% endif %}){% if a.charge_from %} · {{ _("its cheapest time to charge, if it needs one: from %(when)s", when=a.charge_from | when) }}{% endif %}</li>
+{% endfor %}
+</ul>
+</section>
+{% endif %}
+
+{% if plan.limit_kw is not none %}
+<section id="power">
+<h2>{{ _("Power") }}</h2>
+<p>{{ _("The house now: %(now)s kW, of at most %(limit)s kW.", now=plan.house_kw | num(1) if plan.house_kw is not none else "–", limit=plan.limit_kw | num(1)) }}</p>
+</section>
+{% endif %}
+
+{% if plan.notices %}
+<section id="shadow">
+<h2>{{ _("What shadow would have done") }}</h2>
+<ul>{% for n in plan.notices %}<li>{{ n.t | when }}: {{ n.lever | lever }}, {{ n.text }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section id="changes">
+<h2>{{ _("The last day") }}</h2>
+<table>
+  <thead><tr><th>{{ _("When") }}</th><th>{{ _("Setting") }}</th><th>{{ _("Asked") }}</th><th>{{ _("Mode") }}</th><th>{{ _("What became of it") }}</th><th>{{ _("Why") }}</th></tr></thead>
+  <tbody>
+  {% for c in changes %}
+    <tr><td>{{ c.t | when }}</td><td>{{ c.lever | lever }}</td><td>{{ asked(c.op, c.params) }}</td><td>{{ _(labels.MODES[c.mode]) if c.mode in labels.MODES else c.mode }}</td><td>{{ labels.choice(labels.OUTCOMES, c.outcome) }}{% if c.detail %} <small>{{ c.detail }}</small>{% endif %}</td><td>{{ c.why or "" }}{% if c.who != "planner" %} <small>{{ c.who }}</small>{% endif %}</td></tr>
+  {% else %}
+    <tr><td colspan="6">{{ _("Nothing asked in the last day.") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</section>
+{% endblock %}

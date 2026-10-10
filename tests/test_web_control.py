@@ -187,6 +187,10 @@ async def test_the_plan_before_the_planner_runs(tmp_path: Path) -> None:
     async with site(tmp_path) as (_, _, client):
         await login(client, "admin")
         assert (await client.get("/api/v1/plan")).json() == {
+            "ahead": [],
+            "house_kw": None,
+            "limit_kw": None,
+            "ranking": [],
             "at": None,
             "decisions": [],
             "notices": [],
@@ -296,3 +300,27 @@ async def test_the_overview_asks_for_a_while(tmp_path: Path) -> None:
         assert page.status_code == 200
         assert "Ask for a while" in page.text
         assert 'value="hands_off"' not in page.text  # the household has no right to it
+
+
+async def test_the_plan_page_shows_what_was_asked(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        headers = await login(client, "admin")
+        await client.put(f"/api/v1/levers/{OFFSET}/mode", json={"mode": "shadow"}, headers=headers)
+        result = await r.executor.act(
+            OFFSET, "set", {"value": 2}, who="planner", why="cheap hours: warming"
+        )
+        assert result.outcome == "shadowed"
+        changes = (await client.get("/api/v1/plan/changes")).json()
+        assert [(c["lever"], c["outcome"], c["why"]) for c in changes] == [
+            (OFFSET, "shadowed", "cheap hours: warming")
+        ]
+        page = await client.get("/plan")
+        assert page.status_code == 200
+        assert "shadow: nothing was changed" in page.text
+        assert "cheap hours: warming" in page.text
+
+
+async def test_the_household_sees_the_plan(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, _, client):
+        await login(client, "kid")
+        assert (await client.get("/plan")).status_code == 200

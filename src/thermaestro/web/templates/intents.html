@@ -10,7 +10,7 @@
 <select name="{{ name }}" required>{% for ref, label in scopes[group] %}<option value="{{ ref }}">{{ label }}</option>{% endfor %}</select>
 {% endmacro %}
 <h1>{{ _("Intents") }}</h1>
-<p>{{ _("What the household wants. Thermaestro plans for it, ranks what gives way when not everything can be met, and says so.") }}</p>
+<p>{{ _("What the household wants. Thermaestro plans for it, ranks what gives way when not everything can be met, and says so.") }} <a href="/plan">{{ _("The plan") }}</a></p>
 
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
 {% if answer %}

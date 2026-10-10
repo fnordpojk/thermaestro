@@ -144,3 +144,11 @@ async def plan(request: Request, who: Logged) -> dict[str, Any]:
     """The planner's last round, each decision with its reason and outcome; and in shadow,
     what it would have done."""
     return services(request).plan(who)
+
+
+@router.get("/plan/changes")
+@action("plan_changes.read")
+async def changes(request: Request, who: Logged, hours: float = 24.0) -> list[dict[str, Any]]:
+    """Every change asked in the last `hours` (at most a week), newest first: made, shadowed
+    or refused, with who asked, why, and what became of it."""
+    return await services(request).recent_acts(who, min(max(hours, 0.0), 168.0))

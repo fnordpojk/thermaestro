@@ -219,6 +219,10 @@ The page shows the day's changes against the planner's budget (about 50 a day).
 
 Asking answers at once: until when it applies, what it sets aside, and what the house can't do ("no room sensor: normal heat, shifted by price within a bound instead of a band"). The household's group may ask for things for a while; changing what always applies needs more rights ([the rights](api.md#rights)).
 
+## What Thermaestro decides: the Plan page
+
+**Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), and what became of it. Below are the hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit, what shadow would have done, and every change asked in the last day. The planner decides for now from what applies now, every 15 minutes; a plan that looks a day or two ahead comes with the house's model.
+
 ## Users and groups
 
 **System → Users** has three groups to start with:

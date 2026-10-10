@@ -296,6 +296,7 @@ A lever is a setting Thermaestro could change. Every lever starts off: Thermaest
 | `PUT /levers/{lever}/mode` | `levers.control` ⚿ | `{"mode": "shadow"}`: `off`, `shadow` or `control`. Leaving control puts the setting back as it was found. |
 | `PUT /levers/{lever}/confirmed-off` | `levers.control` ⚿ | `{"features": ["Smart Price Adaption"]}`: these are switched off on the device |
 | `POST /levers/{lever}/accept-drift` | `levers.control` ⚿ | Keep the change made elsewhere: the lever is taken over again from how it is now |
-| `GET /plan` | `plan.read` | `{at, decisions, notices}`: the planner's last round, each decision (`lever`, `op`, `params`, `rank`, `reason`) with its `outcome`; `notices`, newest first, are what shadow would have done |
+| `GET /plan` | `plan.read` | `{at, decisions, notices, ahead, house_kw, limit_kw, ranking}`: the planner's last round, each decision (`lever`, `op`, `params`, `rank`, `reason`) with its `outcome`; `notices`, newest first, are what shadow would have done; `ahead`, the hot-water deadlines to come, each with the cheapest time to charge for it (`charge_from`); the house's power and its limit |
+| `GET /plan/changes?hours=24` | `plan.read` | Every change asked in the last `hours` (at most 168), newest first: `{t, lever, op, params, who, why, mode, outcome, detail}`, made, shadowed or refused |
 
 A lever is written as `<instance>:<path>`, such as `pump:hp1/cs1/heating.offset`.

@@ -133,6 +133,8 @@ class Planner:
         self._check_s = check_s
         self.memory = Memory()
         self.plan: Plan | None = None
+        self.situation: Situation | None = None
+        """What the last full round saw: for the plan page."""
         self.notices: list[Notice] = []
         self._not_kept: dict[str, float] = {}
         self._effects: list[_Effect] = []
@@ -213,6 +215,7 @@ class Planner:
         self._situation_levers = sit.levers
         if slot:
             self.memory.last_round = sit.now
+            self.situation = sit
         plan = Plan(sit.now, decisions)
         for decision in decisions:
             plan.asked.append(await self._ask(decision, sit.now))

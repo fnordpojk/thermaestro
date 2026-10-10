@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 03:24+0200\n"
+"POT-Creation-Date: 2026-10-10 03:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -238,10 +238,16 @@ msgstr ""
 msgid "Ask for it"
 msgstr ""
 
+msgid "Asked"
+msgstr ""
+
 msgid "Asked for"
 msgstr ""
 
 msgid "Asked for."
+msgstr ""
+
+msgid "Asked now"
 msgstr ""
 
 msgid "At"
@@ -706,6 +712,9 @@ msgstr ""
 msgid "Hot water"
 msgstr ""
 
+msgid "Hot water ahead"
+msgstr ""
+
 msgid "Hot water by"
 msgstr ""
 
@@ -734,6 +743,9 @@ msgid "Humidity"
 msgstr ""
 
 msgid "ISO 8601 (2026-10-06)"
+msgstr ""
+
+msgid "In control now"
 msgstr ""
 
 msgid "Instance"
@@ -767,6 +779,10 @@ msgid "Language and formats"
 msgstr ""
 
 msgid "Language of the names"
+msgstr ""
+
+#, python-format
+msgid "Last decided %(when)s."
 msgstr ""
 
 msgid "Last error:"
@@ -955,6 +971,9 @@ msgstr ""
 msgid "No sensors yet."
 msgstr ""
 
+msgid "No settings to change yet."
+msgstr ""
+
 msgid "No settings to change yet: connect a pump first."
 msgstr ""
 
@@ -985,6 +1004,9 @@ msgid "Not said"
 msgstr ""
 
 msgid "Nothing asked for yet."
+msgstr ""
+
+msgid "Nothing asked in the last day."
 msgstr ""
 
 msgid "Nothing is connected yet."
@@ -1083,6 +1105,9 @@ msgid "Personal access token"
 msgstr ""
 
 msgid "Pinned to the overview"
+msgstr ""
+
+msgid "Plan"
 msgstr ""
 
 #, python-format
@@ -1283,6 +1308,9 @@ msgstr ""
 msgid "Setpoint"
 msgstr ""
 
+msgid "Setting"
+msgstr ""
+
 msgid "Settings"
 msgstr ""
 
@@ -1425,15 +1453,25 @@ msgstr ""
 msgid "The house at most, kW"
 msgstr ""
 
+#, python-format
+msgid "The house now: %(now)s kW, of at most %(limit)s kW."
+msgstr ""
+
 msgid ""
 "The household's own named settings, used by name: changing one changes "
 "every intent that names it."
+msgstr ""
+
+msgid "The last day"
 msgstr ""
 
 msgid "The location's climate"
 msgstr ""
 
 msgid "The next 48 hours"
+msgstr ""
+
+msgid "The plan"
 msgstr ""
 
 msgid "The pool"
@@ -1616,6 +1654,15 @@ msgstr ""
 msgid "What"
 msgstr ""
 
+msgid ""
+"What Thermaestro decides every 15 minutes, and why. It decides for now "
+"from what applies now; a plan that looks a day or two ahead comes with "
+"the house's model."
+msgstr ""
+
+msgid "What became of it"
+msgstr ""
+
 msgid "What each provider gives"
 msgstr ""
 
@@ -1676,6 +1723,9 @@ msgid "Which provider for what"
 msgstr ""
 
 msgid "Who"
+msgstr ""
+
+msgid "Why"
 msgstr ""
 
 msgid "Wind"
@@ -1746,6 +1796,9 @@ msgstr ""
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr ""
 
+msgid "a newer request replaced it"
+msgstr ""
+
 msgid "a password can have at most 256 characters"
 msgstr ""
 
@@ -1764,6 +1817,9 @@ msgstr ""
 msgid "a zoning controller"
 msgstr ""
 
+msgid "accepted, but not kept"
+msgstr ""
+
 msgid "active"
 msgstr ""
 
@@ -1780,6 +1836,9 @@ msgid "addition"
 msgstr ""
 
 msgid "all"
+msgstr ""
+
+msgid "already so"
 msgstr ""
 
 msgid "always"
@@ -1813,6 +1872,10 @@ msgid "as you set it"
 msgstr ""
 
 msgid "assumed"
+msgstr ""
+
+#, python-format
+msgid "at least %(temp)s °C by %(when)s"
 msgstr ""
 
 msgid "at least 15 characters"
@@ -1866,6 +1929,9 @@ msgid "derived from %(inputs)s"
 msgstr ""
 
 msgid "disabled"
+msgstr ""
+
+msgid "done, and read back"
 msgstr ""
 
 msgid "down"
@@ -1967,6 +2033,9 @@ msgstr ""
 msgid "highest"
 msgstr ""
 
+msgid "hold"
+msgstr ""
+
 msgid "hot water"
 msgstr ""
 
@@ -1986,6 +2055,10 @@ msgstr ""
 msgid "included"
 msgstr ""
 
+#, python-format
+msgid "its cheapest time to charge, if it needs one: from %(when)s"
+msgstr ""
+
 msgid "last heard"
 msgstr ""
 
@@ -1993,6 +2066,9 @@ msgstr ""
 msgid ""
 "less %(spot)s: what the supplier adds; the spot price comes from the spot"
 " layer"
+msgstr ""
+
+msgid "let go"
 msgstr ""
 
 msgid "lowest"
@@ -2019,6 +2095,9 @@ msgstr ""
 msgid "no"
 msgstr ""
 
+msgid "no answer in time"
+msgstr ""
+
 #, python-format
 msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
 msgstr ""
@@ -2041,6 +2120,12 @@ msgstr ""
 msgid "none yet"
 msgstr ""
 
+msgid "not asked again yet"
+msgstr ""
+
+msgid "not delivered"
+msgstr ""
+
 msgid "not known"
 msgstr ""
 
@@ -2060,6 +2145,9 @@ msgid "nothing of its own"
 msgstr ""
 
 msgid "off"
+msgstr ""
+
+msgid "off: the pump's own"
 msgstr ""
 
 msgid "on"
@@ -2084,6 +2172,9 @@ msgstr ""
 msgid "preselected from this browser"
 msgstr ""
 
+msgid "price"
+msgstr ""
+
 #, python-format
 msgid "price may move the target up to %(reach)s °C either way"
 msgstr ""
@@ -2093,6 +2184,9 @@ msgid "propylene glycol, about 30 %%"
 msgstr ""
 
 msgid "publishing"
+msgstr ""
+
+msgid "put back as found"
 msgstr ""
 
 msgid "quiet hours"
@@ -2144,6 +2238,12 @@ msgstr ""
 msgid "seen in running"
 msgstr ""
 
+msgid "sent; it can't be checked"
+msgstr ""
+
+msgid "sent; its effect is awaited"
+msgstr ""
+
 #, python-format
 msgid "set aside: %(why)s"
 msgstr ""
@@ -2152,10 +2252,16 @@ msgstr ""
 msgid "set to %(value)s"
 msgstr ""
 
+msgid "shadow: nothing was changed"
+msgstr ""
+
 msgid "should be ready"
 msgstr ""
 
 msgid "stale"
+msgstr ""
+
+msgid "start"
 msgstr ""
 
 msgid "starting"
@@ -2198,6 +2304,9 @@ msgstr ""
 msgid "the gateway's, or an S-series pump's own"
 msgstr ""
 
+msgid "the hot water's floor"
+msgstr ""
+
 #, python-format
 msgid "the house at most %(kw)s kW"
 msgstr ""
@@ -2206,6 +2315,9 @@ msgid "the main provider"
 msgstr ""
 
 msgid "the password you entered isn't right"
+msgstr ""
+
+msgid "the pump refused it"
 msgstr ""
 
 msgid "the pump's own"
