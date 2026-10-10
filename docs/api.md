@@ -206,6 +206,10 @@ A room: `name`, `climate_system` (the climate system's node, such as `pump:hp1/c
 | `DELETE /prices/layers/{id}` | `settings.write` | → `{status: "ok"}`; also removed from the VAT rule |
 | `GET /prices/vat` | `settings.read` | `{rate, applies_to}`, or `null` |
 | `PUT /prices/vat` | `settings.write` | `{rate, applies_to}`: the rate (`0.25` for 25 %) and the layers it is charged on, by id or role |
+| `GET /prices/grid-rules` | `settings.read` | `{id: rule}`: the grid company's rules entered |
+| `POST /prices/grid-rules` | `settings.write` | A rule → `201`, `{id, ...}`, the id made from the grid company's name. `type` is `tou` (a time-of-use price per kWh: `base`, and `rates`, each with `months`, `days`, `start`, `end` and `price`; the first that holds applies), `interval_peak` (a power charge: `window`, `interval_minutes`, `peaks`, `different_days`, `price_per_kw`) or `subscribed_power` (`kw`). Each has `owner`, `status` (`in_force`, `announced`, `paused`, `withdrawn`), `valid_from`, `valid_to`, `clock` (`civil`, or `normal` time all year), `unit`, `vat`, `note`, and `unknown`: the fields the grid company hasn't given. `days` is `all`, `working_days` (Monday to Friday except public holidays), `non_working_days`, `weekdays` or `weekends`. A time-of-use rule becomes a layer of the stack, role `grid.tou`. |
+| `PUT /prices/grid-rules/{id}` | `settings.write` | A rule → `{id, ...}` |
+| `DELETE /prices/grid-rules/{id}` | `settings.write` | → `{status: "ok"}`; its layer goes too |
 
 A layer: `role` (such as `spot` or `grid.fee`), `source` (`series` or `fixed`), `unit`, `vat` (`incl` or `excl`). A `series` layer names its `plugin` instance and `series`, and may list `fallbacks` as `<instance>:<series>`. A `fixed` layer gives its `value`.
 

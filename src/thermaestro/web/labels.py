@@ -324,6 +324,37 @@ KINDS = {
     "boost_now": mark("Boost now"),
 }
 COOLER = mark("Cooler, please")
+RULE_TYPES = {
+    "tou": mark("Time-of-use price"),
+    "interval_peak": mark("Power charge"),
+    "subscribed_power": mark("Subscribed power"),
+}
+RULE_STATUS = {
+    "in_force": mark("in force"),
+    "announced": mark("announced"),
+    "paused": mark("paused"),
+    "withdrawn": mark("withdrawn"),
+}
+DAY_TYPES = {
+    "all": mark("every day"),
+    "working_days": mark("working days"),
+    "non_working_days": mark("weekends and holidays"),
+    "weekdays": mark("Monday to Friday"),
+    "weekends": mark("weekends"),
+}
+RULE_FIELDS = {
+    "base": mark("the base price"),
+    "interval_minutes": mark("the interval measured"),
+    "peaks": mark("how many peaks"),
+    "different_days": mark("whether on different days"),
+    "price_per_kw": mark("the price per kW"),
+    "kw": mark("the power"),
+}
+
+
+def rule_field(name: str) -> str:
+    """What a grid rule's field says, for "not given": "the price per kW"."""
+    return i18n._(RULE_FIELDS[name]) if name in RULE_FIELDS else name
 
 
 def intent_name(kind: str, parameters: Mapping[str, object]) -> str:

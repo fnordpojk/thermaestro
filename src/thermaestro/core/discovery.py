@@ -49,6 +49,7 @@ from .. import version
 from ..cap.model import Envelope, Node, Point
 from ..cap.vocabulary import STATES, bare
 from ..store import Database, Discovery, Location, PriceLayer, Vat
+from .gridrules import household
 from .host import PluginHost, State
 from .mqtt import MqttClient, Wanted
 from .prices import assemble
@@ -1045,8 +1046,9 @@ class Publisher:
         zone = ZoneInfo(location.timezone)
         vat = await self._db.get(Vat)
         today = datetime.fromtimestamp(self._clock(), zone).date()
+        rules, holiday = await household(self._db, zone)
         stacks = [
-            await assemble(layers, vat, self._series, day, zone)
+            await assemble(layers, vat, self._series, day, zone, rules, holiday)
             for day in (today, today + timedelta(days=1))
         ]
         if not stacks[0].unit or not stacks[0].slots:

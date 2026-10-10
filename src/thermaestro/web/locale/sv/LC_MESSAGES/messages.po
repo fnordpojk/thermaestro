@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 22:02+0200\n"
+"POT-Creation-Date: 2026-10-10 22:26+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -48,6 +48,10 @@ msgstr "%(n)s h framåt"
 #, python-format
 msgid "%(n)s min"
 msgstr "%(n)s min"
+
+#, python-format
+msgid "%(n)s minutes"
+msgstr "%(n)s minuter"
 
 #, python-format
 msgid "%(n)s so far"
@@ -219,6 +223,9 @@ msgstr "Lägg till"
 msgid "Add a fixed amount"
 msgstr "Lägg till ett fast belopp"
 
+msgid "Add a power charge"
+msgstr "Lägg till en effektavgift"
+
 msgid "Add a provider"
 msgstr "Lägg till en leverantör"
 
@@ -227,6 +234,12 @@ msgstr "Lägg till ett rum"
 
 msgid "Add a series"
 msgstr "Lägg till en serie"
+
+msgid "Add a subscribed power"
+msgstr "Lägg till en abonnerad effekt"
+
+msgid "Add a time-of-use price"
+msgstr "Lägg till ett tidsberoende pris"
 
 msgid "Add a user"
 msgstr "Lägg till en användare"
@@ -291,6 +304,9 @@ msgstr "Årsmedel, °C"
 msgid "Another heat source is warming the house: comfort eases off."
 msgstr "En annan värmekälla värmer huset: komforten ger efter."
 
+msgid "Another price"
+msgstr "Ett annat pris"
+
 msgid "Area"
 msgstr "Område"
 
@@ -328,6 +344,13 @@ msgstr "Tid"
 msgid "At least, °C"
 msgstr "Minst, °C"
 
+#, python-format
+msgid "At most %(kw)s kW"
+msgstr "Högst %(kw)s kW"
+
+msgid "At most, kW"
+msgstr "Högst, kW"
+
 msgid "Audit log"
 msgstr "Granskningslogg"
 
@@ -345,6 +368,12 @@ msgstr "Tillbaka till givarna"
 
 msgid "Back to the status"
 msgstr "Tillbaka till status"
+
+msgid "Base"
+msgstr "Grund"
+
+msgid "Base price per kWh"
+msgstr "Grundpris per kWh"
 
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
@@ -508,6 +537,12 @@ msgstr ""
 "Kostnad och komfort: vad som ger vika först, och hur mycket komforten får ge för "
 "besparingar"
 
+msgid "Counts"
+msgstr "Räknas"
+
+msgid "Counts at all times"
+msgstr "Räknas hela tiden"
+
 msgid "Coverage"
 msgstr "Täckning"
 
@@ -539,6 +574,9 @@ msgstr ""
 "transparensplattform. Du behöver en egen säkerhetstoken: registrera dig på "
 "plattformen och be sedan dess support om tillgång till API:et. Priser i euro räknas "
 "om med ECB:s referenskurser."
+
+msgid "Days"
+msgstr "Dagar"
 
 msgid "Days it lasts"
 msgstr "Giltig antal dagar"
@@ -753,11 +791,17 @@ msgstr ""
 "avtalets pris per halvtimme det pris att planera efter; lägg till det som ett lager "
 "när det finns här."
 
+msgid "Grid company"
+msgstr "Elnätsföretag"
+
 msgid "Grid fee"
 msgstr "Nätavgift"
 
 msgid "Grid fee by time of day"
 msgstr "Nätavgift efter tid på dygnet"
+
+msgid "Grid rules"
+msgstr "Elnätets regler"
 
 msgid "Group"
 msgstr "Grupp"
@@ -1016,6 +1060,13 @@ msgstr ""
 "Många nationella och globala modeller genom en tjänst, solljus inräknat. Fri för "
 "icke-kommersiell användning, vilket omfattar egen hemautomation."
 
+msgid "Measured per"
+msgstr "Mäts per"
+
+#, python-format
+msgid "Measured per %(n)s minutes"
+msgstr "Mäts per %(n)s minuter"
+
 msgid "Measures"
 msgstr "Mäter"
 
@@ -1036,6 +1087,9 @@ msgstr "Modell"
 
 msgid "Models"
 msgstr "Modeller"
+
+msgid "Monday to Friday"
+msgstr "måndag till fredag"
 
 msgid "Monthly spread, K"
 msgstr "Månadsspridning, K"
@@ -1125,6 +1179,13 @@ msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
 msgid "No layers yet."
 msgstr "Inga lager än."
 
+msgid ""
+"No months ticked: every month. No times: all day; an end before the start runs past "
+"midnight. The first price that holds applies, else the base."
+msgstr ""
+"Inga månader ikryssade: varje månad. Inga tider: hela dygnet; ett slut före starten "
+"går över midnatt. Det första priset som gäller används, annars grundpriset."
+
 msgid "No plugin instances."
 msgstr "Inga tilläggsinstanser."
 
@@ -1162,11 +1223,18 @@ msgstr "Ingen källa ger priser än. Välj källa för ditt elområdes spotpris 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
 
+msgid "None given: power counts at all times."
+msgstr "Inget angivet: effekten räknas hela tiden."
+
 msgid "None yet."
 msgstr "Inga än."
 
 msgid "Not done"
 msgstr "Inte gjort"
+
+#, python-format
+msgid "Not given by the grid company: %(fields)s"
+msgstr "Inte angivet av elnätsföretaget: %(fields)s"
 
 msgid "Not in dear hours"
 msgstr "Inte under dyra timmar"
@@ -1176,6 +1244,9 @@ msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pump
 
 msgid "Not said"
 msgstr "Inte angivet"
+
+msgid "Note"
+msgstr "Anteckning"
 
 msgid "Nothing asked for yet."
 msgstr "Inget begärt än."
@@ -1222,6 +1293,9 @@ msgstr "Upptaget"
 
 msgid "Off"
 msgstr "Av"
+
+msgid "On different days"
+msgstr "På olika dagar"
 
 msgid "One extra charge"
 msgstr "En extra laddning"
@@ -1351,6 +1425,9 @@ msgstr "Port"
 msgid "Power"
 msgstr "Effekt"
 
+msgid "Power charge"
+msgstr "Effektavgift"
+
 msgid "Power from the grid"
 msgstr "Effekt från nätet"
 
@@ -1365,6 +1442,12 @@ msgstr "Effekt till nätet"
 
 msgid "Precipitation"
 msgstr "Nederbörd"
+
+msgid "Price per kW and month"
+msgstr "Pris per kW och månad"
+
+msgid "Price per kWh"
+msgstr "Pris per kWh"
 
 msgid "Price sources"
 msgstr "Priskällor"
@@ -1622,6 +1705,9 @@ msgstr "Tillstånd:"
 msgid "State: %(state)s"
 msgstr "Läge: %(state)s"
 
+msgid "Status"
+msgstr "Status"
+
 #, python-format
 msgid "Step %(n)s"
 msgstr "Steg %(n)s"
@@ -1634,6 +1720,9 @@ msgstr "Sluta vid tiden"
 
 msgid "Stop temperature"
 msgstr "Stopptemperatur"
+
+msgid "Subscribed power"
+msgstr "Abonnerad effekt"
 
 msgid "Subsidy"
 msgstr "Stöd"
@@ -1710,6 +1799,15 @@ msgid ""
 msgstr ""
 "Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
 "protokollet den talar."
+
+#, python-format
+msgid "The highest interval of the month"
+msgid_plural "The mean of the month's %(num)s highest"
+msgstr[0] "Månadens högsta intervall"
+msgstr[1] "Medel av månadens %(num)s högsta"
+
+msgid "The highest, how many"
+msgstr "De högsta, hur många"
 
 msgid "The house"
 msgstr "Huset"
@@ -1875,6 +1973,9 @@ msgstr "Tidsintervall"
 msgid "Time zone"
 msgstr "Tidszon"
 
+msgid "Time-of-use price"
+msgstr "Tidsberoende pris"
+
 msgid "Times are in the house's time zone."
 msgstr "Tider anges i husets tidszon."
 
@@ -1928,6 +2029,12 @@ msgstr "VOC (ppb)"
 
 msgid "VOC (µg/m³)"
 msgstr "VOC (µg/m³)"
+
+msgid "Valid from"
+msgstr "Gäller från"
+
+msgid "Valid to"
+msgstr "Gäller till"
 
 msgid "Value"
 msgstr "Värde"
@@ -2019,6 +2126,9 @@ msgstr "När"
 msgid "When not everything can be met, these give way last to first"
 msgstr "När inte allt kan uppfyllas ger dessa vika sist till först"
 
+msgid "When power counts"
+msgstr "När effekten räknas"
+
 msgid "Where"
 msgstr "Var"
 
@@ -2102,6 +2212,17 @@ msgstr "Skrivport"
 
 msgid "You don't have the right to do that."
 msgstr "Du har inte rätt att göra det."
+
+msgid ""
+"Your grid company's rules, entered by hand: a price per kWh that changes with the "
+"time, a charge on your highest power, or a subscribed power that trips. A flat "
+"transfer fee is a fixed amount under Layers. A time-of-use price becomes a layer of "
+"its own; a rule that isn't in force is kept, to show why nothing is charged."
+msgstr ""
+"Elnätsföretagets regler, inmatade för hand: ett pris per kWh som ändras med tiden, en"
+" avgift på din högsta effekt, eller en abonnerad effekt som löser ut. En fast "
+"överföringsavgift är ett fast belopp under Lager. Ett tidsberoende pris blir ett eget"
+" lager; en regel som inte gäller sparas, för att visa varför inget tas ut."
 
 msgid ""
 "Your home's prices per 15 minutes: the spot price, and what Tibber charges with VAT. "
@@ -2192,6 +2313,9 @@ msgstr "alltid"
 msgid "an S-series pump's must be chosen"
 msgstr "måste väljas för en pump i S-serien"
 
+msgid "announced"
+msgstr "aviserad"
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr "som det är satt i Home Assistants MQTT-integration"
 
@@ -2252,6 +2376,9 @@ msgstr "ändra installationens inställningar"
 msgid "check, then ask for it"
 msgstr "kontrollera, och be om det"
 
+msgid "civil time, with summer time"
+msgstr "normal klocka, med sommartid"
+
 msgid "comma (4,5)"
 msgstr "komma (4,5)"
 
@@ -2307,11 +2434,20 @@ msgstr "tomt: lärs från hur ofta den rapporterar, 60 till 720"
 msgid "empty: no estimate"
 msgstr "tomt: ingen uppskattning"
 
+msgid "empty: no such price"
+msgstr "tomt: inget sådant pris"
+
+msgid "empty: not known"
+msgstr "tomt: inte känt"
+
 msgid "empty: the payload is the number"
 msgstr "tomt: meddelandet är talet"
 
 msgid "empty: the zone's own"
 msgstr "tomt: elområdets egen"
+
+msgid "empty: until further notice"
+msgstr "tomt: tills vidare"
 
 msgid "empty: until the pattern next changes, at most a day"
 msgstr "tomt: tills mönstret ändras nästa gång, högst ett dygn"
@@ -2427,6 +2563,9 @@ msgstr "varmvatten"
 msgid "hot water at least %(temp)s °C"
 msgstr "varmvatten minst %(temp)s °C"
 
+msgid "how many peaks"
+msgstr "hur många toppar"
+
 msgid "idle"
 msgstr "vila"
 
@@ -2435,6 +2574,12 @@ msgstr "orimligt"
 
 msgid "in a room"
 msgstr "i ett rum"
+
+msgid "in force"
+msgstr "gäller"
+
+msgid "incl. VAT"
+msgstr "inkl. moms"
 
 msgid "included"
 msgstr "ingår"
@@ -2445,6 +2590,10 @@ msgstr "billigaste tiden att ladda, om det behövs: från %(when)s"
 
 msgid "last heard"
 msgstr "senast hörd"
+
+#, python-format
+msgid "layer %(layer)s"
+msgstr "lager %(layer)s"
 
 #, python-format
 msgid "less %(spot)s: what the supplier adds; the spot price comes from the spot layer"
@@ -2508,6 +2657,9 @@ msgstr "ingen"
 msgid "none yet"
 msgstr "inga än"
 
+msgid "normal time all year"
+msgstr "normaltid hela året"
+
 msgid "not asked again yet"
 msgstr "inte begärt igen än"
 
@@ -2548,6 +2700,9 @@ msgstr "av: pumpens egen"
 msgid "on"
 msgstr "på"
 
+msgid "on different days"
+msgstr "på olika dagar"
+
 msgid "or"
 msgstr "eller"
 
@@ -2564,6 +2719,12 @@ msgstr "utomhus över %(temp)s °C"
 #, python-format
 msgid "outdoors below %(temp)s °C"
 msgstr "utomhus under %(temp)s °C"
+
+msgid "paused"
+msgstr "pausad"
+
+msgid "per month"
+msgstr "per månad"
 
 msgid "point (4.5)"
 msgstr "punkt (4.5)"
@@ -2721,6 +2882,9 @@ msgstr ""
 "intervallet är för smalt för att priset ska flytta målet, som håller sig %(edge)s °C "
 "innanför varje kant"
 
+msgid "the base price"
+msgstr "grundpriset"
+
 msgid "the day it falls on"
 msgstr "dagen den infaller"
 
@@ -2743,11 +2907,20 @@ msgstr "varmvattnets lägsta nivå"
 msgid "the house at most %(kw)s kW"
 msgstr "huset högst %(kw)s kW"
 
+msgid "the interval measured"
+msgstr "mätintervallet"
+
 msgid "the main provider"
 msgstr "huvudleverantören"
 
 msgid "the password you entered isn't right"
 msgstr "lösenordet du angav stämmer inte"
+
+msgid "the power"
+msgstr "effekten"
+
+msgid "the price per kW"
+msgstr "priset per kW"
 
 msgid "the pump refused it"
 msgstr "pumpen vägrade"
@@ -2819,11 +2992,29 @@ msgstr "väggskärm: %(name)s"
 msgid "warning"
 msgstr "varning"
 
+msgid "weekends"
+msgstr "helger"
+
+msgid "weekends and holidays"
+msgstr "helger och helgdagar"
+
+msgid "where it's from"
+msgstr "var den kommer ifrån"
+
 msgid "where the values go"
 msgstr "dit värdena skickas"
 
+msgid "whether on different days"
+msgstr "om på olika dagar"
+
 msgid "with a power limit only"
 msgstr "bara med en effektgräns"
+
+msgid "withdrawn"
+msgstr "återkallad"
+
+msgid "working days"
+msgstr "helgfria vardagar"
 
 msgid "wrong user name or password"
 msgstr "fel användarnamn eller lösenord"

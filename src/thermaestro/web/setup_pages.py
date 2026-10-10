@@ -175,6 +175,8 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
         "layers": layers,
         "vat": await s.vat(who),
         "fixed_roles": FIXED_ROLES,
+        "grid_rules": await s.grid_rules(who),
+        "grid_layers": {x.rule: id for id, x in layers.items() if x.source == "rule"},
     }
 
 

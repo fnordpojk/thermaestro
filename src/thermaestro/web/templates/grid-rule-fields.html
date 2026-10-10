@@ -1,0 +1,49 @@
+{# The fields of a grid rule of type `kind`, filled in from `rule` where one is changed. A
+   field left empty is one the grid company hasn't given. Repeated groups get a spare row. #}
+{% set r = rule.model_dump(mode="json") if rule else {} %}
+{% macro when_fields(prefix, w) %}
+  <span class="days">{% for m in range(1, 13) %}<label class="check"><input type="checkbox" name="{{ prefix }}.months" value="{{ m }}"{% if m in w.get("months", []) %} checked{% endif %}> {{ m | month }}</label>{% endfor %}</span>
+  <label>{{ _("Days") }}
+    <select name="{{ prefix }}.days">{% for key, name in labels.DAY_TYPES.items() %}<option value="{{ key }}"{% if w.get("days", "all") == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+  <label>{{ _("From") }} <input type="time" name="{{ prefix }}.start" value="{{ (w.get('start') or '')[:5] }}"></label>
+  <label>{{ _("To") }} <input type="time" name="{{ prefix }}.end" value="{{ (w.get('end') or '')[:5] }}"></label>
+{% endmacro %}
+<input type="hidden" name="type" value="{{ kind }}">
+<label>{{ _("Grid company") }} <input name="owner" required maxlength="128" value="{{ r.get('owner', '') }}"></label>
+<label>{{ _("Status") }}
+  <select name="status">{% for key, name in labels.RULE_STATUS.items() %}<option value="{{ key }}"{% if r.get("status", "in_force") == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+<label>{{ _("Valid from") }} <input type="date" name="valid_from" value="{{ r.get('valid_from') or '' }}"></label>
+<label>{{ _("Valid to") }} <small>{{ _("empty: until further notice") }}</small> <input type="date" name="valid_to" value="{{ r.get('valid_to') or '' }}"></label>
+{% if kind != "subscribed_power" %}
+<label>{{ _("Clock") }}
+  <select name="clock"><option value="civil">{{ _("civil time, with summer time") }}</option><option value="normal"{% if r.get("clock") == "normal" %} selected{% endif %}>{{ _("normal time all year") }}</option></select></label>
+<label>{{ _("Unit") }} <input name="unit" required maxlength="16" placeholder="{{ 'SEK/kW' if kind == 'interval_peak' else 'SEK/kWh' }}" value="{{ r.get('unit') or '' }}"></label>
+<label>VAT
+  <select name="vat"><option value="excl">{{ _("excluded") }}</option><option value="incl"{% if r.get("vat") == "incl" %} selected{% endif %}>{{ _("included") }}</option></select></label>
+{% endif %}
+{% if kind == "tou" %}
+<label>{{ _("Base price per kWh") }} <small>{{ _("empty: not known") }}</small> <input name="base" inputmode="decimal" value="{{ r.get('base') if r.get('base') is not none else '' }}"></label>
+{% for w in r.get("rates", []) + [{}] %}{% set i = loop.index0 %}
+<fieldset><legend>{{ _("Another price") }}</legend>
+  {{ when_fields("r" ~ i, w) }}
+  <label>{{ _("Price per kWh") }} <small>{{ _("empty: no such price") }}</small> <input name="r{{ i }}.price" inputmode="decimal" value="{{ w.get('price') if w.get('price') is not none else '' }}"></label>
+</fieldset>
+{% endfor %}
+<p class="hint">{{ _("No months ticked: every month. No times: all day; an end before the start runs past midnight. The first price that holds applies, else the base.") }}</p>
+{% elif kind == "interval_peak" %}
+{% for w in r.get("window", []) + [{}] %}{% set i = loop.index0 %}
+<fieldset><legend>{{ _("When power counts") }}</legend>
+  {{ when_fields("w" ~ i, w) }}
+</fieldset>
+{% endfor %}
+<p class="hint">{{ _("None given: power counts at all times.") }}</p>
+<label>{{ _("Measured per") }}
+  <select name="interval_minutes"><option value="">{{ _("not known") }}</option>{% for n in (15, 60) %}<option value="{{ n }}"{% if r.get("interval_minutes") == n %} selected{% endif %}>{{ _("%(n)s minutes", n=n) }}</option>{% endfor %}</select></label>
+<label>{{ _("The highest, how many") }} <small>{{ _("empty: not known") }}</small> <input name="peaks" type="number" min="1" max="10" value="{{ r.get('peaks') or '' }}"></label>
+<label>{{ _("On different days") }}
+  <select name="different_days"><option value="">{{ _("not known") }}</option><option value="yes"{% if r.get("different_days") is true %} selected{% endif %}>{{ _("yes") }}</option><option value="no"{% if r.get("different_days") is false %} selected{% endif %}>{{ _("no") }}</option></select></label>
+<label>{{ _("Price per kW and month") }} <small>{{ _("empty: not known") }}</small> <input name="price_per_kw" inputmode="decimal" value="{{ r.get('price_per_kw') if r.get('price_per_kw') is not none else '' }}"></label>
+{% elif kind == "subscribed_power" %}
+<label>{{ _("At most, kW") }} <input name="kw" inputmode="decimal" required value="{{ r.get('kw') or '' }}"></label>
+{% endif %}
+<label>{{ _("Note") }} <small>{{ _("where it's from") }}</small> <input name="note" maxlength="500" value="{{ r.get('note') or '' }}"></label>

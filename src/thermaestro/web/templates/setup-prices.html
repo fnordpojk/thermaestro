@@ -88,6 +88,56 @@
 </form>
 </section>
 
+<section id="grid">
+<h2>{{ _("Grid rules") }}</h2>
+<p>{{ _("Your grid company's rules, entered by hand: a price per kWh that changes with the time, a charge on your highest power, or a subscribed power that trips. A flat transfer fee is a fixed amount under Layers. A time-of-use price becomes a layer of its own; a rule that isn't in force is kept, to show why nothing is charged.") }}</p>
+{% macro when_text(w) -%}
+{%- set parts = [] -%}
+{%- if w.months %}{% set ignored = parts.append(w.months | map("month") | join(", ")) %}{% endif -%}
+{%- if w.days != "all" %}{% set ignored = parts.append(_(labels.DAY_TYPES[w.days])) %}{% endif -%}
+{%- if w.start or w.end %}{% set ignored = parts.append((w.start | time_of_day if w.start else "00:00") ~ "–" ~ (w.end | time_of_day if w.end else "24:00")) %}{% endif -%}
+{{ parts | join(", ") if parts else _("always") }}
+{%- endmacro %}
+{% for id, rule in grid_rules | dictsort %}
+<article class="card grid-rule">
+  <h3>{{ rule.owner }} · {{ _(labels.RULE_TYPES[rule.type]) }}</h3>
+  <p><strong>{{ _(labels.RULE_STATUS[rule.status]) }}</strong>{% if rule.valid_from or rule.valid_to %} · {{ rule.valid_from or "" }}–{{ rule.valid_to or "" }}{% endif %}{% if rule.clock == "normal" %} · {{ _("normal time all year") }}{% endif %}{% if id in grid_layers %} · {{ _("layer %(layer)s", layer=grid_layers[id]) }}{% endif %}</p>
+  <ul>
+  {% if rule.type == "tou" %}
+    <li>{{ _("Base") }}: {{ rule.base | num(4) if rule.base is not none else "–" }} {{ rule.unit }}{% if rule.vat == "incl" %} {{ _("incl. VAT") }}{% endif %}</li>
+    {% for rate in rule.rates %}<li>{{ when_text(rate) }}: {{ rate.price | num(4) }} {{ rule.unit }}</li>{% endfor %}
+  {% elif rule.type == "interval_peak" %}
+    {% for w in rule.window %}<li>{{ _("Counts") }}: {{ when_text(w) }}</li>{% else %}<li>{{ _("Counts at all times") }}</li>{% endfor %}
+    {% if rule.interval_minutes %}<li>{{ _("Measured per %(n)s minutes", n=rule.interval_minutes) }}</li>{% endif %}
+    {% if rule.peaks %}<li>{{ ngettext("The highest interval of the month", "The mean of the month's %(num)s highest", rule.peaks) }}{% if rule.different_days %}, {{ _("on different days") }}{% endif %}</li>{% endif %}
+    {% if rule.price_per_kw is not none %}<li>{{ rule.price_per_kw | num(2) }} {{ rule.unit }} {{ _("per month") }}</li>{% endif %}
+  {% else %}
+    <li>{{ _("At most %(kw)s kW", kw=rule.kw | num(1)) }}</li>
+  {% endif %}
+  {% if rule.unknown %}<li>{{ _("Not given by the grid company: %(fields)s", fields=rule.unknown | map("rule_field") | join(", ")) }}</li>{% endif %}
+  {% if rule.note %}<li><small>{{ rule.note }}</small></li>{% endif %}
+  </ul>
+  <details id="grid-edit-{{ id }}"><summary>{{ _("Change") }}</summary>
+  <form method="post" action="/prices/grid-rules/{{ id | urlencode }}" class="grid">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% set kind = rule.type %}{% include "grid-rule-fields.html" %}
+    <button type="submit">{{ _("Save") }}</button>
+  </form>
+  </details>
+  <form method="post" action="/prices/grid-rules/{{ id | urlencode }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">{{ _("Remove") }}</button></form>
+</article>
+{% endfor %}
+{% for kind, title in (("tou", _("Add a time-of-use price")), ("interval_peak", _("Add a power charge")), ("subscribed_power", _("Add a subscribed power"))) %}
+<details id="grid-add-{{ kind }}"><summary>{{ title }}</summary>
+<form method="post" action="/prices/grid-rules" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% set rule = none %}{% include "grid-rule-fields.html" %}
+  <button type="submit">{{ _("Add") }}</button>
+</form>
+</details>
+{% endfor %}
+</section>
+
 <section id="layers">
 <h2>{{ _("Layers") }}</h2>
 {% if layers %}

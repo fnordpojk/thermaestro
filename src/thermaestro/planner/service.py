@@ -32,6 +32,7 @@ from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
+from ..core.gridrules import household
 from ..core.host import PluginHost
 from ..core.house import House
 from ..core.prices import assemble
@@ -473,8 +474,9 @@ class Planner:
         vat = await self._db.get(Vat)
         today: date = now.astimezone(zone).date()
         out = []
+        rules, holiday = await household(self._db, zone)
         for day in (today - timedelta(days=1), today, today + timedelta(days=1)):
-            stack = await assemble(layers, vat, self._series, day, zone)
+            stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
             out += [Price(s.start, s.total) for s in stack.slots if s.total is not None]
         return out
 

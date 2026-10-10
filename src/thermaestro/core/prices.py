@@ -1,13 +1,14 @@
 """The price stack: what one more kWh costs, slot by slot, from the layers set up.
 
-Each layer is a series a plugin offers (a spot price, a supplier's price) or a fixed
-amount (an energy tax, a grid transfer fee), with the role it plays and whether VAT is
-in it. The stack is refused, rather than computed wrong, when:
+Each layer is a series a plugin offers (a spot price, a supplier's price), a fixed
+amount (an energy tax, a grid transfer fee), or a grid rule's time-of-use prices, with the
+role it plays and whether VAT is in it. The stack is refused, rather than computed wrong, when:
 - a role is counted twice: a layer's own role, or one its series says it already covers,
   appears in another layer too (an energy tax taken from a supplier's total *and* added);
 - VAT would be charged on a layer that already includes it;
 - the layers are in different units;
-- a layer's fallback isn't the same kind of price as the layer's own series.
+- a layer's fallback isn't the same kind of price as the layer's own series;
+- a rule layer's rule isn't there, isn't a time-of-use rule, or is in another unit.
 
 A missing role is allowed, with a warning: a flat layer left out changes how much a kWh
 costs, not when it is cheapest.
@@ -37,7 +38,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from ..cap.model import Interval, SeriesInfo
-from ..store import PriceLayer, Vat
+from ..store import GridRule, PriceLayer, Vat
+from .gridrules import Holiday, tou_price
 from .series import Key, Series
 
 SLOT = timedelta(minutes=15)
@@ -162,7 +164,10 @@ def splits(layers: Mapping[str, PriceLayer], series: Series) -> dict[str, Split]
 
 
 def check(
-    layers: Mapping[str, PriceLayer], vat: Vat | None, series: Series
+    layers: Mapping[str, PriceLayer],
+    vat: Vat | None,
+    series: Series,
+    rules: Mapping[str, GridRule] | None = None,
 ) -> tuple[list[str], list[str], str | None]:
     """The refusals and warnings for a set of layers, and their common unit."""
     problems: list[str] = []
@@ -187,6 +192,8 @@ def check(
             roles += covers
             unit = info.unit
             problems += _fallback_problems(id, info, layer, series)
+        elif layer.source == "rule":
+            problems += _rule_problems(id, layer, (rules or {}).get(layer.rule or ""))
         units.add(unit)
         for role in roles:
             if role in counted:
@@ -210,6 +217,18 @@ def check(
             if layer.vat == "excl" and not _charged(vat, id, layer)
         ]
     return problems, warnings, (units.pop() if len(units) == 1 else None)
+
+
+def _rule_problems(id: str, layer: PriceLayer, rule: GridRule | None) -> list[str]:
+    if rule is None:
+        return [f"layer {id}: there is no grid rule {layer.rule!r}"]
+    if rule.type != "tou":
+        return [f"layer {id}: the grid rule {layer.rule} has no prices per kWh"]
+    if rule.unit != layer.unit:
+        return [
+            f"layer {id}: the grid rule {layer.rule} is in {rule.unit}, the layer in {layer.unit}"
+        ]
+    return []
 
 
 def _fallback_problems(id: str, info: SeriesInfo, layer: PriceLayer, series: Series) -> list[str]:
@@ -277,8 +296,12 @@ async def assemble(
     series: Series,
     day: date,
     zone: ZoneInfo,
+    rules: Mapping[str, GridRule] | None = None,
+    holiday: Holiday | None = None,
 ) -> Stack:
-    problems, warnings, unit = check(layers, vat, series)
+    """The day's stack. `rules`: the grid rules a rule layer names; `holiday`: the public
+    holidays, for a rule's working days."""
+    problems, warnings, unit = check(layers, vat, series, rules)
     day_slots = slots(day, zone)
     if problems or not layers:
         return Stack(unit, [], problems, warnings)
@@ -306,6 +329,8 @@ async def assemble(
             carried: datetime | None = None
             if layer.source == "fixed":
                 raw = layer.value
+            elif layer.source == "rule":
+                raw = tou_price((rules or {})[layer.rule or ""], start, zone, holiday)
             elif id in split:
                 found = _adders_at(adders[id], start)
                 raw, carried = found if found is not None else (None, None)

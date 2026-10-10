@@ -177,8 +177,13 @@ What one more kWh costs is a stack of layers: the spot price, the supplier's add
 2. **Tibber:** a personal access token from developer.tibber.com. It gives your home's prices per 15 minutes, the spot price and what Tibber charges with VAT. Thermaestro asks Tibber for prices only, never for your name, address or consumption.
 3. **ENTSO-E:** the bidding zone, the currency, and a security token of your own. Register on the ENTSO-E Transparency Platform, then ask its helpdesk for access to the API. Prices in euros are converted at the ECB's reference rates.
 4. **Octopus Agile:** for a household in Great Britain on Octopus Energy's Agile tariff, choose the region, then add its unit rate as a layer.
-5. **Layers:** add the series the sources offer, or fixed amounts per kWh for the supplier's charge, energy tax, grid fees, levies or subsidies, each with or without VAT.
-6. **VAT:** the rate in percent, and the layers it is charged on.
+5. **Grid rules:** your grid company's rules, entered by hand from its price list.
+   - **A time-of-use price:** a base price per kWh, and the prices that apply instead at some times (months, working days or weekends, hours). The first that holds applies. It becomes a layer of the stack by itself.
+   - **A power charge:** when power counts, how it is measured (per 15 minutes or per hour), how many of the month's highest intervals are averaged, whether on different days, and the price per kW.
+   - **A subscribed power:** the most the house may draw.
+   - Leave a field empty when the grid company doesn't say: the rule lists it as not given. Working days leave out public holidays, from the calendar chosen under House. A rule's clock is civil time, or normal time all year where the grid company measures so. A rule that is paused, announced or withdrawn is kept and charges nothing.
+6. **Layers:** add the series the sources offer, or fixed amounts per kWh for the supplier's charge, energy tax, a flat grid fee, levies or subsidies, each with or without VAT.
+7. **VAT:** the rate in percent, and the layers it is charged on.
 
 The **Prices** page shows the result.
 

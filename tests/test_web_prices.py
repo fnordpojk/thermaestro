@@ -130,6 +130,73 @@ async def test_building_the_stack_on_the_page(site: Site) -> None:
         assert all(slot["total"] is None for slot in empty["slots"])
 
 
+async def test_grid_rules_kept_and_a_time_of_use_price_in_the_stack(site: Site) -> None:
+    async with logged_in(site) as client:
+        await form(
+            client, "/setup/prices", "/prices/layers", source="series", offered="tibber:se3/spot"
+        )
+        day = {"r0.days": "all", "r0.start": "07:00", "r0.end": "20:00", "r0.price": "0,50"}
+        added = await form(
+            client,
+            "/setup/prices",
+            "/prices/grid-rules",
+            type="tou",
+            owner="Grid company",
+            unit="SEK/kWh",
+            base="0.10",
+            **day,
+        )
+        assert added.status_code == 303, added.text
+        rules = (await client.get("/api/v1/prices/grid-rules")).json()
+        assert rules["grid-company"]["rates"][0]["price"] == 0.5
+        layers = (await client.get("/api/v1/prices/layers")).json()
+        assert layers["grid-grid-company"]["source"] == "rule"
+        assert layers["grid-grid-company"]["role"] == "grid.tou"
+        today = (await client.get("/api/v1/prices")).json()
+        assert today["problems"] == []
+        by_hour = {datetime.fromisoformat(x["start"]).astimezone(STOCKHOLM).hour: x["total"]
+                   for x in today["slots"]}  # fmt: skip
+        assert by_hour[3] == pytest.approx(0.59016 + 0.10)
+        assert by_hour[8] == pytest.approx(0.59016 + 0.50)
+        page = (await client.get("/setup/prices")).text
+        assert "Time-of-use price" in page
+        assert 'name="r0.start" value="07:00"' in page  # the change form, filled in
+        # A power charge announced and paused, with what the grid company hasn't said.
+        window = {"w0.months": ["11", "12", "1", "2", "3"], "w0.days": "working_days"}
+        await form(
+            client,
+            "/setup/prices",
+            "/prices/grid-rules",
+            type="interval_peak",
+            owner="Lerum Nat AB",
+            status="paused",
+            unit="SEK/kW",
+            **window,
+        )
+        rules = (await client.get("/api/v1/prices/grid-rules")).json()
+        paused = rules["lerum-nat-ab"]
+        assert (paused["status"], paused["window"][0]["months"]) == ("paused", [1, 2, 3, 11, 12])
+        assert set(paused["unknown"]) == {
+            "interval_minutes",
+            "peaks",
+            "different_days",
+            "price_per_kw",
+        }
+        assert "Not given by the grid company" in (await client.get("/setup/prices")).text
+        # Over the API, changed; removed on the page, with its layer.
+        token = {"x-csrf-token": csrf_of((await client.get("/account")).text)}
+        body = {**rules["grid-company"], "base": 0.2}
+        changed = await client.put(
+            "/api/v1/prices/grid-rules/grid-company", json=body, headers=token
+        )
+        assert changed.status_code == 200, changed.text
+        today = (await client.get("/api/v1/prices")).json()
+        assert today["slots"][0]["total"] == pytest.approx(0.59016 + 0.2)
+        removed = await form(client, "/setup/prices", "/prices/grid-rules/grid-company/delete")
+        assert removed.status_code == 303
+        assert "grid-grid-company" not in (await client.get("/api/v1/prices/layers")).json()
+
+
 async def test_the_price_chart_and_its_table(site: Site) -> None:
     """The chart takes its days from the API and names each layer by its role; the table
     stays in the page for when the chart is switched off, or there's no script."""

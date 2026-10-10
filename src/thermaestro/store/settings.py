@@ -5,6 +5,7 @@ setting never holds a secret, only the name of its entry in the secrets file, so
 settings dump, export or log line can carry one.
 """
 
+from datetime import date, time
 from typing import Annotated, Any, ClassVar, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -364,12 +365,13 @@ SeriesRef = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,64}:\S{
 
 
 class PriceLayer(Setting):
-    """One layer of the import price: a series a plugin offers, or a fixed amount."""
+    """One layer of the import price: a series a plugin offers, a fixed amount, or a grid
+    rule's time-of-use prices."""
 
     kind = "price.layer"
 
     role: Annotated[str, StringConstraints(pattern=r"^[a-z_]+(\.[a-z_]+)*$")]
-    source: Literal["series", "fixed"]
+    source: Literal["series", "fixed", "rule"]
     plugin: Id | None = None
     """The plugin instance offering the series."""
     series: str | None = None
@@ -377,6 +379,8 @@ class PriceLayer(Setting):
     """Series of the same kind that stand in, in order, where this one has no price: a
     second source of the spot price, for a day the first one doesn't publish."""
     value: float | None = None
+    rule: Id | None = None
+    """The grid rule whose time-of-use prices the layer holds."""
     unit: str
     vat: Literal["incl", "excl"]
 
@@ -384,6 +388,8 @@ class PriceLayer(Setting):
     def _has_its_source(self) -> Self:
         if self.source == "series" and not (self.plugin and self.series):
             raise ValueError("a series layer names the plugin and the series")
+        if self.source == "rule" and not self.rule:
+            raise ValueError("a rule layer names the grid rule")
         if self.source == "fixed" and self.value is None:
             raise ValueError("a fixed layer gives its value")
         if self.source == "fixed" and self.fallbacks:
@@ -398,6 +404,114 @@ class Vat(Setting):
 
     rate: Annotated[float, Field(ge=0, le=1)]
     applies_to: tuple[str, ...]
+
+
+Month = Annotated[int, Field(ge=1, le=12)]
+DayType = Literal["all", "working_days", "non_working_days", "weekdays", "weekends"]
+"""Working days are Monday to Friday except public holidays; non-working days are the
+weekends and public holidays."""
+
+
+class When(BaseModel):
+    """When part of a grid rule applies: months, a kind of day, and a time of day. An end
+    before the start runs past midnight; no times, all day."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    months: tuple[Month, ...] = ()
+    """None: every month."""
+    days: DayType = "all"
+    start: time | None = None
+    end: time | None = None
+
+
+class Rate(When):
+    """A time-of-use price that applies instead of the base price when it holds."""
+
+    price: float
+
+
+RuleField = Literal["base", "interval_minutes", "peaks", "different_days", "price_per_kw", "kw"]
+
+
+class GridRule(Setting):
+    """A grid company's rule, entered by the household: a time-of-use price per kWh, a
+    charge on the power of the highest intervals, or a subscribed power that trips. A rule
+    that isn't in force is kept, to show why nothing is charged."""
+
+    kind = "grid.rule"
+
+    type: Literal["tou", "interval_peak", "subscribed_power"]
+    owner: Annotated[str, StringConstraints(min_length=1, max_length=128)]
+    """The grid company."""
+    status: Literal["in_force", "announced", "paused", "withdrawn"] = "in_force"
+    valid_from: date | None = None
+    valid_to: date | None = None
+    """The last day it applies; none: until further notice."""
+    clock: Literal["civil", "normal"] = "civil"
+    """Civil time with summer time, or normal (standard) time all year."""
+    unit: Annotated[str, StringConstraints(min_length=1, max_length=16)] | None = None
+    """The currency's per-kWh or per-kW unit, such as SEK/kWh or SEK/kW."""
+    vat: Literal["incl", "excl"] = "excl"
+    base: float | None = None
+    """A time-of-use rule's price per kWh outside its rates."""
+    rates: tuple[Rate, ...] = ()
+    """A time-of-use rule's other prices; the first that holds applies."""
+    window: tuple[When, ...] = ()
+    """When an interval counts toward a peak; none: always."""
+    interval_minutes: Literal[15, 60] | None = None
+    peaks: Annotated[int, Field(ge=1, le=10)] | None = None
+    """How many of the period's highest intervals the charge is on, averaged."""
+    different_days: bool | None = None
+    """Whether those intervals must fall on different days."""
+    price_per_kw: float | None = None
+    """The charge per kW of the peak, per month."""
+    kw: Annotated[float, Field(gt=0, le=1000)] | None = None
+    """A subscribed power that trips: never to be exceeded."""
+    unknown: tuple[RuleField, ...] = ()
+    """What the grid company hasn't said: left empty on purpose, not forgotten."""
+    note: Annotated[str, StringConstraints(max_length=500)] | None = None
+    """Where the rule is from."""
+
+    @model_validator(mode="after")
+    def _says_what_its_type_needs(self) -> Self:
+        needs: dict[str, tuple[RuleField, ...]] = {
+            "tou": ("base",),
+            "interval_peak": ("interval_minutes", "peaks", "different_days", "price_per_kw"),
+            "subscribed_power": ("kw",),
+        }
+        own = needs[self.type]
+        for name in own:
+            if getattr(self, name) is None and name not in self.unknown:
+                raise ValueError(f"a {self.type} rule gives its {name}, or says it isn't known")
+        for field, value in (
+            ("base", self.base),
+            ("rates", self.rates),
+            ("window", self.window),
+            ("interval_minutes", self.interval_minutes),
+            ("peaks", self.peaks),
+            ("different_days", self.different_days),
+            ("price_per_kw", self.price_per_kw),
+            ("kw", self.kw),
+        ):
+            mine = field in own or (field, self.type) in (
+                ("rates", "tou"),
+                ("window", "interval_peak"),
+            )
+            if not mine and value not in (None, ()):
+                raise ValueError(f"a {self.type} rule has no {field}")
+        if self.type != "subscribed_power" and self.unit is None:
+            raise ValueError("a rule with prices gives their unit")
+        if self.valid_from and self.valid_to and self.valid_to < self.valid_from:
+            raise ValueError("it would end before it starts")
+        return self
+
+    def in_force(self, day: date) -> bool:
+        return (
+            self.status == "in_force"
+            and (self.valid_from is None or self.valid_from <= day)
+            and (self.valid_to is None or day <= self.valid_to)
+        )
 
 
 WeatherSource = Annotated[
@@ -523,6 +637,7 @@ SETTINGS: dict[str, type[Setting]] = {
         Display,
         PriceLayer,
         Vat,
+        GridRule,
         WeatherChoice,
         Climate,
         Control,

@@ -266,6 +266,11 @@ def when(t: float | str | None) -> str:
     return f"{date} {format_time(local, clock, locale=f.locale)}"
 
 
+def month(number: int) -> str:
+    """A month's short name, 1 January, in the page's language."""
+    return str(Locale.parse(current.get()).months["format"]["abbreviated"][number])
+
+
 def time_of_day(t: time) -> str:
     """A local time of day, in the clock chosen."""
     f = formats.get()

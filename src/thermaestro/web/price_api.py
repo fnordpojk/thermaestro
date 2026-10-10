@@ -159,3 +159,40 @@ async def vat(request: Request, who: Logged) -> dict[str, Any] | None:
 async def set_vat(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
     """The rate (0.25 for 25 %) and the layers it is charged on, by id or role."""
     return (await services(request).set_vat(who, body)).model_dump(mode="json")
+
+
+@router.get("/prices/grid-rules")
+@action("grid_rules.read")
+async def grid_rules(request: Request, who: Logged) -> dict[str, Any]:
+    """The grid rules entered, by id."""
+    found = await services(request).grid_rules(who)
+    return {id: rule.model_dump(mode="json") for id, rule in found.items()}
+
+
+@router.post("/prices/grid-rules", status_code=201)
+@action("grid_rule.write")
+async def add_grid_rule(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """A grid company's rule: `{"type": "tou", "owner": "…", "unit": "SEK/kWh", "base":
+    0.18, "rates": [{"months": [11, 12, 1, 2, 3], "days": "working_days", "start": "07:00",
+    "end": "20:00", "price": 0.52}]}`, an `interval_peak` or a `subscribed_power`. A field
+    the grid company hasn't given is listed in `unknown`. A time-of-use rule becomes a
+    layer of the price stack."""
+    id, rule = await services(request).set_grid_rule(who, None, body)
+    return {"id": id, **rule.model_dump(mode="json")}
+
+
+@router.put("/prices/grid-rules/{id}")
+@action("grid_rule.write")
+async def put_grid_rule(
+    id: str, body: dict[str, Any], request: Request, who: Logged
+) -> dict[str, Any]:
+    _, rule = await services(request).set_grid_rule(who, id, body)
+    return {"id": id, **rule.model_dump(mode="json")}
+
+
+@router.delete("/prices/grid-rules/{id}")
+@action("grid_rule.delete")
+async def delete_grid_rule(id: str, request: Request, who: Logged) -> dict[str, str]:
+    """Remove a rule, and the layer that holds its prices."""
+    await services(request).delete_grid_rule(who, id)
+    return {"status": "ok"}

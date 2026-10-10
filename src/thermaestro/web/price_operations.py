@@ -8,9 +8,10 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 
 from ..auth import AccountError
+from ..core.gridrules import household
 from ..core.prices import Stack, assemble
 from ..spotsources import choices
-from ..store import EntsoE, OctopusAgile, Plugin, PriceLayer, SpotZone, Tibber, Vat
+from ..store import EntsoE, GridRule, OctopusAgile, Plugin, PriceLayer, SpotZone, Tibber, Vat
 from ..zones import ZONES
 from .sensor_operations import ID, slug
 
@@ -107,6 +108,69 @@ class PriceOperations:
             source=caller.source,
             details={"kind": "price.layer", "id": id},
         )
+
+    # --- grid rules -----------------------------------------------------------------------
+
+    async def grid_rules(self, caller: "Caller") -> dict[str, GridRule]:
+        caller.principal.require("settings.read")
+        return await self.db.all(GridRule)
+
+    async def set_grid_rule(
+        self, caller: "Caller", id: str | None, body: dict[str, Any]
+    ) -> tuple[str, GridRule]:
+        """Keep a grid rule. A time-of-use rule is a layer of the stack too, made with it:
+        its role `grid.tou`, its unit and VAT the rule's."""
+        self._require(caller, "settings.write")
+        from .operations import _validated
+
+        rule = _validated(GridRule, body, "the grid rule")
+        existing = await self.db.all(GridRule)
+        if id is None:
+            id = slug(rule.owner, set(existing))
+        elif not ID.match(id):
+            raise AccountError("a rule's id is 1 to 64 letters, digits or . _ -")
+        await self.db.put(rule, id)
+        layers = await self.db.all(PriceLayer)
+        layer = next(
+            (lid for lid, x in layers.items() if x.source == "rule" and x.rule == id), None
+        )
+        if rule.type == "tou":
+            made = PriceLayer(
+                role="grid.tou", source="rule", rule=id, unit=rule.unit or "", vat=rule.vat
+            )
+            await self.db.put(made, layer or slug(f"grid-{id}", set(layers)))
+        elif layer is not None:
+            await self._drop_layer(layer)
+        await self.audit.record(
+            caller.principal.name,
+            "setting.change",
+            source=caller.source,
+            details={"kind": "grid.rule", "id": id},
+        )
+        return id, rule
+
+    async def delete_grid_rule(self, caller: "Caller", id: str) -> None:
+        """Remove a grid rule, and the layer that holds its prices."""
+        self._require(caller, "settings.write")
+        if not await self.db.delete(GridRule, id):
+            raise AccountError(f"no grid rule {id!r}")
+        for lid, layer in (await self.db.all(PriceLayer)).items():
+            if layer.source == "rule" and layer.rule == id:
+                await self._drop_layer(lid)
+        await self.audit.record(
+            caller.principal.name,
+            "setting.delete",
+            source=caller.source,
+            details={"kind": "grid.rule", "id": id},
+        )
+
+    async def _drop_layer(self, id: str) -> None:
+        await self.db.delete(PriceLayer, id)
+        vat = await self.db.get(Vat)
+        if vat is not None and id in vat.applies_to:
+            await self.db.put(
+                Vat(rate=vat.rate, applies_to=tuple(a for a in vat.applies_to if a != id))
+            )
 
     async def vat(self, caller: "Caller") -> Vat | None:
         caller.principal.require("settings.read")
@@ -373,4 +437,6 @@ class PriceOperations:
             return Stack(None, [], [], [])
         zone = self.zone if isinstance(self.zone, ZoneInfo) else ZoneInfo("UTC")
         layers = await self.db.all(PriceLayer)
-        return await assemble(layers, await self.db.get(Vat), self.series, day, zone)
+        rules, holiday = await household(self.db, zone)
+        vat = await self.db.get(Vat)
+        return await assemble(layers, vat, self.series, day, zone, rules, holiday)

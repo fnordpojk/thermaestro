@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 22:02+0200\n"
+"POT-Creation-Date: 2026-10-10 22:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,6 +49,10 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s min"
+msgstr ""
+
+#, python-format
+msgid "%(n)s minutes"
 msgstr ""
 
 #, python-format
@@ -200,6 +204,9 @@ msgstr ""
 msgid "Add a fixed amount"
 msgstr ""
 
+msgid "Add a power charge"
+msgstr ""
+
 msgid "Add a provider"
 msgstr ""
 
@@ -207,6 +214,12 @@ msgid "Add a room"
 msgstr ""
 
 msgid "Add a series"
+msgstr ""
+
+msgid "Add a subscribed power"
+msgstr ""
+
+msgid "Add a time-of-use price"
 msgstr ""
 
 msgid "Add a user"
@@ -269,6 +282,9 @@ msgstr ""
 msgid "Another heat source is warming the house: comfort eases off."
 msgstr ""
 
+msgid "Another price"
+msgstr ""
+
 msgid "Area"
 msgstr ""
 
@@ -306,6 +322,13 @@ msgstr ""
 msgid "At least, °C"
 msgstr ""
 
+#, python-format
+msgid "At most %(kw)s kW"
+msgstr ""
+
+msgid "At most, kW"
+msgstr ""
+
 msgid "Audit log"
 msgstr ""
 
@@ -322,6 +345,12 @@ msgid "Back to the sensors"
 msgstr ""
 
 msgid "Back to the status"
+msgstr ""
+
+msgid "Base"
+msgstr ""
+
+msgid "Base price per kWh"
 msgstr ""
 
 msgid ""
@@ -482,6 +511,12 @@ msgid ""
 " savings"
 msgstr ""
 
+msgid "Counts"
+msgstr ""
+
+msgid "Counts at all times"
+msgstr ""
+
 msgid "Coverage"
 msgstr ""
 
@@ -508,6 +543,9 @@ msgid ""
 "Transparency Platform. You need a security token of your own: register on"
 " the platform, then ask its helpdesk for access to the API. Prices in "
 "euros are converted at the ECB's reference rates."
+msgstr ""
+
+msgid "Days"
 msgstr ""
 
 msgid "Days it lasts"
@@ -707,10 +745,16 @@ msgid ""
 " as a layer once it is here."
 msgstr ""
 
+msgid "Grid company"
+msgstr ""
+
 msgid "Grid fee"
 msgstr ""
 
 msgid "Grid fee by time of day"
+msgstr ""
+
+msgid "Grid rules"
 msgstr ""
 
 msgid "Group"
@@ -964,6 +1008,13 @@ msgid ""
 "Free for non-commercial use, which includes personal home automation."
 msgstr ""
 
+msgid "Measured per"
+msgstr ""
+
+#, python-format
+msgid "Measured per %(n)s minutes"
+msgstr ""
+
 msgid "Measures"
 msgstr ""
 
@@ -983,6 +1034,9 @@ msgid "Model"
 msgstr ""
 
 msgid "Models"
+msgstr ""
+
+msgid "Monday to Friday"
 msgstr ""
 
 msgid "Monthly spread, K"
@@ -1067,6 +1121,11 @@ msgstr ""
 msgid "No layers yet."
 msgstr ""
 
+msgid ""
+"No months ticked: every month. No times: all day; an end before the start"
+" runs past midnight. The first price that holds applies, else the base."
+msgstr ""
+
 msgid "No plugin instances."
 msgstr ""
 
@@ -1104,10 +1163,17 @@ msgstr ""
 msgid "No values in this period."
 msgstr ""
 
+msgid "None given: power counts at all times."
+msgstr ""
+
 msgid "None yet."
 msgstr ""
 
 msgid "Not done"
+msgstr ""
+
+#, python-format
+msgid "Not given by the grid company: %(fields)s"
 msgstr ""
 
 msgid "Not in dear hours"
@@ -1117,6 +1183,9 @@ msgid "Not known well enough to be changed unattended on this pump."
 msgstr ""
 
 msgid "Not said"
+msgstr ""
+
+msgid "Note"
 msgstr ""
 
 msgid "Nothing asked for yet."
@@ -1161,6 +1230,9 @@ msgid "Occupied"
 msgstr ""
 
 msgid "Off"
+msgstr ""
+
+msgid "On different days"
 msgstr ""
 
 msgid "One extra charge"
@@ -1284,6 +1356,9 @@ msgstr ""
 msgid "Power"
 msgstr ""
 
+msgid "Power charge"
+msgstr ""
+
 msgid "Power from the grid"
 msgstr ""
 
@@ -1297,6 +1372,12 @@ msgid "Power to the grid"
 msgstr ""
 
 msgid "Precipitation"
+msgstr ""
+
+msgid "Price per kW and month"
+msgstr ""
+
+msgid "Price per kWh"
 msgstr ""
 
 msgid "Price sources"
@@ -1553,6 +1634,9 @@ msgstr ""
 msgid "State: %(state)s"
 msgstr ""
 
+msgid "Status"
+msgstr ""
+
 #, python-format
 msgid "Step %(n)s"
 msgstr ""
@@ -1564,6 +1648,9 @@ msgid "Stop at the deadline"
 msgstr ""
 
 msgid "Stop temperature"
+msgstr ""
+
+msgid "Subscribed power"
 msgstr ""
 
 msgid "Subsidy"
@@ -1630,6 +1717,15 @@ msgstr ""
 msgid ""
 "The gateway that connects Thermaestro to a Nibe pump's bus: its address, "
 "and the protocol it speaks."
+msgstr ""
+
+#, python-format
+msgid "The highest interval of the month"
+msgid_plural "The mean of the month's %(num)s highest"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "The highest, how many"
 msgstr ""
 
 msgid "The house"
@@ -1772,6 +1868,9 @@ msgstr ""
 msgid "Time zone"
 msgstr ""
 
+msgid "Time-of-use price"
+msgstr ""
+
 msgid "Times are in the house's time zone."
 msgstr ""
 
@@ -1824,6 +1923,12 @@ msgid "VOC (ppb)"
 msgstr ""
 
 msgid "VOC (µg/m³)"
+msgstr ""
+
+msgid "Valid from"
+msgstr ""
+
+msgid "Valid to"
 msgstr ""
 
 msgid "Value"
@@ -1910,6 +2015,9 @@ msgstr ""
 msgid "When not everything can be met, these give way last to first"
 msgstr ""
 
+msgid "When power counts"
+msgstr ""
+
 msgid "Where"
 msgstr ""
 
@@ -1990,6 +2098,14 @@ msgid "Write port"
 msgstr ""
 
 msgid "You don't have the right to do that."
+msgstr ""
+
+msgid ""
+"Your grid company's rules, entered by hand: a price per kWh that changes "
+"with the time, a charge on your highest power, or a subscribed power that"
+" trips. A flat transfer fee is a fixed amount under Layers. A time-of-use"
+" price becomes a layer of its own; a rule that isn't in force is kept, to"
+" show why nothing is charged."
 msgstr ""
 
 msgid ""
@@ -2079,6 +2195,9 @@ msgstr ""
 msgid "an S-series pump's must be chosen"
 msgstr ""
 
+msgid "announced"
+msgstr ""
+
 msgid "as set in Home Assistant's MQTT integration"
 msgstr ""
 
@@ -2139,6 +2258,9 @@ msgstr ""
 msgid "check, then ask for it"
 msgstr ""
 
+msgid "civil time, with summer time"
+msgstr ""
+
 msgid "comma (4,5)"
 msgstr ""
 
@@ -2194,10 +2316,19 @@ msgstr ""
 msgid "empty: no estimate"
 msgstr ""
 
+msgid "empty: no such price"
+msgstr ""
+
+msgid "empty: not known"
+msgstr ""
+
 msgid "empty: the payload is the number"
 msgstr ""
 
 msgid "empty: the zone's own"
+msgstr ""
+
+msgid "empty: until further notice"
 msgstr ""
 
 msgid "empty: until the pattern next changes, at most a day"
@@ -2314,6 +2445,9 @@ msgstr ""
 msgid "hot water at least %(temp)s °C"
 msgstr ""
 
+msgid "how many peaks"
+msgstr ""
+
 msgid "idle"
 msgstr ""
 
@@ -2321,6 +2455,12 @@ msgid "implausible"
 msgstr ""
 
 msgid "in a room"
+msgstr ""
+
+msgid "in force"
+msgstr ""
+
+msgid "incl. VAT"
 msgstr ""
 
 msgid "included"
@@ -2331,6 +2471,10 @@ msgid "its cheapest time to charge, if it needs one: from %(when)s"
 msgstr ""
 
 msgid "last heard"
+msgstr ""
+
+#, python-format
+msgid "layer %(layer)s"
 msgstr ""
 
 #, python-format
@@ -2397,6 +2541,9 @@ msgstr ""
 msgid "none yet"
 msgstr ""
 
+msgid "normal time all year"
+msgstr ""
+
 msgid "not asked again yet"
 msgstr ""
 
@@ -2437,6 +2584,9 @@ msgstr ""
 msgid "on"
 msgstr ""
 
+msgid "on different days"
+msgstr ""
+
 msgid "or"
 msgstr ""
 
@@ -2452,6 +2602,12 @@ msgstr ""
 
 #, python-format
 msgid "outdoors below %(temp)s °C"
+msgstr ""
+
+msgid "paused"
+msgstr ""
+
+msgid "per month"
 msgstr ""
 
 msgid "point (4.5)"
@@ -2606,6 +2762,9 @@ msgid ""
 " °C inside each edge"
 msgstr ""
 
+msgid "the base price"
+msgstr ""
+
 msgid "the day it falls on"
 msgstr ""
 
@@ -2628,10 +2787,19 @@ msgstr ""
 msgid "the house at most %(kw)s kW"
 msgstr ""
 
+msgid "the interval measured"
+msgstr ""
+
 msgid "the main provider"
 msgstr ""
 
 msgid "the password you entered isn't right"
+msgstr ""
+
+msgid "the power"
+msgstr ""
+
+msgid "the price per kW"
 msgstr ""
 
 msgid "the pump refused it"
@@ -2704,10 +2872,28 @@ msgstr ""
 msgid "warning"
 msgstr ""
 
+msgid "weekends"
+msgstr ""
+
+msgid "weekends and holidays"
+msgstr ""
+
+msgid "where it's from"
+msgstr ""
+
 msgid "where the values go"
 msgstr ""
 
+msgid "whether on different days"
+msgstr ""
+
 msgid "with a power limit only"
+msgstr ""
+
+msgid "withdrawn"
+msgstr ""
+
+msgid "working days"
 msgstr ""
 
 msgid "wrong user name or password"

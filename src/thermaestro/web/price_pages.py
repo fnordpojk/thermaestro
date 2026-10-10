@@ -7,10 +7,12 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
+from starlette.datastructures import FormData
 
 from ..auth import AccountError
 from . import i18n, labels
 from .app import action, caller, services
+from .control_pages import _rows, _text
 from .operations import Caller
 from .pages import Text, render
 from .pages import _message as message
@@ -118,6 +120,107 @@ async def set_fallbacks(
     return await attempt(
         request, who, services(request).set_fallbacks(who, id, list(fallbacks or [])), "prices"
     )
+
+
+# --- grid rules --------------------------------------------------------------------------
+
+
+def _when(form: FormData, prefix: str) -> dict[str, Any]:
+    found = form.getlist(f"{prefix}.months")
+    months = sorted({int(m) for m in found if isinstance(m, str) and m.isdigit()})
+    return {
+        "months": months,
+        "days": _text(form, f"{prefix}.days") or "all",
+        "start": _text(form, f"{prefix}.start") or None,
+        "end": _text(form, f"{prefix}.end") or None,
+    }
+
+
+def _amount(form: FormData, name: str) -> float | None:
+    text = _text(form, name).replace(",", ".")
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        raise AccountError(f"{name} is a number") from None
+
+
+def rule_from_form(form: FormData) -> dict[str, Any]:
+    """A grid rule from Setup → Prices: what a field left empty says is that the grid
+    company hasn't given it."""
+    kind = _text(form, "type")
+    body: dict[str, Any] = {
+        "type": kind,
+        "owner": _text(form, "owner"),
+        "status": _text(form, "status") or "in_force",
+        "clock": _text(form, "clock") or "civil",
+        "vat": _text(form, "vat") or "excl",
+    }
+    for name in ("valid_from", "valid_to", "unit", "note"):
+        if _text(form, name):
+            body[name] = _text(form, name)
+    unknown: list[str] = []
+    if kind == "tou":
+        body["base"] = _amount(form, "base")
+        body["rates"] = [
+            {**_when(form, f"r{i}"), "price": price}
+            for i in _rows(form, "r")
+            if (price := _amount(form, f"r{i}.price")) is not None
+        ]
+    elif kind == "interval_peak":
+        body["window"] = [
+            w
+            for i in _rows(form, "w")
+            if (w := _when(form, f"w{i}"))["months"] or w["days"] != "all" or w["start"] or w["end"]
+        ]
+        for name in ("interval_minutes", "peaks"):
+            found = _amount(form, name)
+            body[name] = None if found is None else int(found)
+        body["price_per_kw"] = _amount(form, "price_per_kw")
+        answer = _text(form, "different_days")
+        body["different_days"] = {"yes": True, "no": False}.get(answer)
+    elif kind == "subscribed_power":
+        body["kw"] = _amount(form, "kw")
+    for name in ("base", "interval_minutes", "peaks", "different_days", "price_per_kw"):
+        if name in body and body[name] is None:
+            unknown.append(name)
+            del body[name]
+    body["unknown"] = unknown
+    return body
+
+
+@router.post("/prices/grid-rules")
+@action("grid_rule.write")
+async def add_grid_rule(request: Request, who: Logged) -> Response:
+    s = services(request)
+    try:
+        body = rule_from_form(await request.form())
+    except AccountError as e:
+        return await show(request, who, "prices", 400, error=message(e))
+    return await attempt(
+        request, who, s.set_grid_rule(who, None, body), "prices", "/setup/prices#grid"
+    )
+
+
+@router.post("/prices/grid-rules/{id}")
+@action("grid_rule.write")
+async def put_grid_rule(request: Request, who: Logged, id: str) -> Response:
+    s = services(request)
+    try:
+        body = rule_from_form(await request.form())
+    except AccountError as e:
+        return await show(request, who, "prices", 400, error=message(e))
+    return await attempt(
+        request, who, s.set_grid_rule(who, id, body), "prices", "/setup/prices#grid"
+    )
+
+
+@router.post("/prices/grid-rules/{id}/delete")
+@action("grid_rule.delete")
+async def delete_grid_rule(request: Request, who: Logged, id: str) -> Response:
+    work = services(request).delete_grid_rule(who, id)
+    return await attempt(request, who, work, "prices", "/setup/prices#grid")
 
 
 @router.post("/settings/tibber")
