@@ -197,7 +197,7 @@ A room: `name`, `climate_system` (the climate system's node, such as `pump:hp1/c
 |---|---|---|
 | `GET /prices?day=YYYY-MM-DD` | `points.read` | What one more kWh costs in each 15-minute slot of a day (default today): `{day, unit, problems, warnings, slots, checks}`. Each slot has `start`, `end`, `total`, `missing` and `parts` (`layer`, `role`, `value`, `vat_added`, `fallback`, `carried_from`). `checks` compares the total with a supplier's own, where one is offered. |
 | `GET /prices/sources` | `settings.read` | `{id: {plugin, settings, state, needs_user_action, error, area, currency}}` |
-| `PUT /prices/sources/{id}` | `plugins.manage` ⚿ | `{plugin, settings}` → the instance's setting; (re)starts it. `plugin` is `tibber`, `entsoe`, `energy_charts`, `nordic_sites`, `omie` or `octopus_agile`. A token in the settings is a secret's name. |
+| `PUT /prices/sources/{id}` | `plugins.manage` ⚿ | `{plugin, settings}` → the instance's setting; (re)starts it. `plugin` is `tibber`, `entsoe`, `energy_charts`, `nordic_sites`, `omie`, `octopus_agile` or `energidataservice`. A token in the settings is a secret's name. |
 | `GET /prices/spot` | `settings.read` | `{zone, source, fallback}` |
 | `PUT /prices/spot` | `plugins.manage` ⚿ | `{zone, source, fallback, currency}` → `{id, ...layer}`: take a bidding zone's spot price from one source, with another standing in. The sources a zone has are those Setup → Prices offers. Sources that need no account are set up for the zone, and removed once unused. |
 | `GET /prices/layers` | `settings.read` | `{id: layer}` |
@@ -210,6 +210,8 @@ A room: `name`, `climate_system` (the climate system's node, such as `pump:hp1/c
 | `POST /prices/grid-rules` | `settings.write` | A rule → `201`, `{id, ...}`, the id made from the grid company's name. `type` is `tou` (a time-of-use price per kWh: `base`, and `rates`, each with `months`, `days`, `start`, `end` and `price`; the first that holds applies), `interval_peak` (a power charge: `window`, `interval_minutes`, `peaks`, `different_days`, `price_per_kw`) or `subscribed_power` (`kw`). Each has `owner`, `status` (`in_force`, `announced`, `paused`, `withdrawn`), `valid_from`, `valid_to`, `clock` (`civil`, or `normal` time all year), `unit`, `vat`, `note`, and `unknown`: the fields the grid company hasn't given. `days` is `all`, `working_days` (Monday to Friday except public holidays), `non_working_days`, `weekdays` or `weekends`. A time-of-use rule becomes a layer of the stack, role `grid.tou`. |
 | `PUT /prices/grid-rules/{id}` | `settings.write` | A rule → `{id, ...}` |
 | `DELETE /prices/grid-rules/{id}` | `settings.write` | → `{status: "ok"}`; its layer goes too |
+| `GET /prices/denmark/companies` | `settings.read` | Denmark's grid companies with a household tariff today, from Energi Data Service: `[{gln, company, tariff, note, codes}]`, `codes` being the tariff's and any rebate's |
+| `PUT /prices/denmark` | `plugins.manage` ⚿ | `{gln, tariff}` from that list → `{added}`: an `energidataservice` source offering `grid` (`grid.tou`), `energinet` (`grid.transfer`) and `elafgift` (`tax.energy`), in DKK/kWh without VAT, each added as a layer where no layer has its role |
 
 A layer: `role` (such as `spot` or `grid.fee`), `source` (`series` or `fixed`), `unit`, `vat` (`incl` or `excl`). A `series` layer names its `plugin` instance and `series`, and may list `fallbacks` as `<instance>:<series>`. A `fixed` layer gives its `value`.
 

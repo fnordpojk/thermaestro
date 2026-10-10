@@ -172,7 +172,7 @@
       <div class="features">
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="3" width="6" height="4"/><path d="M8 4.5 H8.8 V5.5 H8"/></svg></div>
-          <p><strong>Prices built from their parts:</strong> the spot price, the supplier's surcharges, energy tax, grid fees and VAT, the same arithmetic in every country, checked against the supplier's own total, in 15-minute steps. Grid tariffs as data, with time-of-use prices and power charges: being built. <span class="tag l">later</span></p>
+          <p><strong>Prices built from their parts:</strong> the spot price, the supplier's surcharges, energy tax, grid fees and VAT, the same arithmetic in every country, checked against the supplier's own total, in 15-minute steps. Grid companies' rules are data: a time-of-use price, a power charge (the planner keeps the house under the month's highest intervals so far) or a subscribed power, entered from the price list; Denmark's are read from Energi Data Service.</p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 V4.5 L5 2 L8 4.5 V8 Z"/><path d="M3.5 7 H6.5 V5.5 H3.5 Z"/></svg></div>
@@ -294,6 +294,7 @@
             <tbody>
               <tr><th scope="row">Prices, no account</th><td>Energy-Charts, Beneficial Apps' Nordic price sites, OMIE (Spain, Portugal)</td></tr>
               <tr><th scope="row">Prices, own token</th><td>Tibber, ENTSO-E (every European zone)</td></tr>
+              <tr><th scope="row">Grid tariffs</th><td>Entered by hand; Energi Data Service (Denmark), no account</td></tr>
               <tr><th scope="row">Great Britain</th><td>Octopus Agile</td></tr>
               <tr><th scope="row">Weather</th><td>MET Norway, SMHI, Open-Meteo, each scored against the house's own outdoor sensor; Home Assistant as a fallback</td></tr>
             </tbody>
@@ -326,7 +327,6 @@
       <div>
         <h3>Being built</h3>
         <ul>
-          <li>Grid tariffs as data: time-of-use prices and power charges entered by hand, and Denmark's read automatically.</li>
           <li>Importing NibePi's settings, and a review of the pump's own.</li>
         </ul>
       </div>

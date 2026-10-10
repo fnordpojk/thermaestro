@@ -37,6 +37,7 @@ thermaestro = "thermaestro.cli:main"
 
 [project.entry-points."thermaestro.plugins"]
 energy_charts = "thermaestro.energy_charts.plugin:create"
+energidataservice = "thermaestro.energidataservice.plugin:create"
 entsoe = "thermaestro.entsoe.plugin:create"
 homeassistant = "thermaestro.homeassistant.plugin:create"
 met_norway = "thermaestro.met_norway.plugin:create"

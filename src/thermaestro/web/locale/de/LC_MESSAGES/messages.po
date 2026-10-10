@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 22:26+0200\n"
+"POT-Creation-Date: 2026-10-10 23:09+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -598,6 +598,9 @@ msgstr "Grad, + wärmer oder − kühler"
 msgid "Demand"
 msgstr "Bedarf"
 
+msgid "Denmark: grid tariffs"
+msgstr "Dänemark: Netzentgelte"
+
 msgid "Details"
 msgstr "Details"
 
@@ -804,6 +807,9 @@ msgstr ""
 msgid "Grid company"
 msgstr "Netzbetreiber"
 
+msgid "Grid company and tariff"
+msgstr "Netzbetreiber und Tarif"
+
 msgid "Grid fee"
 msgstr "Netzentgelt"
 
@@ -921,6 +927,17 @@ msgstr "Das habe ich nicht verstanden. Sie können zum Beispiel sagen:"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
+
+msgid ""
+"In Denmark, every grid company's tariff, Energinet's tariffs and the electricity tax "
+"come from Energi Data Service, with no account. Pick your grid company and tariff "
+"from its list: nothing about your house is sent. Each becomes a layer of the stack "
+"where no layer has its role yet."
+msgstr ""
+"In Dänemark kommen der Tarif jedes Netzbetreibers, die Tarife von Energinet und die "
+"Stromsteuer von Energi Data Service, ohne Konto. Wähle deinen Netzbetreiber und Tarif"
+" aus seiner Liste: nichts über dein Haus wird gesendet. Jeder wird zu einer Schicht, "
+"wo noch keine Schicht seine Rolle hat."
 
 msgid "In control now"
 msgstr "Jetzt gesteuert"
@@ -1300,6 +1317,10 @@ msgstr "Jetzt von"
 msgid "Now:"
 msgstr "Jetzt:"
 
+#, python-format
+msgid "Now: %(company)s, %(codes)s"
+msgstr "Jetzt: %(company)s, %(codes)s"
+
 msgid "Observed"
 msgstr "Gemessen"
 
@@ -1673,6 +1694,9 @@ msgstr "Anzeigen"
 
 msgid "Show its sources"
 msgstr "Quellen der Zone zeigen"
+
+msgid "Show the grid companies"
+msgstr "Die Netzbetreiber zeigen"
 
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr "Nur angezeigt; Thermaestro plant nicht damit."

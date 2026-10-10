@@ -260,6 +260,49 @@ async def test_series_and_their_freshness(site: Site) -> None:
     assert total["freshness"] == "empty"
 
 
+async def test_denmarks_grid_tariffs_picked_from_the_list(
+    site: Site, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from thermaestro.energidataservice import plugin
+
+    listed: list[dict[str, object]] = [
+        {"gln": "5790000705689", "company": "Radius Elnet A/S", "tariff": "DT_C_01",
+         "note": "Nettarif C", "codes": ["DT_C_01"]},
+    ]  # fmt: skip
+
+    async def fake(session: object, today: object, url: str = "") -> list[dict[str, object]]:
+        return listed
+
+    monkeypatch.setattr(plugin, "companies", fake)
+    async with logged_in(site) as client:
+        page = (await client.get("/setup/prices")).text
+        assert "Show the grid companies" in page
+        page = (await client.get("/setup/prices?denmark=1")).text
+        assert 'value="5790000705689:DT_C_01"' in page
+        saved = await form(
+            client, "/setup/prices?denmark=1", "/settings/energidataservice",
+            choice="5790000705689:DT_C_01",
+        )  # fmt: skip
+        assert saved.status_code == 303, saved.text
+        sources = (await client.get("/api/v1/prices/sources")).json()
+        assert sources["energidataservice"]["settings"] == {
+            "gln": "5790000705689",
+            "codes": ["DT_C_01"],
+            "company": "Radius Elnet A/S",
+        }
+        layers = (await client.get("/api/v1/prices/layers")).json()
+        assert {(x["role"], x.get("series")) for x in layers.values()} == {
+            ("grid.tou", "grid"),
+            ("grid.transfer", "energinet"),
+            ("tax.energy", "elafgift"),
+        }
+        token = {"x-csrf-token": csrf_of((await client.get("/account")).text)}
+        wrong = await client.put(
+            "/api/v1/prices/denmark", json={"gln": "1", "tariff": "X"}, headers=token
+        )
+        assert wrong.status_code == 400
+
+
 async def test_price_sources_in_the_settings(site: Site) -> None:
     async with logged_in(site) as client:
         page = (await client.get("/setup/prices")).text

@@ -122,6 +122,15 @@ async def set_fallbacks(
     )
 
 
+@router.post("/settings/energidataservice")
+@action("danish_grid.write")
+async def choose_danish_grid(request: Request, who: Logged, choice: Text = "") -> Response:
+    """A grid company and tariff from the list, as `<gln>:<tariff>`."""
+    gln, _, tariff = choice.partition(":")
+    work = services(request).choose_danish_grid(who, gln, tariff)
+    return await attempt(request, who, work, "prices", "/setup/prices#denmark")
+
+
 # --- grid rules --------------------------------------------------------------------------
 
 

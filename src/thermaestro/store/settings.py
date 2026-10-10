@@ -183,6 +183,22 @@ class SpotZone(BaseModel):
     """The currency to give prices in; other than EUR, converted at the ECB's rates."""
 
 
+class DanishGrid(BaseModel):
+    """A Danish household's grid company and its charge codes in DataHub's price list: the
+    settings of an `energidataservice` plugin instance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    gln: Annotated[str, StringConstraints(pattern=r"^[0-9]{13}$")]
+    """The grid company's GLN number."""
+    codes: Annotated[
+        tuple[Annotated[str, StringConstraints(min_length=1, max_length=32)], ...],
+        Field(min_length=1, max_length=6),
+    ]
+    """Its household tariff's charge code, and any rebate's."""
+    company: Annotated[str, StringConstraints(min_length=1, max_length=128)]
+
+
 class OctopusAgile(BaseModel):
     """Octopus Energy's Agile tariff in Great Britain: the settings of an `octopus_agile`
     plugin instance."""

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 22:26+0200\n"
+"POT-Creation-Date: 2026-10-10 23:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -563,6 +563,9 @@ msgstr ""
 msgid "Demand"
 msgstr ""
 
+msgid "Denmark: grid tariffs"
+msgstr ""
+
 msgid "Details"
 msgstr ""
 
@@ -748,6 +751,9 @@ msgstr ""
 msgid "Grid company"
 msgstr ""
 
+msgid "Grid company and tariff"
+msgstr ""
+
 msgid "Grid fee"
 msgstr ""
 
@@ -864,6 +870,13 @@ msgid "I didn't understand that. You can say, for example:"
 msgstr ""
 
 msgid "ISO 8601 (2026-10-06)"
+msgstr ""
+
+msgid ""
+"In Denmark, every grid company's tariff, Energinet's tariffs and the "
+"electricity tax come from Energi Data Service, with no account. Pick your"
+" grid company and tariff from its list: nothing about your house is sent."
+" Each becomes a layer of the stack where no layer has its role yet."
 msgstr ""
 
 msgid "In control now"
@@ -1221,6 +1234,10 @@ msgid "Now from"
 msgstr ""
 
 msgid "Now:"
+msgstr ""
+
+#, python-format
+msgid "Now: %(company)s, %(codes)s"
 msgstr ""
 
 msgid "Observed"
@@ -1585,6 +1602,9 @@ msgid "Show"
 msgstr ""
 
 msgid "Show its sources"
+msgstr ""
+
+msgid "Show the grid companies"
 msgstr ""
 
 msgid "Shown only; Thermaestro doesn't plan with it."

@@ -176,8 +176,23 @@ async def _prices(request: Request, who: Caller) -> dict[str, Any]:
         "vat": await s.vat(who),
         "fixed_roles": FIXED_ROLES,
         "grid_rules": await s.grid_rules(who),
+        "danish": {id: p for id, p in sources.items() if p["plugin"] == "energidataservice"},
+        **(await _danish_companies(request, who)),
         "grid_layers": {x.rule: id for id, x in layers.items() if x.source == "rule"},
     }
+
+
+async def _danish_companies(request: Request, who: Caller) -> dict[str, Any]:
+    """Denmark's grid companies, fetched only when asked for on the page."""
+    if request.query_params.get("denmark") != "1":
+        return {"dk_companies": None, "dk_error": None}
+    try:
+        return {
+            "dk_companies": await services(request).danish_grid_companies(who),
+            "dk_error": None,
+        }
+    except AccountError as e:
+        return {"dk_companies": None, "dk_error": str(e)}
 
 
 async def _weather(request: Request, who: Caller) -> dict[str, Any]:

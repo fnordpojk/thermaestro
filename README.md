@@ -13,7 +13,7 @@ Built today:
 - **Nibe heat pumps.** F-series and related models through a gateway on the pump's accessory bus: plain NibeGW gateways such as esphome-nibe, or the Thermaestro gateway protocol, which reports what happened to every request. S-series over Modbus TCP, from Nibe's documentation, not yet tried on a real pump.
 - **Every value with its quality.** A reading says whether it can be used, and why not, and its history is kept.
 - **Room and outdoor sensors** from Home Assistant or MQTT, each with its reporting rhythm learned.
-- **Electricity prices** without an account in much of Europe (Energy-Charts, Beneficial Apps' Nordic price sites, OMIE), from Tibber or ENTSO-E with your own token, and Octopus Agile in Great Britain. The price is built from its parts: spot price, surcharges, tax, grid fee and VAT.
+- **Electricity prices** without an account in much of Europe (Energy-Charts, Beneficial Apps' Nordic price sites, OMIE), from Tibber or ENTSO-E with your own token, and Octopus Agile in Great Britain. The price is built from its parts: spot price, surcharges, tax, grid fees and VAT. A grid company's rules are entered as data (a time-of-use price, a power charge, a subscribed power); Denmark's tariffs are read from Energi Data Service.
 - **Weather** from MET Norway, SMHI or Open-Meteo, each scored against the house's own outdoor sensor, with Home Assistant as a fallback.
 - **Home Assistant:** Thermaestro's state is published over MQTT, with discovery, and requests for a while ("warmer, please") come back the same way, with only the rights the administrator grants.
 - **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action. Its pages keep themselves current, and a wall display stays logged in with only the rights given to it.
@@ -21,15 +21,15 @@ Built today:
 - **A rig** that tries each setting Thermaestro changes on a real pump, through the same code control uses: it changes the setting, watches what the pump does, puts it back, and writes down what happened. Read-only unless asked to write.
 - **Intents:** the household's goals in its own terms (warm rooms on a weekly pattern, hot water by a time, a lowest hot-water temperature, how much to favor cost over comfort) and requests for a while ("warmer, please", a bath by 19:30, away until Sunday, hands off), kept, checked and ranked. Requests for a while are buttons, or said in words in English, Swedish or German, read by Thermaestro's own rules. The first ones are taken from how the pump runs.
 - **A rule-based planner** that decides every 15 minutes what each setting should be, and why: the curve offset steering the coldest room, hot water kept above its floor and ready by its deadlines, heat moved to cheaper hours as far as the household allows.
-- **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found on shutdown or when something goes wrong. In shadow mode it decides the same and changes nothing.
-- **Control in the web UI and over MQTT:** each setting off, in shadow or in control; what the household wants on an Intents page and as quick requests on the overview; a Plan page with what was decided and why; Home Assistant buttons and states.
+- **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found on shutdown or when something goes wrong. In shadow mode it decides the same and changes nothing, and each decision is set beside what the pump showed at that moment, as charts, a table and CSV.
+- **Control in the web UI and over MQTT:** each setting off, in shadow or in control; what the household wants on an Intents page, each intent and level changed in place, and as quick requests on the overview; a Plan page with what was decided and why, the house's power kept under the household's and the grid company's limits; Home Assistant buttons and states.
 - **Tested against a simulated house**, hot-water tank and pump over simulated days: comfort and the hot-water floor hold, extreme prices buy neither cold nor heat, and shadow decides as control would.
 
 Coming:
 
-- **Checking each setting on the test pump**, then **shadow beside NibePi** for a week, then control, setting by setting.
+- **Control on the test pump**, after a week of shadow beside NibePi, setting by setting: hot water first, the heating offset after.
 - **Learning:** models of the house and the hot-water tank, and an optimizer that plans a day or two ahead with them, using the house and the tank as heat storage.
-- Grid tariffs as data, and importing NibePi's settings.
+- Importing NibePi's settings, and a review of the pump's own.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.
 
 ## Documentation

@@ -1,7 +1,7 @@
 """Prices: the layers of the stack, VAT, the series the plugins offer, and the stack
 itself per day; the operations behind the prices page and its API."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
@@ -12,6 +12,7 @@ from ..core.gridrules import household
 from ..core.prices import Stack, assemble
 from ..spotsources import choices
 from ..store import EntsoE, GridRule, OctopusAgile, Plugin, PriceLayer, SpotZone, Tibber, Vat
+from ..store.settings import DanishGrid
 from ..zones import ZONES
 from .sensor_operations import ID, slug
 
@@ -24,7 +25,15 @@ if TYPE_CHECKING:
     from ..store import Database
     from .operations import Caller
 
-PRICE_PLUGINS = ("tibber", "entsoe", "energy_charts", "nordic_sites", "omie", "octopus_agile")
+PRICE_PLUGINS = (
+    "tibber",
+    "entsoe",
+    "energy_charts",
+    "nordic_sites",
+    "omie",
+    "octopus_agile",
+    "energidataservice",
+)
 NO_ACCOUNT = ("energy_charts", "nordic_sites", "omie")
 """Spot price sources set up by the bidding zone alone, and removed when no longer used."""
 
@@ -42,6 +51,7 @@ def _source_settings(plugin: str, settings: dict[str, Any]) -> None:
         "nordic_sites": SpotZone,
         "omie": SpotZone,
         "octopus_agile": OctopusAgile,
+        "energidataservice": DanishGrid,
     }
     _validated(models[plugin], settings, "the price source")
     zone = settings.get("zone")
@@ -108,6 +118,61 @@ class PriceOperations:
             source=caller.source,
             details={"kind": "price.layer", "id": id},
         )
+
+    # --- Denmark's grid tariffs -----------------------------------------------------------
+
+    async def danish_grid_companies(self, caller: "Caller") -> list[dict[str, Any]]:
+        """The Danish grid companies with a household tariff today, from Energi Data
+        Service: each with its GLN number, name, tariff and the codes asked for."""
+        caller.principal.require("settings.read")
+        import aiohttp
+
+        from ..energidataservice.plugin import EnergiDataServicePlugin, companies
+        from ..seriesplugin import SourceError, user_agent
+
+        agent = user_agent(EnergiDataServicePlugin.name, EnergiDataServicePlugin.version)
+        try:
+            async with aiohttp.ClientSession(
+                headers={"User-Agent": agent}, timeout=aiohttp.ClientTimeout(total=30)
+            ) as session:
+                return await companies(session, datetime.now(self.zone).date())
+        except (aiohttp.ClientError, TimeoutError, SourceError) as e:
+            raise AccountError(f"Energi Data Service couldn't be reached: {e}") from None
+
+    async def choose_danish_grid(self, caller: "Caller", gln: str, tariff: str) -> list[str]:
+        """Take the household's grid tariffs from Energi Data Service: its grid company's
+        tariff (with any rebate), Energinet's tariffs and the electricity tax. Each becomes
+        a layer of the stack where no layer has its role yet, VAT charged on it where a VAT
+        rule is set. The layers added are returned."""
+        listed = await self.danish_grid_companies(caller)
+        found = next((c for c in listed if (c["gln"], c["tariff"]) == (gln, tariff)), None)
+        if found is None:
+            raise AccountError("no such grid company and tariff in Energi Data Service's list")
+        settings = {"gln": gln, "codes": found["codes"], "company": found["company"]}
+        await self.set_price_source(caller, "energidataservice", "energidataservice", settings)
+        layers = await self.db.all(PriceLayer)
+        roles = {layer.role for layer in layers.values()}
+        added: list[str] = []
+        for series, role in (
+            ("grid", "grid.tou"),
+            ("energinet", "grid.transfer"),
+            ("elafgift", "tax.energy"),
+        ):
+            if role in roles:
+                continue
+            id = slug(role.replace(".", "-"), set(layers) | set(added))
+            layer = PriceLayer(
+                role=role,
+                source="series",
+                plugin="energidataservice",
+                series=series,
+                unit="DKK/kWh",
+                vat="excl",
+            )
+            await self.db.put(layer, id)
+            added.append(id)
+        await self._charge_vat_on(caller, added)
+        return added
 
     # --- grid rules -----------------------------------------------------------------------
 

@@ -86,6 +86,22 @@
     </select></label>
   <button type="submit">{{ _("Save") }}</button>
 </form>
+
+<h3 id="denmark">{{ _("Denmark: grid tariffs") }}</h3>
+<p>{{ _("In Denmark, every grid company's tariff, Energinet's tariffs and the electricity tax come from Energi Data Service, with no account. Pick your grid company and tariff from its list: nothing about your house is sent. Each becomes a layer of the stack where no layer has its role yet.") }}</p>
+{% set current = (danish.values() | first) if danish else none %}
+{% if current %}<p>{{ _("Now: %(company)s, %(codes)s", company=current.settings.company, codes=current.settings.codes | join(", ")) }}</p>{% endif %}
+{% if dk_companies is none %}
+<form method="get" action="/setup/prices" class="inline"><input type="hidden" name="denmark" value="1"><button type="submit">{{ _("Show the grid companies") }}</button></form>
+{% if dk_error %}<p class="error">{{ dk_error }}</p>{% endif %}
+{% else %}
+<form method="post" action="/settings/energidataservice" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Grid company and tariff") }}
+    <select name="choice" required>{% for c in dk_companies %}<option value="{{ c.gln }}:{{ c.tariff }}"{% if current and current.settings.gln == c.gln and c.tariff in current.settings.codes %} selected{% endif %}>{{ c.company }} · {{ c.note }} ({{ c.tariff }})</option>{% endfor %}</select></label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+{% endif %}
 </section>
 
 <section id="grid">

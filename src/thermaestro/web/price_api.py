@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel
 
 from ..auth import AccountError
 from .app import action, caller, services
@@ -196,3 +197,25 @@ async def delete_grid_rule(id: str, request: Request, who: Logged) -> dict[str, 
     """Remove a rule, and the layer that holds its prices."""
     await services(request).delete_grid_rule(who, id)
     return {"status": "ok"}
+
+
+class DanishTariff(BaseModel):
+    gln: str
+    tariff: str
+
+
+@router.get("/prices/denmark/companies")
+@action("danish_grid.read")
+async def danish_grid_companies(request: Request, who: Logged) -> list[dict[str, Any]]:
+    """The Danish grid companies with a household tariff today, from Energi Data Service:
+    `{gln, company, tariff, note, codes}`, `codes` being the tariff's and any rebate's."""
+    return await services(request).danish_grid_companies(who)
+
+
+@router.put("/prices/denmark")
+@action("danish_grid.write")
+async def choose_danish_grid(body: DanishTariff, request: Request, who: Logged) -> dict[str, Any]:
+    """Take the grid tariffs from Energi Data Service for a grid company and tariff from
+    the list. The layers added (where no layer has their role yet) are returned."""
+    added = await services(request).choose_danish_grid(who, body.gln, body.tariff)
+    return {"added": added}
