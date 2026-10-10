@@ -69,10 +69,12 @@
 </table>
 </section>
 
+{% if scopes.systems or scopes.tanks %}
 <section id="for-a-while">
 <h2>{{ _("For a while") }}</h2>
 {% include "ask-quick.html" %}
 </section>
+{% endif %}
 
 {% if can("intent.standing.write") or can("intent.slider.write") %}
 <section id="always">

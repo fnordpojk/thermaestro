@@ -1,7 +1,9 @@
 {# Asking for something for a while, on the overview and the Intents page: the usual asks
    as buttons, and anything else said in words. What is said is read by built-in rules and
    answered with a form to check before anything is asked. The conversation stays as the
-   page refreshes around it (data-keep). Without scripts, each form goes to a page. #}
+   page refreshes around it (data-keep). Without scripts, each form goes to a page. Shown
+   only once there is something to control: a climate system or a tank (the pages that
+   include it check). #}
 {% set chat = 'hx-target="#ask-log" hx-swap="beforeend"' %}
 {% set temporary = can("intent.temporary.create") %}
 {% set away = can("intent.temporary.create.away") and scopes.systems %}
@@ -30,7 +32,7 @@
   <button type="submit">{{ _("Away") }}</button>
 </form>
 {% endif %}
-{% if temporary %}
+{% if temporary and scopes.systems %}
 <form method="post" action="/intents" hx-post="/intents" {{ chat | safe }} class="inline">
   <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="fireplace">
   <button type="submit">{{ _("Fireplace") }}</button>

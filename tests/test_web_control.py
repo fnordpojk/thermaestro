@@ -293,12 +293,23 @@ async def test_asking_from_the_intents_page(tmp_path: Path) -> None:
         assert "offset is a number" in bad.text
 
 
-async def test_the_overview_asks_for_a_while(tmp_path: Path) -> None:
-    async with site(tmp_path) as (_, _, client):
+async def test_the_overview_asks_for_a_while(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with site(tmp_path) as (_, services, client):
         await login(client, "kid")
         page = await client.get("/")
         assert page.status_code == 200
+        # Nothing to control yet (the pump not read, or none): nothing to ask for.
+        assert "Ask for a while" not in page.text
+        assert 'value="fireplace"' not in page.text
+        scopes = {"systems": [(CS, "Radiators")], "tanks": [], "pools": [], "rooms": []}
+        monkeypatch.setattr(services, "intent_scopes", lambda caller: scopes)
+        page = await client.get("/")
         assert "Ask for a while" in page.text
+        assert 'value="fireplace"' in page.text
+        assert "Warmer" in page.text
+        assert 'value="boost_now"' not in page.text  # no tank
         assert 'value="hands_off"' not in page.text  # the household has no right to it
 
 

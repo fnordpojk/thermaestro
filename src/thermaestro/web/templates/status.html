@@ -28,7 +28,9 @@
   </section>
 </div>
 {% endif %}
-{% if asking %}
+{# Asking for a while needs something to control: a climate system or a tank. After a
+   restart they come once the pump has been read, and the page's refresh brings them. #}
+{% if asking and (asking.scopes.systems or asking.scopes.tanks) %}
 <section class="card asking">
   <h2><a href="/intents">{{ _("Ask for a while") }}</a></h2>
   {% for v in asking.temporary %}{% set i = v.intent %}
