@@ -755,6 +755,32 @@ def _documented(basis: str | tuple[str, ...]) -> Knowledge[bool]:
     return Knowledge(value=True, known="documented", basis=basis)
 
 
+TRIED: Mapping[str, Mapping[str, str]] = {
+    "cs1/heating.offset": {
+        "F1245": "tried on an F1245, firmware 9721R4: set, read back and put back",
+    },
+    "dhw/mode": {
+        "F1245": "tried on an F1245, firmware 9721R4: set, read back and put back",
+    },
+    "dhw/block": {
+        "F1245": "tried on an F1245, firmware 9721R4: no charge while the start was lowered",
+    },
+    "dhw/boost_once": {
+        "F1245": "tried on an F1245, firmware 9721R4: a charge started, and ended by itself",
+    },
+}
+"""Levers tried on a real pump (`thermaestro rig`), by model: there, verified; on other
+models, as documented."""
+
+
+def tried(path: str, model: ModelMap, documented: Knowledge[bool]) -> Knowledge[bool]:
+    """Whether the lever works: verified on a model it was tried on, else as documented."""
+    tried = TRIED.get(path, {}).get(model.name)
+    if tried is None:
+        return documented
+    return Knowledge(value=True, known="verified", basis=tried)
+
+
 STORED = Knowledge[Persistence](
     value=Persistence(kind="stored"), known="documented", basis=DATABASE
 )
@@ -824,7 +850,7 @@ def levers(
                 system.offset,
                 f"{cs}/x.nibe.{system.offset}",
                 _number(-10, 10, 1, None, DATABASE),
-                _documented("installer manual"),
+                tried(f"{cs}/heating.offset", model, _documented("installer manual")),
                 preconditions=conditions,
                 competing_features=priced,
             )
@@ -845,7 +871,7 @@ def levers(
                         basis=(DATABASE, "Smart Control isn't offered"),
                     ),
                 ),
-                _documented(DATABASE),
+                tried("dhw/mode", model, _documented(DATABASE)),
                 competing_features=(SCHEDULE, *priced),
                 names=MODES,
             )
@@ -867,8 +893,12 @@ def levers(
                             "it follows the mode: when the mode changes, it is moved",
                         ),
                     ),
-                    works=Knowledge(
-                        value=True, known="verified", basis="tested on an F1245, firmware 9721R4"
+                    works=tried(
+                        "dhw/block",
+                        model,
+                        _documented(
+                            (DATABASE, "a low start holds charges off, as tried on an F1245")
+                        ),
                     ),
                     persistence=Knowledge(value=Persistence(kind="stored"), known="verified"),
                     wear=FLASH,
@@ -890,7 +920,7 @@ def levers(
                 Lever(
                     path=f"{UNIT}/dhw/boost_once",
                     kind="trigger",
-                    works=_documented("firmware history, 7740R2"),
+                    works=tried("dhw/boost_once", model, _documented("firmware history, 7740R2")),
                     verify=Verify(kind="effect", point=f"{UNIT}/demand", expectation="demand: dhw"),
                     touches=(f"x.nibe.{BOOST}",),
                 ),

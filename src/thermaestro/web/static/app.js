@@ -435,6 +435,9 @@ function pageFormats(element) {
   };
 }
 
+// The overview's small price chart and meteogram sit side by side: one height for both.
+const COMPACT_HEIGHT = 196;
+
 function cssColor(name, fallback) {
   return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
 }
@@ -518,7 +521,7 @@ function priceChart(box) {
     }
     const ids = layers();
     const width = box.clientWidth || 800;
-    const height = compact ? 170 : 300;
+    const height = compact ? COMPACT_HEIGHT : 300;
     const pad = { left: 62, right: 12, top: 22, bottom: 26 };
     const nowShown = box.dataset.now ? document.getElementById(box.dataset.now) : null;
     if (nowShown) {
@@ -981,11 +984,11 @@ function meteogram(box) {
     const end = Math.min(start + 48 * HOUR, Math.max(...temps.values.map((v) => v[1])));
     const width = box.clientWidth || 900;
     const pad = { left: 46, right: 40 };
-    const top = { y0: 76, y1: compact ? 186 : 246 };
+    const top = { y0: 76, y1: compact ? COMPACT_HEIGHT - 10 : 246 };
     const wind = { y0: 276, y1: 356 };
     const arrows = 372;
     const sunlight = { y0: 400, y1: 444 };
-    const height = compact ? 196 : 456;
+    const height = compact ? COMPACT_HEIGHT : 456;
     const bottom = compact ? top.y1 : null;
     const canvas = document.createElement("canvas");
     const ratio = window.devicePixelRatio || 1;

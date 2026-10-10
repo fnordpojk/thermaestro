@@ -16,7 +16,7 @@ from thermaestro_gateway.server import Config, Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.messages import Described, Fate, ForeignWrite, Op
-from thermaestro.cap.model import Value
+from thermaestro.cap.model import Knowledge, Value
 from thermaestro.core import Core, Key, run
 from thermaestro.core.plugins import PluginStore
 from thermaestro.nibe import profile
@@ -575,3 +575,18 @@ async def test_shadow_sends_nothing(stocked: SimPump, gateway: Gateway, tmp_path
     await daemon(tmp_path, gateway, dict.fromkeys(shadow, "shadow"), started)
     assert outcomes == ["shadowed"] * 5
     assert stocked.taken_writes == []
+
+
+def test_levers_tried_on_a_pump_are_verified_on_that_model_only() -> None:
+    """What the rig showed on a real pump counts for that model; elsewhere, as documented."""
+    maps = load("bus")
+    f1245, f1155 = maps.model("F1245"), maps.model("F1155")
+    documented = Knowledge[bool](value=True, known="documented", basis="a manual")
+    for path in ("cs1/heating.offset", "dhw/mode", "dhw/block", "dhw/boost_once"):
+        found = profile.tried(path, f1245, documented)
+        assert (found.known, found.value) == ("verified", True)
+        assert "F1245, firmware 9721R4" in str(found.basis)
+        assert profile.tried(path, f1155, documented) == documented
+    # Only climate system 1's offset was tried.
+    assert profile.tried("cs2/heating.offset", f1245, documented) == documented
+    assert profile.tried("addition/stop_temp", f1245, documented) == documented
