@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Ask for a while") }}{% endblock %}
+{% block main %}
+{# Without scripts, what was said is answered on a page of its own. #}
+<h1>{{ _("Ask for a while") }}</h1>
+<div class="ask-log">{% include "ask-reply.html" %}</div>
+<p><a href="/intents">{{ _("Intents") }}</a> · <a href="/">{{ _("Overview") }}</a></p>
+{% endblock %}

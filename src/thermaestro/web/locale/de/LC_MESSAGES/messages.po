@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 15:22+0200\n"
+"POT-Creation-Date: 2026-10-10 16:07+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -121,9 +121,6 @@ msgstr ""
 
 msgid "A bath"
 msgstr "Ein Bad"
-
-msgid "A bath: at least, °C"
-msgstr "Ein Bad: mindestens, °C"
 
 msgid ""
 "A climate system without a room sensor: its normal heat, moved by price at most this "
@@ -314,9 +311,6 @@ msgstr "Durchschnittlich"
 msgid "Away"
 msgstr "Abwesend"
 
-msgid "Away until"
-msgstr "Abwesend bis"
-
 msgid "Back to the list"
 msgstr "Zurück zur Liste"
 
@@ -468,8 +462,8 @@ msgstr "Steuerung"
 msgid "Control port"
 msgstr "Steuerport"
 
-msgid "Cooler, please"
-msgstr "Kühler, bitte"
+msgid "Cooler"
+msgstr "Kühler"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopieren Sie es jetzt: Es wird nur dieses eine Mal angezeigt."
@@ -522,6 +516,9 @@ msgstr "Dezimalzeichen"
 
 msgid "Degree minutes"
 msgstr "Gradminuten"
+
+msgid "Degrees, + warmer or − cooler"
+msgstr "Grad, + wärmer oder − kühler"
 
 msgid "Demand"
 msgstr "Bedarf"
@@ -634,6 +631,9 @@ msgstr "Läuft ab"
 msgid "External"
 msgstr "Extern"
 
+msgid "Extra hot water"
+msgstr "Extra Warmwasser"
+
 msgid "Fallback"
 msgstr "Ersatz"
 
@@ -649,6 +649,9 @@ msgstr "Gebläsekonvektoren"
 msgid "Fan speed"
 msgstr "Lüfterdrehzahl"
 
+msgid "Fireplace"
+msgstr "Kamin"
+
 msgid "First administrator"
 msgstr "Erster Administrator"
 
@@ -663,6 +666,9 @@ msgstr "Für eine Weile"
 
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "Für Vorhersagen und den Sonnenstand. Koordinaten mit Dezimalpunkt, zum Beispiel 59.33."
+
+msgid "For six hours, the heat isn't raised for the fireplace's warmth."
+msgstr "Sechs Stunden lang wird die Heizung wegen der Wärme des Kamins nicht erhöht."
 
 msgid ""
 "Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
@@ -741,9 +747,6 @@ msgstr "HTTPS ist ausgeschaltet."
 msgid "Hands off"
 msgstr "Finger weg"
 
-msgid "Hands off until"
-msgstr "Finger weg bis"
-
 #, python-format
 msgid "Hands off until %(until)s: Thermaestro changes nothing on the pump."
 msgstr "Finger weg bis %(until)s: Thermaestro ändert nichts an der Pumpe."
@@ -819,6 +822,9 @@ msgstr "Wie wichtig es ist"
 
 msgid "Humidity"
 msgstr "Luftfeuchte"
+
+msgid "I didn't understand that. You can say, for example:"
+msgstr "Das habe ich nicht verstanden. Sie können zum Beispiel sagen:"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
@@ -1152,8 +1158,8 @@ msgstr "Aus"
 msgid "One extra charge"
 msgstr "Eine zusätzliche Ladung"
 
-msgid "One extra charge of hot water now"
-msgstr "Jetzt eine zusätzliche Warmwasserladung"
+msgid "One extra charge, now."
+msgstr "Eine zusätzliche Ladung, jetzt."
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -1198,6 +1204,9 @@ msgstr "Betreiber"
 
 msgid "Or a hot-water top, °C"
 msgstr "Oder eine Warmwasser-Obergrenze, °C"
+
+msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
+msgstr "Oder sagen Sie es: ein Bad um 19:30, weg bis Sonntag, etwas wärmer bis 22"
 
 msgid "Outcome"
 msgstr "Ergebnis"
@@ -1398,8 +1407,14 @@ msgstr "Speichern und verbinden"
 msgid "Savings, in percent"
 msgstr "Ersparnis, in Prozent"
 
+msgid "Say what you want"
+msgstr "Sagen Sie, was Sie möchten"
+
 msgid "Security token"
 msgstr "Sicherheitstoken"
+
+msgid "Send"
+msgstr "Senden"
 
 msgid "Sensor"
 msgstr "Sensor"
@@ -1806,6 +1821,9 @@ msgstr "Wanddisplay"
 msgid "Wall displays"
 msgstr "Wanddisplays"
 
+msgid "Warmer"
+msgstr "Wärmer"
+
 msgid "Warmer or cooler lasts until the pattern next changes."
 msgstr "Wärmer oder kühler gilt, bis sich der Plan das nächste Mal ändert."
 
@@ -1994,6 +2012,12 @@ msgstr ""
 "Eigene Namen ersetzen die eingebauten für alle; lassen Sie ein Feld leer für den "
 "eingebauten Namen."
 
+msgid "a bath at 19:30"
+msgstr "ein Bad um 19:30"
+
+msgid "a bit warmer until 22"
+msgstr "etwas wärmer bis 22"
+
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr "ein Land und vielleicht eine Region: SE, DE-BY; leer: keine"
 
@@ -2101,11 +2125,14 @@ msgstr "gefährdet"
 msgid "at the brine pump's speed, %%"
 msgstr "bei der Drehzahl der Solepumpe, %%"
 
-msgid "by"
-msgstr "bis"
+msgid "away until Sunday"
+msgstr "weg bis Sonntag"
 
 msgid "change the installation's settings"
 msgstr "die Einstellungen der Installation ändern"
+
+msgid "check, then ask for it"
+msgstr "prüfen, dann darum bitten"
 
 msgid "comma (4,5)"
 msgstr "Komma (4,5)"
@@ -2168,6 +2195,9 @@ msgstr "leer: die Nachricht ist die Zahl"
 msgid "empty: the zone's own"
 msgstr "leer: die der Zone"
 
+msgid "empty: until the pattern next changes"
+msgstr "leer: bis sich das Muster das nächste Mal ändert"
+
 msgid "enter or replace secrets (never read them back)"
 msgstr "Geheimnisse eingeben oder ersetzen (nie wieder auslesen)"
 
@@ -2195,11 +2225,17 @@ msgstr "alles, auch später hinzugefügte Rechte"
 msgid "excluded"
 msgstr "nicht enthalten"
 
+msgid "extra hot water"
+msgstr "mehr Warmwasser"
+
 msgid "failed"
 msgstr "fehlgeschlagen"
 
 msgid "fallback"
 msgstr "Ersatz"
+
+msgid "fill in what's missing, and check the rest"
+msgstr "ergänzen Sie, was fehlt, und prüfen Sie den Rest"
 
 msgid "finished"
 msgstr "beendet"
@@ -2233,6 +2269,12 @@ msgstr "gibt nach"
 
 msgid "good"
 msgstr "gut"
+
+msgid "guests until tomorrow 18:00"
+msgstr "Gäste bis morgen 18:00"
+
+msgid "hands off for 2 days"
+msgstr "Finger weg für 2 Tage"
 
 msgid "heating"
 msgstr "Heizung"
@@ -2525,6 +2567,9 @@ msgstr "den Diagnosewerten"
 msgid "the everyday values"
 msgstr "den Alltagswerten"
 
+msgid "the fireplace is lit"
+msgstr "der Kamin brennt"
+
 msgid "the gateway's, or an S-series pump's own"
 msgstr "die des Gateways oder die eigene einer Pumpe der S-Serie"
 
@@ -2658,4 +2703,19 @@ msgstr "Ihr Token"
 #~ " sie in den Spotpreis, aus dieser Quelle,"
 #~ " und den Aufschlag des Lieferanten auf, "
 #~ "sobald unten die Mehrwertsteuer angegeben ist."
+
+#~ msgid "A bath: at least, °C"
+#~ msgstr "Ein Bad: mindestens, °C"
+
+#~ msgid "Cooler, please"
+#~ msgstr "Kühler, bitte"
+
+#~ msgid "Hands off until"
+#~ msgstr "Finger weg bis"
+
+#~ msgid "One extra charge of hot water now"
+#~ msgstr "Jetzt eine zusätzliche Warmwasserladung"
+
+#~ msgid "by"
+#~ msgstr "bis"
 

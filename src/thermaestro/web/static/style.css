@@ -207,6 +207,18 @@ td.value { white-space: nowrap; cursor: help; }
 .card { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--panel); }
 .card h2 { font-size: 1.05rem; margin: 0.25rem 0; }
 .card table { margin: 0; }
+/* Asking for a while: the usual asks as buttons, then the conversation, then what to say. */
+.ask-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ask-buttons form { margin: 0; }
+.ask-log { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; max-height: 28rem; overflow-y: auto; }
+.ask-log:empty { display: none; }
+.ask-log .said { align-self: flex-end; max-width: 80%; margin: 0; padding: 0.4rem 0.7rem; border-radius: 12px 12px 2px 12px; background: var(--accent); color: var(--bg, #fff); }
+.ask-log .reply { align-self: flex-start; max-width: 95%; padding: 0.4rem 0.7rem; border: 1px solid var(--line); border-radius: 12px 12px 12px 2px; background: var(--panel); }
+.ask-log .reply p, .ask-log .reply ul { margin: 0.25rem 0; }
+.ask-log .reply.refused { border-left: 3px solid var(--bad); }
+.ask-log .reply.accepted { border-left: 3px solid var(--good, var(--accent)); }
+.ask-say { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+.ask-say input[name="text"] { flex: 1; min-width: 0; }
 .attention { border: 1px solid var(--bad); border-left-width: 4px; border-radius: 6px; padding: 0.25rem 0.75rem; background: var(--panel); }
 .attention h2 { font-size: 1rem; margin: 0.4rem 0; color: var(--bad); }
 .attention ul { margin: 0 0 0.4rem; padding-left: 1.2rem; }

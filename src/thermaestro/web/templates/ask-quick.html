@@ -1,51 +1,50 @@
-{# Requests for a while: on the overview and the Intents page. Each ends by itself. #}
-<div class="quick">
-{% if can("intent.temporary.create") %}
-{% for ref, label in scopes.systems %}
-<form method="post" action="/intents" class="inline">
+{# Asking for something for a while, on the overview and the Intents page: the usual asks
+   as buttons, and anything else said in words. What is said is read by built-in rules and
+   answered with a form to check before anything is asked. The conversation stays as the
+   page refreshes around it (data-keep). Without scripts, each form goes to a page. #}
+{% set chat = 'hx-target="#ask-log" hx-swap="beforeend"' %}
+{% set temporary = can("intent.temporary.create") %}
+{% set away = can("intent.temporary.create.away") and scopes.systems %}
+<div class="ask">
+<div class="ask-buttons">
+{% if temporary %}
+{% for ref, label in scopes.systems %}{% set named = scopes.systems | length > 1 %}
+<form method="post" action="/intents" hx-post="/intents" {{ chat | safe }} class="inline">
   <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="warmer">
   <input type="hidden" name="scope" value="{{ ref }}">
-  <span>{{ label }}:</span>
-  <button type="submit" name="offset" value="1">{{ _("Warmer, please") }}</button>
-  <button type="submit" name="offset" value="-1">{{ _("Cooler, please") }}</button>
+  <button type="submit" name="offset" value="1">{{ _("Warmer") }}{% if named %} · {{ label }}{% endif %}</button>
+  <button type="submit" name="offset" value="-1">{{ _("Cooler") }}{% if named %} · {{ label }}{% endif %}</button>
 </form>
 {% endfor %}
-<p class="hint">{{ _("Warmer or cooler lasts until the pattern next changes.") }}</p>
 {% for ref, label in scopes.tanks %}
-<form method="post" action="/intents" class="inline">
-  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="bath">
-  <input type="hidden" name="scope" value="{{ ref }}">
-  <label>{{ _("A bath: at least, °C") }} <input name="at_least" inputmode="decimal" value="50" size="4"></label>
-  <label>{{ _("by") }} <input type="datetime-local" name="by" required></label>
-  <button type="submit">{{ _("Ask for it") }}</button>
-</form>
-<form method="post" action="/intents" class="inline">
+<form method="post" action="/intents" hx-post="/intents" {{ chat | safe }} class="inline">
   <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="boost_now">
   <input type="hidden" name="scope" value="{{ ref }}">
-  <button type="submit">{{ _("One extra charge of hot water now") }}</button>
+  <button type="submit">{{ _("Extra hot water") }}{% if scopes.tanks | length > 1 %} · {{ label }}{% endif %}</button>
 </form>
 {% endfor %}
-<form method="post" action="/intents" class="inline">
+{% endif %}
+{% if away %}
+<form method="post" action="/ask" hx-post="/ask" {{ chat | safe }} class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="text" value="away"><input type="hidden" name="quiet" value="1">
+  <button type="submit">{{ _("Away") }}</button>
+</form>
+{% endif %}
+{% if temporary %}
+<form method="post" action="/intents" hx-post="/intents" {{ chat | safe }} class="inline">
   <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="fireplace">
-  <button type="submit">{{ _("A fireplace is on") }}</button>
+  <button type="submit">{{ _("Fireplace") }}</button>
 </form>
 {% endif %}
-{% if can("intent.temporary.create.away") and scopes.systems %}
-<form method="post" action="/intents" class="inline">
-  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="away">
-  <label>{{ _("Away until") }} <input type="datetime-local" name="until" required></label>
-  {% for ref, label in scopes.systems %}
-  <label>{{ label }}
-    <select name="levels:{{ ref }}" required>{% for lid, lv in levels.items() if lv.low is not none and lv.scope in (ref, "house") %}<option value="{{ lid }}">{{ lv.name }}</option>{% endfor %}</select></label>
-  {% endfor %}
-  <button type="submit">{{ _("Ask for it") }}</button>
-</form>
-{% endif %}
-{% if can("intent.handsoff.create") %}
-<form method="post" action="/intents" class="inline">
-  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="hands_off">
-  <label>{{ _("Hands off until") }} <small>{{ _("at most 48 hours") }}</small> <input type="datetime-local" name="until" required></label>
-  <button type="submit">{{ _("Ask for it") }}</button>
+</div>
+{% if temporary %}<p class="hint">{{ _("Warmer or cooler lasts until the pattern next changes.") }}</p>{% endif %}
+{% if temporary or away or can("intent.handsoff.create") %}
+<div id="ask-log" class="ask-log" data-keep aria-live="polite"></div>
+<form method="post" action="/ask" hx-post="/ask" {{ chat | safe }} class="ask-say">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input name="text" required maxlength="500" autocomplete="off" aria-label="{{ _('Say what you want') }}"
+         placeholder="{{ _('Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22') }}">
+  <button type="submit">{{ _("Send") }}</button>
 </form>
 {% endif %}
 </div>

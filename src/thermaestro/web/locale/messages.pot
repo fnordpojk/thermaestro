@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 15:22+0200\n"
+"POT-Creation-Date: 2026-10-10 16:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -115,9 +115,6 @@ msgid ""
 msgstr ""
 
 msgid "A bath"
-msgstr ""
-
-msgid "A bath: at least, °C"
 msgstr ""
 
 msgid ""
@@ -289,9 +286,6 @@ msgstr ""
 msgid "Away"
 msgstr ""
 
-msgid "Away until"
-msgstr ""
-
 msgid "Back to the list"
 msgstr ""
 
@@ -439,7 +433,7 @@ msgstr ""
 msgid "Control port"
 msgstr ""
 
-msgid "Cooler, please"
+msgid "Cooler"
 msgstr ""
 
 msgid "Copy it now: it is shown only this once."
@@ -488,6 +482,9 @@ msgid "Decimal sign"
 msgstr ""
 
 msgid "Degree minutes"
+msgstr ""
+
+msgid "Degrees, + warmer or − cooler"
 msgstr ""
 
 msgid "Demand"
@@ -588,6 +585,9 @@ msgstr ""
 msgid "External"
 msgstr ""
 
+msgid "Extra hot water"
+msgstr ""
+
 msgid "Fallback"
 msgstr ""
 
@@ -601,6 +601,9 @@ msgid "Fan coils"
 msgstr ""
 
 msgid "Fan speed"
+msgstr ""
+
+msgid "Fireplace"
 msgstr ""
 
 msgid "First administrator"
@@ -618,6 +621,9 @@ msgstr ""
 msgid ""
 "For forecasts and the sun. Coordinates with a decimal point, such as "
 "59.33."
+msgstr ""
+
+msgid "For six hours, the heat isn't raised for the fireplace's warmth."
 msgstr ""
 
 msgid ""
@@ -685,9 +691,6 @@ msgid "HTTPS is off."
 msgstr ""
 
 msgid "Hands off"
-msgstr ""
-
-msgid "Hands off until"
 msgstr ""
 
 #, python-format
@@ -764,6 +767,9 @@ msgid "How much it matters"
 msgstr ""
 
 msgid "Humidity"
+msgstr ""
+
+msgid "I didn't understand that. You can say, for example:"
 msgstr ""
 
 msgid "ISO 8601 (2026-10-06)"
@@ -1086,7 +1092,7 @@ msgstr ""
 msgid "One extra charge"
 msgstr ""
 
-msgid "One extra charge of hot water now"
+msgid "One extra charge, now."
 msgstr ""
 
 msgid ""
@@ -1123,6 +1129,9 @@ msgid "Operator"
 msgstr ""
 
 msgid "Or a hot-water top, °C"
+msgstr ""
+
+msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
 msgstr ""
 
 msgid "Outcome"
@@ -1324,7 +1333,13 @@ msgstr ""
 msgid "Savings, in percent"
 msgstr ""
 
+msgid "Say what you want"
+msgstr ""
+
 msgid "Security token"
+msgstr ""
+
+msgid "Send"
 msgstr ""
 
 msgid "Sensor"
@@ -1695,6 +1710,9 @@ msgstr ""
 msgid "Wall displays"
 msgstr ""
 
+msgid "Warmer"
+msgstr ""
+
 msgid "Warmer or cooler lasts until the pattern next changes."
 msgstr ""
 
@@ -1861,6 +1879,12 @@ msgid ""
 "empty for the built-in name."
 msgstr ""
 
+msgid "a bath at 19:30"
+msgstr ""
+
+msgid "a bit warmer until 22"
+msgstr ""
+
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr ""
 
@@ -1968,10 +1992,13 @@ msgstr ""
 msgid "at the brine pump's speed, %%"
 msgstr ""
 
-msgid "by"
+msgid "away until Sunday"
 msgstr ""
 
 msgid "change the installation's settings"
+msgstr ""
+
+msgid "check, then ask for it"
 msgstr ""
 
 msgid "comma (4,5)"
@@ -2035,6 +2062,9 @@ msgstr ""
 msgid "empty: the zone's own"
 msgstr ""
 
+msgid "empty: until the pattern next changes"
+msgstr ""
+
 msgid "enter or replace secrets (never read them back)"
 msgstr ""
 
@@ -2062,10 +2092,16 @@ msgstr ""
 msgid "excluded"
 msgstr ""
 
+msgid "extra hot water"
+msgstr ""
+
 msgid "failed"
 msgstr ""
 
 msgid "fallback"
+msgstr ""
+
+msgid "fill in what's missing, and check the rest"
 msgstr ""
 
 msgid "finished"
@@ -2099,6 +2135,12 @@ msgid "giving way"
 msgstr ""
 
 msgid "good"
+msgstr ""
+
+msgid "guests until tomorrow 18:00"
+msgstr ""
+
+msgid "hands off for 2 days"
 msgstr ""
 
 msgid "heating"
@@ -2386,6 +2428,9 @@ msgid "the diagnostic values"
 msgstr ""
 
 msgid "the everyday values"
+msgstr ""
+
+msgid "the fireplace is lit"
 msgstr ""
 
 msgid "the gateway's, or an S-series pump's own"

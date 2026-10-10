@@ -242,16 +242,48 @@ async def intents_page(request: Request, who: Logged) -> Response:
 @router.post("/intents")
 @action("intent.ask")
 async def ask(request: Request, who: Logged) -> Response:
-    """Ask from a form. The answer is shown on the Intents page: what it means, or why it
-    was refused."""
+    """Ask from a form. The answer is shown on the Intents page, or, asked from the
+    conversation (htmx), as its next line: what it means, or why it was refused."""
     s = services(request)
     form = await request.form()
+    chat = "hx-request" in request.headers
     try:
         answer = await s.ask(who, request_from_form(form, s.zone))
     except AccountError as e:
+        if chat:
+            return _said(request, who, error=_message(e))
         return await _intents_page(request, who, 400, error=_message(e))
+    if chat:
+        response = _said(request, who, answer=answer)
+        if answer["accepted"]:
+            response.headers["HX-Trigger"] = "page-changed"  # the list of what applies
+        return response
     status = 200 if answer["accepted"] else 400
     return await _intents_page(request, who, status, answer=answer)
+
+
+@router.post("/ask")
+@action("intent.understand")
+async def understand(request: Request, who: Logged, text: Text = "", quiet: Text = "") -> Response:
+    """What was typed, read as a request, shown as a form to check before it is asked; or,
+    not understood, what can be said. Asked from the conversation (htmx), its next lines;
+    else a page of its own."""
+    s = services(request)
+    found = await s.understand(who, text)
+    context: dict[str, Any] = {
+        "said": "" if quiet else text.strip(),
+        "found": found,
+        "scopes": s.intent_scopes(who),
+        "levels": await s.level_list(who),
+    }
+    if "hx-request" in request.headers:
+        return render(request, "ask-reply.html", who, **context)
+    return render(request, "ask.html", who, **context)
+
+
+def _said(request: Request, who: Caller, **context: Any) -> Response:
+    """The conversation's answer to asking: accepted with what it means, or refused."""
+    return render(request, "ask-answer.html", who, **{"answer": None, "error": None, **context})
 
 
 @router.post("/intents/{id}/end")

@@ -8,7 +8,7 @@ change made elsewhere needs `levers.control`, with the password entered again.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import TYPE_CHECKING, Any
 
 from .. import clock
@@ -45,6 +45,7 @@ class ControlOperations:
         executor: Executor | None
         planner: Planner | None
         sensors: SensorHub | None
+        zone: tzinfo
 
         def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None: ...
 
@@ -91,6 +92,21 @@ class ControlOperations:
             "intent": verdict.intent.model_dump(mode="json"),
             "messages": list(verdict.messages),
         }
+
+    async def understand(self, caller: "Caller", text: str) -> dict[str, Any]:
+        """What the household typed, read as a request for a while, with what it still
+        needs. Nothing is asked: the request is shown to be checked first."""
+        from ..intents.understand import understand
+
+        scopes = self.intent_scopes(caller)
+        found = understand(
+            text[:500],
+            now=clock.now().astimezone(self.zone),
+            systems=scopes["systems"],
+            tanks=scopes["tanks"],
+            levels=await self.level_list(caller),
+        )
+        return {"kind": found.kind, "request": found.request, "missing": list(found.missing)}
 
     async def end_intent(self, caller: "Caller", id: str) -> Intent:
         from .operations import NotFound

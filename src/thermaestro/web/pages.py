@@ -301,7 +301,7 @@ def _overview(request: Request, who: Caller) -> dict[str, Any]:
 async def status_page(request: Request, who: Logged) -> Response:
     glance: dict[str, Any] = {}
     if who.principal.allows("settings.read"):
-        # The price and weather at a glance, drawn once: the values below reload, these don't.
+        # The price and weather at a glance, drawn again with each refresh of the page.
         from .price_pages import chart_config
         from .weather_pages import meteogram_config
 

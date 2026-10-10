@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 15:22+0200\n"
+"POT-Creation-Date: 2026-10-10 16:07+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -120,9 +120,6 @@ msgstr ""
 
 msgid "A bath"
 msgstr "Ett bad"
-
-msgid "A bath: at least, °C"
-msgstr "Ett bad: minst, °C"
 
 msgid ""
 "A climate system without a room sensor: its normal heat, moved by price at most this "
@@ -311,9 +308,6 @@ msgstr "Genomsnittligt"
 msgid "Away"
 msgstr "Bortrest"
 
-msgid "Away until"
-msgstr "Bortrest till"
-
 msgid "Back to the list"
 msgstr "Tillbaka till listan"
 
@@ -465,8 +459,8 @@ msgstr "Styrning"
 msgid "Control port"
 msgstr "Kontrollport"
 
-msgid "Cooler, please"
-msgstr "Svalare, tack"
+msgid "Cooler"
+msgstr "Svalare"
 
 msgid "Copy it now: it is shown only this once."
 msgstr "Kopiera den nu: den visas bara den här gången."
@@ -519,6 +513,9 @@ msgstr "Decimaltecken"
 
 msgid "Degree minutes"
 msgstr "Gradminuter"
+
+msgid "Degrees, + warmer or − cooler"
+msgstr "Grader, + varmare eller − svalare"
 
 msgid "Demand"
 msgstr "Behov"
@@ -628,6 +625,9 @@ msgstr "Upphör"
 msgid "External"
 msgstr "Externt"
 
+msgid "Extra hot water"
+msgstr "Extra varmvatten"
+
 msgid "Fallback"
 msgstr "Reserv"
 
@@ -643,6 +643,9 @@ msgstr "Fläktkonvektorer"
 msgid "Fan speed"
 msgstr "Fläkthastighet"
 
+msgid "Fireplace"
+msgstr "Brasa"
+
 msgid "First administrator"
 msgstr "Första administratören"
 
@@ -657,6 +660,9 @@ msgstr "En stund"
 
 msgid "For forecasts and the sun. Coordinates with a decimal point, such as 59.33."
 msgstr "För prognoser och solen. Koordinater med decimalpunkt, till exempel 59.33."
+
+msgid "For six hours, the heat isn't raised for the fireplace's warmth."
+msgstr "I sex timmar höjs inte värmen, för brasans värme."
 
 msgid ""
 "Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
@@ -733,9 +739,6 @@ msgstr "HTTPS är avstängt."
 msgid "Hands off"
 msgstr "Rör inget"
 
-msgid "Hands off until"
-msgstr "Rör inget till"
-
 #, python-format
 msgid "Hands off until %(until)s: Thermaestro changes nothing on the pump."
 msgstr "Rör inget till %(until)s: Thermaestro ändrar ingenting på pumpen."
@@ -811,6 +814,9 @@ msgstr "Hur viktigt det är"
 
 msgid "Humidity"
 msgstr "Luftfuktighet"
+
+msgid "I didn't understand that. You can say, for example:"
+msgstr "Det förstod jag inte. Du kan till exempel säga:"
 
 msgid "ISO 8601 (2026-10-06)"
 msgstr "ISO 8601 (2026-10-06)"
@@ -1140,8 +1146,8 @@ msgstr "Av"
 msgid "One extra charge"
 msgstr "En extra laddning"
 
-msgid "One extra charge of hot water now"
-msgstr "En extra laddning varmvatten nu"
+msgid "One extra charge, now."
+msgstr "En extra laddning, nu."
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -1185,6 +1191,9 @@ msgstr "Huvudman"
 
 msgid "Or a hot-water top, °C"
 msgstr "Eller en varmvattentopp, °C"
+
+msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
+msgstr "Eller säg det: ett bad kl 19.30, borta till söndag, lite varmare till 22"
 
 msgid "Outcome"
 msgstr "Utfall"
@@ -1385,8 +1394,14 @@ msgstr "Spara och anslut"
 msgid "Savings, in percent"
 msgstr "Besparing, i procent"
 
+msgid "Say what you want"
+msgstr "Säg vad du vill"
+
 msgid "Security token"
 msgstr "Säkerhetstoken"
+
+msgid "Send"
+msgstr "Skicka"
 
 msgid "Sensor"
 msgstr "Givare"
@@ -1789,6 +1804,9 @@ msgstr "Väggskärm"
 msgid "Wall displays"
 msgstr "Väggskärmar"
 
+msgid "Warmer"
+msgstr "Varmare"
+
 msgid "Warmer or cooler lasts until the pattern next changes."
 msgstr "Varmare eller svalare gäller tills schemat ändras nästa gång."
 
@@ -1965,6 +1983,12 @@ msgid ""
 "built-in name."
 msgstr "Egna namn ersätter de inbyggda för alla; lämna ett fält tomt för det inbyggda namnet."
 
+msgid "a bath at 19:30"
+msgstr "ett bad kl 19.30"
+
+msgid "a bit warmer until 22"
+msgstr "lite varmare till 22"
+
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr "ett land, och kanske en region: SE, DE-BY; tomt: inga"
 
@@ -2072,11 +2096,14 @@ msgstr "i fara"
 msgid "at the brine pump's speed, %%"
 msgstr "vid köldbärarpumpens hastighet, %%"
 
-msgid "by"
-msgstr "till"
+msgid "away until Sunday"
+msgstr "borta till söndag"
 
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
+
+msgid "check, then ask for it"
+msgstr "kontrollera, och be om det"
 
 msgid "comma (4,5)"
 msgstr "komma (4,5)"
@@ -2139,6 +2166,9 @@ msgstr "tomt: meddelandet är talet"
 msgid "empty: the zone's own"
 msgstr "tomt: elområdets egen"
 
+msgid "empty: until the pattern next changes"
+msgstr "tomt: tills mönstret ändras nästa gång"
+
 msgid "enter or replace secrets (never read them back)"
 msgstr "ange eller byta hemligheter (aldrig läsa dem igen)"
 
@@ -2166,11 +2196,17 @@ msgstr "allt, även rättigheter som läggs till senare"
 msgid "excluded"
 msgstr "ingår inte"
 
+msgid "extra hot water"
+msgstr "extra varmvatten"
+
 msgid "failed"
 msgstr "misslyckades"
 
 msgid "fallback"
 msgstr "reserv"
+
+msgid "fill in what's missing, and check the rest"
+msgstr "fyll i det som saknas, och kontrollera resten"
 
 msgid "finished"
 msgstr "avslutat"
@@ -2204,6 +2240,12 @@ msgstr "ger vika"
 
 msgid "good"
 msgstr "god"
+
+msgid "guests until tomorrow 18:00"
+msgstr "gäster till imorgon 18.00"
+
+msgid "hands off for 2 days"
+msgstr "rör inte pumpen i 2 dagar"
 
 msgid "heating"
 msgstr "värme"
@@ -2492,6 +2534,9 @@ msgstr "de diagnostiska värdena"
 msgid "the everyday values"
 msgstr "vardagsvärdena"
 
+msgid "the fireplace is lit"
+msgstr "brasan är tänd"
+
 msgid "the gateway's, or an S-series pump's own"
 msgstr "gatewayens, eller en S-seriepumps egen"
 
@@ -2624,4 +2669,19 @@ msgstr "din token"
 #~ " spotpriset, från den källan, och det "
 #~ "leverantören lägger till, när moms är angiven"
 #~ " nedan."
+
+#~ msgid "A bath: at least, °C"
+#~ msgstr "Ett bad: minst, °C"
+
+#~ msgid "Cooler, please"
+#~ msgstr "Svalare, tack"
+
+#~ msgid "Hands off until"
+#~ msgstr "Rör inget till"
+
+#~ msgid "One extra charge of hot water now"
+#~ msgstr "En extra laddning varmvatten nu"
+
+#~ msgid "by"
+#~ msgstr "till"
 

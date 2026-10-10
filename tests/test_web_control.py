@@ -302,6 +302,50 @@ async def test_the_overview_asks_for_a_while(tmp_path: Path) -> None:
         assert 'value="hands_off"' not in page.text  # the household has no right to it
 
 
+async def test_saying_what_you_want(tmp_path: Path) -> None:
+    """What is typed is answered in the conversation with a form to check; asking from it
+    answers there too, and has the page show what applies at once."""
+    chat = {"hx-request": "true"}
+    async with site(tmp_path) as (_, services, client):
+        headers = await login(client, "kid")
+        token = csrf_of((await client.get("/")).text)
+        said = await client.post("/ask", data={"csrf": token, "text": "bad kl 19.30"}, headers=chat)
+        assert said.status_code == 200
+        assert '<p class="said">bad kl 19.30</p>' in said.text
+        assert 'name="kind" value="bath"' in said.text
+        assert 'T19:30"' in said.text
+        assert "<html" not in said.text  # lines of the conversation, not a page
+        quiet = await client.post(
+            "/ask", data={"csrf": token, "text": "away", "quiet": "1"}, headers=chat
+        )
+        assert 'class="said"' not in quiet.text  # a button's, not something said
+        assert 'name="kind" value="away"' in quiet.text
+        puzzled = await client.post(
+            "/ask", data={"csrf": token, "text": "vad blir det för väder"}, headers=chat
+        )
+        assert "I didn't understand that" in puzzled.text
+        read = await client.post(
+            "/api/v1/intents/understand", json={"text": "extra varmvatten"}, headers=headers
+        )
+        assert (read.json()["kind"], read.json()["missing"]) == ("boost_now", [])
+        asked = await client.post(
+            "/intents", data={"csrf": token, "kind": "fireplace"}, headers=chat
+        )
+        assert "Asked for." in asked.text, asked.text
+        assert asked.headers["hx-trigger"] == "page-changed"
+        assert "<html" not in asked.text
+        assert services.intents is not None
+        assert [i.kind for i in await services.intents.all()] == ["fireplace"]
+        refused = await client.post(
+            "/intents", data={"csrf": token, "kind": "warmer", "offset": "x"}, headers=chat
+        )
+        assert "offset is a number" in refused.text
+        assert "hx-trigger" not in refused.headers
+        # Without scripts, the answer is a page of its own.
+        page = await client.post("/ask", data={"csrf": token, "text": "a bath at 19:30"})
+        assert "<h1>Ask for a while</h1>" in page.text
+
+
 async def test_the_plan_page_shows_what_was_asked(tmp_path: Path) -> None:
     async with site(tmp_path) as (r, _, client):
         headers = await login(client, "admin")

@@ -1306,6 +1306,8 @@ charts(document);
       }
     });
   }
+  // A form sent is no longer being filled in.
+  document.addEventListener("submit", (event) => touched.delete(event.target));
 
   function editing(region) {
     const active = document.activeElement;
@@ -1344,6 +1346,13 @@ charts(document);
             if (details.length === opened.length) {
               details.forEach((d, i) => (d.open = opened[i]));
             }
+            // What the page keeps (a conversation) moves into the new content as it is.
+            for (const kept of region.querySelectorAll("[data-keep][id]")) {
+              const slot = fresh.querySelector(`#${CSS.escape(kept.id)}`);
+              if (slot) {
+                slot.replaceWith(kept);
+              }
+            }
             region.replaceWith(fresh);
             charts(fresh);
             if (typeof htmx !== "undefined") {
@@ -1367,4 +1376,21 @@ charts(document);
       refresh();
     }
   });
+  // Something was asked for: what applies now is shown at once (the server says so).
+  document.addEventListener("page-changed", () => refresh());
 })();
+
+// The conversation of "Ask for a while": what was said is cleared once sent, and the
+// latest line is brought into view.
+document.addEventListener("htmx:afterRequest", (event) => {
+  const form = event.target;
+  if (form.matches && form.matches("form.ask-say") && event.detail.successful) {
+    form.reset();
+  }
+});
+document.addEventListener("htmx:afterSwap", (event) => {
+  const log = event.target;
+  if (log.id === "ask-log") {
+    log.scrollTop = log.scrollHeight;
+  }
+});

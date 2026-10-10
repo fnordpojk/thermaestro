@@ -1,0 +1,9 @@
+{# The conversation's answer to asking: accepted, with what it means; or refused, and why. #}
+<div class="reply {% if error or not answer.accepted %}refused{% else %}accepted{% endif %}">
+{% if error %}
+  <p>{{ error }}</p>
+{% else %}
+  <p><strong>{% if answer.accepted %}{{ _("Asked for.") }}{% else %}{{ _("Refused.") }}{% endif %}</strong></p>
+  {% if answer.messages %}<ul>{% for m in answer.messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+{% endif %}
+</div>

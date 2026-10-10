@@ -43,6 +43,21 @@ async def ask(body: dict[str, Any], request: Request, who: Logged) -> dict[str, 
     return await services(request).ask(who, body)
 
 
+class Said(BaseModel):
+    text: str
+
+
+@router.post("/intents/understand")
+@action("intent.understand")
+async def understand(body: Said, request: Request, who: Logged) -> dict[str, Any]:
+    """Read what was typed ("a bath at 19:30", "borta till söndag", "Gäste bis morgen") as a
+    request for a while, in English, Swedish or German. Nothing is asked: the answer is
+    `{kind, request, missing}`, the request to check and send to `POST /intents` once
+    `missing` (`until`, `by`, `levels`) is filled in. `kind` is null when it wasn't
+    understood."""
+    return await services(request).understand(who, body.text)
+
+
 @router.delete("/intents/{id}")
 @action("intent.end")
 async def end(id: str, request: Request, who: Logged) -> dict[str, Any]:
