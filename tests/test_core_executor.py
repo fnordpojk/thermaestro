@@ -12,6 +12,7 @@ from leverfake import LeverDevice
 from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
+from thermaestro.core.executor import left_changed
 from thermaestro.store import Control, Database, LeverMode, Plugin, SecretStore
 
 OFFSET = "dev:hp1/offset"
@@ -343,6 +344,25 @@ async def test_after_a_crash_what_was_left_changed_is_put_back(tmp_path: Path) -
         assert device.registers["x.fake.curve"] == 12  # never written over
         assert "it reads 12, not 9" in str(r.executor.claims["dev:hp1/curve"].drift)
         assert not r.executor.claims[OFFSET].changed
+
+
+async def test_what_was_left_changed_and_forgetting(tmp_path: Path) -> None:
+    """What a start would put back is known before it; levers as they were found, or let
+    go, are forgotten, so the next request takes them over afresh."""
+    curve = "dev:hp1/curve"
+    async with rig(tmp_path, {OFFSET: "control", BLOCK: "control", curve: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(BLOCK, "engage", who="planner")
+        await r.executor.act(curve, "set", {"value": 9}, who="planner")
+        await r.device.someone_writes("x.fake.curve", 12, tell=True)
+        await until(lambda: r.executor.claims[curve].drift is not None)
+        assert await left_changed(r.db) == [BLOCK, OFFSET]
+        await r.executor.restore("done", [OFFSET])
+        await r.executor.forget()
+        assert set(r.executor.claims) == {BLOCK}  # still held: kept
+        assert await left_changed(r.db) == [BLOCK]
+        with closing(sqlite3.connect(tmp_path / "t.db")) as raw:
+            assert [lever for (lever,) in raw.execute("SELECT lever FROM claims")] == [BLOCK]
 
 
 async def test_a_silent_planner_has_everything_put_back(tmp_path: Path) -> None:

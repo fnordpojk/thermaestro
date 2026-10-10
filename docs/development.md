@@ -25,7 +25,7 @@ The packages under `src/thermaestro/`:
 | `store/` | The state database and its migrations, settings, secrets, the start-up file and the directory layout |
 | `auth/` | Accounts, passwords, groups and permissions, user preferences, the setup code |
 | `web/` | The web UI (FastAPI, Jinja2 templates, htmx) and the API ([api.md](api.md)), translations in `web/locale/` |
-| `nibe/` | The Nibe plugin: register maps, the pump families, the transports (plain NibeGW, the Thermaestro gateway protocol, Modbus TCP) and the probe ([probe.md](probe.md)) |
+| `nibe/` | The Nibe plugin: register maps, the pump families, the transports (plain NibeGW, the Thermaestro gateway protocol, Modbus TCP), the probe ([probe.md](probe.md)) and the rig (`nibe/rig/`, [rig.md](rig.md)) |
 | `homeassistant/` | The Home Assistant plugin, over its WebSocket API |
 | `energy_charts/`, `entsoe/`, `nordic_sites/`, `octopus_agile/`, `omie/`, `tibber/` | Price plugins |
 | `met_norway/`, `smhi/`, `open_meteo/` | Weather plugins |
@@ -55,6 +55,7 @@ uv sync --all-packages
 | `status` | What Thermaestro reads, through its API; an API token in `THERMAESTRO_TOKEN` |
 | `nibe-logset MODEL OUTPUT` | Write a LOG.SET for a Nibe bus pump, to copy to a USB stick |
 | `probe HOST` | Read a Nibe pump, writing nothing to it ([probe.md](probe.md)) |
+| `rig CHECK HOST [--write]` | Try a setting on a Nibe pump through the write path, and put it back; read-only without `--write` ([rig.md](rig.md)) |
 
 `--log-level` (before the command) sets the log level; the default is INFO.
 
@@ -131,7 +132,7 @@ Nothing in the tests reaches a real device or the internet. They use stand-ins:
 - `plant/harness.py` runs the core against it: `async with running(Sim(scenario, tmp_path)) as sim:`, then `await sim.advance(seconds)`, `sim.value(point)`, `sim.plant`, `sim.bus.writes`. A `decide` callback stands in for the planner and asks for changes through `Sim.act`.
 - `plant/planning.py` runs the real planner on it instead: rooms with the plant's sensors, the intents given, and the prices from `plant/market.py`, a seeded day-ahead series with optional extremes.
 
-`tests/test_plant_stack.py` shows the pattern with a stand-in; `tests/test_planner_plant.py` with the planner.
+`tests/test_plant_stack.py` shows the pattern with a stand-in; `tests/test_planner_plant.py` with the planner; `tests/test_rig.py` runs the rig's checks on the plant, its own small core over `plant/bus.py`.
 
 ## Generated files
 
@@ -207,4 +208,5 @@ To change the schema, append a script to `MIGRATIONS`, with a comment saying wha
 - [mqtt.md](mqtt.md): the MQTT topics and Home Assistant discovery
 - [gateway-protocol.md](gateway-protocol.md): the Thermaestro gateway protocol and the Nibe bus
 - [probe.md](probe.md): the read-only probe
+- [rig.md](rig.md): the rig, trying a setting on a pump
 - [docker.md](docker.md): running it in Docker

@@ -4,7 +4,7 @@ Thermaestro plans a home's heating and hot water around electricity prices, the 
 
 It is brand-neutral: heat pumps, sensors, meters, price sources and weather forecasts come in through plugins. Nibe is the first. It is meant to replace NibePi, and is open source under the AGPL.
 
-**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, the Plan page shows what was decided and why, and Home Assistant gets buttons and states for it over MQTT. Next: checking the settings on the test pump, then shadow beside NibePi. There is no release yet; the Docker Compose file builds it from this repository.
+**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, the Plan page shows what was decided and why, and Home Assistant gets buttons and states for it over MQTT. The rig that tries each setting on a real pump is built. Next: running it on the test pump, then shadow beside NibePi. There is no release yet; the Docker Compose file builds it from this repository.
 
 ## Features
 
@@ -18,6 +18,7 @@ Built today:
 - **Home Assistant:** Thermaestro's state is published over MQTT, with discovery, and requests for a while ("warmer, please") come back the same way, with only the rights the administrator grants.
 - **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action.
 - **A read-only probe** that reports what Thermaestro reads from a pump, for testers.
+- **A rig** that tries each setting Thermaestro changes on a real pump, through the same code control uses: it changes the setting, watches what the pump does, puts it back, and writes down what happened. Read-only unless asked to write.
 - **Intents:** the household's goals in its own terms (warm rooms on a weekly pattern, hot water by a time, a lowest hot-water temperature, how much to favor cost over comfort) and requests for a while ("warmer, please", a bath by 19:30, away until Sunday, hands off), kept, checked and ranked. The first ones are taken from how the pump runs.
 - **A rule-based planner** that decides every 15 minutes what each setting should be, and why: the curve offset steering the coldest room, hot water kept above its floor and ready by its deadlines, heat moved to cheaper hours as far as the household allows.
 - **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found on shutdown or when something goes wrong. In shadow mode it decides the same and changes nothing.
@@ -36,6 +37,7 @@ Coming:
 - [Setting it up](docs/setup.md)
 - [Running it in Docker](docs/docker.md)
 - [The read-only probe](docs/probe.md)
+- [The rig: trying a setting on a pump](docs/rig.md)
 - [The HTTP API](docs/api.md)
 - [MQTT and Home Assistant](docs/mqtt.md)
 - [Writing a plugin](docs/plugins.md)

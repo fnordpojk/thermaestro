@@ -265,6 +265,20 @@ class Executor:
         await self._db.run(lambda t: t.execute("DELETE FROM claims WHERE lever = ?", (ref,)))
         await self._audit.record(who, "lever.drift_accepted", details={"lever": ref})
 
+    async def forget(self, refs: Collection[str] | None = None) -> None:
+        """Drop what is kept of levers that are as they were found, or were let go, so the
+        next request takes them over afresh, with a new baseline: the rig, between runs."""
+        gone = [
+            ref
+            for ref, claim in self.claims.items()
+            if (refs is None or ref in refs) and not (claim.changed and claim.drift is None)
+        ]
+        for ref in gone:
+            del self.claims[ref]
+        await self._db.run(
+            lambda t: t.executemany("DELETE FROM claims WHERE lever = ?", [(r,) for r in gone])
+        )
+
     async def restore(self, why: str, refs: Collection[str] | None = None) -> dict[str, Result]:
         """Put levers back as they were found: release holds, set settings to their
         baselines. Nothing a person changed meanwhile is written over."""
@@ -790,6 +804,16 @@ class Executor:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+
+async def left_changed(db: Database) -> list[str]:
+    """The levers an earlier run left changed, which a start puts back."""
+    claims = await db.run(_load_claims)
+    return sorted(
+        ref
+        for ref, claim in claims.items()
+        if claim.mode == "control" and claim.changed and claim.drift is None
+    )
 
 
 def same(a: Value | None, b: Value | None, param: Param | None = None) -> bool:

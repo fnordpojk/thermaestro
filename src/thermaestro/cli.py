@@ -2,10 +2,12 @@
 
 import argparse
 import asyncio
+import contextlib
 import getpass
 import json
 import logging
 import os
+import signal
 import sys
 import urllib.error
 import urllib.request
@@ -15,7 +17,7 @@ from typing import Any
 
 from .auth import AccountError, Accounts, SetupCode
 from .core import AuditLog, run, verify
-from .files import private_directory
+from .files import UnsafePath, private_directory
 from .store import Database, Layout, StoreError, load_startup
 
 
@@ -59,26 +61,10 @@ def main(argv: list[str] | None = None) -> int:
         help="read a Nibe pump through its gateway or over Modbus TCP, writing nothing to it;"
         " makes a report and a capture to send with a new model or a bug",
     )
-    probe.add_argument("host", help="the gateway's address, or an S-series pump's")
-    probe.add_argument(
-        "--protocol", choices=["nibegw", "thermaestro-gw", "modbus-tcp"], default="nibegw"
-    )
-    probe.add_argument(
-        "--key-file", type=Path, help="Thermaestro gateway protocol: a file with its 64-digit key"
-    )
-    probe.add_argument("--read-port", type=int, default=9999)
-    probe.add_argument("--control-port", type=int, default=10090)
-    probe.add_argument(
-        "--local-port", type=int, default=0, help="where to listen for the gateway; 0 picks one"
-    )
-    probe.add_argument("--modbus-port", type=int, default=502)
-    probe.add_argument(
-        "--model",
-        help="the model: needed over Modbus TCP (S1255), else if the pump's own name"
-        " isn't recognized",
-    )
+    _pump_arguments(probe)
     probe.add_argument("--minutes", type=float, default=5.0, help="how long to capture")
     probe.add_argument("--out", type=Path, default=Path(), help="the directory to write to")
+    _rig_arguments(commands)
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
         return _logset(args.model, args.output)
@@ -90,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "probe":
         return _probe(args)
+    if args.command == "rig":
+        return _rig(args)
     layout = Layout.from_environment()
     try:
         layout = load_startup(layout.startup).layout(layout)
@@ -121,8 +109,73 @@ def _logset(model_name: str, output: Path) -> int:
     return 0
 
 
-def _probe(args: argparse.Namespace) -> int:
-    from .nibe.probe import PSK_NAME, ProbeFailed, probe
+def _pump_arguments(parser: argparse.ArgumentParser) -> None:
+    """How to reach a Nibe pump: the probe's and the rig's."""
+    parser.add_argument("host", help="the gateway's address, or an S-series pump's")
+    parser.add_argument(
+        "--protocol", choices=["nibegw", "thermaestro-gw", "modbus-tcp"], default="nibegw"
+    )
+    parser.add_argument(
+        "--key-file", type=Path, help="Thermaestro gateway protocol: a file with its 64-digit key"
+    )
+    parser.add_argument("--read-port", type=int, default=9999)
+    parser.add_argument("--write-port", type=int, default=10000)
+    parser.add_argument("--control-port", type=int, default=10090)
+    parser.add_argument(
+        "--local-port", type=int, default=0, help="where to listen for the gateway; 0 picks one"
+    )
+    parser.add_argument("--modbus-port", type=int, default=502)
+    parser.add_argument(
+        "--model",
+        help="the model: needed over Modbus TCP (S1255), else if the pump's own name"
+        " isn't recognized",
+    )
+
+
+def _rig_arguments(commands: Any) -> None:
+    from .nibe.rig import CHECKS
+
+    rig = commands.add_parser(
+        "rig",
+        help="try a lever on a Nibe pump through Thermaestro's own write path, and put it back;"
+        " read-only unless --write",
+        epilog="checks: "
+        + "; ".join(f"{name}: {check.about}" for name, check in CHECKS.items())
+        + "; restore: put back what a stopped run left changed",
+    )
+    rig.add_argument("check", choices=[*CHECKS, "restore"])
+    _pump_arguments(rig)
+    rig.add_argument(
+        "--write", action="store_true", help="write to the pump; it asks before the first change"
+    )
+    rig.add_argument(
+        "--minutes",
+        type=float,
+        default=240.0,
+        help="the longest a check waits for the pump to do something by itself",
+    )
+    rig.add_argument(
+        "--out",
+        type=Path,
+        default=Path(),
+        help="where the log goes, and the state directory (rig-state) a stopped run is put"
+        " back from",
+    )
+    rig.add_argument("--system", type=int, default=1, help="offset: the climate system")
+    rig.add_argument("--mode", choices=["eco", "normal", "lux"], help="mode: the mode to try")
+    rig.add_argument(
+        "--setting",
+        choices=["stop_temp", "max_power"],
+        default="stop_temp",
+        help="addition: the setting to try",
+    )
+    rig.add_argument("--pool", type=int, default=1, help="pool: which pool")
+
+
+def _pump(args: argparse.Namespace) -> tuple[Any, bytes | None] | None:
+    """The pump's connection from the arguments, and the gateway protocol's key; None
+    after saying what is wrong."""
+    from .nibe.probe import PSK_NAME
     from .store import NibeGateway
 
     psk = None
@@ -131,34 +184,102 @@ def _probe(args: argparse.Namespace) -> int:
             psk = bytes.fromhex(args.key_file.read_text().strip())
         except (OSError, ValueError) as e:
             sys.stderr.write(f"the key file can't be read as 64 hex digits: {e}\n")
-            return 2
+            return None
         if len(psk) != 32:
             sys.stderr.write("the key is 64 hex digits\n")
-            return 2
+            return None
     if args.protocol == "thermaestro-gw" and psk is None:
         sys.stderr.write("the Thermaestro gateway protocol needs --key-file\n")
-        return 2
+        return None
     if args.protocol == "modbus-tcp":
         from .nibe.maps import load
 
         models = sorted(load("s-series").models)
         if args.model not in models:
             sys.stderr.write(f"Modbus TCP needs --model, one of {', '.join(models)}\n")
-            return 2
+            return None
     gateway = NibeGateway(
         host=args.host,
         protocol=args.protocol,
         read_port=args.read_port,
+        write_port=args.write_port,
         control_port=args.control_port,
         local_port=args.local_port,
         modbus_port=args.modbus_port,
         psk=PSK_NAME if psk is not None else None,
         model=args.model,
     )
+    return gateway, psk
 
-    def say(text: str) -> None:
-        sys.stdout.write(f"{text}\n")
-        sys.stdout.flush()
+
+def _say(text: str) -> None:
+    sys.stdout.write(f"{text}\n")
+    sys.stdout.flush()
+
+
+def _rig(args: argparse.Namespace) -> int:
+    from .nibe.rig import Options, RigError, run, terminal_ask
+
+    pump = _pump(args)
+    if pump is None:
+        return 2
+    gateway, psk = pump
+    options = Options(
+        minutes=args.minutes,
+        system=args.system,
+        mode=args.mode,
+        setting=args.setting,
+        pool=args.pool,
+    )
+
+    async def main() -> Any:
+        interrupt = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        # Ctrl-C ends the check, and what it changed is put back (not where the command
+        # runs outside the main thread, as in the tests).
+        with contextlib.suppress(RuntimeError):
+            loop.add_signal_handler(signal.SIGINT, interrupt.set)
+        try:
+            return await run(
+                args.check,
+                gateway,
+                state=args.out / "rig-state",
+                write=args.write,
+                options=options,
+                say=_say,
+                ask=terminal_ask,
+                psk=psk,
+                interrupt=interrupt,
+            )
+        finally:
+            loop.remove_signal_handler(signal.SIGINT)
+
+    try:
+        report = asyncio.run(main())
+    except (RigError, UnsafePath) as e:
+        sys.stderr.write(f"{e}\n")
+        return 2
+    except OSError as e:
+        reached = "the pump" if args.protocol == "modbus-tcp" else "the gateway"
+        sys.stderr.write(f"{reached} can't be reached: {e.strerror or e}\n")
+        return 2
+    model = report.pump.get("model") or "pump"
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
+    path = args.out / f"rig-{args.check}-{model}-{stamp}.json"
+    path.write_text(json.dumps(report.log(), indent=1, ensure_ascii=False) + "\n")
+    sys.stdout.write("\n" + report.table())
+    _say(f"Wrote {path}.")
+    return 1 if report.failed else 0
+
+
+def _probe(args: argparse.Namespace) -> int:
+    from .nibe.probe import ProbeFailed, probe
+
+    pump = _pump(args)
+    if pump is None:
+        return 2
+    gateway, psk = pump
+    say = _say
 
     try:
         result = asyncio.run(probe(gateway, psk=psk, seconds=args.minutes * 60, progress=say))

@@ -64,7 +64,7 @@
     </div>
     <aside class="status" aria-label="Status">
       <h4>Status</h4>
-      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. There is no release yet.</p>
+      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. A rig tries each setting on a real pump before it is handed over. There is no release yet.</p>
       <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
     </aside>
   </div>
@@ -327,7 +327,7 @@
   <div class="wrap">
     <p class="kicker">Where it stands</p>
     <h2>Planning built, control next</h2>
-    <p class="intro">Thermaestro reads, and changes nothing on a pump yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi. The planner is built and tested against a simulated house; the household switching its settings to shadow and then control comes next.</p>
+    <p class="intro">Thermaestro reads, and changes nothing on a pump yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi. The planner is built and tested against a simulated house, and the rig that tries each setting on a real pump is ready; trying them on the test pump, then shadow and control, comes next.</p>
     <div class="three">
       <div>
         <h3>Built</h3>
@@ -339,6 +339,7 @@
           <li>Home Assistant discovery over MQTT.</li>
           <li>The web interface: logins, users, groups and rights, setup, charts, an API for every action.</li>
           <li>A read-only probe that reports what Thermaestro reads from a pump, for testers.</li>
+          <li>A rig that tries each setting on a real pump through the same code control uses, puts it back, and writes down what happened.</li>
           <li>Intents: the household's goals and requests kept, checked and ranked; the first ones taken from how the pump runs.</li>
           <li>A rule-based planner: every 15 minutes, what each setting should be and why.</li>
           <li>Safe changes: settings taken over, checked, read back, limited and put back; shadow mode deciding the same and changing nothing.</li>
@@ -379,6 +380,7 @@
         <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/setup.md">Setting it up</a></li>
         <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/docker.md">Running it in Docker</a></li>
         <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/probe.md">The read-only probe, for testers</a></li>
+        <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/rig.md">The rig: trying a setting on a pump</a></li>
         <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/plugins.md">Writing a plugin</a></li>
         <li><a href="https://github.com/fnordpojk/thermaestro/blob/main/docs/gateway-protocol.md">The gateway protocol</a></li>
       </ul>
