@@ -207,6 +207,10 @@ td.value { white-space: nowrap; cursor: help; }
 .card { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--panel); }
 .card h2 { font-size: 1.05rem; margin: 0.25rem 0; }
 .card table { margin: 0; }
+/* What each intent asks for, folded out under its name. */
+details.intent summary { cursor: pointer; }
+details.intent ul { margin: 0.35rem 0 0.25rem; padding-left: 1.2rem; font-size: 0.92em; }
+details.intent ol { margin: 0.15rem 0; }
 /* Asking for a while: the usual asks as buttons, then the conversation, then what to say. */
 .ask-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .ask-buttons form { margin: 0; }

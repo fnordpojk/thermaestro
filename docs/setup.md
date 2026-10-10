@@ -211,7 +211,7 @@ The page shows the day's changes against the planner's budget (about 50 a day).
 
 ## What the household wants: the Intents page
 
-**Intents** in the menu says what applies now, lists what has been asked for, with when each ends and who asked, and takes new requests. What Thermaestro first took from how the pump runs is marked; **Keep it** makes it the household's own.
+**Intents** in the menu says what applies now, lists what has been asked for, with when each ends and who asked, and takes new requests. Each one asked for folds out to show what it holds: its bands, temperatures and times, the levels it picks, how much it matters, its state and when it was asked. What Thermaestro first took from how the pump runs is marked; **Keep it** makes it the household's own.
 
 - **For a while** (also on the overview): warmer or cooler, until the pattern next changes; a bath by a time; one extra charge of hot water now; a fireplace; away until a time, with a level for each climate system; guests; hands off for up to 48 hours. Each ends by itself, and **End** ends it sooner.
   - It shows once there is something to control: a climate system or a hot-water tank. After a restart, that is once the pump has been read.

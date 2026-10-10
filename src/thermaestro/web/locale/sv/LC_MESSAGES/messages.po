@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 16:07+0200\n"
+"POT-Creation-Date: 2026-10-10 19:27+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -54,6 +54,10 @@ msgid "%(n)s so far"
 msgstr "%(n)s hittills"
 
 #, python-format
+msgid "%(offset)s °C on whatever band is in force"
+msgstr "%(offset)s °C på det intervall som gäller"
+
+#, python-format
 msgid "%(part)s: cooler, please"
 msgstr "%(part)s: svalare, tack"
 
@@ -64,6 +68,10 @@ msgstr "%(part)s: en extra laddning"
 #, python-format
 msgid "%(part)s: warmer, please"
 msgstr "%(part)s: varmare, tack"
+
+#, python-format
+msgid "%(start)s–%(end)s"
+msgstr "%(start)s–%(end)s"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
@@ -266,6 +274,9 @@ msgstr "Årsmedel %(mean)s °C, månadsspridning %(spread)s K"
 msgid "Annual mean, °C"
 msgstr "Årsmedel, °C"
 
+msgid "Another heat source is warming the house: comfort eases off."
+msgstr "En annan värmekälla värmer huset: komforten ger efter."
+
 msgid "Area"
 msgstr "Område"
 
@@ -283,6 +294,10 @@ msgstr "Be om det"
 
 msgid "Asked"
 msgstr "Begärt"
+
+#, python-format
+msgid "Asked %(when)s"
+msgstr "Begärt %(when)s"
 
 msgid "Asked for"
 msgstr "Begärt"
@@ -791,6 +806,9 @@ msgstr "Varmvatten framåt"
 msgid "Hot water by"
 msgstr "Varmvatten till"
 
+msgid "Hot water down to its lowest, and the house ready again by the return."
+msgstr "Varmvattnet ner till sin lägsta temperatur, och huset klart igen till hemkomsten."
+
 msgid "Hot water that must be ready"
 msgstr "Varmvatten som måste vara klart"
 
@@ -991,6 +1009,9 @@ msgstr "Rörelse"
 msgid "Municipal water"
 msgstr "Kommunalt vatten"
 
+msgid "Must be met."
+msgstr "Måste uppfyllas."
+
 msgid "Name"
 msgstr "Namn"
 
@@ -1148,6 +1169,9 @@ msgstr "En extra laddning"
 
 msgid "One extra charge, now."
 msgstr "En extra laddning, nu."
+
+msgid "One hot-water charge, now."
+msgstr "En varmvattenladdning, nu."
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -1394,6 +1418,10 @@ msgstr "Spara och anslut"
 msgid "Savings, in percent"
 msgstr "Besparing, i procent"
 
+#, python-format
+msgid "Savings: %(percent)s %%"
+msgstr "Besparing: %(percent)s %%"
+
 msgid "Say what you want"
 msgstr "Säg vad du vill"
 
@@ -1458,6 +1486,9 @@ msgstr "Installationskod"
 msgid "Shadow"
 msgstr "Skugga"
 
+msgid "Should be met; may give way."
+msgstr "Bör uppfyllas; kan ge vika."
+
 msgid "Show its sources"
 msgstr "Visa dess källor"
 
@@ -1494,11 +1525,19 @@ msgstr "Inaktuella:"
 msgid "Start temperature"
 msgstr "Starttemperatur"
 
+#, python-format
+msgid "Starts %(when)s"
+msgstr "Börjar %(when)s"
+
 msgid "State"
 msgstr "Tillstånd"
 
 msgid "State:"
 msgstr "Tillstånd:"
+
+#, python-format
+msgid "State: %(state)s"
+msgstr "Läge: %(state)s"
 
 #, python-format
 msgid "Step %(n)s"
@@ -1660,6 +1699,9 @@ msgstr "Vattnet"
 
 msgid "The whole house"
 msgstr "Hela huset"
+
+msgid "Thermaestro changes nothing on the pump."
+msgstr "Thermaestro ändrar ingenting på pumpen."
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestros gateway (med nyckel)"
@@ -2040,6 +2082,9 @@ msgstr "tillsats"
 msgid "all"
 msgstr "alla"
 
+msgid "all day"
+msgstr "hela dagen"
+
 msgid "already so"
 msgstr "redan så"
 
@@ -2098,6 +2143,10 @@ msgstr "vid köldbärarpumpens hastighet, %%"
 
 msgid "away until Sunday"
 msgstr "borta till söndag"
+
+#, python-format
+msgid "by %(time)s"
+msgstr "senast %(time)s"
 
 msgid "change the installation's settings"
 msgstr "ändra installationens inställningar"
@@ -2190,6 +2239,9 @@ msgstr "etylenglykol, omkring 30 %%"
 msgid "every %(step)s"
 msgstr "var %(step)s"
 
+msgid "every day"
+msgstr "varje dag"
+
 msgid "everything, including rights added later"
 msgstr "allt, även rättigheter som läggs till senare"
 
@@ -2225,6 +2277,14 @@ msgstr "befunnet felaktigt"
 #, python-format
 msgid "from %(series)s"
 msgstr "från %(series)s"
+
+#, python-format
+msgid "from %(start)s"
+msgstr "från %(start)s"
+
+#, python-format
+msgid "from %(start)s to %(end)s"
+msgstr "från %(start)s till %(end)s"
 
 msgid "from a third party"
 msgstr "från tredje part"
@@ -2384,11 +2444,22 @@ msgstr "av: pumpens egen"
 msgid "on"
 msgstr "på"
 
+msgid "or"
+msgstr "eller"
+
 msgid "out_of_range"
 msgstr "utanför intervallet"
 
 msgid "outdoors"
 msgstr "utomhus"
+
+#, python-format
+msgid "outdoors above %(temp)s °C"
+msgstr "utomhus över %(temp)s °C"
+
+#, python-format
+msgid "outdoors below %(temp)s °C"
+msgstr "utomhus under %(temp)s °C"
 
 msgid "point (4.5)"
 msgstr "punkt (4.5)"
@@ -2520,6 +2591,10 @@ msgstr ""
 
 msgid "that would leave no user who can manage users"
 msgstr "då skulle ingen användare kunna hantera användare"
+
+#, python-format
+msgid "the addition at most %(kw)s kW"
+msgstr "tillsatsen högst %(kw)s kW"
 
 #, python-format
 msgid "the addition: %(policy)s"

@@ -293,6 +293,38 @@ async def test_asking_from_the_intents_page(tmp_path: Path) -> None:
         assert "offset is a number" in bad.text
 
 
+async def test_what_was_asked_for_folds_out(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, _, client):
+        await login(client, "admin")
+        await form(
+            client, "/intents", "/levels/new", name="Day time", scope=CS, low="20,5", high="22"
+        )
+        await form(
+            client,
+            "/intents",
+            "/intents",
+            kind="comfort_band",
+            scope=CS,
+            **{"p0.level": "day-time", "p0.days": "0", "p0.start": "06:00", "p0.end": "22:00"},
+        )
+        ranks = ["comfort_low", "must_deadlines", "should_deadlines", "comfort_high", "power_peak"]
+        await form(
+            client,
+            "/intents",
+            "/intents",
+            kind="cost_stance",
+            slider="40",
+            **{f"rank{n}": key for n, key in enumerate(ranks, 1)},
+        )
+        page = (await client.get("/intents")).text
+        assert page.count('class="intent"') == 2
+        band = "<li>Day time: rooms 20.5\N{EN DASH}22.0 °C: Monday, 6:00"  # the clock's own
+        assert band in page
+        assert "<li>Should be met; may give way.</li>" in page
+        assert "<li>Savings: 40 %</li>" in page
+        assert "<li>Rooms not below their band</li>" in page
+
+
 async def test_the_overview_asks_for_a_while(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

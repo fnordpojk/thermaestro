@@ -1343,9 +1343,16 @@ charts(document);
             if (!fresh || editing(region)) {
               continue;
             }
-            // Sections opened or closed by hand stay so.
-            const opened = [...region.querySelectorAll("details")].map((d) => d.open);
-            const details = fresh.querySelectorAll("details");
+            // Sections opened or closed by hand stay so: by id where they have one (rows
+            // that come and go), else by place while their number stays the same.
+            for (const d of fresh.querySelectorAll("details[id]")) {
+              const was = region.querySelector(`#${CSS.escape(d.id)}`);
+              if (was) {
+                d.open = was.open;
+              }
+            }
+            const opened = [...region.querySelectorAll("details:not([id])")].map((d) => d.open);
+            const details = fresh.querySelectorAll("details:not([id])");
             if (details.length === opened.length) {
               details.forEach((d, i) => (d.open = opened[i]));
             }

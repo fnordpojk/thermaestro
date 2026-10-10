@@ -55,6 +55,8 @@ def _environment() -> jinja2.Environment:
     env.filters["unit"] = i18n.unit
     env.filters["country"] = i18n.country
     env.filters["weekday"] = i18n.weekday
+    env.filters["time_of_day"] = i18n.time_of_day
+    env.filters["month_day"] = i18n.month_day
     env.filters["value_label"] = labels.value
     env.globals["quality_color"] = labels.quality_color
     env.filters["quantity"] = labels.quantity

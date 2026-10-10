@@ -15,12 +15,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, date, datetime, time, tzinfo
 from functools import cache
 from importlib import resources
 
 from babel import Locale, UnknownLocaleError, negotiate_locale
-from babel.dates import format_date, format_datetime, format_time
+from babel.dates import format_date, format_datetime, format_skeleton, format_time
 from babel.messages.mofile import write_mo
 from babel.messages.pofile import read_po
 from babel.numbers import format_decimal
@@ -264,6 +264,19 @@ def when(t: float | str | None) -> str:
     date = format_date(local, "yyyy-MM-dd" if f.dates == "iso" else "short", locale=f.locale)
     clock = {"24": "HH:mm", "12": "h:mm a"}.get(f.clock or "", "short")
     return f"{date} {format_time(local, clock, locale=f.locale)}"
+
+
+def time_of_day(t: time) -> str:
+    """A local time of day, in the clock chosen."""
+    f = formats.get()
+    clock = {"24": "HH:mm", "12": "h:mm a"}.get(f.clock or "", "short")
+    return format_time(t, clock, locale=f.locale)
+
+
+def month_day(text: str) -> str:
+    """A day of the year, as `10-01`: 1 Oct."""
+    month, day = (int(part) for part in text.split("-"))
+    return format_skeleton("MMMd", date(2000, month, day), locale=formats.get().locale)
 
 
 UNITS = {

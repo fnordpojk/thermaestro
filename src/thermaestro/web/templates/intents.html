@@ -10,6 +10,35 @@
 {% macro scope_select(group, name="scope") %}
 <select name="{{ name }}" required>{% for ref, label in scopes[group] %}<option value="{{ ref }}">{{ label }}</option>{% endfor %}</select>
 {% endmacro %}
+{% macro level_name(lid) %}{{ levels[lid].name if lid in levels else lid }}{% endmacro %}
+{% macro target_text(t) -%}
+{%- set lv = levels.get(t.level) if t.level else none -%}
+{%- set low = lv.low if lv else t.low -%}{%- set high = lv.high if lv else t.high -%}{%- set top = lv.top if lv else t.value -%}
+{%- if t.level %}{{ level_name(t.level) }}: {% endif -%}
+{%- if t.name == "room_temp" and low is not none -%}{{ _("rooms %(low)s–%(high)s °C", low=low | num(1), high=high | num(1)) }}
+{%- elif t.name == "pool_temp" and low is not none -%}{{ _("pool %(low)s–%(high)s °C", low=low | num(1), high=high | num(1)) }}
+{%- elif t.name == "tank_top_temp" and top is not none -%}{{ _("hot water at least %(temp)s °C", temp=top | num(1)) }}
+{%- elif t.name == "offset_shift" -%}{{ _("no room sensor: the heat shifted by price at most %(steps)s steps", steps=t.high | num(0)) }}
+{%- elif t.name == "house_power" -%}{{ _("the house at most %(kw)s kW", kw=t.value | num(1)) }}
+{%- elif t.name == "addition" and t.condition == "at_most" -%}{{ _("the addition at most %(kw)s kW", kw=t.value | num(1)) }}
+{%- elif t.name == "addition" -%}{{ _("the addition: %(policy)s", policy=_(policies[t.value]) if t.value in policies else t.value) }}
+{%- elif t.name == "quiet" -%}{{ _("quiet hours") }}
+{%- elif not t.level -%}{{ t.name }}{%- endif -%}
+{%- endmacro %}
+{% macro context_text(c) -%}
+{%- set parts = [] -%}
+{%- if c.days %}{% set ignored = parts.append(c.days | map("weekday") | join(", ")) %}{% elif c.at is none %}{% set ignored = parts.append(_("every day")) %}{% endif -%}
+{%- if c.start and c.end %}{% set ignored = parts.append(_("%(start)s–%(end)s", start=c.start | time_of_day, end=c.end | time_of_day)) -%}
+{%- elif c.start %}{% set ignored = parts.append(_("from %(start)s", start=c.start | time_of_day)) -%}
+{%- elif c.end %}{% set ignored = parts.append(_("until %(end)s", end=c.end | time_of_day)) -%}
+{%- elif c.by is none and c.at is none %}{% set ignored = parts.append(_("all day")) %}{% endif -%}
+{%- if c.by %}{% set ignored = parts.append(_("by %(time)s", time=c.by | time_of_day)) %}{% endif -%}
+{%- if c.at %}{% set ignored = parts.append(_("by %(time)s", time=c.at.isoformat() | when)) %}{% endif -%}
+{%- if c.season %}{% set ignored = parts.append(_("from %(start)s to %(end)s", start=c.season[0] | month_day, end=c.season[1] | month_day)) %}{% endif -%}
+{%- if c.outdoor_below is not none %}{% set ignored = parts.append(_("outdoors below %(temp)s °C", temp=c.outdoor_below | num(1))) %}{% endif -%}
+{%- if c.outdoor_above is not none %}{% set ignored = parts.append(_("outdoors above %(temp)s °C", temp=c.outdoor_above | num(1))) %}{% endif -%}
+{{ parts | join(", ") }}
+{%- endmacro %}
 <h1>{{ _("Intents") }}</h1>
 <p>{{ _("What the household wants. Thermaestro plans for it, ranks what gives way when not everything can be met, and says so.") }} <a href="/plan">{{ _("The plan") }}</a></p>
 
@@ -50,8 +79,30 @@
   <tbody>
   {% for v in views %}{% set i = v.intent %}
     <tr>
-      <td>{{ _(kinds[i.kind]) if i.kind in kinds else i.kind }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}{% if not i.confirmed %} <small>{{ _("taken from how the pump runs") }}</small>{% endif %}
-        {% if v.paused %}<br><small>{{ _("set aside: %(why)s", why=v.paused) }}</small>{% endif %}</td>
+      <td><details id="intent-{{ i.id }}" class="intent"><summary>{{ _(kinds[i.kind]) if i.kind in kinds else i.kind }}{% if i.kind == "warmer" %} ({{ "%+g" | format(i.parameters.offset) }} °C){% endif %}{% if not i.confirmed %} <small>{{ _("taken from how the pump runs") }}</small>{% endif %}</summary>
+        <ul>
+        {% for e in i.expectations %}
+          <li>{% for t in e.targets %}{{ target_text(t) }}{% if not loop.last %}; {% endif %}{% endfor %}{% if e.contexts %}: {% for c in e.contexts %}{{ context_text(c) }}{% if not loop.last %}; {{ _("or") }} {% endif %}{% endfor %}{% elif i.tier not in ("temporary", "hands_off") %}: {{ _("always") }}{% endif %}</li>
+        {% endfor %}
+        {% if i.kind == "warmer" %}<li>{{ _("%(offset)s °C on whatever band is in force", offset="%+g" | format(i.parameters.offset)) }}</li>{% endif %}
+        {% if i.kind == "away" %}<li>{{ _("Hot water down to its lowest, and the house ready again by the return.") }}</li>{% endif %}
+        {% if i.kind == "hands_off" %}<li>{{ _("Thermaestro changes nothing on the pump.") }}</li>{% endif %}
+        {% if i.kind == "fireplace" %}<li>{{ _("Another heat source is warming the house: comfort eases off.") }}</li>{% endif %}
+        {% if i.kind == "boost_now" %}<li>{{ _("One hot-water charge, now.") }}</li>{% endif %}
+        {% for scope, lid in (i.parameters.get("levels") or {}).items() %}<li>{{ names.get(scope, scope) }}: {{ level_name(lid) }}</li>{% endfor %}
+        {% if i.parameters.get("hot_water") %}<li>{{ _("Hot water") }}: {{ level_name(i.parameters.get("hot_water")) }}</li>{% endif %}
+        {% if i.kind == "cost_stance" %}
+          <li>{{ _("Savings: %(percent)s %%", percent=((i.parameters.get("slider") or 0) * 100) | num(0)) }}</li>
+          <li>{{ _("When not everything can be met, these give way last to first") }}:
+            <ol>{% for key in i.parameters.get("ranking") or [] %}<li>{{ _(ranks[key]) if key in ranks else key }}</li>{% endfor %}</ol></li>
+        {% endif %}
+        {% if i.strength == "must" %}<li>{{ _("Must be met.") }}</li>{% elif i.strength == "should" %}<li>{{ _("Should be met; may give way.") }}</li>{% endif %}
+        <li>{{ _("State: %(state)s", state=_(states[i.state]) if i.state in states else i.state) }}{% if i.why %} ({{ i.why }}){% endif %}</li>
+        {% if i.validity.starts %}<li>{{ _("Starts %(when)s", when=i.validity.starts.isoformat() | when) }}</li>{% endif %}
+        <li>{{ _("Asked %(when)s", when=i.created.isoformat() | when) }}</li>
+        </ul>
+        </details>
+        {% if v.paused %}<small>{{ _("set aside: %(why)s", why=v.paused) }}</small>{% endif %}</td>
       <td>{{ names.get(i.scope, i.scope) }}</td>
       <td>{% if v.end %}{% if v.when_met %}{{ _("until done, at the latest %(end)s", end=v.end | when) }}{% else %}{{ v.end | when }}{% endif %}{% else %}{{ _("always") }}{% endif %}</td>
       <td>{{ i.principal.removeprefix("user:") }}</td>

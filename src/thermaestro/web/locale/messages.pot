@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 16:07+0200\n"
+"POT-Creation-Date: 2026-10-10 19:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,6 +56,10 @@ msgid "%(n)s so far"
 msgstr ""
 
 #, python-format
+msgid "%(offset)s °C on whatever band is in force"
+msgstr ""
+
+#, python-format
 msgid "%(part)s: cooler, please"
 msgstr ""
 
@@ -65,6 +69,10 @@ msgstr ""
 
 #, python-format
 msgid "%(part)s: warmer, please"
+msgstr ""
+
+#, python-format
+msgid "%(start)s–%(end)s"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -244,6 +252,9 @@ msgstr ""
 msgid "Annual mean, °C"
 msgstr ""
 
+msgid "Another heat source is warming the house: comfort eases off."
+msgstr ""
+
 msgid "Area"
 msgstr ""
 
@@ -260,6 +271,10 @@ msgid "Ask for it"
 msgstr ""
 
 msgid "Asked"
+msgstr ""
+
+#, python-format
+msgid "Asked %(when)s"
 msgstr ""
 
 msgid "Asked for"
@@ -745,6 +760,9 @@ msgstr ""
 msgid "Hot water by"
 msgstr ""
 
+msgid "Hot water down to its lowest, and the house ready again by the return."
+msgstr ""
+
 msgid "Hot water that must be ready"
 msgstr ""
 
@@ -943,6 +961,9 @@ msgstr ""
 msgid "Municipal water"
 msgstr ""
 
+msgid "Must be met."
+msgstr ""
+
 msgid "Name"
 msgstr ""
 
@@ -1093,6 +1114,9 @@ msgid "One extra charge"
 msgstr ""
 
 msgid "One extra charge, now."
+msgstr ""
+
+msgid "One hot-water charge, now."
 msgstr ""
 
 msgid ""
@@ -1333,6 +1357,10 @@ msgstr ""
 msgid "Savings, in percent"
 msgstr ""
 
+#, python-format
+msgid "Savings: %(percent)s %%"
+msgstr ""
+
 msgid "Say what you want"
 msgstr ""
 
@@ -1395,6 +1423,9 @@ msgstr ""
 msgid "Shadow"
 msgstr ""
 
+msgid "Should be met; may give way."
+msgstr ""
+
 msgid "Show its sources"
 msgstr ""
 
@@ -1431,10 +1462,18 @@ msgstr ""
 msgid "Start temperature"
 msgstr ""
 
+#, python-format
+msgid "Starts %(when)s"
+msgstr ""
+
 msgid "State"
 msgstr ""
 
 msgid "State:"
+msgstr ""
+
+#, python-format
+msgid "State: %(state)s"
 msgstr ""
 
 #, python-format
@@ -1580,6 +1619,9 @@ msgid "The water"
 msgstr ""
 
 msgid "The whole house"
+msgstr ""
+
+msgid "Thermaestro changes nothing on the pump."
 msgstr ""
 
 msgid "Thermaestro gateway (with a key)"
@@ -1936,6 +1978,9 @@ msgstr ""
 msgid "all"
 msgstr ""
 
+msgid "all day"
+msgstr ""
+
 msgid "already so"
 msgstr ""
 
@@ -1993,6 +2038,10 @@ msgid "at the brine pump's speed, %%"
 msgstr ""
 
 msgid "away until Sunday"
+msgstr ""
+
+#, python-format
+msgid "by %(time)s"
 msgstr ""
 
 msgid "change the installation's settings"
@@ -2086,6 +2135,9 @@ msgstr ""
 msgid "every %(step)s"
 msgstr ""
 
+msgid "every day"
+msgstr ""
+
 msgid "everything, including rights added later"
 msgstr ""
 
@@ -2120,6 +2172,14 @@ msgstr ""
 
 #, python-format
 msgid "from %(series)s"
+msgstr ""
+
+#, python-format
+msgid "from %(start)s"
+msgstr ""
+
+#, python-format
+msgid "from %(start)s to %(end)s"
 msgstr ""
 
 msgid "from a third party"
@@ -2282,10 +2342,21 @@ msgstr ""
 msgid "on"
 msgstr ""
 
+msgid "or"
+msgstr ""
+
 msgid "out_of_range"
 msgstr ""
 
 msgid "outdoors"
+msgstr ""
+
+#, python-format
+msgid "outdoors above %(temp)s °C"
+msgstr ""
+
+#, python-format
+msgid "outdoors below %(temp)s °C"
 msgstr ""
 
 msgid "point (4.5)"
@@ -2415,6 +2486,10 @@ msgid ""
 msgstr ""
 
 msgid "that would leave no user who can manage users"
+msgstr ""
+
+#, python-format
+msgid "the addition at most %(kw)s kW"
 msgstr ""
 
 #, python-format

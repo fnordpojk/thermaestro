@@ -184,7 +184,7 @@ def request_from_form(form: FormData, zone: tzinfo) -> dict[str, Any]:
 async def _intents_page(
     request: Request, who: Caller, status_code: int = 200, **extra: Any
 ) -> Response:
-    from .labels import KINDS, POLICIES, RANKS
+    from .labels import KINDS, POLICIES, RANKS, STATES
 
     s = services(request)
     force = await s.in_force(who)
@@ -206,6 +206,7 @@ async def _intents_page(
         kinds=KINDS,
         ranks=RANKS,
         policies=POLICIES,
+        states=STATES,
         rows={"pattern": PATTERN_ROWS, "deadlines": DEADLINE_ROWS, "spans": SPAN_ROWS},
         **{"answer": None, "error": None, **extra},
     )
