@@ -190,7 +190,7 @@ A request is a JSON object on `thermaestro/<id>/request`, in the same household 
 {"kind": "boost_now", "scope": "pump:hp1/dhw"}
 ```
 
-- **Only for a while.** What always applies (bands, the cost stance, limits) is set on the Intents page. Every request ends by itself: warmer and cooler at the pattern's next change, unless an `until` is given.
+- **Only for a while.** What always applies (bands, the cost stance, limits) is set on the Intents page. Every request ends by itself: warmer and cooler at the pattern's next change, at most a day later, unless an `until` is given.
 - **Rights:** a request is asked as the principal `mqtt`, with the rights of the group **MQTT** under System → Users and groups. That group has none at first, so every request is refused until the administrator gives it some, typically `intent.temporary.create` (warmer, cooler, a bath, a boost, a fireplace). The broker isn't trusted to say who sent a message: in Home Assistant's own broker add-on, every user and add-on may publish anything.
 - **The answer** goes to `thermaestro/<id>/request/result`, not retained: `{"accepted": true, "id": "in-…", "messages": ["Warmer, please (+1 °C): until …"]}`, or `accepted: false` with why.
 - **A retained request is ignored:** it would be asked again at every connection.

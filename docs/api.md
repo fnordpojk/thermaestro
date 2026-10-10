@@ -281,7 +281,7 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 
 | `kind` | Fields |
 |---|---|
-| `warmer` | `scope` (a climate system or room), `offset` (°C, negative for cooler), `until` (else the next change of the pattern) |
+| `warmer` | `scope` (a climate system or room), `offset` (°C, negative for cooler), `until` (else the next change of the pattern, at most a day later) |
 | `bath` | `scope` (the tank), `at_least` (°C), `by`, `strength` (`must`, the default, or `should`) |
 | `guests` | `until`, `levels` (climate system → level), `hot_water` (a tank level) |
 | `away` | `until`, `levels` |

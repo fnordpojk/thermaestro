@@ -1,9 +1,10 @@
 """Intents in household terms: each kind with its defaults (tier, strength, how it ends),
 built into the general shape.
 
-Temporary intents always end: "warmer, please" at the next change of the pattern; a bath
-when met, at the latest an hour after its time; "hands off" after at most 48 hours; a
-fireplace after 6 hours; a boost when its charge is done, at the latest after 4 hours.
+Temporary intents always end: "warmer, please" at the next change of the pattern, at most a
+day later; a bath when met, at the latest an hour after its time; "hands off" after at most
+48 hours; a fireplace after 6 hours; a boost when its charge is done, at the latest after 4
+hours.
 """
 
 import secrets
@@ -283,7 +284,8 @@ def warmer(
     created: datetime,
     until: datetime | None = None,
 ) -> Intent:
-    """+n or -n °C on whatever band is in force, until the next change of the pattern
+    """+n or -n °C on whatever band is in force, until the next change of the pattern (at
+    most a day)
     unless a time is given."""
     validity = Validity(ends="at", at=until) if until else Validity(ends="next_change")
     return _intent(

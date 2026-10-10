@@ -39,7 +39,7 @@
 </form>
 {% endif %}
 </div>
-{% if temporary %}<p class="hint">{{ _("Warmer or cooler lasts until the pattern next changes.") }}</p>{% endif %}
+{% if temporary %}<p class="hint">{{ _("Warmer or cooler lasts until the pattern next changes, at most a day.") }}</p>{% endif %}
 {% if temporary or away or can("intent.handsoff.create") %}
 <div id="ask-log" class="ask-log" data-keep aria-live="polite"></div>
 <form method="post" action="/ask" hx-post="/ask" {{ chat | safe }} class="ask-say">

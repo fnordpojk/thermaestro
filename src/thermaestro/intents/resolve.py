@@ -20,9 +20,9 @@ RANKS = ("comfort_low", "must_deadlines", "should_deadlines", "comfort_high", "p
 """The default order of what gives way, from rank 2 down; rank 1 is the protection
 floors, and the savings slider comes last."""
 PROTECTION = 1
-NEXT_CHANGE_SPAN = timedelta(days=8)
-"""How far ahead an intent that ends at the next change looks for that change; it ends
-then if the pattern never changes."""
+NEXT_CHANGE_SPAN = timedelta(hours=24)
+"""How far ahead an intent that ends at the next change looks for that change: it lasts
+at most a day, also where the pattern doesn't change that soon or ever."""
 STEP = timedelta(minutes=15)
 COMFORT: frozenset[str] = frozenset({"room_temp", "offset_shift"})
 REPLACING = frozenset({"guests", "away"})

@@ -190,6 +190,10 @@ def test_warmer_is_an_offset_until_the_next_change() -> None:
     assert low_high(r, local(21, 9)) == (21.5, 23.0)
     assert r.end(r.intents[1]) == local(21, 22)  # the pattern goes to night at 22:00
     assert low_high(r, local(21, 22, 30)) == (18.0, 20.0)
+    # A pattern that doesn't change within a day: it lasts a day.
+    flat = kinds.comfort_band(CS, [("day", ((), None, None))], principal="u", created=T0)
+    r = resolver(flat, warmer)
+    assert r.end(r.intents[1]) == local(22, 8)
 
 
 def test_the_newest_temporary_intent_wins() -> None:
