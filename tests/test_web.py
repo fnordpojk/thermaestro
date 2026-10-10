@@ -21,6 +21,7 @@ from thermaestro.store import Database, Plugin, SecretStore
 from thermaestro.web import (
     Services,
     api,
+    control_api,
     create_app,
     pages,
     price_api,
@@ -88,6 +89,7 @@ def routes(app: FastAPI) -> list[APIRoute]:
     as one entry of the app's routes)."""
     included = [
         *api.router.routes,
+        *control_api.router.routes,
         *pages.router.routes,
         *sensor_api.router.routes,
         *sensor_pages.router.routes,

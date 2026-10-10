@@ -13,10 +13,15 @@ from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ValidationError
+
+if TYPE_CHECKING:
+    from ..core.executor import Executor
+    from ..intents import Intents
+    from ..planner import Planner
 
 from ..auth import (
     AccountError,
@@ -42,6 +47,7 @@ from ..core.weather import Weather
 from ..store import Database, Location, NibeGateway, Plugin, SecretStore
 from ..store.errors import name_fields
 from . import i18n, labels
+from .control_operations import ControlOperations
 from .discovery_operations import DiscoveryOperations
 from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
@@ -83,7 +89,9 @@ class Caller:
 
 
 @dataclass
-class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOperations):
+class Services(
+    SensorOperations, PriceOperations, WeatherOperations, DiscoveryOperations, ControlOperations
+):
     accounts: Accounts
     db: Database
     values: Values
@@ -100,6 +108,9 @@ class Services(SensorOperations, PriceOperations, WeatherOperations, DiscoveryOp
     series: Series | None = None
     weather: Weather | None = None
     discovery: Publisher | None = None
+    intents: "Intents | None" = None
+    executor: "Executor | None" = None
+    planner: "Planner | None" = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)

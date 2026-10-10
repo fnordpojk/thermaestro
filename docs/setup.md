@@ -6,7 +6,7 @@ This walks through a new installation: installing it, the first start, and the s
 
 Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT.
 
-It doesn't change anything on the pump yet. The planner runs and decides what each setting should be, but every pump setting starts off, and nothing in the web UI or the API can yet switch one to shadow or control. That comes next.
+It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. For now only [the API](api.md#levers-and-the-plan) switches one to shadow (decide and record, change nothing) or control; the web pages for it come next.
 
 If you want to help with a model Thermaestro doesn't know yet, [the read-only probe](probe.md) makes a report to send with an issue.
 

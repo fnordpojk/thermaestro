@@ -66,8 +66,15 @@ A user has the rights of its groups, plus its own. A new installation has three 
 | `users.manage` | add, change and remove users and their rights |
 | `tokens.own` | create and revoke one's own API tokens |
 | `audit.read` | read the audit log |
-
-The `intent.*`, `plan.read` and `levers.control` rights exist, but no endpoint uses them yet.
+| `intent.temporary.create` | ask for something for a while: warmer, a bath, a boost, a fireplace |
+| `intent.temporary.create.away`, `.guests` | say the house is away, or has guests, until a date |
+| `intent.handsoff.create` | stop Thermaestro changing the pump for up to 48 hours |
+| `intent.standing.write` | set what the household always wants: bands, hot water, limits |
+| `intent.levels.write` | add, change and remove levels |
+| `intent.ranking.write`, `intent.slider.write` | change what gives way first, and how much comfort may give for savings |
+| `intent.any.end` | end what someone else asked for |
+| `plan.read` | see the intents, the levels and the plan, and why |
+| `levers.control` | put levers off, in shadow or in control ⚿ |
 
 ## Answers and errors
 
@@ -238,6 +245,57 @@ The system keeps at least one enabled user who can manage users: a change that w
 
 Every change through the API is in the audit log, with who made it and from which address, except one's own language and formats. Secrets' names may be in it, their values never.
 
-## Not in the API yet
+### Intents and levels
 
-The household's intents, the plan and the control levers have no endpoints yet.
+What the household wants. A request is in household terms, one `kind` with only its own fields; the right it needs comes from the kind (above).
+
+| Method and path | Right | Body → answer |
+|---|---|---|
+| `GET /intents?ended=false` | `plan.read` | The open intents; with `ended=true`, the finished ones too |
+| `POST /intents` | the kind's | A request → `201`, `{accepted, intent, messages}`. `messages` say when it ends, what it sets aside, and what the house can't do. A refused one has `accepted: false` and says why. |
+| `DELETE /intents/{id}` | one's own: the kind's right; anyone's: `intent.any.end` | → the intent, finished |
+| `POST /intents/{id}/confirm` | `intent.standing.write` | → a seeded intent, now the household's own |
+| `GET /intents/in-force` | `plan.read` | What applies now: `bounds` (`target`, `scope`, `low`, `high`, `value`, the edges' ranks, the intents behind it), `paused` (intent id → why), `hands_off_until`, `ranking`, `slider` |
+| `GET /levels` | `plan.read` | `[{id, name, scope, low, high, top}]` |
+| `PUT /levels/{id}` | `intent.levels.write` | `{"name": "Day", "scope": "pump:hp1/cs1", "low": 20.5, "high": 22}`, or a tank's `{"name": "Normal", "scope": "pump:hp1/dhw", "top": 50}` |
+| `DELETE /levels/{id}` | `intent.levels.write` | Refused while an intent names it |
+
+The requests, each with what it takes besides `kind` (times are ISO 8601 with an offset; `days` 0 Monday to 6 Sunday; spans `{days, start, end}` in local times):
+
+| `kind` | Fields |
+|---|---|
+| `warmer` | `scope` (a climate system or room), `offset` (°C, negative for cooler), `until` (else the next change of the pattern) |
+| `bath` | `scope` (the tank), `at_least` (°C), `by`, `strength` (`must`, the default, or `should`) |
+| `guests` | `until`, `levels` (climate system → level), `hot_water` (a tank level) |
+| `away` | `until`, `levels` |
+| `hands_off` | `until`, at most 48 hours ahead |
+| `fireplace`, `boost_now` | `scope` |
+| `comfort_band` | `scope`, `pattern` (`[{level, days, start, end}]`), `season` (`["10-01", "04-30"]`); or `no_sensor: true` with `steps` (1 to 5) |
+| `hot_water_by` | `scope`, `deadlines` (`[{by, days, level}]` or a `temp` instead of a `level`), `strength` |
+| `hot_water_floor` | `scope`, `temp` |
+| `cost_stance` | `slider` (0 to 1), `ranking` (an order of `comfort_low`, `must_deadlines`, `should_deadlines`, `comfort_high`, `power_peak`) |
+| `addition_policy` | `policy` (`pump`, `when_needed`, `not_when_expensive`, `limit`), `kw` with `limit` |
+| `pool` | `scope`, `level`, `spans` |
+| `power_peak` | `kw`, `spans`; needs a whole-house power reading |
+| `quiet_hours` | `spans` |
+
+### Setup's answers about the house
+
+| Method and path | Right | Body → answer |
+|---|---|---|
+| `GET /home` | `settings.read` | The answers |
+| `PUT /home` | `settings.write` | `{"emitters": {"pump:hp1/cs1": "floor"}, "house": "average", "water": "well", "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`. Emitters: `radiators`, `floor`, `radiators_and_floor`, `fan_coils`, `unknown`; house: `poorly_insulated`, `average`, `well_insulated`, `low_energy`, `unknown`; water: `municipal`, `well`, `unknown`. A field left out takes its default. |
+
+### Levers and the plan
+
+A lever is a setting Thermaestro could change. Every lever starts off: Thermaestro reads and plans, and changes nothing. In shadow it decides and records what it would do, and sends nothing; in control it sends.
+
+| Method and path | Right | Body → answer |
+|---|---|---|
+| `GET /levers` | `settings.read` | `[{lever, kind, mode, unavailable, works, range, competing, claimed, baseline, last, held, drift, writes_today, budget}]`: `competing` lists the device's own features that change the same, each with whether it's confirmed off; `baseline` is what it was found at; `drift` why it was let go after a change made elsewhere |
+| `PUT /levers/{lever}/mode` | `levers.control` ⚿ | `{"mode": "shadow"}`: `off`, `shadow` or `control`. Leaving control puts the setting back as it was found. |
+| `PUT /levers/{lever}/confirmed-off` | `levers.control` ⚿ | `{"features": ["Smart Price Adaption"]}`: these are switched off on the device |
+| `POST /levers/{lever}/accept-drift` | `levers.control` ⚿ | Keep the change made elsewhere: the lever is taken over again from how it is now |
+| `GET /plan` | `plan.read` | `{at, decisions, notices}`: the planner's last round, each decision (`lever`, `op`, `params`, `rank`, `reason`) with its `outcome`; `notices`, newest first, are what shadow would have done |
+
+A lever is written as `<instance>:<path>`, such as `pump:hp1/cs1/heating.offset`.

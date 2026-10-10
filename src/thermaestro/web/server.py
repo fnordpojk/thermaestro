@@ -90,6 +90,9 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         series=core.host.series,
         weather=core.weather,
         discovery=core.discovery,
+        intents=core.intents,
+        executor=core.executor,
+        planner=core.planner,
     )
     await services.load_zone()
     app = create_app(services, await _csrf_key(core))

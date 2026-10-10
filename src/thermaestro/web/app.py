@@ -300,6 +300,7 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
 
     from . import (
         api,
+        control_api,
         pages,
         price_api,
         price_pages,
@@ -312,6 +313,7 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
 
     app.include_router(setup_pages.router)
     app.include_router(api.router)
+    app.include_router(control_api.router)
     app.include_router(price_api.router)
     app.include_router(price_pages.router)
     app.include_router(sensor_api.router)
