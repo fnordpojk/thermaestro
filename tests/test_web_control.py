@@ -193,6 +193,7 @@ async def test_the_plan_before_the_planner_runs(tmp_path: Path) -> None:
             "ahead": [],
             "house_kw": None,
             "limit_kw": None,
+            "limit_why": None,
             "ranking": [],
             "at": None,
             "decisions": [],

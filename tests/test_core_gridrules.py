@@ -2,17 +2,19 @@
 price, and its layer in the price stack."""
 
 from collections.abc import AsyncIterator
-from datetime import date, time
+from datetime import date, datetime, time
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 from test_core_series import SPOT, STOCKHOLM, local, stocked
 
-from thermaestro.core.gridrules import holds, tou_price
+from thermaestro.cap.model import Envelope
+from thermaestro.core.gridrules import GridLimits, holds, interval_means, peak_limit, tou_price
 from thermaestro.core.prices import assemble
+from thermaestro.core.values import Values
 from thermaestro.intents.calendar import Calendar
-from thermaestro.store import Database, GridRule, PriceLayer, Vat
+from thermaestro.store import Database, GridRule, Home, PriceLayer, Vat
 from thermaestro.store.settings import Rate, When
 
 SWEDISH = Calendar(STOCKHOLM, "SE").holiday
@@ -120,3 +122,82 @@ async def test_a_rule_layer_that_cant_be_used_is_refused(db: Database) -> None:
         stack = await assemble({"grid": layer}, None, series, day, STOCKHOLM, rules)
         assert any(why in p for p in stack.problems), stack.problems
         assert stack.slots == []
+
+
+# --- power charges -------------------------------------------------------------------------
+
+PEAK = GridRule(
+    type="interval_peak",
+    owner="A grid company",
+    unit="SEK/kW",
+    window=(When(days="working_days", start=time(7), end=time(20)),),
+    interval_minutes=60,
+    peaks=3,
+    different_days=True,
+    price_per_kw=49.0,
+)
+
+
+def hourly(*found: tuple[datetime, float]) -> dict[float, float]:
+    return {t.timestamp(): kw for t, kw in found}
+
+
+def test_interval_means() -> None:
+    t0 = local(2026, 12, 1, 10).timestamp()
+    samples = [(t0, 2.0), (t0 + 900, 4.0), (t0 + 3600, 6.0)]
+    assert interval_means(samples, 60) == {t0: 3.0, t0 + 3600: 6.0}
+    assert interval_means(samples, 15) == {t0: 2.0, t0 + 900: 4.0, t0 + 3600: 6.0}
+
+
+def test_a_power_charge_lets_the_house_up_to_its_counted_peaks() -> None:
+    now = local(2026, 12, 4, 10)  # a Friday, in the window
+    means = hourly(
+        (local(2026, 12, 1, 8), 5.0),
+        (local(2026, 12, 1, 9), 6.0),  # the same day as 5.0: only 6.0 counts
+        (local(2026, 12, 2, 8), 4.0),
+        (local(2026, 12, 3, 18), 7.0),
+        (local(2026, 12, 3, 22), 9.0),  # outside the window
+        (local(2026, 11, 30, 8), 8.0),  # last month
+    )
+    assert peak_limit(PEAK, means, now, STOCKHOLM, SWEDISH) == 4.0  # the third highest
+    two = hourly((local(2026, 12, 1, 8), 5.0), (local(2026, 12, 2, 8), 4.0))
+    assert peak_limit(PEAK, two, now, STOCKHOLM, SWEDISH) is None  # fewer than 3 counted yet
+    assert peak_limit(PEAK, means, local(2026, 12, 4, 21), STOCKHOLM, SWEDISH) is None
+    same_days = PEAK.model_copy(update={"different_days": False})
+    assert peak_limit(same_days, means, now, STOCKHOLM, SWEDISH) == 5.0
+
+
+def power(t: datetime, kw: float) -> Envelope:
+    return Envelope(
+        point="meter/grid.import.power",
+        value=kw * 1000,
+        unit="W",
+        t_observed=t,
+        t_received=t,
+        quality="good",
+        source="measured",
+    )
+
+
+async def test_the_grid_limit_from_the_rules_and_the_house_power(db: Database) -> None:
+    await db.put(Home(holidays="SE"))
+    values = Values(db)
+    for day, kw in ((1, 5.0), (2, 4.0), (3, 7.0)):
+        values.add("ha", power(local(2026, 12, day, 8), kw))
+    values.add("ha", power(local(2026, 12, 4, 9, 50), 3.0))
+    await values.flush()
+    limits = GridLimits(db, values)
+    now = local(2026, 12, 4, 10)
+    assert await limits.now(now, STOCKHOLM) is None  # no rules yet
+    await db.put(PEAK, "peak")
+    found = await limits.now(now, STOCKHOLM)
+    assert found is not None
+    assert (found.kw, found.why) == (4.0, "A grid company: under the month's 3 highest so far")
+    await db.put(GridRule(type="subscribed_power", owner="A grid company", kw=3.5), "fuse")
+    found = await limits.now(now, STOCKHOLM)
+    assert found is not None
+    assert found.kw == 3.5  # the lower one
+    unsaid = PEAK.model_copy(update={"peaks": None, "unknown": ("peaks",)})
+    await db.put(unsaid, "peak")
+    await db.delete(GridRule, "fuse")
+    assert await limits.now(now, STOCKHOLM) is None  # it doesn't say how many count

@@ -163,14 +163,19 @@ def _quiet(sit: Situation) -> bool:
     return bound is not None and bound.value is True
 
 
-def _over_peak(sit: Situation, extra_kw: float = 0.0) -> bool:
+def power_limit(sit: Situation) -> float | None:
+    """The most the house may draw now: the household's limit, or the grid company's
+    where that is lower."""
     bound = sit.force.bound("house_power", "house")
-    return (
-        bound is not None
-        and bound.high is not None
-        and sit.house_kw is not None
-        and sit.house_kw + extra_kw > bound.high
-    )
+    limits = [bound.high] if bound is not None and bound.high is not None else []
+    if sit.grid_limit is not None:
+        limits.append(sit.grid_limit.kw)
+    return min(limits, default=None)
+
+
+def _over_peak(sit: Situation, extra_kw: float = 0.0) -> bool:
+    limit = power_limit(sit)
+    return limit is not None and sit.house_kw is not None and sit.house_kw + extra_kw > limit
 
 
 def _local(sit: Situation, t: datetime) -> str:

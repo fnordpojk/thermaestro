@@ -532,7 +532,7 @@ class ControlOperations:
         """The planner's last round: each decision with its reason and what became of it;
         in shadow, what it would have done; the hot-water deadlines ahead with the window
         chosen for each charge; and the house's power against its limit."""
-        from ..planner.rules import CHARGE_S, cheapest_start
+        from ..planner.rules import CHARGE_S, cheapest_start, power_limit
 
         caller.principal.require("plan.read")
         planner = self.planner
@@ -554,11 +554,13 @@ class ControlOperations:
                         "charge_from": start.isoformat() if start else None,
                     }
                 )
-        limit = sit.force.bound("house_power", "house") if sit is not None else None
+        limit = power_limit(sit) if sit is not None else None
+        grid = sit.grid_limit if sit is not None else None
         return {
             "ahead": ahead,
             "house_kw": sit.house_kw if sit is not None else None,
-            "limit_kw": limit.high if limit is not None else None,
+            "limit_kw": limit,
+            "limit_why": grid.why if grid is not None and limit == grid.kw else None,
             "ranking": list(sit.force.ranking) if sit is not None else [],
             "at": last.t.isoformat() if last else None,
             "decisions": [

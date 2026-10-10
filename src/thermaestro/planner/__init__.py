@@ -1,12 +1,22 @@
 """The rule-based planner: what to ask of each lever, slot by slot, and why."""
 
-from .model import Decision, LeverState, Memory, Price, RoomReading, Situation, Tank
+from ..core.gridrules import GridLimit
+from .model import (
+    Decision,
+    LeverState,
+    Memory,
+    Price,
+    RoomReading,
+    Situation,
+    Tank,
+)
 from .rules import plan
 from .service import Asked, Notice, Plan, Planner
 
 __all__ = [
     "Asked",
     "Decision",
+    "GridLimit",
     "LeverState",
     "Memory",
     "Notice",

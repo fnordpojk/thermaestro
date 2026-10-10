@@ -24,7 +24,7 @@ import logging
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
 from .. import clock
@@ -32,7 +32,7 @@ from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
-from ..core.gridrules import household
+from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost
 from ..core.house import House
 from ..core.prices import assemble
@@ -43,7 +43,16 @@ from ..intents import Intents
 from ..intents.entry import RESPONSE_H
 from ..store import Control, Database, Location, PriceLayer, Vat
 from . import rules
-from .model import SLOT, Decision, LeverState, Memory, Price, RoomReading, Situation, Tank
+from .model import (
+    SLOT,
+    Decision,
+    LeverState,
+    Memory,
+    Price,
+    RoomReading,
+    Situation,
+    Tank,
+)
 
 log = logging.getLogger(__name__)
 
@@ -154,6 +163,7 @@ class Planner:
         self._task: asyncio.Task[None] | None = None
         self._situation_levers: dict[str, LeverState] = {}
         self._recent: dict[str, deque[tuple[float, float]]] = {}
+        self._grid = GridLimits(db, values)
         """Each room's temperatures of the last hour, by point."""
         self._aired: dict[str, float] = {}
         """Rooms seen aired, by point: when."""
@@ -280,6 +290,7 @@ class Planner:
             levers=levers,
             heating=heating,
             house_kw=self._house_kw(),
+            grid_limit=await self._grid.now(now, _zone(calendar.zone)),
             demand=demand if isinstance(demand, str) else None,
             pools=pools,
             budget=budget,
@@ -412,10 +423,11 @@ class Planner:
         return True
 
     def _house_kw(self) -> float | None:
-        for key, envelope in sorted(self._values.latest.items(), key=lambda kv: kv[0].instance):
-            if key.point.endswith("grid.import.power") and envelope.quality == "good":
-                return self._number(envelope)
-        return None
+        found = self._grid.house_power()
+        if found is None:
+            return None
+        value = self._number(self._values.latest.get(found[0]))
+        return None if value is None else value * found[1]
 
     def _pump_point(self, name: str) -> Envelope | None:
         for key, envelope in sorted(self._values.latest.items(), key=lambda kv: kv[0].instance):
@@ -601,3 +613,7 @@ def _same(a: Value | None, b: Value | None) -> bool:
     if isinstance(a, int | float) and isinstance(b, int | float):
         return abs(float(a) - float(b)) < 1e-9
     return a == b
+
+
+def _zone(found: tzinfo) -> ZoneInfo:
+    return found if isinstance(found, ZoneInfo) else ZoneInfo("UTC")

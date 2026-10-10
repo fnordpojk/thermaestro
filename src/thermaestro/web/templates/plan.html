@@ -45,6 +45,7 @@
 <section id="power">
 <h2>{{ _("Power") }}</h2>
 <p>{{ _("The house now: %(now)s kW, of at most %(limit)s kW.", now=plan.house_kw | num(1) if plan.house_kw is not none else "–", limit=plan.limit_kw | num(1)) }}</p>
+{% if plan.limit_why %}<p class="hint">{{ plan.limit_why }}</p>{% endif %}
 </section>
 {% endif %}
 

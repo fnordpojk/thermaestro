@@ -179,8 +179,8 @@ What one more kWh costs is a stack of layers: the spot price, the supplier's add
 4. **Octopus Agile:** for a household in Great Britain on Octopus Energy's Agile tariff, choose the region, then add its unit rate as a layer.
 5. **Grid rules:** your grid company's rules, entered by hand from its price list.
    - **A time-of-use price:** a base price per kWh, and the prices that apply instead at some times (months, working days or weekends, hours). The first that holds applies. It becomes a layer of the stack by itself.
-   - **A power charge:** when power counts, how it is measured (per 15 minutes or per hour), how many of the month's highest intervals are averaged, whether on different days, and the price per kW.
-   - **A subscribed power:** the most the house may draw.
+   - **A power charge:** when power counts, how it is measured (per 15 minutes or per hour), how many of the month's highest intervals are averaged, whether on different days, and the price per kW. While it is in force, in its window, the planner keeps the house under the month's highest intervals so far, so a new one doesn't raise the bill. That needs the house's power from a meter (a `grid.import.power` sensor, in W or kW), and a rule that says how it is measured and how many intervals count.
+   - **A subscribed power:** the most the house may draw; the planner keeps under it.
    - Leave a field empty when the grid company doesn't say: the rule lists it as not given. Working days leave out public holidays, from the calendar chosen under House. A rule's clock is civil time, or normal time all year where the grid company measures so. A rule that is paused, announced or withdrawn is kept and charges nothing.
 6. **Layers:** add the series the sources offer, or fixed amounts per kWh for the supplier's charge, energy tax, a flat grid fee, levies or subsidies, each with or without VAT.
 7. **VAT:** the rate in percent, and the layers it is charged on.
@@ -229,7 +229,7 @@ Asking answers at once: until when it applies, what it sets aside, and what the 
 
 ## What Thermaestro decides: the Plan page
 
-**Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), and what became of it. Below are the hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit, what shadow would have done, and every change asked in the last day. The planner decides for now from what applies now, every 15 minutes; a plan that looks a day or two ahead comes with the house's model.
+**Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), and what became of it. Below are the hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit (the household's, or the grid company's where lower, with why), what shadow would have done, and every change asked in the last day. The planner decides for now from what applies now, every 15 minutes; a plan that looks a day or two ahead comes with the house's model.
 
 ## Users and groups
 

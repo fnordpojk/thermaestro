@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, tzinfo
 
 from ..cap.messages import Op
 from ..cap.model import Value
+from ..core.gridrules import GridLimit
 from ..intents import Capabilities, Deadline, InForce
 
 SLOT = timedelta(minutes=15)
@@ -128,6 +129,8 @@ class Situation:
     heating: bool = True
     """Whether the pump's heating stop has heating on."""
     house_kw: float | None = None
+    grid_limit: GridLimit | None = None
+    """By a subscribed power, or a power charge in its window."""
     demand: str | None = None
     pools: dict[str, float | None] = field(default_factory=dict)
     """Per pool: its temperature."""

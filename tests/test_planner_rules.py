@@ -6,6 +6,7 @@ from datetime import UTC, datetime, time, timedelta
 from thermaestro.intents import RANKS, Calendar, Capabilities, Intent, Level, Resolver, kinds
 from thermaestro.planner import (
     Decision,
+    GridLimit,
     LeverState,
     Memory,
     Price,
@@ -245,6 +246,17 @@ def test_a_deadline_is_charged_for_in_its_cheapest_window() -> None:
     fired = [d for d in then if d.op == "fire"]
     assert len(fired) == 1
     assert "hot water 50 °C by 23:00: the cheapest time before it" in fired[0].reason
+
+
+def test_the_grid_companys_limit_holds_a_charge_back() -> None:
+    by = kinds.hot_water_by(TANK, [(50.0, (), time(23, 0))], **who())  # type: ignore[arg-type]
+    series = prices()
+    start = rules.cheapest_start(series, NOW, NOW.replace(hour=23), rules.CHARGE_S)
+    assert start is not None
+    sit = replace(situation([by], top=45.0, price=series), now=start, house_kw=4.0)
+    assert any(d.op == "fire" for d in rules.plan(sit))
+    held = replace(sit, grid_limit=GridLimit(5.0, "A grid company: the subscribed power"))
+    assert all(d.op != "fire" for d in rules.plan(held))  # 4 kW and a charge's 2 is over 5
 
 
 def test_a_late_deadline_charges_at_once() -> None:
