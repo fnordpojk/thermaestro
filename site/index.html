@@ -46,7 +46,7 @@
 <main id="top">
 
 <section class="hero">
-  <div class="wrap hero-grid">
+  <div class="wrap">
     <div>
       <p class="kicker">Heat pump controller · intent, not registers</p>
       <h1>Thermaestro</h1>
@@ -62,11 +62,6 @@
         <a class="button" href="#links">Documentation</a>
       </div>
     </div>
-    <aside class="status" aria-label="Status">
-      <h4>Status</h4>
-      <p><strong>Thermaestro decides, and changes nothing on a pump yet.</strong> It runs in shadow beside NibePi on a Nibe F1245: it plans and shows what it would change, each decision beside what the pump showed at that moment, while NibePi stays in control. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. A rig tries each setting on a real pump before it is handed over. There is no release yet.</p>
-      <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
-    </aside>
   </div>
 </section>
 
@@ -74,11 +69,11 @@
   <div class="wrap">
     <p class="kicker">Operating principle</p>
     <h2>How it works</h2>
-    <p class="legend">How to read this page: it describes the design. <span class="tag p">proposal</span> not settled yet. <span class="tag l">later</span> planned, not designed or built. Unmarked items are settled design. <a href="#status">Where it stands</a> says what is built today.</p>
+    <p class="legend">How to read this page: what is unmarked is built and runs today. <span class="tag l">later</span> is designed or planned, not built yet. <a href="#status">Where it stands</a> says what is being worked on.</p>
     <div class="two">
       <div>
         <p>Thermaestro works from what the household wants, not from pump settings. The household states its goals and what may give way when not all of them can be met. A planner turns them into a schedule. Thermaestro changes the few settings the schedule needs, then checks what actually happens and learns from it. The household gets reports and can adjust its goals. The approach follows intent-based management as described in IRTF RFC 9315 and 9316.</p>
-        <p><strong>Each device stays in charge of itself.</strong> Thermaestro supervises; it doesn't replace a device's own control. A heat pump keeps its own regulation, defrosting, compressor protection and the regular extra-hot heating of the hot-water tank against legionella. Thermaestro only adjusts the settings each device offers, such as a heating curve offset, the hot-water mode, pausing or forcing hot-water heating, or a temperature setpoint. Setting the flow temperature directly, on pumps that allow it, comes later. <span class="tag l">later</span></p>
+        <p><strong>Each device stays in charge of itself.</strong> Thermaestro supervises; it doesn't replace a device's own control. A heat pump keeps its own regulation, defrosting, compressor protection and the regular extra-hot heating of the hot-water tank against legionella. Thermaestro only adjusts the settings each device offers, such as a heating curve offset, the hot-water mode, or pausing or forcing hot-water heating. Setting the flow temperature directly, on pumps that allow it, comes later. <span class="tag l">later</span></p>
         <p><strong>One controller per setting.</strong> If a device has its own feature that changes the same setting (a maker's price function, the pump's own schedule, or its room control while Thermaestro regulates the heating), that feature has to be turned off. Otherwise Thermaestro leaves the setting alone and says why.</p>
       </div>
       <div>
@@ -122,7 +117,7 @@
   <div class="wrap">
     <p class="kicker">Functions</p>
     <h2>What it does</h2>
-    <p class="intro">The planner looks one to two days ahead in 15-minute steps and plans again whenever something changes. It weighs the heat each climate system needs, hot water, prices, the weather, the heat stored in the house and the hot-water tank, and the heat pump's efficiency at each hour, then picks the actual settings for the next hours, counting every change of a setting as a small cost.</p>
+    <p class="intro">The planner works by rules today: every 15 minutes it decides what each setting should be now, from what the household wants, the rooms, the hot-water tank and the prices around now, and says why. Every change of a setting counts as a small cost. Later an optimizer looks one to two days ahead, weighing the heat each climate system needs, the weather, the heat stored in the house and the tank, and the heat pump's efficiency at each hour. <span class="tag l">later</span></p>
 
     <div class="group">
       <h3>Intents</h3>
@@ -141,11 +136,11 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 V8 M2 5 H8"/></svg></div>
-          <p><strong>When intents conflict,</strong> a fixed order decides: protection first, then the limits on changing settings, then "hands off", then temporary intents, then standing intents, and last the devices' own settings. <span class="tag p">proposal</span></p>
+          <p><strong>When intents conflict,</strong> a fixed order decides: protection first, then the limits on changing settings, then "hands off", then temporary intents, then standing intents, and last the devices' own settings.</p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M3 7 V4 M5 7 V2.5 M7 7 V5"/></svg></div>
-          <p><strong>A ranking decides what gives way</strong>, most important first: protective minimum temperatures, the lower edge of each comfort range, hot water marked <i>must</i>, then <i>should</i>, the upper edge of each comfort range, the power peak. One slider sets what is left: saving money against staying close to the target, shown as real limits ("may go 1.5 °C below your target") rather than a number from 1 to 10. <span class="tag p">proposal</span> Where a goal falls short, the report says by how much: "the bath will be ready 40 minutes late".</p>
+          <p><strong>A ranking decides what gives way</strong>, most important first: protective minimum temperatures, the lower edge of each comfort range, hot water marked <i>must</i>, then <i>should</i>, the upper edge of each comfort range, the power peak. One slider sets what is left: saving money against staying close to the target, shown as real limits ("price may move the target up to 0.75 °C either way") rather than a number from 1 to 10. Where a goal will fall short, a report saying by how much ("the bath will be ready 40 minutes late") comes with the optimizer. <span class="tag l">later</span></p>
         </div>
       </div>
     </div>
@@ -159,7 +154,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 6 Q5 2 8 6"/><path d="M5 6 V8"/></svg></div>
-          <p><strong>No room sensor?</strong> Then the pump heats on its own heating curve, adjusted ahead of weather changes, and Thermaestro may move heat by up to a set amount toward cheaper hours.</p>
+          <p><strong>No room sensor?</strong> Then the pump heats on its own heating curve, and Thermaestro may move heat by up to a set amount toward cheaper hours. Adjusting the curve ahead of weather changes comes with the house model. <span class="tag l">later</span></p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 Q2.5 3.5 3.5 5 Q4.5 6.5 3.5 8 M6.5 2 Q5.5 3.5 6.5 5 Q7.5 6.5 6.5 8"/></svg></div>
@@ -167,7 +162,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 L4 5 L6 6.5 L8 2"/></svg></div>
-          <p><strong>A learned demand profile.</strong> Thermaestro notices when hot water is used and learns a typical week. Patterns that repeat are suggested as standing intents, never applied without asking.</p>
+          <p><strong>A learned demand profile.</strong> Thermaestro notices when hot water is used and learns a typical week. Patterns that repeat are suggested as standing intents, never applied without asking. <span class="tag l">later</span></p>
         </div>
       </div>
     </div>
@@ -177,19 +172,19 @@
       <div class="features">
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="3" width="6" height="4"/><path d="M8 4.5 H8.8 V5.5 H8"/></svg></div>
-          <p><strong>Prices built from their parts:</strong> the spot price, the supplier's surcharges, energy tax, grid fees and VAT, the same arithmetic in every country, checked against the supplier's own total. Grid tariffs are stored as data. Prices are handled in 15-minute steps.</p>
+          <p><strong>Prices built from their parts:</strong> the spot price, the supplier's surcharges, energy tax, grid fees and VAT, the same arithmetic in every country, checked against the supplier's own total, in 15-minute steps. Grid tariffs as data, with time-of-use prices and power charges: being built. <span class="tag l">later</span></p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 V4.5 L5 2 L8 4.5 V8 Z"/><path d="M3.5 7 H6.5 V5.5 H3.5 Z"/></svg></div>
-          <p><strong>A reasonably insulated house is storage.</strong> Thermaestro learns each climate system's heat capacity and losses. Heating ahead is worth it only when the price difference pays for the extra heat lost, given the heat pump's efficiency at that hour.</p>
+          <p><strong>A reasonably insulated house is storage.</strong> Within each comfort range, price moves a room's target toward its warm edge in cheap hours and its cool edge in dear ones, as far as the household's slider allows. Learning each climate system's heat capacity and losses, so that heating ahead happens only where the price difference pays for the extra heat lost, comes with the house model. <span class="tag l">later</span></p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M2 5 Q4 3 6 5 T8 5"/></svg></div>
-          <p><strong>Slow heating systems.</strong> Underfloor heating in a slab can take a day or more to respond. The planner looks far enough ahead, pre-heats in time, and says how long a request will take: "the floor heating will reach +1 °C in about 9 hours".</p>
+          <p><strong>Slow heating systems.</strong> Underfloor heating in a slab can take a day or more to respond. The planner aims a rise in comfort one response time early, and says how long a request will take: "the floor heating will be 1 °C warmer in about 12 hours".</p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3"/><path d="M5 2 V1 M5 9 V8 M2 5 H1 M9 5 H8"/></svg></div>
-          <p><strong>Seasons and the real world.</strong> Compressor starts, the ground cooling over the winter, defrosting, sun, open windows, quiet hours and holidays are all part of the plan. Goals marked <i>must</i> keep a safety margin in case the forecast is wrong. Cooling is still to be designed. <span class="tag l">later</span></p>
+          <p><strong>The real world.</strong> Open windows, a lit fireplace, quiet hours and public holidays are part of the plan, and the pump's own heating stop is followed. Compressor starts, the ground cooling over the winter, defrosting and sun come with the house model, as does a safety margin on goals marked <i>must</i> in case the forecast is wrong; cooling is still to be designed. <span class="tag l">later</span></p>
         </div>
       </div>
     </div>
@@ -199,7 +194,7 @@
       <div class="features">
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 H7.5 V8 H2.5 Z M3.8 4 H6.2 M3.8 5.5 H6.2"/></svg></div>
-          <p><strong>Plain reports.</strong> When an intent is entered, the plan answers at once: the shortfall in time or degrees, what gives way, or what isn't known yet ("the plan firms up when tomorrow's prices are published"), with a choice where there is one. <span class="tag p">proposal</span> While running: what's in control now, and why, against the real prices; who set an override and until when; a daily summary, and savings only ever compared with a reference the household can check. <span class="tag p">proposal</span></p>
+          <p><strong>Plain reports.</strong> When an intent is asked for, the answer says at once when it ends, what it sets aside meanwhile and what the house can't do. While running, the plan page says what each setting is asked now and why, and the intents page who asked for what and until when. A shortfall in time or degrees, a daily summary, and savings compared with a reference the household can check come later. <span class="tag l">later</span></p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 V5 L7 7"/><path d="M2 5 A3 3 0 1 0 5 2"/></svg></div>
@@ -207,7 +202,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5 Q5 1.5 8.5 5 Q5 8.5 1.5 5 Z"/><circle cx="5" cy="5" r="1.2"/></svg></div>
-          <p><strong>Shadow mode.</strong> Thermaestro plans as usual but changes nothing, and shows what it would do. Coming from NibePi, run it alongside to evaluate it and let it learn your house before you switch.</p>
+          <p><strong>Shadow mode.</strong> Thermaestro plans as usual but changes nothing, and shows what it would do, each decision beside what the pump showed at that moment: as charts, a table and a CSV download. Coming from NibePi, run it alongside to compare before you switch, one setting at a time.</p>
         </div>
       </div>
     </div>
@@ -220,8 +215,8 @@
     <h2>Devices and plugins</h2>
     <div class="two">
       <div>
-        <p><strong>Several devices, one plan.</strong> An installation is a tree of devices, each handled by a plugin. One planner covers every heat source, climate system, hot-water tank and pool in the house: a cascade of heat pumps, a heat pump with air/air units in some rooms, several climate systems with their own room sensors. A plugin declares shared limits, such as one compressor serving either heating or hot water at a time. Other heat sources (a boiler or district-heating addition, a wood stove as a known source) can join the same plan where a plugin can reach them. <span class="tag l">later</span></p>
-        <p><strong>Many brands, many connections.</strong> A plugin reaches its devices whichever way they allow: a bus gateway, Modbus TCP, a local REST gateway, a cloud API, infrared, relay contacts such as SG Ready, or MQTT. Planning never deals with registers or protocols, only with what each device can report and which settings it offers, and how well each of these is known.</p>
+        <p><strong>Several devices, one plan.</strong> An installation is a tree of devices, each handled by a plugin. One planner covers the climate systems, hot-water tanks and pool of a pump, each climate system with its own room sensors. A cascade of heat pumps, air/air units in some rooms, and other heat sources (a boiler or district-heating addition, a wood stove as a known source) are to join the same plan where a plugin reaches them. <span class="tag l">later</span></p>
+        <p><strong>Many brands, many connections.</strong> A plugin reaches its devices whichever way they allow; today's use a bus gateway, Modbus TCP, Home Assistant and MQTT, and the interface leaves room for a local REST gateway, a cloud API, infrared or relay contacts such as SG Ready. Planning never deals with registers or protocols, only with what each device can report and which settings it offers, and how well each of these is known.</p>
       </div>
       <div>
         <p><strong>Nibe first.</strong> The first plugin is for Nibe pumps: F-series and related models through a small gateway on the pump's accessory bus, and S-series over their built-in Modbus TCP. Other brands, air/air units and other heat sources follow as plugins. <span class="tag l">later</span></p>
@@ -240,7 +235,7 @@
       </div>
       <div>
         <h3>Coming from NibePi</h3>
-        <p>Upload NibePi's <code>config.json</code>: the gateway, the MQTT broker, sensors, location, prices and secrets come over, and its control settings become draft intents to confirm. Before switching, run Thermaestro in shadow mode beside NibePi. <span class="tag">not built yet</span></p>
+        <p>Upload NibePi's <code>config.json</code>: the gateway, the MQTT broker, sensors, location, prices and secrets come over, and its control settings become draft intents to confirm. Before switching, run Thermaestro in shadow mode beside NibePi. <span class="tag l">later</span></p>
       </div>
     </div>
   </div>
@@ -285,9 +280,8 @@
             <caption>Planner</caption>
             <tbody>
               <tr><th scope="row">Time step</th><td>15 minutes</td></tr>
-              <tr><th scope="row">Horizon</th><td>24–48 hours, as far as the slowest climate system needs <span class="tag p">proposal</span></td></tr>
-              <tr><th scope="row">Method</th><td>Linear programming (HiGHS), goals solved in order of rank</td></tr>
-              <tr><th scope="row">How goals are treated</th><td>They can give way, with any shortfall stated in minutes or degrees; only physics, device limits and protections are absolute <span class="tag p">proposal</span></td></tr>
+              <tr><th scope="row">Method</th><td>Rules, decided for now from the prices 12 hours either side; linear programming (HiGHS) over 24–48 hours, goals solved in order of rank <span class="tag l">later</span></td></tr>
+              <tr><th scope="row">How goals are treated</th><td>They can give way, in the household's order; only device limits and protections are absolute</td></tr>
               <tr><th scope="row">Setting changes</th><td>About 50 per device and day planned; a hard stop at 200 per setting and day; both configurable</td></tr>
             </tbody>
           </table>
@@ -326,32 +320,20 @@
 <section id="status" class="stand">
   <div class="wrap">
     <p class="kicker">Where it stands</p>
-    <h2>Planning built, control next</h2>
-    <p class="intro">Thermaestro reads, and changes nothing on a pump yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi. The planner is built and tested against a simulated house, and the rig that tries each setting on a real pump is ready; trying them on the test pump, then shadow and control, comes next.</p>
+    <h2>In shadow beside NibePi</h2>
+    <p class="intro">Thermaestro runs in Docker beside NibePi on its first test pump, a Nibe F1245, in shadow: it decides and shows what it would change, and changes nothing. Each of the settings it would use was first tried on that pump. After a week or more of shadow, control is handed over one setting at a time. There is no release yet.</p>
     <div class="three">
-      <div>
-        <h3>Built</h3>
-        <ul>
-          <li>The core: plugins, every value with its quality and history, an audit log, the command line.</li>
-          <li>The Nibe plugin: both gateway protocols; F-series read on a real F1245; S-series from Nibe's documentation, not yet tried on a real pump.</li>
-          <li>Room and outdoor sensors from Home Assistant and MQTT, each with its reporting rhythm learned.</li>
-          <li>Prices and weather from the sources above, the price built from its parts.</li>
-          <li>Home Assistant discovery over MQTT.</li>
-          <li>The web interface: logins, users, groups and rights, setup, charts, an API for every action; pages that keep themselves current, and wall displays that stay logged in.</li>
-          <li>A read-only probe that reports what Thermaestro reads from a pump, for testers.</li>
-          <li>A rig that tries each setting on a real pump through the same code control uses, puts it back, and writes down what happened.</li>
-          <li>Intents: the household's goals and requests kept, checked and ranked; the first ones taken from how the pump runs. Requests for a while as buttons, or said in words in English, Swedish or German, read on the spot with nothing sent anywhere.</li>
-          <li>A rule-based planner: every 15 minutes, what each setting should be and why.</li>
-          <li>Safe changes: settings taken over, checked, read back, limited and put back; shadow mode deciding the same and changing nothing.</li>
-          <li>A simulated house, hot-water tank and pump the planner is tested against over simulated days.</li>
-          <li>Control in the web UI and over MQTT: each setting off, in shadow or in control; the household's intents; the plan and why; Home Assistant buttons and states.</li>
-        </ul>
-      </div>
       <div>
         <h3>Being built</h3>
         <ul>
-          <li>Each setting checked on the first test pump, then shadow beside NibePi, then control.</li>
-          <li>Grid tariffs as data, and importing NibePi's settings.</li>
+          <li>Grid tariffs as data: time-of-use prices and power charges entered by hand, and Denmark's read automatically.</li>
+          <li>Importing NibePi's settings, and a review of the pump's own.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <ul>
+          <li>Control on the test pump, hot water first, the heating offset after.</li>
         </ul>
       </div>
       <div>
