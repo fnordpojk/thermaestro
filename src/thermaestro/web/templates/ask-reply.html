@@ -15,34 +15,10 @@
     <li>{{ _("hands off for 2 days") }}</li>
   </ul>
 {% else %}
-{% macro moment(name, value, required) %}<input type="datetime-local" name="{{ name }}" value="{{ (value or '')[:16] }}"{% if required %} required{% endif %}>{% endmacro %}
-{% macro choose(name, group, chosen) %}{% if scopes[group] | length > 1 %}<label>{{ _("Where") }}
-  <select name="{{ name }}">{% for ref, label in scopes[group] %}<option value="{{ ref }}"{% if ref == chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="{{ name }}" value="{{ chosen }}">{% endif %}{% endmacro %}
   <form method="post" action="/intents" hx-post="/intents" hx-target="#ask-log" hx-swap="beforeend" class="grid">
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ k }}">
     <p><strong>{% if k == "warmer" and r.get("offset", 0) < 0 %}{{ _("Cooler") }}{% elif k == "warmer" %}{{ _("Warmer") }}{% else %}{{ _(labels.KINDS[k]) }}{% endif %}</strong>{% if found.missing %} · {{ _("fill in what's missing, and check the rest") }}{% else %} · {{ _("check, then ask for it") }}{% endif %}</p>
-    {% if k == "warmer" %}
-    {{ choose("scope", "systems", r.get("scope")) }}
-    <label>{{ _("Degrees, + warmer or − cooler") }} <input name="offset" type="number" step="0.5" min="-5" max="5" value="{{ r.get('offset', 1) }}" required></label>
-    <label>{{ _("Until") }} <small>{{ _("empty: until the pattern next changes") }}</small> {{ moment("until", r.get("until"), false) }}</label>
-    {% elif k == "bath" %}
-    {{ choose("scope", "tanks", r.get("scope")) }}
-    <label>{{ _("At least, °C") }} <input name="at_least" type="number" step="1" min="20" max="90" value="{{ r.get('at_least', 50) | int }}" required></label>
-    <label>{{ _("By") }} {{ moment("by", r.get("by"), true) }}</label>
-    {% elif k == "boost_now" %}
-    {{ choose("scope", "tanks", r.get("scope")) }}
-    <p class="hint">{{ _("One extra charge, now.") }}</p>
-    {% elif k == "fireplace" %}
-    <p class="hint">{{ _("For six hours, the heat isn't raised for the fireplace's warmth.") }}</p>
-    {% elif k in ("away", "guests") %}
-    <label>{{ _("Until") }} {{ moment("until", r.get("until"), true) }}</label>
-    {% for ref, label in scopes.systems %}
-    <label>{{ label }}
-      <select name="levels:{{ ref }}" required><option value=""></option>{% for lid, lv in levels.items() if lv.low is not none and lv.scope in (ref, "house") %}<option value="{{ lid }}"{% if r.get("levels", {}).get(ref) == lid %} selected{% endif %}>{{ lv.name }}</option>{% endfor %}</select></label>
-    {% endfor %}
-    {% elif k == "hands_off" %}
-    <label>{{ _("Until") }} <small>{{ _("at most 48 hours") }}</small> {{ moment("until", r.get("until"), true) }}</label>
-    {% endif %}
+    {% include "intent-fields.html" %}
     <button type="submit">{{ _("Ask for it") }}</button>
   </form>
 {% endif %}

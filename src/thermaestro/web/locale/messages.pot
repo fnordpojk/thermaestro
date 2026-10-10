@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 19:27+0200\n"
+"POT-Creation-Date: 2026-10-10 20:41+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -775,6 +775,9 @@ msgstr ""
 msgid "Hot-water mode"
 msgstr ""
 
+msgid "Hot-water top, °C"
+msgstr ""
+
 msgid "House"
 msgstr ""
 
@@ -1006,9 +1009,17 @@ msgstr ""
 msgid "No cost stance: nothing is moved by price."
 msgstr ""
 
+msgid "No days ticked: every day. No times: all day."
+msgstr ""
+
 msgid ""
 "No days ticked: every day. No times: all day. A step that ends before it "
 "starts runs past midnight."
+msgstr ""
+
+msgid ""
+"No days ticked: every day. No times: all day. A step that ends before it "
+"starts runs past midnight. A step without a level is left out."
 msgstr ""
 
 msgid "No forecast yet: choose a main provider under Setup."
@@ -1153,6 +1164,9 @@ msgid "Operator"
 msgstr ""
 
 msgid "Or a hot-water top, °C"
+msgstr ""
+
+msgid "Or a level"
 msgstr ""
 
 msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
@@ -1362,6 +1376,12 @@ msgid "Savings: %(percent)s %%"
 msgstr ""
 
 msgid "Say what you want"
+msgstr ""
+
+msgid "Season from"
+msgstr ""
+
+msgid "Season to"
 msgstr ""
 
 msgid "Security token"

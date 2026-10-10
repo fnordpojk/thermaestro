@@ -3,7 +3,9 @@ the house, the levers' modes, and the plan."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -12,7 +14,8 @@ from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of, form
 
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.core import AuditLog, Values
-from thermaestro.intents import Capabilities, Intents
+from thermaestro.intents import Capabilities, Intents, Level, kinds
+from thermaestro.intents.resolve import RANKS
 from thermaestro.store import Control, Home, SecretStore
 from thermaestro.web import Services, create_app
 
@@ -323,6 +326,85 @@ async def test_what_was_asked_for_folds_out(tmp_path: Path) -> None:
         assert "<li>Should be met; may give way.</li>" in page
         assert "<li>Savings: 40 %</li>" in page
         assert "<li>Rooms not below their band</li>" in page
+
+
+async def test_changing_what_was_asked_for(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, services, client):
+        headers = await login(client, "admin")
+        assert services.intents is not None
+        await form(
+            client, "/intents", "/levels/new", name="Day time", scope=CS, low="20,5", high="22"
+        )
+        day = {"p0.level": "day-time", "p0.start": "06:00", "p0.end": "22:00"}
+        await form(client, "/intents", "/intents", kind="comfort_band", scope=CS, **day)
+        await form(client, "/intents", "/intents", kind="warmer", scope=CS, offset="1")
+        found = {i.kind: i for i in await services.intents.all()}
+        band, warmer = found["comfort_band"], found["warmer"]
+        page = (await client.get("/intents")).text
+        assert f'action="/intents/{band.id}/edit"' in page
+        assert 'name="p0.start" value="06:00"' in page  # filled in with what it holds
+        # A step added in the spare row.
+        saturday = {"p1.level": "day-time", "p1.days": "5", "p1.start": "08:00", "p1.end": "23:00"}
+        changed = await form(
+            client, "/intents", f"/intents/{band.id}/edit", scope=CS, **day, **saturday
+        )
+        assert changed.status_code == 200, changed.text
+        assert "Asked for." in changed.text
+        kept = await services.intents.get(band.id)
+        assert (kept.id, len(kept.expectations)) == (band.id, 2)
+        # Over the API: the whole request, its kind left out.
+        put = await client.put(
+            f"/api/v1/intents/{warmer.id}", json={"scope": CS, "offset": -1}, headers=headers
+        )
+        assert put.status_code == 200, put.text
+        assert put.json()["accepted"]
+        assert (await services.intents.get(warmer.id)).parameters == {"offset": -1.0}
+        # A level changed in place: every intent naming it follows.
+        assert 'action="/levels/day-time"' in page
+        moved = await form(
+            client, "/intents", "/levels/day-time", name="Day", scope=CS, low="21", high="22,5"
+        )
+        assert moved.status_code == 303
+        level = (await services.intents.levels())["day-time"]
+        assert (level.name, level.low, level.high) == ("Day", 21, 22.5)
+
+
+async def test_every_kind_can_be_changed_on_the_page(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, services, client):
+        await login(client, "admin")
+        intents = services.intents
+        assert intents is not None
+        admin = frozenset({"*"})
+        for level in (
+            Level(id="day", name="Day", scope=CS, low=20.5, high=22.0),
+            Level(id="more", name="More", scope=CS, top=55.0),
+        ):
+            await intents.put_level(level, who="admin", granted=admin)
+        now = datetime.now(UTC)
+        who: dict[str, Any] = {"principal": "user:admin", "created": now}
+        soon = now + timedelta(hours=20)
+        asked = [
+            kinds.comfort_band(CS, [("day", ((0,), time(6), time(22)))], **who),
+            kinds.hot_water_by(CS, [("more", (5,), time(7)), (52.0, (), time(19))], **who),
+            kinds.hot_water_floor(CS, 40.0, **who),
+            kinds.cost_stance(ranking=RANKS, slider=0.4, **who),
+            kinds.addition_policy("limit", kw=3.0, **who),
+            kinds.quiet_hours([((), time(22), time(7))], **who),
+            kinds.warmer(CS, 1.0, until=soon, **who),
+            kinds.bath(CS, 52, soon, **who),
+            kinds.guests(soon, {CS: "day"}, hot_water="more", **who),
+            kinds.hands_off(soon, **who),
+            kinds.fireplace(CS, **who),
+            kinds.boost_now(CS, **who),
+        ]
+        for intent in asked:
+            assert (await intents.create(intent, granted=admin)).accepted, intent.kind
+        page = await client.get("/intents")
+        assert page.status_code == 200
+        kept = await intents.all()
+        assert {i.kind for i in kept} >= {"hot_water_by", "cost_stance", "guests", "bath"}
+        for intent in kept:
+            assert f'action="/intents/{intent.id}/edit"' in page.text, intent.kind
 
 
 async def test_the_overview_asks_for_a_while(

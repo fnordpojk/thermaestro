@@ -64,7 +64,7 @@
     </div>
     <aside class="status" aria-label="Status">
       <h4>Status</h4>
-      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. A rig tries each setting on a real pump before it is handed over. There is no release yet.</p>
+      <p><strong>Thermaestro decides, and changes nothing on a pump yet.</strong> It runs in shadow beside NibePi on a Nibe F1245: it plans and shows what it would change, while NibePi stays in control. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. A rig tries each setting on a real pump before it is handed over. There is no release yet.</p>
       <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
     </aside>
   </div>
@@ -133,7 +133,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.2"/><path d="M5 3 V5 L6.5 6"/></svg></div>
-          <p><strong>Temporary intents</strong> always have an end: warmer or cooler, please; a bath by 19:30; guests until Sunday; away until the 12th, ready when back; hands off for at most 48 hours; boost now. The newest one wins; when it ends, the one before it applies again. A "fireplace on" intent is proposed. <span class="tag p">proposal</span></p>
+          <p><strong>Temporary intents</strong> always have an end: warmer or cooler, please; a bath by 19:30; guests until Sunday; away until the 12th, ready when back; hands off for at most 48 hours; boost now. A fireplace is lit. The newest one wins; when it ends, the one before it applies again. Every intent can be changed in place while it runs.</p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3 H8 M2 5 H6 M2 7 H7"/></svg></div>

@@ -113,6 +113,12 @@ def _days(form: FormData, name: str) -> list[int]:
     return sorted({int(d) for d in form.getlist(name) if isinstance(d, str) and d.isdigit()})
 
 
+def _rows(form: FormData, prefix: str) -> list[int]:
+    """The rows a form has of a repeated group (`p0.level`, `p1.level` …), however many."""
+    found = (re.match(rf"{re.escape(prefix)}(\d+)\.", key) for key in form)
+    return sorted({int(m.group(1)) for m in found if m})
+
+
 def request_from_form(form: FormData, zone: tzinfo) -> dict[str, Any]:
     """A request from one of the Intents page's forms: only the fields it filled in."""
     body: dict[str, Any] = {"kind": _text(form, "kind")}
@@ -148,13 +154,13 @@ def request_from_form(form: FormData, zone: tzinfo) -> dict[str, Any]:
             "start": _text(form, f"p{i}.start") or None,
             "end": _text(form, f"p{i}.end") or None,
         }
-        for i in range(PATTERN_ROWS)
+        for i in _rows(form, "p")
         if _text(form, f"p{i}.level")
     ]
     if pattern:
         body["pattern"] = pattern
     deadlines = []
-    for i in range(DEADLINE_ROWS):
+    for i in _rows(form, "d"):
         if not _text(form, f"d{i}.by"):
             continue
         due: dict[str, Any] = {"by": _text(form, f"d{i}.by"), "days": _days(form, f"d{i}.days")}
@@ -171,7 +177,7 @@ def request_from_form(form: FormData, zone: tzinfo) -> dict[str, Any]:
             "start": _text(form, f"s{i}.start") or None,
             "end": _text(form, f"s{i}.end") or None,
         }
-        for i in range(SPAN_ROWS)
+        for i in _rows(form, "s")
         if _text(form, f"s{i}.start") or _text(form, f"s{i}.end") or _days(form, f"s{i}.days")
     ]
     if spans:
@@ -261,6 +267,18 @@ async def ask(request: Request, who: Logged) -> Response:
         return response
     status = 200 if answer["accepted"] else 400
     return await _intents_page(request, who, status, answer=answer)
+
+
+@router.post("/intents/{id}/edit")
+@action("intent.edit")
+async def edit(request: Request, who: Logged, id: str) -> Response:
+    """Change what an intent holds, from the form under it in "Asked for"."""
+    s = services(request)
+    try:
+        answer = await s.edit_intent(who, id, request_from_form(await request.form(), s.zone))
+    except AccountError as e:
+        return await _intents_page(request, who, 400, error=_message(e))
+    return await _intents_page(request, who, 200 if answer["accepted"] else 400, answer=answer)
 
 
 @router.post("/ask")

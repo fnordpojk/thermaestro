@@ -158,6 +158,52 @@ class Intents:
         )
         return verdict
 
+    async def edit(
+        self,
+        id: str,
+        intent: Intent,
+        *,
+        who: str,
+        granted: frozenset[str],
+        now: datetime | None = None,
+    ) -> Verdict:
+        """Change an open intent in place: the same id, asker and time asked, with new
+        contents, checked as asking for them would be. Whoever may end it may change it,
+        with the rights its new contents need; once changed, it is the household's own."""
+        previous = await self.get(id)
+        if not previous.open:
+            raise ValueError("it has ended: ask for it again")
+        if intent.kind != previous.kind:
+            raise ValueError(f"a {previous.kind.replace('_', ' ')} stays one")
+        if not allows(granted, "intent.any.end") and previous.principal != who:
+            raise Forbidden("intent.any.end")
+        for right in rights_for(intent, previous):
+            _require(granted, right)
+        changed = intent.model_copy(
+            update={"id": previous.id, "principal": previous.principal, "created": previous.created}
+        )
+        now = now or clock.now()
+        others = [i for i in await self.all() if i.id != id]
+        verdict = check(
+            changed, others, await self.levels(), self._capabilities(), await self.calendar(), now
+        )
+        if verdict.accepted:
+            await self._db.run(lambda t: _store(t, verdict.intent, now))
+        await self._audit.record(
+            who,
+            "intent.edit",
+            outcome="ok" if verdict.accepted else "failed",
+            why=None if verdict.accepted else verdict.intent.why,
+            details={
+                "id": id,
+                "kind": previous.kind,
+                "before": previous.model_dump(mode="json"),
+                "after": verdict.intent.model_dump(mode="json"),
+                "messages": list(verdict.messages),
+            },
+        )
+        return verdict
+
     async def end(
         self, id: str, *, who: str, granted: frozenset[str], why: str | None = None
     ) -> Intent:

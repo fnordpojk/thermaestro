@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 19:27+0200\n"
+"POT-Creation-Date: 2026-10-10 20:41+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -821,6 +821,9 @@ msgstr "Varmvatten: klart till en tid, och dess lägsta temperatur"
 msgid "Hot-water mode"
 msgstr "Varmvattenläge"
 
+msgid "Hot-water top, °C"
+msgstr "Varmvattentopp, °C"
+
 msgid "House"
 msgstr "Huset"
 
@@ -1056,12 +1059,22 @@ msgstr "Det finns ingen administratör än."
 msgid "No cost stance: nothing is moved by price."
 msgstr "Ingen kostnadsinställning: inget flyttas efter priset."
 
+msgid "No days ticked: every day. No times: all day."
+msgstr "Inga dagar ikryssade: varje dag. Inga tider: hela dagen."
+
 msgid ""
 "No days ticked: every day. No times: all day. A step that ends before it starts runs "
 "past midnight."
 msgstr ""
 "Inga dagar ikryssade: varje dag. Inga tider: hela dagen. Ett steg som slutar före det"
 " börjar går över midnatt."
+
+msgid ""
+"No days ticked: every day. No times: all day. A step that ends before it starts runs "
+"past midnight. A step without a level is left out."
+msgstr ""
+"Inga dagar ikryssade: varje dag. Inga tider: hela dagen. Ett steg som slutar före det"
+" börjar går över midnatt. Ett steg utan nivå tas inte med."
 
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
@@ -1215,6 +1228,9 @@ msgstr "Huvudman"
 
 msgid "Or a hot-water top, °C"
 msgstr "Eller en varmvattentopp, °C"
+
+msgid "Or a level"
+msgstr "Eller en nivå"
 
 msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
 msgstr "Eller säg det: ett bad kl 19.30, borta till söndag, lite varmare till 22"
@@ -1424,6 +1440,12 @@ msgstr "Besparing: %(percent)s %%"
 
 msgid "Say what you want"
 msgstr "Säg vad du vill"
+
+msgid "Season from"
+msgstr "Säsong från"
+
+msgid "Season to"
+msgstr "Säsong till"
 
 msgid "Security token"
 msgstr "Säkerhetstoken"

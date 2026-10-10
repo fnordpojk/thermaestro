@@ -211,14 +211,14 @@ The page shows the day's changes against the planner's budget (about 50 a day).
 
 ## What the household wants: the Intents page
 
-**Intents** in the menu says what applies now, lists what has been asked for, with when each ends and who asked, and takes new requests. Each one asked for folds out to show what it holds: its bands, temperatures and times, the levels it picks, how much it matters, its state and when it was asked. What Thermaestro first took from how the pump runs is marked; **Keep it** makes it the household's own.
+**Intents** in the menu says what applies now, lists what has been asked for, with when each ends and who asked, and takes new requests. Each one asked for folds out to show what it holds: its bands, temperatures and times, the levels it picks, how much it matters, its state and when it was asked. **Change** under it opens a form filled in with what it holds; **Save** changes it in place, checked as a new request would be. Whoever may end an intent may change it. What Thermaestro first took from how the pump runs is marked; **Keep it** makes it the household's own, as changing it does.
 
 - **For a while** (also on the overview): warmer or cooler, until the pattern next changes; a bath by a time; one extra charge of hot water now; a fireplace; away until a time, with a level for each climate system; guests; hands off for up to 48 hours. Each ends by itself, and **End** ends it sooner.
   - It shows once there is something to control: a climate system or a hot-water tank. After a restart, that is once the pump has been read.
   - The usual ones are buttons: **Warmer**, **Cooler**, **Extra hot water**, **Away** and **Fireplace**.
   - Anything else can be said in words, in English, Swedish or German: "a bath at 19:30", "borta till söndag", "Gäste bis morgen 18 Uhr", "lite varmare till 22", "hands off for 2 days". Thermaestro reads it with rules of its own (nothing is sent anywhere) and answers with what it understood, as a form to check and change; nothing is asked until **Ask for it**. What it can't tell, such as when you're back, is left for you to fill in, and what it doesn't understand is answered with examples.
 - **Always:** comfort, as a band on a weekly pattern of levels (or, for a climate system without a room sensor, how far price may move its heat); hot water ready by times, and the lowest it may get; cost and comfort, the savings slider and what gives way first; the addition; the pool; a power limit; quiet hours.
-- **Levels:** the household's own named bands and hot-water tops. A level used by an intent can't be removed.
+- **Levels:** the household's own named bands and hot-water tops. **Change** under each one renames or moves it; every intent that names it follows. A level used by an intent can't be removed.
 
 Asking answers at once: until when it applies, what it sets aside, and what the house can't do ("no room sensor: normal heat, shifted by price within a bound instead of a band"). The household's group may ask for things for a while; changing what always applies needs more rights ([the rights](api.md#rights)).
 

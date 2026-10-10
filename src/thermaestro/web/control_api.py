@@ -58,6 +58,14 @@ async def understand(body: Said, request: Request, who: Logged) -> dict[str, Any
     return await services(request).understand(who, body.text)
 
 
+@router.put("/intents/{id}")
+@action("intent.edit")
+async def edit(id: str, body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """Change an open intent in place, with the whole request as for asking (its `kind`
+    may be left out; it can't change). Answered as asking is."""
+    return await services(request).edit_intent(who, id, body)
+
+
 @router.delete("/intents/{id}")
 @action("intent.end")
 async def end(id: str, request: Request, who: Logged) -> dict[str, Any]:

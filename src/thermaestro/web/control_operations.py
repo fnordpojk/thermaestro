@@ -18,7 +18,7 @@ from ..cap.defaults import assume
 from ..intents import Forbidden as IntentForbidden
 from ..intents import Intent, Level
 from ..intents import NotFound as IntentNotFound
-from ..intents.requests import Request, build
+from ..intents.requests import Request, build, request_of
 from ..store import Control, Home
 
 if TYPE_CHECKING:
@@ -85,6 +85,33 @@ class ControlOperations:
             raise AccountError(str(e)) from None
         try:
             verdict = await self._intents().create(intent, granted=self._granted(caller))
+        except IntentForbidden as e:
+            raise Forbidden(e.right) from None
+        return {
+            "accepted": verdict.accepted,
+            "intent": verdict.intent.model_dump(mode="json"),
+            "messages": list(verdict.messages),
+        }
+
+    async def edit_intent(self, caller: "Caller", id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Change an intent in place, with the whole request as for asking: answered as
+        asking is. Its kind stays; built at its own time, what follows from when it was
+        asked (a fireplace's six hours) stays too."""
+        from .operations import NotFound, _validated
+
+        intents = self._intents()
+        try:
+            previous = await intents.get(id)
+        except IntentNotFound:
+            raise NotFound(f"no intent {id}") from None
+        request = _validated(Request, {**body, "kind": previous.kind}, "the request")
+        try:
+            intent = build(request, principal=previous.principal, now=previous.created)
+            verdict = await intents.edit(
+                id, intent, who=self._asker(caller), granted=self._granted(caller)
+            )
+        except ValueError as e:
+            raise AccountError(str(e)) from None
         except IntentForbidden as e:
             raise Forbidden(e.right) from None
         return {
@@ -178,9 +205,23 @@ class ControlOperations:
                     "end": end.isoformat() if end else None,
                     "when_met": intent.validity.ends == "when_met",
                     "paused": force.paused.get(intent.id),
+                    "request": self._editable(intent),
                 }
             )
         return out
+
+    def _editable(self, intent: Intent) -> dict[str, Any] | None:
+        """What a form to change an intent starts from, its moments in the house's time;
+        None where it can't be put as a request."""
+        try:
+            found = request_of(intent).model_dump(mode="json", exclude_none=True)
+        except (AssertionError, IndexError, ValueError):
+            return None
+        for name in ("until", "by"):
+            if name in found:
+                local = datetime.fromisoformat(found[name]).astimezone(self.zone)
+                found[name] = local.replace(tzinfo=None).isoformat(timespec="minutes")
+        return found
 
     def intent_scopes(self, caller: "Caller") -> dict[str, list[tuple[str, str]]]:
         """What an intent can name, with each one's name: climate systems, hot-water tanks,

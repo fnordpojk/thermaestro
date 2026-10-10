@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 19:27+0200\n"
+"POT-Creation-Date: 2026-10-10 20:41+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -829,6 +829,9 @@ msgstr "Warmwasser: bereit zu einer Zeit, und seine niedrigste Temperatur"
 msgid "Hot-water mode"
 msgstr "Warmwassermodus"
 
+msgid "Hot-water top, °C"
+msgstr "Warmwasser-Obergrenze, °C"
+
 msgid "House"
 msgstr "Haus"
 
@@ -1064,12 +1067,22 @@ msgstr "Es gibt noch keinen Administrator."
 msgid "No cost stance: nothing is moved by price."
 msgstr "Keine Kosteneinstellung: nichts wird nach dem Preis verschoben."
 
+msgid "No days ticked: every day. No times: all day."
+msgstr "Keine Tage angekreuzt: jeden Tag. Keine Zeiten: den ganzen Tag."
+
 msgid ""
 "No days ticked: every day. No times: all day. A step that ends before it starts runs "
 "past midnight."
 msgstr ""
 "Keine Tage angekreuzt: jeden Tag. Keine Zeiten: den ganzen Tag. Ein Schritt, der vor "
 "seinem Beginn endet, läuft über Mitternacht."
+
+msgid ""
+"No days ticked: every day. No times: all day. A step that ends before it starts runs "
+"past midnight. A step without a level is left out."
+msgstr ""
+"Keine Tage angekreuzt: jeden Tag. Keine Zeiten: den ganzen Tag. Ein Schritt, der vor "
+"seinem Beginn endet, läuft über Mitternacht. Ein Schritt ohne Stufe entfällt."
 
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Noch keine Vorhersage: Wählen Sie unter Einrichtung einen Hauptanbieter."
@@ -1228,6 +1241,9 @@ msgstr "Betreiber"
 
 msgid "Or a hot-water top, °C"
 msgstr "Oder eine Warmwasser-Obergrenze, °C"
+
+msgid "Or a level"
+msgstr "Oder eine Stufe"
 
 msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
 msgstr "Oder sagen Sie es: ein Bad um 19:30, weg bis Sonntag, etwas wärmer bis 22"
@@ -1437,6 +1453,12 @@ msgstr "Ersparnis: %(percent)s %%"
 
 msgid "Say what you want"
 msgstr "Sagen Sie, was Sie möchten"
+
+msgid "Season from"
+msgstr "Saison von"
+
+msgid "Season to"
+msgstr "Saison bis"
 
 msgid "Security token"
 msgstr "Sicherheitstoken"

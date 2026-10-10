@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from . import kinds
-from .model import Day, Intent, Kind, MonthDay, Scope, Strength
+from .model import Context, Day, Intent, Kind, MonthDay, Scope, Strength
 from .resolve import RANKS
 
 
@@ -189,3 +189,97 @@ def build(request: Request, *, principal: str, now: datetime) -> Intent:
             need("spans")
             return kinds.quiet_hours([_span(s) for s in r.spans], **who)
     raise ValueError(f"no such kind: {r.kind}")  # pragma: no cover - Kind is closed
+
+
+def request_of(intent: Intent) -> Request:
+    """The request that asks for an intent as it is: what changing it starts from.
+    Building it again (at the intent's own time) gives the same intent."""
+    p, e, v = intent.parameters, intent.expectations, intent.validity
+    first = e[0].targets[0] if e else None
+
+    def spans() -> tuple[Span, ...]:
+        return tuple(Span(days=c.days, start=c.start, end=c.end) for x in e for c in x.contexts)
+
+    def number(value: object) -> float | None:
+        return float(value) if isinstance(value, int | float) else None
+
+    k, scope = intent.kind, intent.scope
+    match k:
+        case "warmer":
+            return Request(
+                kind=k,
+                scope=scope,
+                offset=number(p.get("offset")),
+                until=v.at if v.ends == "at" else None,
+            )
+        case "bath":
+            assert first is not None  # noqa: S101 - a bath has its target
+            return Request(
+                kind=k,
+                scope=scope,
+                at_least=number(first.value),
+                by=e[0].contexts[0].at,
+                strength=intent.strength,
+            )
+        case "guests" | "away":
+            levels = p.get("levels")
+            chosen = {str(a): str(b) for a, b in levels.items()} if isinstance(levels, dict) else {}
+            if k == "away":
+                return Request(kind=k, until=v.at, levels=chosen)
+            hot_water = p.get("hot_water")
+            return Request(
+                kind=k,
+                until=v.at,
+                levels=chosen,
+                hot_water=hot_water if isinstance(hot_water, str) else None,
+            )
+        case "hands_off":
+            return Request(kind=k, until=v.at)
+        case "fireplace" | "boost_now":
+            return Request(kind=k, scope=scope)
+        case "comfort_band":
+            if p.get("no_sensor"):
+                steps = int(first.high) if first is not None and first.high is not None else None
+                return Request(kind=k, scope=scope, no_sensor=True, steps=steps)
+            pattern = tuple(
+                Step(level=x.targets[0].level or "", days=c.days, start=c.start, end=c.end)
+                for x in e
+                for c in x.contexts or (Context(),)
+            )
+            season = next((c.season for x in e for c in x.contexts if c.season), None)
+            return Request(kind=k, scope=scope, pattern=pattern, season=season)
+        case "hot_water_by":
+            deadlines = tuple(
+                Due(
+                    by=c.by or time(),
+                    days=c.days,
+                    level=x.targets[0].level,
+                    temp=None if x.targets[0].level else number(x.targets[0].value),
+                )
+                for x in e
+                for c in x.contexts
+            )
+            return Request(kind=k, scope=scope, deadlines=deadlines, strength=intent.strength)
+        case "hot_water_floor":
+            return Request(kind=k, scope=scope, temp=number(first.value if first else None))
+        case "cost_stance":
+            ranking = p.get("ranking")
+            return Request(
+                kind=k,
+                ranking=tuple(str(r) for r in ranking) if isinstance(ranking, list) else None,
+                slider=number(p.get("slider")),
+            )
+        case "addition_policy":
+            policy = first.value if first is not None else None
+            return Request(
+                kind=k,
+                policy=policy if isinstance(policy, str) else None,
+                kw=number(p.get("kw")),
+            )
+        case "pool":
+            return Request(kind=k, scope=scope, level=first.level if first else None, spans=spans())
+        case "power_peak":
+            return Request(kind=k, kw=number(first.value if first else None), spans=spans())
+        case "quiet_hours":
+            return Request(kind=k, spans=spans())
+    raise ValueError(f"no such kind: {k}")  # pragma: no cover - Kind is closed

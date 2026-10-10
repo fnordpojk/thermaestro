@@ -101,6 +101,15 @@
         {% if i.validity.starts %}<li>{{ _("Starts %(when)s", when=i.validity.starts.isoformat() | when) }}</li>{% endif %}
         <li>{{ _("Asked %(when)s", when=i.created.isoformat() | when) }}</li>
         </ul>
+        {% if v.request is not none %}{% set k = i.kind %}{% set r = v.request %}
+        <details id="intent-edit-{{ i.id }}" class="intent-edit"><summary>{{ _("Change") }}</summary>
+        <form method="post" action="/intents/{{ i.id }}/edit" class="grid">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          {% include "intent-fields.html" %}
+          <button type="submit">{{ _("Save") }}</button>
+        </form>
+        </details>
+        {% endif %}
         </details>
         {% if v.paused %}<small>{{ _("set aside: %(why)s", why=v.paused) }}</small>{% endif %}</td>
       <td>{{ names.get(i.scope, i.scope) }}</td>
@@ -238,7 +247,22 @@
 <ul>
 {% for lid, lv in levels.items() %}
   <li>{{ lv.name }}, {{ names.get(lv.scope, lv.scope) }}: {% if lv.top is not none %}{{ lv.top | num(1) }} °C{% else %}{{ lv.low | num(1) }}–{{ lv.high | num(1) }} °C{% endif %}
-  {% if can("intent.levels.write") %}<form method="post" action="/levels/{{ lid }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">{{ _("Remove") }}</button></form>{% endif %}</li>
+  {% if can("intent.levels.write") %}<form method="post" action="/levels/{{ lid }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">{{ _("Remove") }}</button></form>
+  <details id="level-edit-{{ lid }}" class="intent-edit"><summary>{{ _("Change") }}</summary>
+  <form method="post" action="/levels/{{ lid }}" class="grid">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>{{ _("Name") }} <input name="name" required maxlength="64" value="{{ lv.name }}"></label>
+    <label>{{ _("For") }}
+      <select name="scope" required>{% for ref, label in [("house", _("The whole house"))] + scopes.systems + scopes.rooms + scopes.tanks + scopes.pools %}<option value="{{ ref }}"{% if ref == lv.scope %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    {% if lv.top is not none %}
+    <label>{{ _("Hot-water top, °C") }} <input name="top" inputmode="decimal" value="{{ lv.top | num(1) }}" required></label>
+    {% else %}
+    <label>{{ _("From, °C") }} <input name="low" inputmode="decimal" value="{{ lv.low | num(1) }}" required></label>
+    <label>{{ _("To, °C") }} <input name="high" inputmode="decimal" value="{{ lv.high | num(1) }}" required></label>
+    {% endif %}
+    <button type="submit">{{ _("Save") }}</button>
+  </form>
+  </details>{% endif %}</li>
 {% else %}
   <li>{{ _("None yet.") }}</li>
 {% endfor %}

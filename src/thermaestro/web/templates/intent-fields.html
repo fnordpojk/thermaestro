@@ -1,0 +1,107 @@
+{# The fields of a request of kind `k`, filled in from `r` (what was understood, or what an
+   intent holds now): shared by the conversation's reply and the forms that change an
+   intent. Repeated groups get a spare row to add one. #}
+{% macro moment(name, value, required) %}<input type="datetime-local" name="{{ name }}" value="{{ (value or '')[:16] }}"{% if required %} required{% endif %}>{% endmacro %}
+{% macro clock(name, value) %}<input type="time" name="{{ name }}" value="{{ (value or '')[:5] }}">{% endmacro %}
+{% macro choose(name, options, chosen) %}{% if options | length > 1 %}<label>{{ _("Where") }}
+  <select name="{{ name }}">{% for ref, label in options %}<option value="{{ ref }}"{% if ref == chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="{{ name }}" value="{{ chosen or (options[0][0] if options else '') }}">{% endif %}{% endmacro %}
+{% macro days(prefix, chosen) %}
+<span class="days">{% for d in range(7) %}<label class="check"><input type="checkbox" name="{{ prefix }}" value="{{ d }}"{% if d in (chosen or []) %} checked{% endif %}> {{ d | weekday }}</label>{% endfor %}</span>
+{% endmacro %}
+{% macro spans(rows) %}
+{% for s in rows + [{}] %}{% set i = loop.index0 %}
+<fieldset><legend>{{ _("When") }}</legend>
+  {{ days("s" ~ i ~ ".days", s.get("days")) }}
+  <label>{{ _("From") }} {{ clock("s" ~ i ~ ".start", s.get("start")) }}</label>
+  <label>{{ _("To") }} {{ clock("s" ~ i ~ ".end", s.get("end")) }}</label>
+</fieldset>
+{% endfor %}
+<p class="hint">{{ _("No days ticked: every day. No times: all day.") }}</p>
+{% endmacro %}
+{% if k == "warmer" %}
+  {{ choose("scope", scopes.systems, r.get("scope")) }}
+  <label>{{ _("Degrees, + warmer or − cooler") }} <input name="offset" type="number" step="0.5" min="-5" max="5" value="{{ r.get('offset', 1) }}" required></label>
+  <label>{{ _("Until") }} <small>{{ _("empty: until the pattern next changes") }}</small> {{ moment("until", r.get("until"), false) }}</label>
+{% elif k == "bath" %}
+  {{ choose("scope", scopes.tanks, r.get("scope")) }}
+  <label>{{ _("At least, °C") }} <input name="at_least" type="number" step="1" min="20" max="90" value="{{ r.get('at_least', 50) | int }}" required></label>
+  <label>{{ _("By") }} {{ moment("by", r.get("by"), true) }}</label>
+  {% if r.get("strength") %}<input type="hidden" name="strength" value="{{ r.strength }}">{% endif %}
+{% elif k == "boost_now" %}
+  {{ choose("scope", scopes.tanks, r.get("scope")) }}
+  <p class="hint">{{ _("One extra charge, now.") }}</p>
+{% elif k == "fireplace" %}
+  {% if r.get("scope") %}<input type="hidden" name="scope" value="{{ r.scope }}">{% endif %}
+  <p class="hint">{{ _("For six hours, the heat isn't raised for the fireplace's warmth.") }}</p>
+{% elif k in ("away", "guests") %}
+  <label>{{ _("Until") }} {{ moment("until", r.get("until"), true) }}</label>
+  {% for ref, label in scopes.systems %}
+  <label>{{ label }}
+    <select name="levels:{{ ref }}" required><option value=""></option>{% for lid, lv in levels.items() if lv.low is not none and lv.scope in (ref, "house") %}<option value="{{ lid }}"{% if r.get("levels", {}).get(ref) == lid %} selected{% endif %}>{{ lv.name }}</option>{% endfor %}</select></label>
+  {% endfor %}
+  {% if k == "guests" %}
+  <label>{{ _("Hot water") }}
+    <select name="hot_water"><option value="">–</option>{% for lid, lv in levels.items() if lv.top is not none %}<option value="{{ lid }}"{% if r.get("hot_water") == lid %} selected{% endif %}>{{ lv.name }} ({{ lv.top | num(1) }} °C)</option>{% endfor %}</select></label>
+  {% endif %}
+{% elif k == "hands_off" %}
+  <label>{{ _("Until") }} <small>{{ _("at most 48 hours") }}</small> {{ moment("until", r.get("until"), true) }}</label>
+{% elif k == "comfort_band" and r.get("no_sensor") %}
+  <input type="hidden" name="no_sensor" value="1">
+  {{ choose("scope", scopes.systems, r.get("scope")) }}
+  <label>{{ _("Steps") }} <input name="steps" type="number" min="1" max="5" value="{{ r.get('steps', 2) }}" required></label>
+{% elif k == "comfort_band" %}
+  {{ choose("scope", scopes.systems + scopes.rooms, r.get("scope")) }}
+  {% for step in r.get("pattern", []) + [{}] %}{% set i = loop.index0 %}
+  <fieldset><legend>{{ _("Step %(n)s", n=i + 1) }}</legend>
+    <label>{{ _("Level") }}
+      <select name="p{{ i }}.level"><option value="">–</option>{% for lid, lv in levels.items() if lv.low is not none %}<option value="{{ lid }}"{% if step.get("level") == lid %} selected{% endif %}>{{ lv.name }} ({{ lv.low | num(1) }}–{{ lv.high | num(1) }} °C)</option>{% endfor %}</select></label>
+    {{ days("p" ~ i ~ ".days", step.get("days")) }}
+    <label>{{ _("From") }} {{ clock("p" ~ i ~ ".start", step.get("start")) }}</label>
+    <label>{{ _("To") }} {{ clock("p" ~ i ~ ".end", step.get("end")) }}</label>
+  </fieldset>
+  {% endfor %}
+  <p class="hint">{{ _("No days ticked: every day. No times: all day. A step that ends before it starts runs past midnight. A step without a level is left out.") }}</p>
+  {% set season = r.get("season") or ["", ""] %}
+  <label>{{ _("Season from") }} <small>MM-DD</small> <input name="season_from" pattern="\d\d-\d\d" value="{{ season[0] }}"></label>
+  <label>{{ _("Season to") }} <small>MM-DD</small> <input name="season_to" pattern="\d\d-\d\d" value="{{ season[1] }}"></label>
+{% elif k == "hot_water_by" %}
+  {{ choose("scope", scopes.tanks, r.get("scope")) }}
+  {% for due in r.get("deadlines", []) + [{}] %}{% set i = loop.index0 %}
+  <fieldset><legend>{{ _("By") }}</legend>
+    <label>{{ _("Time") }} {{ clock("d" ~ i ~ ".by", due.get("by")) }}</label>
+    <label>{{ _("At least, °C") }} <input name="d{{ i }}.temp" inputmode="decimal" value="{{ due.get('temp') | num(1) if due.get('temp') is not none else '' }}"></label>
+    <label>{{ _("Or a level") }}
+      <select name="d{{ i }}.level"><option value="">–</option>{% for lid, lv in levels.items() if lv.top is not none %}<option value="{{ lid }}"{% if due.get("level") == lid %} selected{% endif %}>{{ lv.name }} ({{ lv.top | num(1) }} °C)</option>{% endfor %}</select></label>
+    {{ days("d" ~ i ~ ".days", due.get("days")) }}
+  </fieldset>
+  {% endfor %}
+  <label>{{ _("How much it matters") }}
+    <select name="strength"><option value="should">{{ _("should be ready") }}</option><option value="must"{% if r.get("strength") == "must" %} selected{% endif %}>{{ _("must be ready") }}</option></select></label>
+{% elif k == "hot_water_floor" %}
+  {{ choose("scope", scopes.tanks, r.get("scope")) }}
+  <label>{{ _("Never below, °C") }} <input name="temp" inputmode="decimal" value="{{ r.get('temp') | num(1) if r.get('temp') is not none else '' }}" required></label>
+{% elif k == "cost_stance" %}
+  <label>{{ _("Savings, in percent") }} <small>{{ _("0: comfort first, prices only where nothing gives; 100: as much of each band as it allows") }}</small>
+    <input type="range" name="slider" min="0" max="100" step="5" value="{{ ((r.get('slider') or 0) * 100) | round | int }}"></label>
+  <fieldset><legend>{{ _("When not everything can be met, these give way last to first") }}</legend>
+  {% set ranking = r.get("ranking") or labels.RANKS.keys() | list %}
+  {% for n in range(1, 6) %}
+  <label>{{ n }}.
+    <select name="rank{{ n }}">{% for key, name in labels.RANKS.items() %}<option value="{{ key }}"{% if ranking[n - 1] == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+  {% endfor %}
+  </fieldset>
+{% elif k == "addition_policy" %}
+  <label>{{ _("The addition") }}
+    <select name="policy">{% for key, name in labels.POLICIES.items() %}<option value="{{ key }}"{% if r.get("policy") == key %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+  <label>{{ _("Power limit, kW") }} <small>{{ _("with a power limit only") }}</small> <input name="kw" inputmode="decimal" value="{{ r.get('kw') | num(1) if r.get('kw') is not none else '' }}"></label>
+{% elif k == "pool" %}
+  {{ choose("scope", scopes.pools, r.get("scope")) }}
+  <label>{{ _("Level") }}
+    <select name="level" required>{% for lid, lv in levels.items() if lv.low is not none %}<option value="{{ lid }}"{% if r.get("level") == lid %} selected{% endif %}>{{ lv.name }}</option>{% endfor %}</select></label>
+  {{ spans(r.get("spans", [])) }}
+{% elif k == "power_peak" %}
+  <label>{{ _("The house at most, kW") }} <input name="kw" inputmode="decimal" value="{{ r.get('kw') | num(1) if r.get('kw') is not none else '' }}" required></label>
+  {{ spans(r.get("spans", [])) }}
+{% elif k == "quiet_hours" %}
+  {{ spans(r.get("spans", [])) }}
+{% endif %}

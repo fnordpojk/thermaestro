@@ -5,6 +5,7 @@ import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
@@ -25,6 +26,8 @@ from thermaestro.intents import (
     schema,
 )
 from thermaestro.intents.model import Validity
+from thermaestro.intents.requests import build, request_of
+from thermaestro.intents.resolve import RANKS
 from thermaestro.store import Database, Home, Location
 
 ZONE = "Europe/Stockholm"
@@ -394,6 +397,88 @@ async def test_intents_move_along_with_time(service: Intents) -> None:
     assert (await service.get(later.id)).state == "finished"
     missed = await service.get(bath.id)
     assert (missed.state, missed.why) == ("missed", "not met by its latest")
+
+
+def every_kind() -> list[Intent]:
+    who: dict[str, Any] = {"principal": "user:anna", "created": T0}
+    return [
+        band(),
+        kinds.no_sensor_band(CS, steps=3, **who),
+        kinds.comfort_band(
+            CS, [("day", ((0, 1), time(6), time(22)))], season=("10-01", "04-30"), **who
+        ),
+        kinds.hot_water_by(
+            TANK, [("tank", (5, 6), time(7)), (52.0, (), time(19))], strength="must", **who
+        ),
+        kinds.hot_water_floor(TANK, 40.0, **who),
+        kinds.cost_stance(ranking=tuple(reversed(RANKS)), slider=0.4, **who),
+        kinds.addition_policy("limit", kw=3.0, **who),
+        kinds.addition_policy("pump", **who),
+        kinds.pool("pump:hp1/pool1", "day", pattern=[((5, 6), time(10), time(18))], **who),
+        kinds.power_peak(9.0, pattern=[((), time(17), time(20))], **who),
+        kinds.quiet_hours([((), time(22), time(7))], **who),
+        kinds.warmer(CS, -1.5, until=local(21, 22), **who),
+        kinds.warmer(CS, 1.0, **who),
+        kinds.bath(TANK, 52, local(21, 19), strength="should", **who),
+        kinds.guests(local(23, 18), {CS: "day"}, hot_water="tank-more", **who),
+        kinds.away(local(27, 18), {CS: "away"}, **who),
+        kinds.hands_off(local(22, 8), **who),
+        kinds.fireplace(CS, **who),
+        kinds.boost_now(TANK, **who),
+    ]
+
+
+def test_an_intent_put_as_a_request_builds_the_same_again() -> None:
+    """What a form to change an intent starts from asks for the intent as it is."""
+    for intent in every_kind():
+        again = build(request_of(intent), principal=intent.principal, now=intent.created)
+        assert again.model_copy(update={"id": intent.id}) == intent, intent.kind
+
+
+async def test_changing_an_intent_in_place(service: Intents, tmp_path: Path) -> None:
+    warmer = kinds.warmer(CS, 1.0, principal="user:bo", created=local(21, 8))
+    await service.create(warmer, granted=HOUSEHOLD, now=local(21, 8))
+    cooler = kinds.warmer(CS, -1.0, principal="user:bo", created=local(21, 8))
+    # As ending: one's own, or anyone's with the right.
+    with pytest.raises(Forbidden, match=r"intent\.any\.end"):
+        await service.edit(warmer.id, cooler, who="user:anna", granted=HOUSEHOLD)
+    verdict = await service.edit(
+        warmer.id, cooler, who="user:bo", granted=HOUSEHOLD, now=local(21, 9)
+    )
+    assert verdict.accepted
+    (kept,) = await service.all()
+    assert (kept.id, kept.principal, kept.created) == (warmer.id, "user:bo", warmer.created)
+    assert kept.parameters == {"offset": -1.0}
+    edit = [e for e in audited(tmp_path) if e["what"] == "intent.edit"][-1]
+    assert edit["who"] == "user:bo"
+    details: Any = edit["details"]
+    assert (details["before"]["parameters"], details["after"]["parameters"]) == (
+        {"offset": 1.0},
+        {"offset": -1.0},
+    )
+    # Its kind stays, and an ended one is asked for again instead.
+    boost = kinds.boost_now(TANK, principal="user:bo", created=local(21, 8))
+    with pytest.raises(ValueError, match="stays one"):
+        await service.edit(warmer.id, boost, who="user:bo", granted=HOUSEHOLD)
+    await service.end(warmer.id, who="user:bo", granted=HOUSEHOLD)
+    with pytest.raises(ValueError, match="has ended"):
+        await service.edit(warmer.id, cooler, who="user:bo", granted=HOUSEHOLD)
+
+
+async def test_changing_a_seeded_intent_makes_it_the_households(service: Intents) -> None:
+    seeded = kinds.no_sensor_band(CS, steps=2, principal="seed", created=T0, confirmed=False)
+    await service.create(seeded, granted=frozenset({"*"}), now=T0)
+    wider = kinds.no_sensor_band(CS, steps=3, principal="seed", created=T0)
+    # Changing someone else's needs intent.any.end, and its new contents their own right.
+    with pytest.raises(Forbidden, match=r"intent\.standing\.write"):
+        await service.edit(
+            seeded.id, wider, who="user:anna", granted=HOUSEHOLD | {"intent.any.end"}
+        )
+    admin = frozenset({"*"})
+    assert (await service.edit(seeded.id, wider, who="user:anna", granted=admin, now=T0)).accepted
+    kept = await service.get(seeded.id)
+    assert (kept.confirmed, kept.tier, kept.principal) == (True, "standing", "seed")
+    assert kept.expectations[0].targets[0].high == 3
 
 
 async def test_a_level_in_use_stays(service: Intents) -> None:

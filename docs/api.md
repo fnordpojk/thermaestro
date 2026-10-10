@@ -268,6 +268,7 @@ What the household wants. A request is in household terms, one `kind` with only 
 |---|---|---|
 | `GET /intents?ended=false` | `plan.read` | The open intents; with `ended=true`, the finished ones too |
 | `POST /intents` | the kind's | A request → `201`, `{accepted, intent, messages}`. `messages` say when it ends, what it sets aside, and what the house can't do. A refused one has `accepted: false` and says why. |
+| `PUT /intents/{id}` | as ending it, plus the kind's for the new contents | The whole request, as for `POST /intents` (`kind` may be left out; it can't change) → `{accepted, intent, messages}`. Changed in place: the same id, asker and time asked; checked as a new request would be; an open intent only. A seeded one becomes the household's own. Audited with before and after. |
 | `DELETE /intents/{id}` | one's own: the kind's right; anyone's: `intent.any.end` | → the intent, finished |
 | `POST /intents/understand` | `plan.read` | `{text}` → `{kind, request, missing}`: what was typed ("a bath at 19:30", "borta till söndag", "Gäste bis morgen"), read as a request for a while, in English, Swedish or German. Nothing is asked: send `request` to `POST /intents` once `missing` (`until`, `by`, `levels`) is filled in. `kind` is `null` when it wasn't understood. |
 | `POST /intents/{id}/confirm` | `intent.standing.write` | → a seeded intent, now the household's own |
