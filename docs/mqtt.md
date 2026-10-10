@@ -3,9 +3,10 @@
 Thermaestro connects to Home Assistant in two ways:
 
 - it **reads** sensors: from MQTT topics, or from Home Assistant entities through Home Assistant's WebSocket API;
-- it **publishes** its values to Home Assistant through MQTT discovery, if switched on.
+- it **publishes** its values to Home Assistant through MQTT discovery, if switched on;
+- with discovery on, it **takes requests** for a while ("warmer, please", one extra charge of hot water) on one topic, with only the rights the administrator gives the MQTT group: none at first.
 
-Nothing is accepted back. Thermaestro takes no commands over MQTT and writes nothing to Home Assistant.
+It writes nothing to Home Assistant, and never takes a pump setting from MQTT: a request is in household terms, as on the Intents page.
 
 ## The broker
 
@@ -83,6 +84,8 @@ With the prefix `homeassistant`, the base `thermaestro` and the id `1a2b3c4d`:
 | `thermaestro/1a2b3c4d/status` | `online` or `offline` | 1 | yes |
 | `thermaestro/1a2b3c4d/state/<key>` | an entity's state | 0 | yes |
 | `thermaestro/1a2b3c4d/attributes/<key>` | an entity's attributes, as JSON | 0 | yes |
+| `thermaestro/1a2b3c4d/request` | a request, read by Thermaestro (see below) | | must not be |
+| `thermaestro/1a2b3c4d/request/result` | the answer to a request | 1 | no |
 
 Thermaestro also subscribes to `homeassistant/status`. When Home Assistant sends `online` there (it starts), Thermaestro waits a random 0.5 to 3 seconds and sends everything again.
 
@@ -177,7 +180,36 @@ The state topic then carries `21.25`.
 - On every connection Thermaestro reads its own retained topics for two seconds and clears those it no longer publishes. Other installations' topics are left alone.
 - Switched off, or with a new prefix or base, Thermaestro clears every retained topic it published under the old ones.
 
+### Requests
+
+A request is a JSON object on `thermaestro/<id>/request`, in the same household terms as the API's `POST /api/v1/intents` ([the requests](api.md#intents-and-levels)), for example:
+
+```json
+{"kind": "warmer", "scope": "pump:hp1/cs1", "offset": 1}
+{"kind": "bath", "scope": "pump:hp1/dhw", "at_least": 50, "by": "2026-10-10T19:30:00+02:00"}
+{"kind": "boost_now", "scope": "pump:hp1/dhw"}
+```
+
+- **Only for a while.** What always applies (bands, the cost stance, limits) is set on the Intents page. Every request ends by itself: warmer and cooler at the pattern's next change, unless an `until` is given.
+- **Rights:** a request is asked as the principal `mqtt`, with the rights of the group **MQTT** under System → Users and groups. That group has none at first, so every request is refused until the administrator gives it some, typically `intent.temporary.create` (warmer, cooler, a bath, a boost, a fireplace). The broker isn't trusted to say who sent a message: in Home Assistant's own broker add-on, every user and add-on may publish anything.
+- **The answer** goes to `thermaestro/<id>/request/result`, not retained: `{"accepted": true, "id": "in-…", "messages": ["Warmer, please (+1 °C): until …"]}`, or `accepted: false` with why.
+- **A retained request is ignored:** it would be asked again at every connection.
+- Every request is in the audit log, as `mqtt`.
+
+### Buttons and states for control
+
+Discovery also publishes, on Thermaestro's device:
+
+- **Intents in force:** how many, with each one's kind, scope, end and who asked in its attributes;
+- **Next hot water:** the time of the next hot-water deadline (a timestamp), with its temperature;
+- **Last change:** the last change asked of a pump setting, and what became of it.
+
+On the pump's device:
+
+- buttons that send requests: **warmer, please** and **cooler, please** for each climate system, **one extra charge** for each hot-water tank, and on Thermaestro's device **a fireplace is on**;
+- each setting's **mode** (`off`, `shadow`, `control`), diagnostic.
+
 ## Not there yet
 
-- Commands over MQTT. Thermaestro accepts nothing from MQTT except Home Assistant's `online`.
+- Inputs in Home Assistant for requests that need a time or a number (a bath by a time, away until a date): send those as JSON from an automation.
 - A certificate authority of your own for the broker's TLS: the certificate is checked against the system's trusted certificates only.

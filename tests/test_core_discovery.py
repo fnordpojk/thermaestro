@@ -88,8 +88,13 @@ def check_ha(topic: str, message: dict[str, Any], devices: set[str]) -> None:
     assert message["components"]
     for component in message["components"].values():
         platform = component["platform"]
-        assert platform in ("sensor", "binary_sensor")
+        assert platform in ("sensor", "binary_sensor", "button")
         assert component["unique_id"], "an entity component has a unique id"
+        if platform == "button":
+            assert "state_topic" not in component
+            assert not set("#+") & set(component["command_topic"])
+            assert json.loads(component["payload_press"])["kind"]
+            continue
         assert not set("#+") & set(component["state_topic"])
         assert component.get("entity_category") != "config", "sensors can't be config"
         device_class = component.get("device_class")
@@ -191,6 +196,12 @@ class Plain:
 
     def text(self, what: str, language: str, **values: object) -> str:
         return f"{what} {values}" if values else what
+
+    def part(self, instance: str, path: str, language: str) -> str:
+        return path
+
+    def lever(self, path: str, language: str) -> str:
+        return path
 
 
 async def retained(port: int, wait: float = 0.4) -> dict[str, bytes]:
@@ -457,3 +468,81 @@ def test_device_and_state_classes(
     name: str, unit: str | None, counter: bool, expected: tuple[str | None, str | None]
 ) -> None:
     assert classify(name, unit, counter) == expected
+
+
+async def test_requests_over_mqtt(broker: int, tmp_path: Path) -> None:  # noqa: F811
+    unit = Node(
+        path="hp1",
+        kind="unit",
+        presence=Presence(how="configured"),
+        identity=Identity(vendor="Nibe", model="F1245"),
+    )
+    system = Node(path="hp1/cs1", kind="climate_system", presence=Presence(how="configured"))
+    tank = Node(path="hp1/dhw", kind="dhw_tank", presence=Presence(how="configured"))
+    instance = Instance(
+        "pump",
+        Plugin(plugin="nibe", settings={"host": "192.0.2.10"}),
+        state=State.UP,
+        described=Described(nodes=(unit, system, tank), points=PUMP_POINTS),
+    )
+    asked: list[dict[str, Any]] = []
+
+    async def asker(body: dict[str, Any]) -> dict[str, Any]:
+        asked.append(body)
+        return {"accepted": True, "id": "in-1", "messages": ["Boost now: until done"]}
+
+    async def control() -> dict[str, Any]:
+        return {
+            "intents": [{"kind": "boost_now", "scope": "pump:hp1/dhw", "end": None, "by": "mqtt"}],
+            "deadline": {
+                "t": "2026-10-10T19:30:00+00:00",
+                "at_least": 50.0,
+                "scope": "pump:hp1/dhw",
+            },
+            "modes": {},
+            "last": None,
+        }
+
+    host = SimpleNamespace(instances={"pump": instance})
+    async with publishing(tmp_path, broker, host) as (_, values, publisher, _):
+        publisher.asker, publisher.control = asker, control
+        for p, v in zip(PUMP_POINTS, (-3.5, 12345.0, "heating", -1.0, True), strict=True):
+            values.add("pump", envelope(p.path, v, p.unit), p)
+        async with listening(broker) as heard:
+            publisher.start(Plain())
+            await until(
+                lambda: heard.last(f"thermaestro/{ID}/state/{key('thermaestro', 'intents')}")
+            )
+            devices = {ME, f"{ME}_{key('pump', 'hp1')}"}
+            pump_config = heard.configs(f"{ME}_{key('pump', 'hp1')}")[-1]
+            check_ha(f"homeassistant/device/{ME}_{key('pump', 'hp1')}/config", pump_config, devices)
+            boost = pump_config["components"][key("request", "boost", "pump:hp1/dhw")]
+            assert boost["command_topic"] == f"thermaestro/{ID}/request"
+            assert json.loads(boost["payload_press"]) == {
+                "kind": "boost_now",
+                "scope": "pump:hp1/dhw",
+            }
+            warmer = pump_config["components"][key("request", "warmer", "pump:hp1/cs1")]
+            assert json.loads(warmer["payload_press"])["offset"] == 1
+            assert heard.last(f"thermaestro/{ID}/state/{key('thermaestro', 'intents')}") == b"1"
+            assert heard.last(f"thermaestro/{ID}/state/{key('thermaestro', 'deadline')}") == (
+                b"2026-10-10T19:30:00+00:00"
+            )
+            async with aiomqtt.Client("127.0.0.1", broker) as client:
+                await client.subscribe(f"thermaestro/{ID}/request/result")
+                await client.publish(f"thermaestro/{ID}/request", boost["payload_press"])
+                async with asyncio.timeout(5):
+                    async for message in client.messages:
+                        if str(message.topic) == f"thermaestro/{ID}/request/result":
+                            answer = json.loads(bytes(message.payload))
+                            break
+            assert asked == [{"kind": "boost_now", "scope": "pump:hp1/dhw"}]
+            assert answer["accepted"]
+            # A retained request isn't acted on: it would be asked again at every connection.
+            async with aiomqtt.Client("127.0.0.1", broker) as client:
+                await client.publish(
+                    f"thermaestro/{ID}/request", b'{"kind": "fireplace"}', retain=True
+                )
+                await client.publish(f"thermaestro/{ID}/request", b"", retain=True)
+            await asyncio.sleep(0.5)
+            assert len(asked) == 1

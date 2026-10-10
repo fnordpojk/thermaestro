@@ -10,14 +10,22 @@ Home Assistant.
 - **Sensors' own values** only when the household asks for them, since Home Assistant may
   have them already. Home Assistant's own entities are never sent back to it.
 
-Nothing is accepted from MQTT. The only topics read are Home Assistant's status, whose
-`online` (its birth message) has everything sent again, and Thermaestro's own retained
-topics, read once per connection to clear what is no longer published.
+With control running, Thermaestro's device also has what the household asked for (the
+intents in force, the next hot-water deadline, the last change made), each setting's mode,
+and buttons for requests for a while: warmer and cooler per climate system, one extra
+charge per tank, a fireplace.
 
-Topics, all retained:
+Requests are read from one topic, as JSON in the API's household terms, and accepted only
+with the rights the administrator gave the MQTT group: none at first. They are always for a
+while. Otherwise the only topics read are Home Assistant's status, whose `online` (its
+birth message) has everything sent again, and Thermaestro's own retained topics, read once
+per connection to clear what is no longer published.
+
+Topics, all retained but the requests and their answers:
 - `<prefix>/device/thermaestro_<id>[_<device>]/config`: one discovery message per device;
 - `<base>/<id>/status`: `online`, or `offline` (also the broker's last will);
-- `<base>/<id>/state/<key>` and `<base>/<id>/attributes/<key>`.
+- `<base>/<id>/state/<key>` and `<base>/<id>/attributes/<key>`;
+- `<base>/<id>/request`: a request in; `<base>/<id>/request/result`: its answer.
 """
 
 import asyncio
@@ -29,7 +37,7 @@ import math
 import re
 import secrets
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
@@ -55,6 +63,8 @@ MIN_INTERVAL_S = 10.0
 """An entity's state goes out at most this often; a pump pushes some values twice a second."""
 REBUILD_S = 5.0
 PRICE_S = 60.0
+CONTROL_S = 30.0
+"""How often what the household asked for and the levers' modes are read again."""
 SWEEP_S = 2.0
 """How long to collect the retained topics left at the broker."""
 BIRTH_DELAY_S = (0.5, 3.0)
@@ -107,6 +117,13 @@ BY_NAME = {
 """A device class that depends on the quantity as well as the unit."""
 
 TOTALS = frozenset({"energy", "water"})
+MODES = ("off", "shadow", "control")
+
+Asker = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+"""Asks for an intent from a request in household terms, as the MQTT principal."""
+ControlState = Callable[[], Awaitable[dict[str, Any]]]
+"""What the household asked for and what the levers are at: `intents`, `deadline`,
+`modes`, `last`."""
 
 
 class Namer(Protocol):
@@ -123,7 +140,17 @@ class Namer(Protocol):
         ...
 
     def text(self, what: str, language: str, **values: object) -> str:
-        """One of Thermaestro's own entity names: `price`, `plugin`, `attention`."""
+        """One of Thermaestro's own entity names: `price`, `plugin`, `attention`, and with
+        control `warmer`, `cooler`, `boost`, `fireplace`, `intents`, `deadline`, `mode`,
+        `last_change`."""
+        ...
+
+    def part(self, instance: str, path: str, language: str) -> str:
+        """A node's name, the household's or the built-in one."""
+        ...
+
+    def lever(self, path: str, language: str) -> str:
+        """A lever's name."""
         ...
 
 
@@ -154,6 +181,14 @@ class Topics:
 
     def attributes(self, key: str) -> str:
         return f"{self.base}/{self.id}/attributes/{key}"
+
+    @property
+    def request(self) -> str:
+        return f"{self.base}/{self.id}/request"
+
+    @property
+    def result(self) -> str:
+        return f"{self.base}/{self.id}/request/result"
 
     def ours(self, topic: str) -> bool:
         """A topic this installation publishes (or did)."""
@@ -223,12 +258,22 @@ class Entity:
     """An enum's values; a value outside them is sent as unknown."""
     precision: int | None = None
     attributes: bool = False
+    press: str | None = None
+    """A button's request, sent to the request topic when pressed."""
 
     @property
     def numeric(self) -> bool:
         return self.platform == "sensor" and (self.unit is not None or self.state_class is not None)
 
     def config(self, topics: Topics) -> dict[str, Any]:
+        if self.platform == "button":
+            return {
+                "platform": "button",
+                "unique_id": f"{topics.me}_{self.key}",
+                "name": self.name,
+                "command_topic": topics.request,
+                "payload_press": self.press,
+            }
         out: dict[str, Any] = {
             "platform": self.platform,
             "unique_id": f"{topics.me}_{self.key}",
@@ -392,6 +437,12 @@ class Publisher:
         """Points left out until their first value says what kind of entity they are."""
         self._dirty = False
         self._signed: tuple[object, ...] = ()
+        self.asker: Asker | None = None
+        self.control: ControlState | None = None
+        self._requests: asyncio.Queue[bytes] = asyncio.Queue(maxsize=20)
+        self._modes: dict[str, str] = {}
+        """Each lever's mode entity, to the lever's reference."""
+        self._controlled: tuple[float, dict[str, Any]] | None = None
         values.listeners.append(self._heard)
         client.outward = self
 
@@ -429,7 +480,7 @@ class Publisher:
         return aiomqtt.Will(self._topics.status, b"offline", qos=1, retain=True)
 
     def handles(self, topic: str) -> bool:
-        if self._topics is not None and topic == self._topics.birth:
+        if self._topics is not None and topic in (self._topics.birth, self._topics.request):
             return True
         return self._collecting is not None and any(t.ours(topic) for t in self._spaces())
 
@@ -440,6 +491,10 @@ class Publisher:
             return
         if self._topics is not None and topic == self._topics.birth and payload == b"online":
             self._birth.set()
+        elif self._topics is not None and topic == self._topics.request and not retained:
+            # A retained request would be asked again at every connection: only live ones.
+            with contextlib.suppress(asyncio.QueueFull):
+                self._requests.put_nowait(payload)
 
     async def session(self, client: aiomqtt.Client, wanted: Wanted) -> None:
         if wanted == "sweep":
@@ -459,6 +514,8 @@ class Publisher:
             await self._sweep(client, keep=self._kept(topics))
             self._old.clear()
             await client.subscribe(topics.birth)
+            if self.asker is not None:
+                await client.subscribe(topics.request)
             await self._publish_all(client)
             log.info(
                 "Home Assistant discovery: %d devices, %d entities",
@@ -485,6 +542,8 @@ class Publisher:
                 self._last = {}
                 await self._publish_all(client)
                 continue
+            while not self._requests.empty():
+                await self._answer(client, self._requests.get_nowait())
             now = self._clock()
             if now - rebuilt >= self._rebuild:
                 rebuilt = now
@@ -497,6 +556,24 @@ class Publisher:
                     await self._publish_changed(client, await self._build())
                 await self._publish_derived(client)
             await self._flush(client)
+
+    async def _answer(self, client: aiomqtt.Client, payload: bytes) -> None:
+        """Ask for what a request says, and publish the answer."""
+        topics, asker = self._topics, self.asker
+        if topics is None or asker is None:
+            return
+        try:
+            body = json.loads(payload)
+            if not isinstance(body, dict):
+                raise ValueError("a request is a JSON object")
+            answer = await asker(body)
+        except ValueError as e:
+            answer = {"accepted": False, "messages": [f"not a request: {e}"]}
+        except Exception:
+            log.exception("an MQTT request failed")
+            answer = {"accepted": False, "messages": ["it failed; see Thermaestro's log"]}
+        await client.publish(topics.result, json.dumps(answer, ensure_ascii=False), qos=1)
+        self._controlled = None  # shown at the next round, not in half a minute
 
     def _signature(self) -> tuple[object, ...]:
         """What the model is made from, so it's made again only when that changed: the
@@ -695,6 +772,8 @@ class Publisher:
                     device_class="problem",
                     diagnostic=True,
                 )
+        if self.control is not None:
+            self._add_control(model, language, me)
         prices = await self._prices(fresh=False)
         if prices is not None:
             price = key("thermaestro", "price")
@@ -828,6 +907,76 @@ class Publisher:
             )
         return Entity(entity_key, "sensor", name, device, diagnostic=hidden, enabled=not hidden)
 
+    def _add_control(self, model: Model, language: str, me: Device) -> None:
+        """What the household asked for, the levers' modes, and buttons for requests."""
+        namer = self.namer
+        assert namer is not None  # noqa: S101
+        for what in ("intents", "last_change"):
+            entity_key = key("thermaestro", what)
+            model.entities[entity_key] = Entity(
+                entity_key, "sensor", namer.text(what, language), me.object_id, attributes=True
+            )
+        deadline = key("thermaestro", "deadline")
+        model.entities[deadline] = Entity(
+            deadline,
+            "sensor",
+            namer.text("deadline", language),
+            me.object_id,
+            device_class="timestamp",
+            attributes=True,
+        )
+        fireplace = key("request", "fireplace")
+        model.entities[fireplace] = Entity(
+            fireplace,
+            "button",
+            namer.text("fireplace", language),
+            me.object_id,
+            press=json.dumps({"kind": "fireplace"}),
+        )
+        for id, instance in sorted((self._host.instances if self._host else {}).items()):
+            described = instance.described
+            if described is None or instance.setting.plugin in NOT_DEVICES:
+                continue
+            devices = self._devices(id, described.nodes, me.object_id)
+            for node in described.nodes:
+                scope = f"{id}:{node.path}"
+                part = namer.part(id, node.path, language)
+                device = _device_of(node.path + "/x", devices) or me.object_id
+                if node.kind == "climate_system":
+                    for what, offset in (("warmer", 1), ("cooler", -1)):
+                        entity_key = key("request", what, scope)
+                        press = {"kind": "warmer", "scope": scope, "offset": offset}
+                        model.entities[entity_key] = Entity(
+                            entity_key,
+                            "button",
+                            namer.text(what, language, part=part),
+                            device,
+                            press=json.dumps(press),
+                        )
+                elif node.kind == "dhw_tank":
+                    entity_key = key("request", "boost", scope)
+                    model.entities[entity_key] = Entity(
+                        entity_key,
+                        "button",
+                        namer.text("boost", language, part=part),
+                        device,
+                        press=json.dumps({"kind": "boost_now", "scope": scope}),
+                    )
+            for lever in described.levers:
+                if lever.unavailable or lever.path.endswith("alarm.reset"):
+                    continue
+                entity_key = key("mode", id, lever.path)
+                self._modes[entity_key] = f"{id}:{lever.path}"
+                model.entities[entity_key] = Entity(
+                    entity_key,
+                    "sensor",
+                    namer.text("mode", language, lever=namer.lever(lever.path, language)),
+                    _device_of(lever.path, devices) or me.object_id,
+                    device_class="enum",
+                    options=MODES,
+                    diagnostic=True,
+                )
+
     def _add_status(self, model: Model, instance: str, name: str, me: Device) -> None:
         entity_key = key("status", instance)
         model.entities[entity_key] = Entity(
@@ -858,6 +1007,23 @@ class Publisher:
             prices = await self._prices(fresh=False)
             if prices is not None:
                 out[price] = (prices.state, prices.attributes)
+        if self.control is not None and key("thermaestro", "intents") in self.model.entities:
+            if self._controlled is None or self._clock() - self._controlled[0] >= CONTROL_S:
+                self._controlled = (self._clock(), await self.control())
+            state = self._controlled[1]
+            out[key("thermaestro", "intents")] = (
+                str(len(state["intents"])),
+                {"intents": state["intents"]},
+            )
+            due = state["deadline"]
+            out[key("thermaestro", "deadline")] = (due["t"], due) if due else ("None", {})
+            last = state["last"]
+            out[key("thermaestro", "last_change")] = (
+                f"{last['lever']}: {last['outcome']}"[:255] if last else "None",
+                last or {},
+            )
+            for entity_key, ref in self._modes.items():
+                out[entity_key] = (state["modes"].get(ref, "off"), None)
         return out
 
     async def _prices(self, *, fresh: bool = True) -> Prices | None:

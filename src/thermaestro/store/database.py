@@ -237,6 +237,11 @@ MIGRATIONS: tuple[str, ...] = (
     """
     UPDATE settings SET body = json_set(body, '$.emitters', json('{}')) WHERE kind = 'home';
     """,
+    # 13: the group whose rights requests over MQTT have; none until the administrator
+    # gives some
+    """
+    INSERT OR IGNORE INTO groups (name) VALUES ('MQTT');
+    """,
 )
 VERSION = len(MIGRATIONS)
 

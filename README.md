@@ -4,7 +4,7 @@ Thermaestro plans a home's heating and hot water around electricity prices, the 
 
 It is brand-neutral: heat pumps, sensors, meters, price sources and weather forecasts come in through plugins. Nibe is the first. It is meant to replace NibePi, and is open source under the AGPL.
 
-**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, and the Plan page shows what was decided and why; requests over MQTT come next. There is no release yet; the Docker Compose file builds it from this repository.
+**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, the Plan page shows what was decided and why, and Home Assistant gets buttons and states for it over MQTT. Next: checking the settings on the test pump, then shadow beside NibePi. There is no release yet; the Docker Compose file builds it from this repository.
 
 ## Features
 
@@ -15,17 +15,18 @@ Built today:
 - **Room and outdoor sensors** from Home Assistant or MQTT, each with its reporting rhythm learned.
 - **Electricity prices** without an account in much of Europe (Energy-Charts, Beneficial Apps' Nordic price sites, OMIE), from Tibber or ENTSO-E with your own token, and Octopus Agile in Great Britain. The price is built from its parts: spot price, surcharges, tax, grid fee and VAT.
 - **Weather** from MET Norway, SMHI or Open-Meteo, each scored against the house's own outdoor sensor, with Home Assistant as a fallback.
-- **Home Assistant:** Thermaestro's state is published over MQTT, with discovery.
+- **Home Assistant:** Thermaestro's state is published over MQTT, with discovery, and requests for a while ("warmer, please") come back the same way, with only the rights the administrator grants.
 - **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action.
 - **A read-only probe** that reports what Thermaestro reads from a pump, for testers.
 - **Intents:** the household's goals in its own terms (warm rooms on a weekly pattern, hot water by a time, a lowest hot-water temperature, how much to favor cost over comfort) and requests for a while ("warmer, please", a bath by 19:30, away until Sunday, hands off), kept, checked and ranked. The first ones are taken from how the pump runs.
 - **A rule-based planner** that decides every 15 minutes what each setting should be, and why: the curve offset steering the coldest room, hot water kept above its floor and ready by its deadlines, heat moved to cheaper hours as far as the household allows.
 - **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found on shutdown or when something goes wrong. In shadow mode it decides the same and changes nothing.
+- **Control in the web UI and over MQTT:** each setting off, in shadow or in control; what the household wants on an Intents page and as quick requests on the overview; a Plan page with what was decided and why; Home Assistant buttons and states.
 - **Tested against a simulated house**, hot-water tank and pump over simulated days: comfort and the hot-water floor hold, extreme prices buy neither cold nor heat, and shadow decides as control would.
 
 Coming:
 
-- **Control in the web UI and over MQTT:** each setting off, in shadow or in control; intents entered and ended; the plan and its reasons shown.
+- **Checking each setting on the test pump**, then **shadow beside NibePi** for a week, then control, setting by setting.
 - **Learning:** models of the house and the hot-water tank, and an optimizer that plans a day or two ahead with them, using the house and the tank as heat storage.
 - Grid tariffs as data, and importing NibePi's settings.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.

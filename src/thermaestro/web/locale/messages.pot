@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 03:36+0200\n"
+"POT-Creation-Date: 2026-10-10 03:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,6 +25,10 @@ msgstr ""
 
 #, python-format
 msgid "%(feature)s is off"
+msgstr ""
+
+#, python-format
+msgid "%(lever)s: mode"
 msgstr ""
 
 #, python-format
@@ -49,6 +53,18 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s so far"
+msgstr ""
+
+#, python-format
+msgid "%(part)s: cooler, please"
+msgstr ""
+
+#, python-format
+msgid "%(part)s: one extra charge"
+msgstr ""
+
+#, python-format
+msgid "%(part)s: warmer, please"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -754,6 +770,9 @@ msgstr ""
 msgid "Intents"
 msgstr ""
 
+msgid "Intents in force"
+msgstr ""
+
 msgid "Its own control"
 msgstr ""
 
@@ -779,6 +798,9 @@ msgid "Language and formats"
 msgstr ""
 
 msgid "Language of the names"
+msgstr ""
+
+msgid "Last change"
 msgstr ""
 
 #, python-format
@@ -926,6 +948,9 @@ msgstr ""
 msgid ""
 "Newest first. `thermaestro audit verify` on the host checks that no line "
 "was changed or removed."
+msgstr ""
+
+msgid "Next hot water"
 msgstr ""
 
 msgid "Next: names and rooms"

@@ -12,7 +12,7 @@ import logging
 import signal
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ..cap.sockets import listen_tcp, listen_unix, unix_available
 from ..files import private_directory
@@ -126,6 +126,8 @@ async def run(
             planner,
         )
         # The planner stops first, so nothing asks for a change once levers are put back.
+        discovery.asker = _mqtt_asker(db, intents)
+        discovery.control = _control_state(db, intents)
         core.shutdown_hooks.append(planner.stop)
         core.shutdown_hooks.append(_restore(executor))
         await _serve(core, stop, flush_s, started)
@@ -196,6 +198,94 @@ async def _serve(
         await core.audit.record("core", "core.stop")
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
+
+
+def _mqtt_asker(
+    db: Database, intents: Intents
+) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
+    """Requests over MQTT, as the MQTT principal with the MQTT group's rights."""
+    from pydantic import ValidationError
+
+    from .. import clock
+    from ..auth.permissions import MQTT_GROUP
+    from ..intents import Forbidden
+    from ..intents.requests import Request, build
+
+    async def ask(body: dict[str, Any]) -> dict[str, Any]:
+        rights = await db.run(
+            lambda t: frozenset(
+                p
+                for (p,) in t.execute(
+                    "SELECT permission FROM group_permissions WHERE group_name = ?", (MQTT_GROUP,)
+                )
+            )
+        )
+        try:
+            request = Request.model_validate(body)
+            intent = build(request, principal="mqtt", now=clock.now())
+        except ValidationError as e:
+            return {"accepted": False, "messages": [str(e.errors()[0]["msg"])]}
+        except ValueError as e:
+            return {"accepted": False, "messages": [str(e)]}
+        try:
+            verdict = await intents.create(intent, granted=rights)
+        except Forbidden as e:
+            why = f"the {MQTT_GROUP} group needs the right {e.right}"
+            return {"accepted": False, "messages": [why]}
+        return {
+            "accepted": verdict.accepted,
+            "id": verdict.intent.id,
+            "messages": list(verdict.messages),
+        }
+
+    return ask
+
+
+def _control_state(db: Database, intents: Intents) -> Callable[[], Awaitable[dict[str, Any]]]:
+    """What discovery shows of control: the intents in force, the next hot-water deadline,
+    the levers' modes, and the last change asked."""
+    from datetime import timedelta
+
+    from .. import clock
+    from ..store import Control
+
+    async def state() -> dict[str, Any]:
+        resolver = await intents.resolver()
+        now = clock.now()
+        rows = []
+        for i in resolver.intents:
+            end = resolver.end(i)
+            rows.append(
+                {
+                    "kind": i.kind,
+                    "scope": i.scope,
+                    "end": end.isoformat() if end else None,
+                    "by": i.principal,
+                }
+            )
+        due = next(iter(resolver.deadlines(now, now + timedelta(hours=36))), None)
+        control = await db.get(Control) or Control()
+        last = await db.run(
+            lambda t: t.execute(
+                "SELECT t, lever, op, outcome, why FROM acts ORDER BY t DESC LIMIT 1"
+            ).fetchone()
+        )
+        return {
+            "intents": rows,
+            "deadline": (
+                {"t": due.t.isoformat(), "at_least": due.at_least, "scope": due.scope}
+                if due
+                else None
+            ),
+            "modes": dict(control.levers),
+            "last": (
+                {"lever": last[1], "op": last[2], "outcome": last[3], "why": last[4]}
+                if last
+                else None
+            ),
+        }
+
+    return state
 
 
 def _restore(executor: Executor) -> ShutdownHook:

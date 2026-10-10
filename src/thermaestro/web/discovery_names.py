@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from . import i18n
+from . import i18n, labels
 from .i18n import mark
 
 if TYPE_CHECKING:
@@ -15,6 +15,14 @@ TEXTS = {
     "price": mark("Electricity price"),
     "plugin": mark("Plugin %(name)s"),
     "attention": mark("Needs attention"),
+    "warmer": mark("%(part)s: warmer, please"),
+    "cooler": mark("%(part)s: cooler, please"),
+    "boost": mark("%(part)s: one extra charge"),
+    "fireplace": mark("A fireplace is on"),
+    "intents": mark("Intents in force"),
+    "deadline": mark("Next hot water"),
+    "mode": mark("%(lever)s: mode"),
+    "last_change": mark("Last change"),
 }
 """Thermaestro's own entities, by the name the publisher asks for."""
 
@@ -43,3 +51,20 @@ class Names:
     def text(self, what: str, language: str, **values: object) -> str:
         with _speaking(language):
             return i18n._(TEXTS[what], **values)
+
+    def part(self, instance: str, path: str, language: str) -> str:
+        own = self.node(instance, path)
+        if own:
+            return own
+        host = self._services.host
+        found = host.instances.get(instance) if host is not None else None
+        nodes = {n.path: n for n in found.described.nodes} if found and found.described else {}
+        node = nodes.get(path)
+        with _speaking(language):
+            return (
+                labels.node(node.kind if node else None, path, node.label if node else None) or path
+            )
+
+    def lever(self, path: str, language: str) -> str:
+        with _speaking(language):
+            return labels.lever(path)

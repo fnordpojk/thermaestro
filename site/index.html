@@ -64,7 +64,7 @@
     </div>
     <aside class="status" aria-label="Status">
       <h4>Status</h4>
-      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page, and a plan page shows what was decided and why. There is no release yet.</p>
+      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; each of a pump's settings can be switched to shadow or control, the household asks for what it wants on its own page or from Home Assistant, and a plan page shows what was decided and why. There is no release yet.</p>
       <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
     </aside>
   </div>
@@ -343,13 +343,13 @@
           <li>A rule-based planner: every 15 minutes, what each setting should be and why.</li>
           <li>Safe changes: settings taken over, checked, read back, limited and put back; shadow mode deciding the same and changing nothing.</li>
           <li>A simulated house, hot-water tank and pump the planner is tested against over simulated days.</li>
+          <li>Control in the web UI and over MQTT: each setting off, in shadow or in control; the household's intents; the plan and why; Home Assistant buttons and states.</li>
         </ul>
       </div>
       <div>
         <h3>Being built</h3>
         <ul>
-          <li>Control in the web UI and over MQTT: each setting off, in shadow or in control; intents entered; the plan and its reasons shown.</li>
-          <li>Shadow beside NibePi on the first test pump, then control.</li>
+          <li>Each setting checked on the first test pump, then shadow beside NibePi, then control.</li>
           <li>Grid tariffs as data, and importing NibePi's settings.</li>
         </ul>
       </div>

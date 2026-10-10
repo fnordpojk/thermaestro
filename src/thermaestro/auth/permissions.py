@@ -25,6 +25,10 @@ PERMISSIONS: dict[str, str] = {
     "levers.control": "put levers off, in shadow or in control",
 }
 
+MQTT_GROUP = "MQTT"
+"""The group whose rights requests over MQTT have: none until the administrator gives
+some. The broker isn't trusted to say who sent a message."""
+
 STEP_UP = frozenset({"users.manage", "secrets.manage", "plugins.manage", "levers.control"})
 """Changes under these rights need the password entered again."""
 

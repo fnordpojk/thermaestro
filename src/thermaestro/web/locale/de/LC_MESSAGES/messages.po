@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 03:36+0200\n"
+"POT-Creation-Date: 2026-10-10 03:50+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -24,6 +24,10 @@ msgstr ""
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s ist aus"
+
+#, python-format
+msgid "%(lever)s: mode"
+msgstr "%(lever)s: Modus"
 
 #, python-format
 msgid "%(n)s d"
@@ -48,6 +52,18 @@ msgstr "%(n)s min"
 #, python-format
 msgid "%(n)s so far"
 msgstr "bisher %(n)s"
+
+#, python-format
+msgid "%(part)s: cooler, please"
+msgstr "%(part)s: kühler, bitte"
+
+#, python-format
+msgid "%(part)s: one extra charge"
+msgstr "%(part)s: eine zusätzliche Ladung"
+
+#, python-format
+msgid "%(part)s: warmer, please"
+msgstr "%(part)s: wärmer, bitte"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -805,6 +821,9 @@ msgstr "Instanz"
 msgid "Intents"
 msgstr "Wünsche"
 
+msgid "Intents in force"
+msgstr "Geltende Wünsche"
+
 msgid "Its own control"
 msgstr "Eigene Regelung"
 
@@ -831,6 +850,9 @@ msgstr "Sprache und Formate"
 
 msgid "Language of the names"
 msgstr "Sprache der Namen"
+
+msgid "Last change"
+msgstr "Letzte Änderung"
 
 #, python-format
 msgid "Last decided %(when)s."
@@ -982,6 +1004,9 @@ msgid ""
 msgstr ""
 "Neueste zuerst. `thermaestro audit verify` auf dem Host prüft, dass keine Zeile "
 "geändert oder entfernt wurde."
+
+msgid "Next hot water"
+msgstr "Nächstes Warmwasser"
 
 msgid "Next: names and rooms"
 msgstr "Weiter: Namen und Räume"
