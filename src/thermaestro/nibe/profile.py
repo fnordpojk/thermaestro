@@ -107,6 +107,11 @@ SUPPLY_STOPPED = "the heating medium pump (GP1) is stopped, so the water at the 
 DIVERTED = (
     "the heating medium goes to the hot-water tank, so the climate system's water stands still"
 )
+POOLED = "the heating medium goes to the pool, so the climate system's water stands still"
+DEFROSTING = "the outdoor unit is defrosting, which cools the heating medium for a while"
+PRIO_POOL = (40, 41)
+DEFROST = 44703
+"""Defrosting, on the bus pumps with an outdoor unit (EB101)."""
 BRINE_STOPPED = "the brine pump (GP2) is stopped, so the brine at the sensor stands still"
 
 
@@ -139,19 +144,33 @@ def charge_starting(s: Snapshot) -> tuple[Quality, str] | None:
     return None
 
 
-def diverted(register: int, hot_water: int) -> Rule:
-    """No flow in the climate system while `register` says the water goes to the tank."""
+def diverted(register: int, elsewhere: Mapping[int, str]) -> Rule:
+    """No flow in the climate system while `register` says the heating medium goes
+    elsewhere: each such value, and where."""
 
     def rule(s: Snapshot) -> tuple[Quality, str] | None:
-        if s.values.get(register) == hot_water:
-            return "no_flow", DIVERTED
+        found = s.values.get(register)
+        if found is not None and int(found) in elsewhere:
+            return "no_flow", elsewhere[int(found)]
+        return None
+
+    return rule
+
+
+def defrosting(register: int) -> Rule:
+    """Transitional while `register` says the outdoor unit defrosts."""
+
+    def rule(s: Snapshot) -> tuple[Quality, str] | None:
+        if s.values.get(register):
+            return "transitional", DEFROSTING
         return None
 
     return rule
 
 
 compressor_changing = changing(COMPRESSOR, COMPRESSOR_STATE, COMPRESSOR_CHANGING)
-diverted_to_hot_water = diverted(PRIO, PRIO_HOT_WATER)
+diverted_by_demand = diverted(PRIO, {PRIO_HOT_WATER: DIVERTED, **dict.fromkeys(PRIO_POOL, POOLED)})
+defrost = defrosting(DEFROST)
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,12 +248,13 @@ def system_points(system: System) -> list[PointDef]:
         PointDef(
             f"{cs}/supply.temp",
             system.supply,
-            rules=(diverted_to_hot_water, *FLOW_RULES) if system.number == 1 else (),
+            rules=(diverted_by_demand, *FLOW_RULES, defrost) if system.number == 1 else (),
             validity=(
                 (
-                    f"no_flow while the demand ({PRIO}) is hot water",
+                    f"no_flow while the demand ({PRIO}) is hot water or pool",
                     f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
                     f"transitional while compressor {COMPRESSOR} starts or stops",
+                    f"transitional while the outdoor unit defrosts ({DEFROST})",
                 )
                 if system.number == 1
                 else ()
@@ -290,10 +310,11 @@ CS1_POINTS = (
     PointDef(
         "cs1/return.temp",
         40012,
-        rules=(diverted_to_hot_water, *FLOW_RULES),
+        rules=(diverted_by_demand, *FLOW_RULES, defrost),
         validity=(
-            f"no_flow while the demand ({PRIO}) is hot water",
+            f"no_flow while the demand ({PRIO}) is hot water or pool",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+            f"transitional while the outdoor unit defrosts ({DEFROST})",
         ),
     ),
     PointDef("cs1/pump.state", 43431, enum=PUMP_STATE),
@@ -535,6 +556,8 @@ class Family:
     """The register of the hot-water mode, which the hot-water block follows."""
     unit_settings: tuple[Derived, ...] = ()
     """Settings of the whole pump under standard names: the heating stop."""
+    rule_registers: tuple[int, ...] = ()
+    """Registers further rules read, where the model has them: a pool valve, defrosting."""
 
     @property
     def brine_derived(self) -> tuple[Derived, ...]:
@@ -543,7 +566,13 @@ class Family:
     @property
     def watched(self) -> tuple[int, ...]:
         """The registers the rules need, whether or not a point shows them."""
-        return (self.prio, self.compressor, self.supply_pump_speed, self.brine_pump_speed)
+        return (
+            self.prio,
+            self.compressor,
+            self.supply_pump_speed,
+            self.brine_pump_speed,
+            *self.rule_registers,
+        )
 
     def layout(self, model: ModelMap, systems: list[int], pools: Iterable[int] = ()) -> Layout:
         """The nodes and points a model has, with climate systems `systems` (1 always) and
@@ -951,6 +980,7 @@ BUS = Family(
     word_swap=WORD_SWAP,
     firmware=FIRMWARE,
     unit_settings=UNIT_SETTINGS,
+    rule_registers=(DEFROST,),
     answers_carry_next=True,
     pools=POOLS,
     hot_water_mode=HOT_WATER_MODE,

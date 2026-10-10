@@ -81,7 +81,7 @@ On the first start, the database is created and migrated, and the log shows a se
 
 ## Checks and tests
 
-CI (`.github/workflows/ci.yml`) runs these, in this order. Run them before pushing:
+CI (`.github/workflows/ci.yml`) runs these, in this order, for every push or pull request that changes more than the docs and the website (`docs/docker.md` counts as code: CI runs its backup and move). The sign-off check (`signoff.yml`) runs for every one. Run them before pushing:
 
 ```sh
 uv lock --check

@@ -198,6 +198,13 @@ async def test_a_hot_water_charge(plugin: NibePlugin, stocked: SimPump) -> None:
     assert value(plugin, "dhw/temp.charge")[1] == "good"
 
 
+async def test_pool_heating(plugin: NibePlugin, stocked: SimPump) -> None:
+    stocked.registers[43086] = 40  # prio: pool
+    await until(lambda: value(plugin, "demand")[0] == "pool")
+    assert value(plugin, "cs1/supply.temp")[1:] == ("no_flow", profile.POOLED)
+    assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.POOLED)
+
+
 async def test_a_heat_meter_that_doesnt_count(
     plugin: NibePlugin, stocked: SimPump, monkeypatch: pytest.MonkeyPatch
 ) -> None:

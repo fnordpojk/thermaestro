@@ -17,7 +17,9 @@ from ..cap.model import Lever, Verify
 from .maps import ModelMap
 from .profile import (
     BRINE_STOPPED,
+    DIVERTED,
     METER_IDLE_S,
+    POOLED,
     SUPPLY_STOPPED,
     UNIT,
     Family,
@@ -27,6 +29,7 @@ from .profile import (
     changing,
     charge_starting,
     counting,
+    defrosting,
     diverted,
     no_flow,
 )
@@ -36,6 +39,10 @@ COMPRESSOR = 31100
 SUPPLY_PUMP_SPEED = 31102
 BRINE_PUMP_SPEED = 31104
 DIVERTER = 32196
+POOL_VALVE = 31134
+"""QN19: the pool's valve. The hot-water valve stays on heating while the pool is heated."""
+DEFROST = 31805
+"""Defrosting, on the outdoor unit (EB101) of an air-source pump."""
 BRINE_IN, BRINE_OUT = 30010, 30011
 BRINE_OUT_LIMIT = 40190
 """The pump's own low brine-out alarm limit (EP14)."""
@@ -52,6 +59,13 @@ SYSTEMS = (System(1, 30005, None, offset=40030),)
 compressor_changing = changing(COMPRESSOR, COMPRESSOR_STATE, frozenset())
 """The status is off or on, so nothing is transitional by it."""
 FLOW_RULES = (no_flow(SUPPLY_PUMP_SPEED, SUPPLY_STOPPED),)
+CS1_RULES = (
+    diverted(DIVERTER, {1: DIVERTED}),
+    diverted(PRIO, {40: POOLED}),
+    diverted(POOL_VALVE, {1: POOLED}),
+    *FLOW_RULES,
+    defrosting(DEFROST),
+)
 BRINE_RULES = (no_flow(BRINE_PUMP_SPEED, BRINE_STOPPED),)
 
 UNIT_POINTS = (
@@ -89,19 +103,23 @@ CS1_POINTS = (
     PointDef(
         "cs1/supply.temp",
         30005,
-        rules=(diverted(DIVERTER, 1), *FLOW_RULES),
+        rules=CS1_RULES,
         validity=(
             f"no_flow while the diverter ({DIVERTER}) is on hot water",
+            f"no_flow while the demand ({PRIO}) is pool or the pool's valve ({POOL_VALVE}) is open",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+            f"transitional while the outdoor unit defrosts ({DEFROST})",
         ),
     ),
     PointDef(
         "cs1/return.temp",
         30007,
-        rules=(diverted(DIVERTER, 1), *FLOW_RULES),
+        rules=CS1_RULES,
         validity=(
             f"no_flow while the diverter ({DIVERTER}) is on hot water",
+            f"no_flow while the demand ({PRIO}) is pool or the pool's valve ({POOL_VALVE}) is open",
             f"no_flow when supply pump {SUPPLY_PUMP_SPEED} is 0",
+            f"transitional while the outdoor unit defrosts ({DEFROST})",
         ),
     ),
     PointDef("cs1/room.temp", 30026),
@@ -202,6 +220,7 @@ S_SERIES = Family(
     groups=definitions,
     levers=levers,
     lever_paths=("cs1/heating.offset", "dhw/mode"),
+    rule_registers=(POOL_VALVE, DEFROST),
     poll_round_s=10.0,
 )
 """The S-series: S1155, S1255, S2125, S320, SMO S40, VVM S320 and their kin, over Modbus TCP."""

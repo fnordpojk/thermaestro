@@ -192,6 +192,21 @@ async def test_the_valves_position_is_measured(plugin: NibePlugin, spump: SimSPu
     await until(lambda: value(plugin, "dhw/temp.charge")[1] == "transitional")
 
 
+async def test_pool_heating_and_defrosting(plugin: NibePlugin, spump: SimSPump) -> None:
+    await until(lambda: all_read(plugin))
+    spump.registers[31134] = 1  # QN19: the pool; QN10 stays on heating
+    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "no_flow")
+    assert value(plugin, "cs1/supply.temp")[2] == profile.POOLED
+    spump.registers[31134] = 0
+    spump.registers[31028] = 40  # priority: pool
+    await until(lambda: value(plugin, "demand")[0] == "pool")
+    assert value(plugin, "cs1/return.temp")[1:] == ("no_flow", profile.POOLED)
+    spump.registers[31028] = 30
+    spump.registers[31805] = 1  # the outdoor unit defrosts
+    await until(lambda: value(plugin, "cs1/supply.temp")[1] == "transitional")
+    assert value(plugin, "cs1/supply.temp")[2] == profile.DEFROSTING
+
+
 async def test_flow_rules(plugin: NibePlugin, spump: SimSPump) -> None:
     spump.registers[31102] = 0  # GP1 stopped
     spump.registers[31104] = 0  # GP2 stopped
