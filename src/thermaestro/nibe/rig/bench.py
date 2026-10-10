@@ -495,16 +495,24 @@ class Bench:
         return "  " + " · ".join(parts)
 
     def step(
-        self, what: str, outcome: str, detail: str | None = None, passed: bool | None = None
+        self,
+        what: str,
+        outcome: str,
+        detail: str | None = None,
+        passed: bool | None = None,
+        *,
+        quiet: bool = False,
     ) -> None:
         t = round(clock.monotonic() - self._started, 1)
         self.steps.append(Step(what, outcome, detail, passed, t))
-        mark = {True: "", False: "  FAILED", None: ""}[passed]
-        self.say(f"{what}: {outcome}{f' ({detail})' if detail else ''}{mark}")
+        if not quiet:
+            mark = {True: "", False: "  FAILED", None: ""}[passed]
+            self.say(f"{what}: {outcome}{f' ({detail})' if detail else ''}{mark}")
 
     async def ask(self, question: str) -> bool | None:
+        """Ask, and keep the answer as a step: the question was shown as it was asked."""
         answer = await self._ask(question)
-        self.step(question, {True: "yes", False: "no", None: "not answered"}[answer])
+        self.step(question, {True: "yes", False: "no", None: "not answered"}[answer], quiet=True)
         return answer
 
     async def judge(self, summary: str) -> None:
