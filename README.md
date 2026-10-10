@@ -4,7 +4,7 @@ Thermaestro plans a home's heating and hot water around electricity prices, the 
 
 It is brand-neutral: heat pumps, sensors, meters, price sources and weather forecasts come in through plugins. Nibe is the first. It is meant to replace NibePi, and is open source under the AGPL.
 
-**Status:** Thermaestro reads, and changes nothing yet. It runs read-only beside NibePi on a Nibe F1245. Planning and control are being built. There is no release yet; the Docker Compose file builds it from this repository.
+**Status:** Thermaestro reads, and changes nothing on a pump yet. It runs read-only beside NibePi on a Nibe F1245. The planner and the safe way of changing settings are built and tested against a simulated house; switching a pump's settings to shadow or control, in the web UI and over MQTT, comes next. There is no release yet; the Docker Compose file builds it from this repository.
 
 ## Features
 
@@ -18,12 +18,16 @@ Built today:
 - **Home Assistant:** Thermaestro's state is published over MQTT, with discovery.
 - **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action.
 - **A read-only probe** that reports what Thermaestro reads from a pump, for testers.
+- **Intents:** the household's goals in its own terms (warm rooms on a weekly pattern, hot water by a time, a lowest hot-water temperature, how much to favor cost over comfort) and requests for a while ("warmer, please", a bath by 19:30, away until Sunday, hands off), kept, checked and ranked. The first ones are taken from how the pump runs.
+- **A rule-based planner** that decides every 15 minutes what each setting should be, and why: the curve offset steering the coldest room, hot water kept above its floor and ready by its deadlines, heat moved to cheaper hours as far as the household allows.
+- **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found on shutdown or when something goes wrong. In shadow mode it decides the same and changes nothing.
+- **Tested against a simulated house**, hot-water tank and pump over simulated days: comfort and the hot-water floor hold, extreme prices buy neither cold nor heat, and shadow decides as control would.
 
 Coming:
 
-- **Intents:** the household's goals in its own terms, ranked, with plain reports when one can't be met.
-- **A planner** that looks a day or two ahead in 15-minute steps, using the house and the hot-water tank as heat storage.
-- **Safe control:** settings taken over, read back and put back on shutdown, and a shadow mode that shows what it would do.
+- **Control in the web UI and over MQTT:** each setting off, in shadow or in control; intents entered and ended; the plan and its reasons shown.
+- **Learning:** models of the house and the hot-water tank, and an optimizer that plans a day or two ahead with them, using the house and the tank as heat storage.
+- Grid tariffs as data, and importing NibePi's settings.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.
 
 ## Documentation

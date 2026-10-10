@@ -64,7 +64,7 @@
     </div>
     <aside class="status" aria-label="Status">
       <h4>Status</h4>
-      <p><strong>Thermaestro reads, and changes nothing yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and control are being built. There is no release yet.</p>
+      <p><strong>Thermaestro reads, and changes nothing on a pump yet.</strong> It runs read-only beside NibePi on a Nibe F1245. Intents, the planner and the safe way of changing settings are built and tested on a simulated house; switching a pump's settings to shadow or control comes next. There is no release yet.</p>
       <p>This page describes the design. <a href="#status">Where it stands</a> says what runs today.</p>
     </aside>
   </div>
@@ -326,8 +326,8 @@
 <section id="status" class="stand">
   <div class="wrap">
     <p class="kicker">Where it stands</p>
-    <h2>Reading first, control next</h2>
-    <p class="intro">Thermaestro reads, and changes nothing yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi.</p>
+    <h2>Planning built, control next</h2>
+    <p class="intro">Thermaestro reads, and changes nothing on a pump yet. It runs in Docker on its first test pump, a Nibe F1245, read-only beside NibePi. The planner is built and tested against a simulated house; the household switching its settings to shadow and then control comes next.</p>
     <div class="three">
       <div>
         <h3>Built</h3>
@@ -339,14 +339,18 @@
           <li>Home Assistant discovery over MQTT.</li>
           <li>The web interface: logins, users, groups and rights, setup, charts, an API for every action.</li>
           <li>A read-only probe that reports what Thermaestro reads from a pump, for testers.</li>
+          <li>Intents: the household's goals and requests kept, checked and ranked; the first ones taken from how the pump runs.</li>
+          <li>A rule-based planner: every 15 minutes, what each setting should be and why.</li>
+          <li>Safe changes: settings taken over, checked, read back, limited and put back; shadow mode deciding the same and changing nothing.</li>
+          <li>A simulated house, hot-water tank and pump the planner is tested against over simulated days.</li>
         </ul>
       </div>
       <div>
         <h3>Being built</h3>
         <ul>
-          <li>Intents: the household's goals are already kept and resolved, and the starting levels are taken from the pump's own settings. Nothing acts on them yet.</li>
-          <li>The planner.</li>
-          <li>Safe control: settings taken over, read back and put back, and shadow mode.</li>
+          <li>Control in the web UI and over MQTT: each setting off, in shadow or in control; intents entered; the plan and its reasons shown.</li>
+          <li>Shadow beside NibePi on the first test pump, then control.</li>
+          <li>Grid tariffs as data, and importing NibePi's settings.</li>
         </ul>
       </div>
       <div>
@@ -354,7 +358,6 @@
         <ul>
           <li>Learning: the house and hot-water tank models and the optimizer.</li>
           <li>Release images, Raspberry Pi OS packages and a beta channel.</li>
-          <li>Migration from NibePi.</li>
           <li>Testers on other pump models, once it runs reliably on the first.</li>
           <li>Other brands and heat sources, by plugin.</li>
         </ul>
