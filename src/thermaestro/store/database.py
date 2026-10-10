@@ -260,6 +260,14 @@ MIGRATIONS: tuple[str, ...] = (
         display INTEGER NOT NULL REFERENCES displays (id) ON DELETE CASCADE
     ) STRICT;
     """,
+    # 15: what the device showed when a change was asked (in shadow, would have been made),
+    # to compare with what was asked: the point it is checked by and those it writes
+    """
+    CREATE TABLE IF NOT EXISTS act_found (
+        act INTEGER PRIMARY KEY REFERENCES acts (id) ON DELETE CASCADE,
+        found TEXT NOT NULL CHECK (json_valid(found))
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

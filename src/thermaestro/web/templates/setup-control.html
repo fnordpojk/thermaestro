@@ -64,6 +64,7 @@
 <ul>
 {% for n in notices %}<li>{{ n.t | when }}: {{ n.lever | lever }}, {{ n.text }}</li>{% endfor %}
 </ul>
+<p><a href="/shadow">{{ _("Compare with what the pump showed") }}</a></p>
 </section>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Shadow vs the pump") }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<script src="/static/vendor/uPlot.iife.min.js" defer></script>
+{% endblock %}
+{% block refresh %}1{% endblock %}
+{% block main %}
+{% macro asked(op, params) %}{% if op == "set" %}{{ _("set to %(value)s", value=shown(params.value)) }}{% elif op == "engage" %}{{ _("hold") }}{% elif op == "release" %}{{ _("let go") }}{% elif op == "fire" %}{{ _("start") }}{% else %}{{ op }}{% endif %}{% endmacro %}
+{% macro shown(value, unit=none) %}{% if value is boolean %}{{ ("yes" if value else "no") | value_label }}{% elif value is integer %}{{ value | num(0) }}{% elif value is number %}{{ value | num(1) }}{% elif value is none %}–{% else %}{{ value | value_label }}{% endif %}{% if unit %} {{ unit | unit }}{% endif %}{% endmacro %}
+<h1>{{ _("Shadow vs the pump") }}</h1>
+<p>{{ _("In shadow, Thermaestro decides as it would in control and changes nothing. Here each of its decisions is set beside what the pump showed at that moment, so it can be compared with what the pump did meanwhile, by itself or as another program such as NibePi set it.") }} <a href="/plan">{{ _("Plan") }}</a> · <a href="/setup/control">{{ _("Control") }}</a></p>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+
+<form method="get" action="/shadow" class="grid">
+  <label>{{ _("Setting") }}
+    <select name="lever"><option value="">{{ _("All") }}</option>{% for ref in levers %}<option value="{{ ref }}"{% if ref == chosen %} selected{% endif %}>{{ ref | lever }}</option>{% endfor %}</select></label>
+  <label>{{ _("Period") }}
+    <select name="days">{% for n in (1, 7, 30) %}<option value="{{ n }}"{% if n == days %} selected{% endif %}>{{ ngettext("%(num)s day", "%(num)s days", n) }}</option>{% endfor %}</select></label>
+  <label>{{ _("Or one day") }} <input type="date" name="day" value="{{ day }}"></label>
+  <button type="submit">{{ _("Show") }}</button>
+</form>
+<p><a href="/api/v1/shadow.csv{% if query %}?{{ query }}{% endif %}" download>{{ _("Download as CSV") }}</a></p>
+
+{% if charted %}
+<section id="charts">
+{% for ref in charted %}
+<h2>{{ ref | lever }}</h2>
+<div class="shadow-chart" data-source="/api/v1/shadow/series?lever={{ ref | urlencode }}&amp;days={{ days }}"
+     data-decimal="{{ decimal }}" data-digits="1" data-locale="{{ formats.tag }}" data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}" data-dates="{{ formats.dates or '' }}"
+     data-labels='{{ state_labels | tojson }}'
+     data-texts='{{ {"pump": _("The pump"), "shadow": _("Shadow would have"), "held": _("held"), "released": _("released"), "started": _("started"), "none": _("nothing yet"), "empty": _("Nothing in this period."), "failed": _("The values could not be loaded.")} | tojson }}'>{{ _("Loading…") }}</div>
+{% endfor %}
+<p class="hint">{{ _("The pump's line is what it measured or was set to; shadow's is what Thermaestro would have had from each of its decisions until the next. A hold or a start shows as bands below.") }}</p>
+</section>
+{% endif %}
+
+<section id="decisions">
+<h2>{{ _("Each decision") }}</h2>
+<table>
+  <thead><tr><th>{{ _("When") }}</th><th>{{ _("Setting") }}</th><th>{{ _("Shadow would have") }}</th><th>{{ _("The pump showed") }}</th><th>{{ _("Why") }}</th></tr></thead>
+  <tbody>
+  {% for r in rows %}{% set instance = r.lever.split(":", 1)[0] %}
+    <tr>
+      <td>{{ r.t | when }}</td>
+      <td>{{ r.lever | lever }}</td>
+      <td>{{ asked(r.op, r.params) }}</td>
+      <td>{% for point, seen in r.found.items() %}{{ point_names.get(instance ~ ":" ~ point, point) }}: {{ shown(seen.value, seen.unit) }}{% if not loop.last %}<br>{% endif %}{% else %}–{% endfor %}</td>
+      <td>{{ r.why or "" }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5">{{ _("No decisions in shadow in this period.") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if rows %}<p class="hint">{{ _("A decision is recorded when what shadow would have changes; until the next one, it stands.") }}</p>{% endif %}
+</section>
+{% endblock %}

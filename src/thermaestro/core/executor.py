@@ -362,17 +362,32 @@ class Executor:
                 return await self._record(
                     ref, op, params, who, why, mode, Result("refused", refusal)
                 )
+        found = self._found(ref, lever)
         if mode == "shadow":
             self._took(claim, op, params)
             await self._save(claim)
             return await self._record(
-                ref, op, params, who, why, mode, Result("shadowed", "nothing was changed")
+                ref, op, params, who, why, mode, Result("shadowed", "nothing was changed"), found
             )
         result = await self._send(ref, lever, op, params)
         if result.outcome in TAKEN:
             self._took(claim, op, params)
             await self._save(claim)
-        return await self._record(ref, op, params, who, why, mode, result)
+        return await self._record(ref, op, params, who, why, mode, result, found)
+
+    def _found(self, ref: str, lever: Lever) -> dict[str, dict[str, Any]]:
+        """What the device shows now where a change of the lever can be compared: the point
+        it is checked by, and the ones it writes, each with its unit."""
+        instance, path = split(ref)
+        node = path.rpartition("/")[0]
+        points = [lever.verify.point] if lever.verify.point else []
+        points += [f"{node}/{t}" if node else t for t in lever.touches]
+        out: dict[str, dict[str, Any]] = {}
+        for point in dict.fromkeys(points):
+            seen = self._values.latest.get(Key(instance, point))
+            if seen is not None and seen.quality == "good":
+                out[point] = {"value": seen.value, "unit": seen.unit}
+        return out
 
     def _check(
         self,
@@ -592,15 +607,32 @@ class Executor:
         why: str | None,
         mode: LeverMode,
         result: Result,
+        found: dict[str, dict[str, Any]] | None = None,
     ) -> Result:
-        t = self._clock()
-        await self._db.run(
-            lambda tx: tx.execute(
+        row = (
+            self._clock(),
+            ref,
+            op,
+            json.dumps(params),
+            who,
+            why,
+            mode,
+            result.outcome,
+            result.detail,
+        )
+
+        def write(tx: Transaction) -> None:
+            act = tx.execute(
                 "INSERT INTO acts (t, lever, op, params, who, why, mode, outcome, detail)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (t, ref, op, json.dumps(params), who, why, mode, result.outcome, result.detail),
-            )
-        )
+                row,
+            ).lastrowid
+            if found is not None:
+                tx.execute(
+                    "INSERT INTO act_found (act, found) VALUES (?, ?)", (act, json.dumps(found))
+                )
+
+        await self._db.run(write)
         if (
             result.outcome in COUNTED
             or result.outcome == "dropped"

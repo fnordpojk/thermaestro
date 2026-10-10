@@ -8,7 +8,7 @@ change made elsewhere needs `levers.control`, with the password entered again.
 """
 
 import json
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any
 
 from .. import clock
@@ -26,12 +26,17 @@ if TYPE_CHECKING:
     from ..core.executor import Executor
     from ..core.host import PluginHost
     from ..core.sensors import SensorHub
+    from ..core.values import Values
     from ..intents import Intents
     from ..planner import Planner
     from ..store import Database
     from .operations import Caller
 
 MODES = ("off", "shadow", "control")
+SHADOW_DAYS = 30
+"""How far back shadow's decisions are shown beside the pump."""
+STARTED_S = 15 * 60
+"""How long a charge shadow would have started is drawn: the wait for its effect."""
 
 
 class ControlOperations:
@@ -45,6 +50,7 @@ class ControlOperations:
         executor: Executor | None
         planner: Planner | None
         sensors: SensorHub | None
+        values: Values
         zone: tzinfo
 
         def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None: ...
@@ -406,6 +412,121 @@ class ControlOperations:
             }
             for t, lever, op, params, who, why, mode, outcome, detail in rows
         ]
+
+    # --- shadow beside the pump ------------------------------------------------------------
+
+    def _shadow_span(self, days: int, day: str | None) -> tuple[float, float]:
+        """The last `days` (at most SHADOW_DAYS), or one day (`YYYY-MM-DD`, the house's)."""
+        if day:
+            try:
+                first = datetime.fromisoformat(day).replace(tzinfo=self.zone)
+            except ValueError:
+                raise AccountError(f"{day!r} is not a day") from None
+            first = first.replace(hour=0, minute=0, second=0, microsecond=0)
+            return first.timestamp(), (first + timedelta(days=1)).timestamp()
+        end = clock.time()
+        return end - max(1, min(days, SHADOW_DAYS)) * 86400, end
+
+    async def shadow_log(
+        self, caller: "Caller", *, days: int = 7, lever: str | None = None, day: str | None = None
+    ) -> list[dict[str, Any]]:
+        """What shadow would have done, newest first, each with what the device showed
+        then (`found`: point → value and unit): over the last `days`, at most 30, or one
+        day; for one lever or all."""
+        caller.principal.require("plan.read")
+        start, end = self._shadow_span(days, day)
+
+        def read(t: Any) -> list[tuple[Any, ...]]:
+            sql = (
+                "SELECT t, lever, op, params, why, found FROM acts"
+                " LEFT JOIN act_found ON act_found.act = acts.id"
+                " WHERE mode = 'shadow' AND outcome = 'shadowed' AND t >= ? AND t < ?"
+            )
+            args: tuple[Any, ...] = (start, end)
+            if lever:
+                sql, args = sql + " AND lever = ?", (*args, lever)
+            return list(t.execute(sql + " ORDER BY t DESC LIMIT 5000", args))
+
+        return [
+            {
+                "t": datetime.fromtimestamp(t, UTC).isoformat(),
+                "lever": ref,
+                "op": op,
+                "params": json.loads(params),
+                "why": why,
+                "found": json.loads(found) if found else {},
+            }
+            for t, ref, op, params, why, found in await self.db.run(read)
+        ]
+
+    async def shadow_series(self, caller: "Caller", lever: str, days: int = 7) -> dict[str, Any]:
+        """For a chart: what the device showed at the point the lever is checked by, and
+        what shadow would have had, over the last `days` (at most 30). Shadow's are steps:
+        a setting's value; a hold's `held` or `released`; a trigger's `started`, drawn for
+        the wait for its effect."""
+        from ..core import Key
+        from .operations import NotFound
+
+        caller.principal.require("plan.read")
+        caller.principal.require("points.read")
+        found = self._executor().lever(lever)
+        if found is None or found.verify.point is None:
+            raise NotFound(f"nothing to compare {lever} with")
+        instance, _ = lever.split(":", 1)
+        point = found.verify.point
+        start, end = self._shadow_span(days, None)
+
+        def read(t: Any) -> list[tuple[Any, ...]]:
+            before = t.execute(
+                "SELECT t, op, params FROM acts WHERE lever = ? AND mode = 'shadow'"
+                " AND outcome = 'shadowed' AND t < ? ORDER BY t DESC LIMIT 1",
+                (lever, start),
+            ).fetchall()
+            during = t.execute(
+                "SELECT t, op, params FROM acts WHERE lever = ? AND mode = 'shadow'"
+                " AND outcome = 'shadowed' AND t >= ? AND t < ? ORDER BY t",
+                (lever, start, end),
+            ).fetchall()
+            return [*before, *during]
+
+        shadow: list[dict[str, Any]] = []
+        for t, op, params in await self.db.run(read):
+            at = max(t, start)
+            if op == "fire":
+                shadow += [{"t": at, "value": "started"}, {"t": at + STARTED_S, "value": None}]
+            elif op in ("engage", "release"):
+                shadow.append({"t": at, "value": "held" if op == "engage" else "released"})
+            else:
+                shadow.append({"t": at, "value": json.loads(params).get("value")})
+        samples = await self.values.history(Key(instance, point), start, end)
+        latest = self.values.latest.get(Key(instance, point))
+        return {
+            "lever": lever,
+            "point": point,
+            "unit": latest.unit if latest is not None else None,
+            "start": start,
+            "end": end,
+            "pump": [
+                {"t": s.t, "value": s.value, "text": s.text, "quality": s.quality} for s in samples
+            ],
+            "shadow": [s for s in shadow if s["t"] < end],
+        }
+
+    async def shadow_levers(self, caller: "Caller", days: int = SHADOW_DAYS) -> list[str]:
+        """The levers in shadow now, or with shadow's decisions in the last `days`."""
+        caller.principal.require("plan.read")
+        control = await self.db.get(Control) or Control()
+        since = clock.time() - days * 86400
+
+        def read(t: Any) -> list[str]:
+            rows = t.execute(
+                "SELECT DISTINCT lever FROM acts WHERE mode = 'shadow' AND t >= ?", (since,)
+            )
+            return [row[0] for row in rows]
+
+        recorded = await self.db.run(read)
+        now = [ref for ref, mode in control.levers.items() if mode == "shadow"]
+        return sorted(set(recorded) | set(now))
 
     def plan(self, caller: "Caller") -> dict[str, Any]:
         """The planner's last round: each decision with its reason and what became of it;

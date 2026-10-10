@@ -407,6 +407,33 @@ async def test_every_kind_can_be_changed_on_the_page(tmp_path: Path) -> None:
             assert f'action="/intents/{intent.id}/edit"' in page.text, intent.kind
 
 
+async def test_shadow_beside_the_pump(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        headers = await login(client, "admin")
+        await r.executor.set_mode(OFFSET, "shadow", who="admin")
+        assert (await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")).outcome == (
+            "shadowed"
+        )
+        page = await client.get("/shadow")
+        assert page.status_code == 200
+        assert "set to 2" in page.text
+        assert "shadow-chart" in page.text
+        logged = (await client.get("/api/v1/shadow?days=1", headers=headers)).json()
+        assert [(x["lever"], x["params"]) for x in logged] == [(OFFSET, {"value": 2})]
+        assert logged[0]["found"]["hp1/x.fake.offset"]["value"] == -4
+        exported = await client.get(f"/api/v1/shadow.csv?lever={OFFSET}", headers=headers)
+        assert exported.headers["content-type"].startswith("text/csv")
+        lines = exported.text.splitlines()
+        assert lines[0] == "time,lever,asked,value,the device showed,why"
+        assert f"{OFFSET},set,2,hp1/x.fake.offset=-4" in lines[1]
+        series = (
+            await client.get(f"/api/v1/shadow/series?lever={OFFSET}&days=1", headers=headers)
+        ).json()
+        assert series["point"] == "hp1/x.fake.offset"
+        assert [s["value"] for s in series["shadow"]] == [2]
+        assert (await client.get("/shadow?day=nonsense")).status_code == 200  # said, not raised
+
+
 async def test_the_overview_asks_for_a_while(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

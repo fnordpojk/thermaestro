@@ -1,9 +1,12 @@
 """The API for control: intents and levels, setup's answers about the house, the levers
 and their modes, and the plan."""
 
+import csv
+import io
+from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
 from .app import action, caller, services
@@ -175,3 +178,59 @@ async def changes(request: Request, who: Logged, hours: float = 24.0) -> list[di
     """Every change asked in the last `hours` (at most a week), newest first: made, shadowed
     or refused, with who asked, why, and what became of it."""
     return await services(request).recent_acts(who, min(max(hours, 0.0), 168.0))
+
+
+@router.get("/shadow")
+@action("shadow.read")
+async def shadow(
+    request: Request, who: Logged, days: int = 7, lever: str = "", day: str = ""
+) -> list[dict[str, Any]]:
+    """What shadow would have done, newest first, each with what the device showed then
+    (`found`: point → `{value, unit}`): over the last `days` (at most 30), or one `day`
+    (`YYYY-MM-DD`, the house's), for one `lever` or all."""
+    return await services(request).shadow_log(who, days=days, lever=lever or None, day=day or None)
+
+
+@router.get("/shadow/series")
+@action("shadow.series")
+async def shadow_series(request: Request, who: Logged, lever: str, days: int = 7) -> dict[str, Any]:
+    """For a chart of a lever in shadow: `pump`, the history of the point it is checked by,
+    and `shadow`, what shadow would have had as steps `{t, value}` (a setting's value; a
+    hold's `held` or `released`; a trigger's `started`)."""
+    return await services(request).shadow_series(who, lever, days)
+
+
+@router.get("/shadow.csv")
+@action("shadow.export")
+async def shadow_csv(
+    request: Request, who: Logged, days: int = 7, lever: str = "", day: str = ""
+) -> Response:
+    """The same as `GET /shadow`, as CSV: one row per decision, the time in the house's
+    zone, what the device showed as `point=value unit` pairs."""
+    s = services(request)
+    rows = await s.shadow_log(who, days=days, lever=lever or None, day=day or None)
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["time", "lever", "asked", "value", "the device showed", "why"])
+    for row in rows:
+        local = datetime.fromisoformat(row["t"]).astimezone(s.zone)
+        shown = "; ".join(
+            f"{point}={seen.get('value')}" + (f" {seen['unit']}" if seen.get("unit") else "")
+            for point, seen in row["found"].items()
+        )
+        value = row["params"].get("value")
+        writer.writerow(
+            [
+                local.isoformat(timespec="seconds"),
+                row["lever"],
+                row["op"],
+                "" if value is None else value,
+                shown,
+                row["why"] or "",
+            ]
+        )
+    return Response(
+        out.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="thermaestro-shadow.csv"'},
+    )

@@ -6,6 +6,7 @@ operations as the API."""
 import re
 from datetime import datetime, tzinfo
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
@@ -238,6 +239,50 @@ async def plan_page(request: Request, who: Logged) -> Response:
         changes=await s.recent_acts(who),
         scopes=s.intent_scopes(who),
         ranks=RANKS,
+    )
+
+
+@router.get("/shadow")
+async def shadow_page(
+    request: Request, who: Logged, days: int = 7, lever: str = "", day: str = ""
+) -> Response:
+    """Shadow beside the pump: for each lever, a chart of what the pump showed and what
+    shadow would have had; then each decision with what the pump showed then."""
+    from . import i18n, labels
+
+    s = services(request)
+    error = None
+    try:
+        rows = await s.shadow_log(who, days=days, lever=lever or None, day=day or None)
+    except AccountError as e:
+        rows, error = [], _message(e)
+    levers = await s.shadow_levers(who)
+    readable = who.principal.allows("points.read")
+    point_names: dict[str, str] = {}
+    for row in rows:
+        instance = row["lever"].split(":", 1)[0]
+        for point in row["found"]:
+            key = f"{instance}:{point}"
+            if key not in point_names:
+                point_names[key] = s.point_label(who, instance, point) if readable else point
+    query = urlencode({k: v for k, v in (("days", days), ("lever", lever), ("day", day)) if v})
+    return render(
+        request,
+        "shadow.html",
+        who,
+        rows=rows,
+        levers=levers,
+        charted=([lever] if lever else levers) if readable else [],
+        days=min(max(days, 1), 30),
+        chosen=lever,
+        day=day,
+        point_names=point_names,
+        query=query,
+        error=error,
+        decimal=i18n.decimal_symbol(),
+        zone=i18n.zone_name(),
+        formats=i18n.formats.get(),
+        state_labels={text: labels.value(text) for text in labels.VALUES},
     )
 
 

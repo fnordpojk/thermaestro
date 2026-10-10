@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 20:41+0200\n"
+"POT-Creation-Date: 2026-10-10 21:03+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -52,6 +52,12 @@ msgstr "%(n)s min"
 #, python-format
 msgid "%(n)s so far"
 msgstr "%(n)s hittills"
+
+#, python-format
+msgid "%(num)s day"
+msgid_plural "%(num)s days"
+msgstr[0] "%(num)s dag"
+msgstr[1] "%(num)s dagar"
 
 #, python-format
 msgid "%(offset)s °C on whatever band is in force"
@@ -135,6 +141,11 @@ msgid ""
 msgstr ""
 "Ett klimatsystem utan rumsgivare: dess vanliga värme, flyttad efter priset högst så "
 "här många av pumpens förskjutningssteg."
+
+msgid ""
+"A decision is recorded when what shadow would have changes; until the next one, it "
+"stands."
+msgstr "Ett beslut sparas när det skuggan skulle ha haft ändras; det gäller tills nästa."
 
 msgid "A fireplace is on"
 msgstr "En brasa brinner"
@@ -243,6 +254,9 @@ msgstr "Luftflöde"
 
 msgid "Alarm"
 msgstr "Larm"
+
+msgid "All"
+msgstr "Alla"
 
 msgid "All the pump's values"
 msgstr "Alla pumpens värden"
@@ -453,6 +467,9 @@ msgstr "Komfort"
 msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
 msgstr "Komfort: ett intervall för ett klimatsystem eller ett rum, efter ett veckoschema"
 
+msgid "Compare with what the pump showed"
+msgstr "Jämför med vad pumpen visade"
+
 msgid "Compressor"
 msgstr "Kompressor"
 
@@ -561,6 +578,12 @@ msgstr "Dörr öppen"
 
 msgid "Download"
 msgstr "Ladda ner"
+
+msgid "Download as CSV"
+msgstr "Ladda ner som CSV"
+
+msgid "Each decision"
+msgstr "Varje beslut"
 
 msgid ""
 "Each room has its own sensors, and a comfort band of its own later. A room's "
@@ -845,6 +868,17 @@ msgstr "ISO 8601 (2026-10-06)"
 msgid "In control now"
 msgstr "Styrs nu"
 
+msgid ""
+"In shadow, Thermaestro decides as it would in control and changes nothing. Here each "
+"of its decisions is set beside what the pump showed at that moment, so it can be "
+"compared with what the pump did meanwhile, by itself or as another program such as "
+"NibePi set it."
+msgstr ""
+"I skugga beslutar Thermaestro som det skulle i styrning och ändrar ingenting. Här "
+"står varje beslut bredvid vad pumpen visade i det ögonblicket, så att det kan "
+"jämföras med vad pumpen gjorde under tiden, av sig själv eller som ett annat program,"
+" till exempel NibePi, ställde in den."
+
 msgid "Instance"
 msgstr "Instans"
 
@@ -929,6 +963,9 @@ msgstr "Ljus"
 
 msgid "Limits"
 msgstr "Gränser"
+
+msgid "Loading…"
+msgstr "Laddar…"
 
 msgid "Local port"
 msgstr "Lokal port"
@@ -1076,6 +1113,9 @@ msgstr ""
 "Inga dagar ikryssade: varje dag. Inga tider: hela dagen. Ett steg som slutar före det"
 " börjar går över midnatt. Ett steg utan nivå tas inte med."
 
+msgid "No decisions in shadow in this period."
+msgstr "Inga beslut i skugga under den här perioden."
+
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
 
@@ -1139,6 +1179,9 @@ msgstr "Inget begärt än."
 
 msgid "Nothing asked in the last day."
 msgstr "Inget begärt det senaste dygnet."
+
+msgid "Nothing in this period."
+msgstr "Inget under den här perioden."
 
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
@@ -1232,6 +1275,9 @@ msgstr "Eller en varmvattentopp, °C"
 msgid "Or a level"
 msgstr "Eller en nivå"
 
+msgid "Or one day"
+msgstr "Eller en dag"
+
 msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
 msgstr "Eller säg det: ett bad kl 19.30, borta till söndag, lite varmare till 22"
 
@@ -1264,6 +1310,9 @@ msgstr "Lösenord"
 
 msgid "Per 15 minutes"
 msgstr "Per kvart"
+
+msgid "Period"
+msgstr "Period"
 
 msgid "Personal access token"
 msgstr "Personlig åtkomsttoken"
@@ -1508,8 +1557,17 @@ msgstr "Installationskod"
 msgid "Shadow"
 msgstr "Skugga"
 
+msgid "Shadow vs the pump"
+msgstr "Skugga mot pumpen"
+
+msgid "Shadow would have"
+msgstr "Skuggan skulle ha"
+
 msgid "Should be met; may give way."
 msgstr "Bör uppfyllas; kan ge vika."
+
+msgid "Show"
+msgstr "Visa"
 
 msgid "Show its sources"
 msgstr "Visa dess källor"
@@ -1685,6 +1743,9 @@ msgstr "Poolen"
 msgid "The power limit"
 msgstr "Effektgränsen"
 
+msgid "The pump"
+msgstr "Pumpen"
+
 msgid ""
 "The pump doesn't measure the brine flow. With a flow from the installation (its "
 "papers, or the installer's setting), Thermaestro estimates the heat taken from the "
@@ -1693,6 +1754,9 @@ msgstr ""
 "Pumpen mäter inte köldbärarflödet. Med ett flöde från installationen (dess papper "
 "eller installatörens inställning) uppskattar Thermaestro värmen som tas ur marken, "
 "med flödet skalat efter köldbärarpumpens hastighet."
+
+msgid "The pump showed"
+msgstr "Pumpen visade"
 
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"
@@ -1706,6 +1770,15 @@ msgstr ""
 "Pumpens gateway på %(host)s tar emot vanliga NibeGW-skrivningar på port %(port)s: vem"
 " som helst på ditt nätverk kan ändra pumpens inställningar genom den, inte bara "
 "Thermaestro. Thermaestros gatewayprotokoll, med sin nyckel, stänger det."
+
+msgid ""
+"The pump's line is what it measured or was set to; shadow's is what Thermaestro would"
+" have had from each of its decisions until the next. A hold or a start shows as bands"
+" below."
+msgstr ""
+"Pumpens linje är vad den mätte eller var inställd på; skuggans är vad Thermaestro "
+"skulle ha haft från varje beslut till nästa. Ett hållande eller en start visas som "
+"band nedanför."
 
 msgid "The pump's own features that change the same, and must be off"
 msgstr "Pumpens egna funktioner som ändrar samma sak, och måste vara avstängda"
@@ -2332,6 +2405,9 @@ msgstr "rör inte pumpen i 2 dagar"
 msgid "heating"
 msgstr "värme"
 
+msgid "held"
+msgstr "håller"
+
 msgid "held now"
 msgstr "hålls nu"
 
@@ -2457,6 +2533,9 @@ msgstr "inte ansluten"
 msgid "nothing of its own"
 msgstr "inget eget"
 
+msgid "nothing yet"
+msgstr "inget ännu"
+
 msgid "off"
 msgstr "av"
 
@@ -2537,6 +2616,9 @@ msgstr "referens"
 msgid "refused"
 msgstr "nekat"
 
+msgid "released"
+msgstr "släppt"
+
 msgid "restarting"
 msgstr "startar om"
 
@@ -2587,6 +2669,9 @@ msgstr "inaktuellt"
 
 msgid "start"
 msgstr "starta"
+
+msgid "started"
+msgstr "startad"
 
 msgid "starting"
 msgstr "startar"

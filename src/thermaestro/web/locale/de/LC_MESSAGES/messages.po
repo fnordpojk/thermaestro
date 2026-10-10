@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 20:41+0200\n"
+"POT-Creation-Date: 2026-10-10 21:03+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -52,6 +52,12 @@ msgstr "%(n)s min"
 #, python-format
 msgid "%(n)s so far"
 msgstr "bisher %(n)s"
+
+#, python-format
+msgid "%(num)s day"
+msgid_plural "%(num)s days"
+msgstr[0] "%(num)s Tag"
+msgstr[1] "%(num)s Tage"
 
 #, python-format
 msgid "%(offset)s °C on whatever band is in force"
@@ -136,6 +142,13 @@ msgid ""
 msgstr ""
 "Ein Heizsystem ohne Raumfühler: seine normale Wärme, nach dem Preis um höchstens so "
 "viele Verschiebungsschritte der Pumpe bewegt."
+
+msgid ""
+"A decision is recorded when what shadow would have changes; until the next one, it "
+"stands."
+msgstr ""
+"Eine Entscheidung wird festgehalten, wenn sich ändert, was der Schatten hätte; sie "
+"gilt bis zur nächsten."
 
 msgid "A fireplace is on"
 msgstr "Ein Kaminfeuer brennt"
@@ -245,6 +258,9 @@ msgstr "Luftstrom"
 
 msgid "Alarm"
 msgstr "Alarm"
+
+msgid "All"
+msgstr "Alle"
 
 msgid "All the pump's values"
 msgstr "Alle Werte der Pumpe"
@@ -456,6 +472,9 @@ msgstr "Komfort"
 msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
 msgstr "Komfort: ein Band für ein Heizsystem oder einen Raum, nach einem Wochenplan"
 
+msgid "Compare with what the pump showed"
+msgstr "Mit dem vergleichen, was die Pumpe zeigte"
+
 msgid "Compressor"
 msgstr "Verdichter"
 
@@ -564,6 +583,12 @@ msgstr "Tür offen"
 
 msgid "Download"
 msgstr "Herunterladen"
+
+msgid "Download as CSV"
+msgstr "Als CSV herunterladen"
+
+msgid "Each decision"
+msgstr "Jede Entscheidung"
 
 msgid ""
 "Each room has its own sensors, and a comfort band of its own later. A room's "
@@ -853,6 +878,17 @@ msgstr "ISO 8601 (2026-10-06)"
 msgid "In control now"
 msgstr "Jetzt gesteuert"
 
+msgid ""
+"In shadow, Thermaestro decides as it would in control and changes nothing. Here each "
+"of its decisions is set beside what the pump showed at that moment, so it can be "
+"compared with what the pump did meanwhile, by itself or as another program such as "
+"NibePi set it."
+msgstr ""
+"Im Schatten entscheidet Thermaestro wie in der Steuerung und ändert nichts. Hier "
+"steht jede Entscheidung neben dem, was die Pumpe in diesem Moment zeigte, damit sie "
+"mit dem verglichen werden kann, was die Pumpe inzwischen tat, von selbst oder wie ein"
+" anderes Programm wie NibePi sie einstellte."
+
 msgid "Instance"
 msgstr "Instanz"
 
@@ -937,6 +973,9 @@ msgstr "Licht"
 
 msgid "Limits"
 msgstr "Grenzen"
+
+msgid "Loading…"
+msgstr "Wird geladen…"
 
 msgid "Local port"
 msgstr "Lokaler Port"
@@ -1084,6 +1123,9 @@ msgstr ""
 "Keine Tage angekreuzt: jeden Tag. Keine Zeiten: den ganzen Tag. Ein Schritt, der vor "
 "seinem Beginn endet, läuft über Mitternacht. Ein Schritt ohne Stufe entfällt."
 
+msgid "No decisions in shadow in this period."
+msgstr "Keine Entscheidungen im Schatten in diesem Zeitraum."
+
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Noch keine Vorhersage: Wählen Sie unter Einrichtung einen Hauptanbieter."
 
@@ -1149,6 +1191,9 @@ msgstr "Noch nichts gewünscht."
 
 msgid "Nothing asked in the last day."
 msgstr "In den letzten 24 Stunden nichts gewünscht."
+
+msgid "Nothing in this period."
+msgstr "Nichts in diesem Zeitraum."
 
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
@@ -1245,6 +1290,9 @@ msgstr "Oder eine Warmwasser-Obergrenze, °C"
 msgid "Or a level"
 msgstr "Oder eine Stufe"
 
+msgid "Or one day"
+msgstr "Oder ein Tag"
+
 msgid "Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22"
 msgstr "Oder sagen Sie es: ein Bad um 19:30, weg bis Sonntag, etwas wärmer bis 22"
 
@@ -1277,6 +1325,9 @@ msgstr "Passwort"
 
 msgid "Per 15 minutes"
 msgstr "Je Viertelstunde"
+
+msgid "Period"
+msgstr "Zeitraum"
 
 msgid "Personal access token"
 msgstr "Persönliches Zugriffstoken"
@@ -1521,8 +1572,17 @@ msgstr "Einrichtungscode"
 msgid "Shadow"
 msgstr "Schatten"
 
+msgid "Shadow vs the pump"
+msgstr "Schatten gegen Pumpe"
+
+msgid "Shadow would have"
+msgstr "Der Schatten hätte"
+
 msgid "Should be met; may give way."
 msgstr "Sollte erfüllt werden; kann nachgeben."
+
+msgid "Show"
+msgstr "Anzeigen"
 
 msgid "Show its sources"
 msgstr "Quellen der Zone zeigen"
@@ -1700,6 +1760,9 @@ msgstr "Der Pool"
 msgid "The power limit"
 msgstr "Die Leistungsgrenze"
 
+msgid "The pump"
+msgstr "Die Pumpe"
+
 msgid ""
 "The pump doesn't measure the brine flow. With a flow from the installation (its "
 "papers, or the installer's setting), Thermaestro estimates the heat taken from the "
@@ -1708,6 +1771,9 @@ msgstr ""
 "Die Pumpe misst den Soledurchfluss nicht. Mit einem Durchfluss aus der Installation "
 "(ihren Unterlagen oder der Einstellung des Installateurs) schätzt Thermaestro die dem"
 " Boden entzogene Wärme, den Durchfluss nach der Drehzahl der Solepumpe skaliert."
+
+msgid "The pump showed"
+msgstr "Die Pumpe zeigte"
 
 msgid "The pump's connection"
 msgstr "Verbindung zur Pumpe"
@@ -1722,6 +1788,15 @@ msgstr ""
 "%(port)s an: Jeder in Ihrem Netzwerk kann darüber die Einstellungen der Pumpe ändern,"
 " nicht nur Thermaestro. Das Thermaestro-Gateway-Protokoll mit seinem Schlüssel "
 "schließt das."
+
+msgid ""
+"The pump's line is what it measured or was set to; shadow's is what Thermaestro would"
+" have had from each of its decisions until the next. A hold or a start shows as bands"
+" below."
+msgstr ""
+"Die Linie der Pumpe ist, was sie gemessen hat oder worauf sie eingestellt war; die "
+"des Schattens, was Thermaestro von jeder Entscheidung bis zur nächsten gehabt hätte. "
+"Ein Halten oder ein Start erscheint als Band darunter."
 
 msgid "The pump's own features that change the same, and must be off"
 msgstr "Die eigenen Funktionen der Pumpe, die dasselbe ändern und aus sein müssen"
@@ -2361,6 +2436,9 @@ msgstr "Finger weg für 2 Tage"
 msgid "heating"
 msgstr "Heizung"
 
+msgid "held"
+msgstr "gehalten"
+
 msgid "held now"
 msgstr "jetzt gehalten"
 
@@ -2490,6 +2568,9 @@ msgstr "nicht angeschlossen"
 msgid "nothing of its own"
 msgstr "nichts Eigenes"
 
+msgid "nothing yet"
+msgstr "noch nichts"
+
 msgid "off"
 msgstr "aus"
 
@@ -2570,6 +2651,9 @@ msgstr "Referenz"
 msgid "refused"
 msgstr "abgelehnt"
 
+msgid "released"
+msgstr "freigegeben"
+
 msgid "restarting"
 msgstr "startet neu"
 
@@ -2620,6 +2704,9 @@ msgstr "veraltet"
 
 msgid "start"
 msgstr "starten"
+
+msgid "started"
+msgstr "gestartet"
 
 msgid "starting"
 msgstr "startet"

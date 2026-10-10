@@ -98,6 +98,22 @@ async def test_a_lever_is_off_until_the_household_turns_it_on(tmp_path: Path) ->
         assert r.executor.claims == {}
 
 
+async def test_what_the_device_showed_is_kept_with_each_change(tmp_path: Path) -> None:
+    """In shadow as in control: to compare what was asked with what the device had."""
+    async with rig(tmp_path, {OFFSET: "shadow", BLOCK: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(BLOCK, "engage", who="planner")
+        with closing(sqlite3.connect(tmp_path / "t.db")) as raw:
+            found = {
+                lever: json.loads(f)
+                for lever, f in raw.execute(
+                    "SELECT lever, found FROM acts JOIN act_found ON act_found.act = acts.id"
+                )
+            }
+        assert {p: v["value"] for p, v in found[OFFSET].items()} == {"hp1/x.fake.offset": -4}
+        assert set(found[BLOCK]) == {"hp1/x.fake.start"}
+
+
 async def test_a_change_is_claimed_sent_and_read_back(tmp_path: Path) -> None:
     async with rig(tmp_path, {OFFSET: "control"}) as r:
         result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner", why="cheap")

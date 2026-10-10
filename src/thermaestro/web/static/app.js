@@ -1280,6 +1280,187 @@ function meteogram(box) {
   draw();
 }
 
+// Shadow beside the pump, for one setting: what the pump showed (a line, or bands for named
+// values such as the demand) and what shadow would have had (a stepped line on the same
+// scale where both are numbers, else bands). Each of shadow's values stands until its next.
+async function shadowChart(chart) {
+  if (typeof uPlot === "undefined") {
+    return;
+  }
+  const texts = JSON.parse(chart.dataset.texts || "{}");
+  const named = JSON.parse(chart.dataset.labels || "{}");
+  const decimal = chart.dataset.decimal || ".";
+  const digits = Number(chart.dataset.digits || 1);
+  const format = (v) => (v === null || v === undefined ? "–" : v.toFixed(digits).replace(".", decimal));
+  const clock = chart.dataset.clock;
+  const short = new Intl.DateTimeFormat(chart.dataset.locale || undefined, {
+    timeZone: chart.dataset.zone || "UTC",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: clock === "12" ? "h12" : clock === "24" ? "h23" : undefined,
+  });
+  const moment = (seconds) => short.format(new Date(seconds * 1000));
+  const name = (value) => {
+    if (typeof value === "number") {
+      return format(value);
+    }
+    const text = texts[value] || named[value] || String(value);
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+  let data;
+  try {
+    const response = await fetch(chart.dataset.source, { credentials: "same-origin" });
+    if (!response.ok) {
+      throw new Error(String(response.status));
+    }
+    data = await response.json();
+  } catch (e) {
+    chart.textContent = texts.failed;
+    return;
+  }
+  const { start, end, shadow } = data;
+  const pump = data.pump.filter((s) => s.quality === "good" && (s.value !== null || s.text !== null));
+  if (!pump.length && !shadow.length) {
+    chart.textContent = texts.empty;
+    return;
+  }
+  const isNumber = (v) => typeof v === "number";
+  const pumpNumbers = pump.length > 0 && pump.every((s) => s.text === null && isNumber(s.value));
+  const shadowNumbers = shadow.length > 0 && shadow.every((s) => s.value === null || isNumber(s.value));
+  const style = getComputedStyle(document.body);
+  const color = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
+  const axis = {
+    stroke: color("--fg", "#1d1f21"),
+    grid: { stroke: color("--line", "#d9dcde"), width: 1 },
+    ticks: { stroke: color("--line", "#d9dcde"), width: 1 },
+  };
+  const REST = new Set(["off", "idle", "stopped", "no", "released"]);
+
+  // Each step holds until the next, within the period.
+  function runs(steps) {
+    return steps
+      .map((s, i) => ({
+        value: s.value,
+        from: Math.max(s.t, start),
+        to: Math.min(i + 1 < steps.length ? steps[i + 1].t : end, end),
+      }))
+      .filter((r) => r.to > r.from);
+  }
+
+  function bandRow(title, found) {
+    const wrap = document.createElement("div");
+    const heading = document.createElement("p");
+    heading.className = "band-title";
+    heading.textContent = title;
+    const row = document.createElement("div");
+    row.className = "bands";
+    const classes = {};
+    let next = 0;
+    for (const r of found) {
+      if (r.value !== null && !(r.value in classes)) {
+        classes[r.value] = REST.has(r.value) ? "band-rest" : `band-${next++ % 6}`;
+      }
+    }
+    const total = end - start;
+    for (const r of found) {
+      if (r.value === null) {
+        continue;
+      }
+      const part = document.createElement("span");
+      part.className = classes[r.value];
+      part.style.left = `${((r.from - start) / total) * 100}%`;
+      part.style.width = `${((r.to - r.from) / total) * 100}%`;
+      part.title = `${name(r.value)}: ${moment(r.from)} – ${moment(r.to)}`;
+      if ((r.to - r.from) / total > 0.08) {
+        part.textContent = name(r.value);
+      }
+      row.append(part);
+    }
+    wrap.append(heading, row);
+    return wrap;
+  }
+
+  chart.textContent = "";
+  if (pumpNumbers) {
+    const times = [
+      ...new Set([...pump.map((s) => s.t), ...(shadowNumbers ? shadow.map((s) => s.t) : []), end]),
+    ].sort((a, b) => a - b);
+    const measured = new Map(pump.map((s) => [s.t, s.value]));
+    const stepAt = (t) => {
+      let value = null;
+      for (const s of shadow) {
+        if (s.t > t) {
+          break;
+        }
+        value = s.value;
+      }
+      return value;
+    };
+    const series = [
+      { value: (u, v) => (v === null ? "–" : moment(v)) },
+      { label: texts.pump, value: (u, v) => format(v), stroke: color("--accent", "#b5462a"), width: 2, spanGaps: true },
+    ];
+    const columns = [times, times.map((t) => (measured.has(t) ? measured.get(t) : null))];
+    if (shadowNumbers) {
+      series.push({
+        label: texts.shadow,
+        value: (u, v) => format(v),
+        stroke: color("--muted", "#5f6368"),
+        width: 2,
+        dash: [6, 4],
+        paths: uPlot.paths.stepped({ align: 1 }),
+      });
+      columns.push(times.map(stepAt));
+    }
+    const box = document.createElement("div");
+    chart.append(box);
+    const plot = new uPlot(
+      {
+        width: chart.clientWidth || 800,
+        height: 260,
+        series,
+        axes: [
+          { values: (u, values) => values.map(moment), space: 110, ...axis },
+          { values: (u, values) => values.map(format), ...axis },
+        ],
+      },
+      columns,
+      box,
+    );
+    chart.plot = plot;
+  } else if (pump.length) {
+    chart.append(bandRow(texts.pump, runs(pump.map((s) => ({ t: s.t, value: s.text ?? s.value })))));
+  }
+  if (shadow.length && !(pumpNumbers && shadowNumbers)) {
+    chart.append(bandRow(texts.shadow, runs(shadow)));
+  } else if (!shadow.length) {
+    const none = document.createElement("p");
+    none.className = "hint";
+    none.textContent = `${texts.shadow}: ${texts.none}`;
+    chart.append(none);
+  }
+  if (!pumpNumbers) {
+    const ticks = document.createElement("div");
+    ticks.className = "band-axis";
+    for (let i = 0; i <= 4; i++) {
+      const tick = document.createElement("span");
+      tick.textContent = moment(start + ((end - start) * i) / 4);
+      ticks.append(tick);
+    }
+    chart.append(ticks);
+  }
+}
+// One listener for every such chart, those a refresh brings too.
+window.addEventListener("resize", () => {
+  for (const chart of document.querySelectorAll(".shadow-chart")) {
+    if (chart.plot) {
+      chart.plot.setSize({ width: chart.clientWidth, height: 260 });
+    }
+  }
+});
+
 // The charts and switches in a part of the page: on loading, and in what a refresh brings.
 function charts(root) {
   viewSwitches(root);
@@ -1288,6 +1469,9 @@ function charts(root) {
   }
   for (const box of root.querySelectorAll("[data-meteogram]")) {
     meteogram(box);
+  }
+  for (const box of root.querySelectorAll(".shadow-chart")) {
+    shadowChart(box);
   }
 }
 charts(document);
