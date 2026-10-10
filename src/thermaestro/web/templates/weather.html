@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Weather") }}{% endblock %}
+{% block refresh %}1{% endblock %}
 {% macro source_name(key) -%}{% for p in register if p.key == key %}{{ p.label }}{% else %}{{ key }}{% endfor %}{%- endmacro %}
 {% block main %}
 <h1>{{ _("Weather") }} {% if can("settings.read") %}<small><a href="/setup/weather">{{ _("Setup") }}</a></small>{% endif %}</h1>

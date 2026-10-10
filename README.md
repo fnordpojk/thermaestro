@@ -16,7 +16,7 @@ Built today:
 - **Electricity prices** without an account in much of Europe (Energy-Charts, Beneficial Apps' Nordic price sites, OMIE), from Tibber or ENTSO-E with your own token, and Octopus Agile in Great Britain. The price is built from its parts: spot price, surcharges, tax, grid fee and VAT.
 - **Weather** from MET Norway, SMHI or Open-Meteo, each scored against the house's own outdoor sensor, with Home Assistant as a fallback.
 - **Home Assistant:** Thermaestro's state is published over MQTT, with discovery, and requests for a while ("warmer, please") come back the same way, with only the rights the administrator grants.
-- **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action.
+- **A web interface** in English, Swedish and German, with logins, users, groups and rights, and an API for every action. Its pages keep themselves current, and a wall display stays logged in with only the rights given to it.
 - **A read-only probe** that reports what Thermaestro reads from a pump, for testers.
 - **A rig** that tries each setting Thermaestro changes on a real pump, through the same code control uses: it changes the setting, watches what the pump does, puts it back, and writes down what happened. Read-only unless asked to write.
 - **Intents:** the household's goals in its own terms (warm rooms on a weekly pattern, hot water by a time, a lowest hot-water temperature, how much to favor cost over comfort) and requests for a while ("warmer, please", a bath by 19:30, away until Sunday, hands off), kept, checked and ranked. The first ones are taken from how the pump runs.

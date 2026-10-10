@@ -34,15 +34,25 @@ Authorization: Bearer thm_...
 `POST /api/v1/login` with `{"name": ..., "password": ...}` sets the `thermaestro_session` cookie (HttpOnly, SameSite=Lax, Secure over HTTPS) and answers `{"csrf": "..."}`.
 
 - A session ends after 12 hours unused, or 7 days after login at most.
+- A request with the header `X-Thermaestro-Background: 1` doesn't count as use: the web UI's pages send it when they refresh what they show by themselves, so a page left open still logs out after 12 hours.
 - Every unsafe request (anything but GET, HEAD and OPTIONS) with a session must:
   - send the CSRF token from the login answer, in the `X-CSRF-Token` header (a form may send it in the `csrf` field instead);
   - send an `Origin` header, or failing that a `Referer`, naming the host the request was sent to.
 - `POST /api/v1/login` and `POST /api/v1/setup` take JSON only. If they carry an `Origin` or `Referer`, it must be this site's.
 - Logins are limited to 30 attempts per client address in 5 minutes. After a wrong password, the user's next login is delayed: 1 second, doubling with each further failure, up to 15 minutes. After 100 failures in a row, the user is disabled. Setting a new password enables it again: another administrator can do it under **Users** (or `PUT /api/v1/users/{name}/password`), and on the host `thermaestro admin reset-password <name>` does it for any user, the last administrator included (in Docker: `docker compose exec thermaestro thermaestro admin reset-password <name>`).
 
+### Wall displays
+
+A wall display is a browser that stays logged in, such as a tablet on the wall showing the overview:
+
+- It is made on the account page or with `POST /api/v1/displays`, by a user with `wall_displays.own`, with a name and a list of rights, which can only be rights the user has. The answer is its link, `https://HOST/wall-display/thd_...`, shown only once.
+- The link is opened in the display's browser within a day, once. Its page asks before opening, so a chat program's or mail scanner's preview of the link doesn't use it up. `POST /api/v1/displays/open` with `{"link": ...}` does the same for a program, and answers `{"csrf": "..."}` like a login.
+- The display's session never idles out or expires. Its cookie is set again with each page it loads, so a browser's own limit on cookies (400 days) doesn't end it either. It ends when the display is revoked, its user's password changes, or its user is disabled or removed.
+- It acts with the rights that both the user and the display have, and can't make changes that need the password entered again. The audit log names it `display:<user>`.
+
 ### Entering the password again
 
-Changes under `users.manage`, `secrets.manage` and `plugins.manage` need the password entered in the last 15 minutes, and so do creating a token and changing one's own password. A session that logged in longer ago gets `403` with `"confirm": true`; `POST /api/v1/confirm` with `{"password": ...}` renews it. Tokens don't need this.
+Changes under `users.manage`, `secrets.manage` and `plugins.manage` need the password entered in the last 15 minutes, and so do creating a token or a wall display and changing one's own password. A session that logged in longer ago gets `403` with `"confirm": true`; `POST /api/v1/confirm` with `{"password": ...}` renews it. Tokens don't need this.
 
 ## Rights
 
@@ -65,6 +75,7 @@ A user has the rights of its groups, plus its own. A new installation has three 
 | `plugins.manage` | add, change and remove plugin instances |
 | `users.manage` | add, change and remove users and their rights |
 | `tokens.own` | create and revoke one's own API tokens |
+| `wall_displays.own` | make and revoke one's own wall displays, which stay logged in |
 | `audit.read` | read the audit log |
 | `intent.temporary.create` | ask for something for a while: warmer, a bath, a boost, a fireplace |
 | `intent.temporary.create.away`, `.guests` | say the house is away, or has guests, until a date |
@@ -232,8 +243,12 @@ A layer: `role` (such as `spot` or `grid.fee`), `source` (`series` or `fixed`), 
 | `GET /tokens` | `tokens.own` | One's own tokens: `[{id, name, permissions, created, expires, last_used}]` |
 | `POST /tokens` | `tokens.own` ⚿ | `{name, permissions, days}` → `201`, `{token}`, shown this once |
 | `DELETE /tokens/{token_id}` | `tokens.own`; another user's also `users.manage` | → `{status: "ok"}` |
-| `GET /sessions?user=NAME` | logged in; another user's: `users.manage` | `[{id, created, last_seen, from, agent}]`; without `user`, one's own |
+| `GET /sessions?user=NAME` | logged in; another user's: `users.manage` | `[{id, created, last_seen, from, agent, display}]` (`display`: a wall display's name); without `user`, one's own |
 | `DELETE /sessions/{user}/{session_id}` | logged in; another user's: `users.manage` | → `{status: "ok"}` |
+| `GET /displays` | `wall_displays.own` | One's own wall displays: `[{id, name, permissions, created, link_expires, opened, last_seen}]` |
+| `POST /displays` | `wall_displays.own` ⚿ | `{name, permissions}` → `201`, `{link}`, shown this once |
+| `DELETE /displays/{display_id}` | `wall_displays.own`; another user's also `users.manage` | → `{status: "ok"}`; its browser is logged out |
+| `POST /displays/open` | anyone, with the link | `{link}` → `{csrf}`, and the session's cookie |
 
 The system keeps at least one enabled user who can manage users: a change that would leave none is refused.
 

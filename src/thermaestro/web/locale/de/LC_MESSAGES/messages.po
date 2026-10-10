@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 03:50+0200\n"
+"POT-Creation-Date: 2026-10-10 15:22+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -154,6 +154,17 @@ msgid ""
 msgstr ""
 "Ein aus einem Bereich gemachter Raum gehört Thermaestro: Wird der Bereich in Home "
 "Assistant später umbenannt oder entfernt, ändert sich der Raum nicht."
+
+msgid ""
+"A screen that shows Thermaestro all the time, such as a tablet on the wall. Its link "
+"logs one browser in, and it stays logged in until you revoke it here or change your "
+"password. It carries only the rights you give it, never more than yours, and can't "
+"make changes that need a password."
+msgstr ""
+"Ein Bildschirm, der Thermaestro ständig zeigt, etwa ein Tablet an der Wand. Sein Link"
+" meldet einen Browser an, der dann angemeldet bleibt, bis Sie ihn hier widerrufen "
+"oder Ihr Passwort ändern. Er hat nur die Rechte, die Sie ihm geben, nie mehr als "
+"Ihre, und kann keine Änderungen vornehmen, die ein Passwort erfordern."
 
 msgid ""
 "A simple thermostat cuts the room off at its own setting. Where Thermaestro steers "
@@ -927,8 +938,14 @@ msgstr "Niedrigste Warmwassertemperatur"
 msgid "MQTT broker"
 msgstr "MQTT-Broker"
 
+msgid "Made"
+msgstr "Erstellt"
+
 msgid "Main provider"
 msgstr "Hauptanbieter"
+
+msgid "Make a display link"
+msgstr "Bildschirm-Link erstellen"
 
 msgid "Make rooms of the ticked ones"
 msgstr "Räume aus den angekreuzten machen"
@@ -1150,6 +1167,27 @@ msgstr "Nur wenn der Verdichter nicht mithält"
 
 msgid "Open"
 msgstr "Offen"
+
+#, python-format
+msgid ""
+"Open Thermaestro on this screen as the wall display “%(name)s”, made by %(user)s. "
+"This browser then stays logged in until the display is revoked."
+msgstr ""
+"Thermaestro auf diesem Bildschirm als Wanddisplay „%(name)s“ öffnen, erstellt von "
+"%(user)s. Dieser Browser bleibt dann angemeldet, bis das Display widerrufen wird."
+
+msgid "Open it here"
+msgstr "Hier öffnen"
+
+msgid ""
+"Open it in the browser of the screen that will show Thermaestro, within a day. It "
+"works once: that browser then stays logged in until you revoke the display here. Copy"
+" it now: it is shown only this once."
+msgstr ""
+"Öffnen Sie ihn innerhalb eines Tages im Browser des Bildschirms, der Thermaestro "
+"zeigen soll. Er funktioniert einmal: Dieser Browser bleibt dann angemeldet, bis Sie "
+"das Display hier widerrufen. Kopieren Sie ihn jetzt: Er wird nur dieses eine Mal "
+"angezeigt."
 
 #, python-format
 msgid "Open-Meteo's archive, %(period)s"
@@ -1644,6 +1682,13 @@ msgstr ""
 " reagiert, wie viel Wärme das Haus hält und wie kalt das Wasser hereinkommt."
 
 msgid ""
+"This display link has been used, has expired, or was revoked. Make a new one on your "
+"account page."
+msgstr ""
+"Dieser Display-Link wurde schon verwendet, ist abgelaufen oder wurde widerrufen. "
+"Erstellen Sie einen neuen auf Ihrer Kontoseite."
+
+msgid ""
 "This installation's certificate is its own, not from an authority, so the browser "
 "warns about it. Compare its SHA-256 fingerprint with the one the browser shows:"
 msgstr ""
@@ -1754,6 +1799,12 @@ msgstr "Lüftung"
 
 msgid "View"
 msgstr "Ansicht"
+
+msgid "Wall display"
+msgstr "Wanddisplay"
+
+msgid "Wall displays"
+msgstr "Wanddisplays"
 
 msgid "Warmer or cooler lasts until the pattern next changes."
 msgstr "Wärmer oder kühler gilt, bis sich der Plan das nächste Mal ändert."
@@ -1933,6 +1984,9 @@ msgstr ""
 msgid "Your new token"
 msgstr "Ihr neues Token"
 
+msgid "Your new wall display's link"
+msgstr "Der Link Ihres neuen Wanddisplays"
+
 msgid ""
 "Your own names replace the built-in ones for everyone; leave a field empty for the "
 "built-in name."
@@ -1942,6 +1996,9 @@ msgstr ""
 
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr "ein Land und vielleicht eine Region: SE, DE-BY; leer: keine"
+
+msgid "a display's name is 1 to 64 characters"
+msgstr "der Name eines Displays hat 1 bis 64 Zeichen"
 
 msgid "a newer request replaced it"
 msgstr "eine neuere Anfrage hat sie ersetzt"
@@ -1960,6 +2017,9 @@ msgstr "ein Thermostat mit Schnittstelle"
 
 msgid "a user name is 1 to 64 letters, digits or . _ @ -"
 msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
+
+msgid "a wall display can't make changes that need a password"
+msgstr "ein Wanddisplay kann keine Änderungen vornehmen, die ein Passwort erfordern"
 
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
@@ -2086,6 +2146,9 @@ msgstr "ausgefallen"
 
 msgid "e.g. backup script"
 msgstr "z. B. Sicherungsskript"
+
+msgid "e.g. kitchen tablet"
+msgstr "z. B. Küchen-Tablet"
 
 msgid "each day: lowest, mean and highest"
 msgstr "jeder Tag: niedrigster, mittlerer und höchster Wert"
@@ -2218,8 +2281,14 @@ msgstr ""
 msgid "let go"
 msgstr "loslassen"
 
+msgid "logged out"
+msgstr "abgemeldet"
+
 msgid "lowest"
 msgstr "niedrigster"
+
+msgid "make and revoke one's own wall displays, which stay logged in"
+msgstr "eigene Wanddisplays erstellen und widerrufen, die angemeldet bleiben"
 
 msgid "mean"
 msgstr "Mittel"
@@ -2277,6 +2346,10 @@ msgstr "nicht zugestellt"
 
 msgid "not known"
 msgstr "unbekannt"
+
+#, python-format
+msgid "not opened yet; the link works until %(end)s"
+msgstr "noch nicht geöffnet; der Link funktioniert bis %(end)s"
 
 msgid "not said yet"
 msgstr "noch nicht angegeben"
@@ -2489,6 +2562,9 @@ msgstr "die beiden Passwörter stimmen nicht überein"
 msgid "there is already an administrator"
 msgstr "es gibt bereits einen Administrator"
 
+msgid "this display link has been used, has expired, or was revoked"
+msgstr "der Display-Link wurde schon verwendet, ist abgelaufen oder wurde widerrufen"
+
 msgid "this one"
 msgstr "dieser"
 
@@ -2527,6 +2603,10 @@ msgstr "läuft"
 
 msgid "waiting"
 msgstr "wartet"
+
+#, python-format
+msgid "wall display: %(name)s"
+msgstr "Wanddisplay: %(name)s"
 
 msgid "warning"
 msgstr "Warnung"

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Intents") }}{% endblock %}
+{% block refresh %}1{% endblock %}
 {% block main %}
 {% set names = {"house": _("The whole house")} %}
 {% for group in scopes.values() %}{% for ref, label in group %}{% set ignored = names.update({ref: label}) %}{% endfor %}{% endfor %}

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-10 03:50+0200\n"
+"POT-Creation-Date: 2026-10-10 15:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -142,6 +142,14 @@ msgstr ""
 msgid ""
 "A room made from an area is Thermaestro's own: renaming or removing the "
 "area in Home Assistant later doesn't change it."
+msgstr ""
+
+msgid ""
+"A screen that shows Thermaestro all the time, such as a tablet on the "
+"wall. Its link logs one browser in, and it stays logged in until you "
+"revoke it here or change your password. It carries only the rights you "
+"give it, never more than yours, and can't make changes that need a "
+"password."
 msgstr ""
 
 msgid ""
@@ -876,7 +884,13 @@ msgstr ""
 msgid "MQTT broker"
 msgstr ""
 
+msgid "Made"
+msgstr ""
+
 msgid "Main provider"
+msgstr ""
+
+msgid "Make a display link"
 msgstr ""
 
 msgid "Make rooms of the ticked ones"
@@ -1084,6 +1098,21 @@ msgid "Only when the compressor can't keep up"
 msgstr ""
 
 msgid "Open"
+msgstr ""
+
+#, python-format
+msgid ""
+"Open Thermaestro on this screen as the wall display “%(name)s”, made by "
+"%(user)s. This browser then stays logged in until the display is revoked."
+msgstr ""
+
+msgid "Open it here"
+msgstr ""
+
+msgid ""
+"Open it in the browser of the screen that will show Thermaestro, within a"
+" day. It works once: that browser then stays logged in until you revoke "
+"the display here. Copy it now: it is shown only this once."
 msgstr ""
 
 #, python-format
@@ -1554,6 +1583,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"This display link has been used, has expired, or was revoked. Make a new "
+"one on your account page."
+msgstr ""
+
+msgid ""
 "This installation's certificate is its own, not from an authority, so the"
 " browser warns about it. Compare its SHA-256 fingerprint with the one the"
 " browser shows:"
@@ -1653,6 +1687,12 @@ msgid "Ventilation"
 msgstr ""
 
 msgid "View"
+msgstr ""
+
+msgid "Wall display"
+msgstr ""
+
+msgid "Wall displays"
 msgstr ""
 
 msgid "Warmer or cooler lasts until the pattern next changes."
@@ -1813,12 +1853,18 @@ msgstr ""
 msgid "Your new token"
 msgstr ""
 
+msgid "Your new wall display's link"
+msgstr ""
+
 msgid ""
 "Your own names replace the built-in ones for everyone; leave a field "
 "empty for the built-in name."
 msgstr ""
 
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
+msgstr ""
+
+msgid "a display's name is 1 to 64 characters"
 msgstr ""
 
 msgid "a newer request replaced it"
@@ -1837,6 +1883,9 @@ msgid "a thermostat with an interface"
 msgstr ""
 
 msgid "a user name is 1 to 64 letters, digits or . _ @ -"
+msgstr ""
+
+msgid "a wall display can't make changes that need a password"
 msgstr ""
 
 msgid "a zoning controller"
@@ -1963,6 +2012,9 @@ msgid "down"
 msgstr ""
 
 msgid "e.g. backup script"
+msgstr ""
+
+msgid "e.g. kitchen tablet"
 msgstr ""
 
 msgid "each day: lowest, mean and highest"
@@ -2096,7 +2148,13 @@ msgstr ""
 msgid "let go"
 msgstr ""
 
+msgid "logged out"
+msgstr ""
+
 msgid "lowest"
+msgstr ""
+
+msgid "make and revoke one's own wall displays, which stay logged in"
 msgstr ""
 
 msgid "mean"
@@ -2152,6 +2210,10 @@ msgid "not delivered"
 msgstr ""
 
 msgid "not known"
+msgstr ""
+
+#, python-format
+msgid "not opened yet; the link works until %(end)s"
 msgstr ""
 
 msgid "not said yet"
@@ -2363,6 +2425,9 @@ msgstr ""
 msgid "there is already an administrator"
 msgstr ""
 
+msgid "this display link has been used, has expired, or was revoked"
+msgstr ""
+
 msgid "this one"
 msgstr ""
 
@@ -2400,6 +2465,10 @@ msgid "up"
 msgstr ""
 
 msgid "waiting"
+msgstr ""
+
+#, python-format
+msgid "wall display: %(name)s"
 msgstr ""
 
 msgid "warning"

@@ -12,10 +12,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 
-from ..auth import AccountError, Forbidden, Principal, User
+from ..auth import AccountError, Forbidden, User
 from . import i18n
 from .operations import Caller, NeedsConfirmation, NotFound, Services
 from .security import (
+    BACKGROUND_HEADER,
     CSRF_FIELD,
     CSRF_HEADER,
     PRE_SESSION_COOKIE,
@@ -92,11 +93,13 @@ async def identify(request: Request) -> Caller | None:
     cookie = request.cookies.get(SESSION_COOKIE)
     if not cookie:
         return None
-    session = await accounts.session(cookie)
+    # A page refreshing what it shows isn't someone using it: it doesn't keep the session
+    # from idling out.
+    session = await accounts.session(cookie, active=BACKGROUND_HEADER not in request.headers)
     if session is None:
         return None
     _use_preferences(request, session.user)
-    return Caller(Principal(session.user), session, source)
+    return Caller(session.principal(), session, source)
 
 
 def _use_preferences(request: Request, user: User) -> None:

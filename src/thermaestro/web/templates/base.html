@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="htmx-config" content='{"allowEval": false, "allowScriptTags": false, "includeIndicatorStyles": false, "selfRequestsOnly": true}'>
-<title>{% block title %}{% endblock %} · Thermaestro</title>
+<title>{% block title %}{% endblock %} · Thermaestro</title>{% if false %}{% block refresh %}{% endblock %}{% endif %}
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="/static/logo/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/static/logo/favicon.svg" type="image/svg+xml" sizes="any">
@@ -52,7 +52,11 @@
 <main>
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{# A page that shows how things stand fills the block `refresh`: it is fetched again every
+   minute while in view, and its content put in place (app.js). #}
+<div id="page"{% if self.refresh() | trim %} data-refresh{% endif %}>
 {% block main %}{% endblock %}
+</div>
 </main>
 </body>
 </html>

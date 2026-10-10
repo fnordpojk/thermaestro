@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "cells.html" import parts_table with context %}
 {% block title %}{{ _("Pump") }}{% endblock %}
+{% block refresh %}1{% endblock %}
 {% block main %}
 <h1>{{ _("Pump") }} {% if can("settings.read") %}<small><a href="/setup/pump">{{ _("Setup") }}</a></small>{% endif %}</h1>
 <nav class="tabs" aria-label="{{ _('Pump') }}">

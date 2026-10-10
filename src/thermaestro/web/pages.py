@@ -22,7 +22,13 @@ from .security import (
     csrf_token,
     new_pre_session,
 )
-from .sessions import end_browser_session, start_browser_session
+from .sessions import (
+    display_link,
+    end_browser_session,
+    keep_display_cookie,
+    start_browser_session,
+    start_display_session,
+)
 
 router = APIRouter(default_response_class=HTMLResponse)
 
@@ -106,6 +112,8 @@ def render(
             samesite="lax",
             secure=request.url.scheme == "https",
         )
+    if who is not None and who.session is not None and who.session.display is not None:
+        keep_display_cookie(request, response)
     response.headers["cache-control"] = "no-store"
     return response
 
@@ -168,6 +176,40 @@ async def login(
 async def logout(request: Request, who: Logged) -> Response:
     response = back("/login")
     await end_browser_session(request, response, who)
+    return response
+
+
+@router.get("/wall-display/{raw}")
+async def display_page(request: Request, raw: str) -> Response:
+    """A wall display's link: a page that asks before opening it, so a link previewed by a
+    chat program or a mail scanner isn't used up by the preview."""
+    found = await services(request).accounts.display_link(raw)
+    return render(
+        request,
+        "wall-display.html",
+        None,
+        status_code=200 if found else 404,
+        found=found,
+        raw=raw,
+    )
+
+
+@router.post("/wall-display/{raw}")
+@action("wall_display.open")
+async def open_display(request: Request, _: Anyone, raw: str) -> Response:
+    response = back("/")
+    try:
+        await start_display_session(request, response, raw)
+    except AccountError as e:
+        return render(
+            request,
+            "wall-display.html",
+            None,
+            status_code=404,
+            found=None,
+            raw=raw,
+            error=_message(e),
+        )
     return response
 
 
@@ -540,6 +582,7 @@ async def delete_group(request: Request, who: Logged, name: str) -> Response:
 async def _account(request: Request, who: Caller, status_code: int = 200, **extra: Any) -> Response:
     s = services(request)
     tokens = await s.tokens(who) if who.principal.allows("tokens.own") else []
+    displays = await s.displays(who) if who.principal.allows("wall_displays.own") else []
     own_rights = {r: d for r, d in PERMISSIONS.items() if who.principal.allows(r)}
     language = i18n.current.get()
     return render(
@@ -551,6 +594,7 @@ async def _account(request: Request, who: Caller, status_code: int = 200, **extr
         regions=i18n.regions(language),
         example=f"{i18n.when(time.time())}   {i18n.number(-1234.5)}",
         tokens=tokens,
+        displays=displays,
         sessions=await s.sessions(who),
         current=who.session.id if who.session else None,
         rights=own_rights,
@@ -620,6 +664,31 @@ async def revoke_token(request: Request, who: Logged, token_id: int) -> Response
     except AccountError as e:
         return await _account(request, who, 400, error=_message(e))
     return back("/account")
+
+
+@router.post("/account/displays")
+@action("wall_display.create")
+async def create_display(
+    request: Request, who: Logged, name: Text, rights: Choices = None
+) -> Response:
+    try:
+        raw = await services(request).create_display(who, name, rights or [])
+    except NeedsConfirmation:
+        raise
+    except AccountError as e:
+        return await _account(request, who, 400, error=_message(e))
+    # Shown once, on this page, and never again.
+    return await _account(request, who, new_display=display_link(request, raw))
+
+
+@router.post("/account/displays/{display_id}/revoke")
+@action("wall_display.revoke")
+async def revoke_display(request: Request, who: Logged, display_id: int) -> Response:
+    try:
+        await services(request).revoke_display(who, display_id)
+    except AccountError as e:
+        return await _account(request, who, 400, error=_message(e))
+    return back("/account#displays")
 
 
 @router.post("/account/sessions/{session_id}/end")

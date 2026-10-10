@@ -11,6 +11,7 @@ PERMISSIONS: dict[str, str] = {
     "plugins.manage": "add, change and remove plugin instances",
     "users.manage": "add, change and remove users and their rights",
     "tokens.own": "create and revoke one's own API tokens",
+    "wall_displays.own": "make and revoke one's own wall displays, which stay logged in",
     "audit.read": "read the audit log",
     "intent.temporary.create": "ask for something for a while: warmer, a bath, a boost",
     "intent.temporary.create.away": "say the house is away until a date",

@@ -242,6 +242,24 @@ MIGRATIONS: tuple[str, ...] = (
     """
     INSERT OR IGNORE INTO groups (name) VALUES ('MQTT');
     """,
+    # 14: wall displays: a link that opens once logs a browser in for good, with the rights
+    # chosen for it; its session is marked as the display's
+    """
+    CREATE TABLE IF NOT EXISTS displays (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        permissions TEXT NOT NULL CHECK (json_valid(permissions)),
+        created REAL NOT NULL,
+        link_hash TEXT UNIQUE,
+        link_expires REAL,
+        opened REAL
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS display_sessions (
+        session TEXT PRIMARY KEY REFERENCES sessions (hash) ON DELETE CASCADE,
+        display INTEGER NOT NULL REFERENCES displays (id) ON DELETE CASCADE
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

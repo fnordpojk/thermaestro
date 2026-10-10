@@ -11,6 +11,14 @@
 </section>
 {% endif %}
 
+{% if new_display is defined %}
+<section class="notice" role="status">
+  <h2>{{ _("Your new wall display's link") }}</h2>
+  <p>{{ _("Open it in the browser of the screen that will show Thermaestro, within a day. It works once: that browser then stays logged in until you revoke the display here. Copy it now: it is shown only this once.") }}</p>
+  <p><code class="token">{{ new_display }}</code></p>
+</section>
+{% endif %}
+
 <section id="formats">
 <h2>{{ _("Language and formats") }}</h2>
 <p>{{ _("Now:") }} <strong>{{ example }}</strong>. {{ _("Times are in the house's time zone.") }}</p>
@@ -57,7 +65,7 @@
     <td>{{ s.created | when }}</td>
     <td>{{ s.last_seen | when }}</td>
     <td>{{ s.source or "" }}</td>
-    <td>{{ s.agent or "" }}{% if s.id == current %} <strong>({{ _("this one") }})</strong>{% endif %}</td>
+    <td>{{ s.agent or "" }}{% if s.display %} <strong>({{ _("wall display: %(name)s", name=s.display) }})</strong>{% endif %}{% if s.id == current %} <strong>({{ _("this one") }})</strong>{% endif %}</td>
     <td>
       <form method="post" action="/account/sessions/{{ s.id }}/end">
         <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -103,6 +111,42 @@
   {% for r in rights %}<label class="check" title="{{ _(rights[r]) }}"><input type="checkbox" name="rights" value="{{ r }}"{% if r == "points.read" %} checked{% endif %}> {{ r }}</label>{% endfor %}
   </fieldset>
   <button type="submit">{{ _("Create token") }}</button>
+</form>
+</section>
+{% endif %}
+
+{% if can("wall_displays.own") %}
+<section id="displays">
+<h2>{{ _("Wall displays") }}</h2>
+<p>{{ _("A screen that shows Thermaestro all the time, such as a tablet on the wall. Its link logs one browser in, and it stays logged in until you revoke it here or change your password. It carries only the rights you give it, never more than yours, and can't make changes that need a password.") }}</p>
+{% if displays %}
+<table>
+  <thead><tr><th>{{ _("Name") }}</th><th>{{ _("Rights") }}</th><th>{{ _("Made") }}</th><th>{{ _("Last seen") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for d in displays %}
+  <tr>
+    <td>{{ d.name }}</td>
+    <td>{{ d.permissions | join(", ") }}</td>
+    <td>{{ d.created | when }}</td>
+    <td>{% if d.opened is none %}{{ _("not opened yet; the link works until %(end)s", end=d.link_expires | when) }}{% elif d.last_seen is none %}{{ _("logged out") }}{% else %}{{ d.last_seen | when }}{% endif %}</td>
+    <td>
+      <form method="post" action="/account/displays/{{ d.id }}/revoke">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="danger">{{ _("Revoke") }}</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<form method="post" action="/account/displays" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("Name") }} <input name="name" required maxlength="64" placeholder="{{ _('e.g. kitchen tablet') }}"></label>
+  <fieldset><legend>{{ _("Rights") }}</legend>
+  {% for r in rights %}<label class="check" title="{{ _(rights[r]) }}"><input type="checkbox" name="rights" value="{{ r }}"{% if r in ("points.read", "plan.read") %} checked{% endif %}> {{ r }}</label>{% endfor %}
+  </fieldset>
+  <button type="submit">{{ _("Make a display link") }}</button>
 </form>
 </section>
 {% endif %}

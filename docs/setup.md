@@ -239,6 +239,10 @@ Each user's own page, under their name in the menu, has the language and formats
 THERMAESTRO_TOKEN=<token> thermaestro status --url http://<address>:8080
 ```
 
+The pages that show how things stand (the overview, the pump, prices, weather, intents, the plan and System → Health) keep themselves current: every minute while they are in view, and at once when you come back to them. A form being filled in isn't touched. A page left open still logs out after 12 hours unused.
+
+**Wall displays.** For a screen that shows Thermaestro all the time, such as a tablet on the wall, the account page makes a display link (with the right `wall_displays.own`, which Administrators have). Give it a name and the rights it needs, usually just seeing the values and the plan. Open the link in that screen's browser within a day; it works once, and that browser then stays logged in, without a password typed on it, until you revoke the display on the account page or change your password. A display can't make changes that need a password.
+
 ## Checking on it
 
 - **System → Health:** each plugin's state, restarts and health counters, and the HTTPS certificate's fingerprint.

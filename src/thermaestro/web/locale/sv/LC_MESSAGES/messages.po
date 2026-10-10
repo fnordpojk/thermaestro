@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 03:50+0200\n"
+"POT-Creation-Date: 2026-10-10 15:22+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -153,6 +153,17 @@ msgid ""
 msgstr ""
 "Ett rum som gjorts av ett område är Thermaestros eget: att byta namn på eller ta bort"
 " området i Home Assistant senare ändrar det inte."
+
+msgid ""
+"A screen that shows Thermaestro all the time, such as a tablet on the wall. Its link "
+"logs one browser in, and it stays logged in until you revoke it here or change your "
+"password. It carries only the rights you give it, never more than yours, and can't "
+"make changes that need a password."
+msgstr ""
+"En skärm som visar Thermaestro hela tiden, till exempel en surfplatta på väggen. Dess"
+" länk loggar in en webbläsare, som sedan förblir inloggad tills du återkallar den här"
+" eller byter lösenord. Den har bara de rättigheter du ger den, aldrig fler än dina, "
+"och kan inte göra ändringar som kräver lösenord."
 
 msgid ""
 "A simple thermostat cuts the room off at its own setting. Where Thermaestro steers "
@@ -919,8 +930,14 @@ msgstr "Lägsta varmvattentemperatur"
 msgid "MQTT broker"
 msgstr "MQTT-broker"
 
+msgid "Made"
+msgstr "Skapad"
+
 msgid "Main provider"
 msgstr "Huvudleverantör"
+
+msgid "Make a display link"
+msgstr "Skapa en skärmlänk"
 
 msgid "Make rooms of the ticked ones"
 msgstr "Gör rum av de ikryssade"
@@ -1138,6 +1155,26 @@ msgstr "Bara när kompressorn inte räcker till"
 
 msgid "Open"
 msgstr "Öppen"
+
+#, python-format
+msgid ""
+"Open Thermaestro on this screen as the wall display “%(name)s”, made by %(user)s. "
+"This browser then stays logged in until the display is revoked."
+msgstr ""
+"Öppna Thermaestro på den här skärmen som väggskärmen ”%(name)s”, skapad av %(user)s. "
+"Webbläsaren förblir sedan inloggad tills skärmen återkallas."
+
+msgid "Open it here"
+msgstr "Öppna här"
+
+msgid ""
+"Open it in the browser of the screen that will show Thermaestro, within a day. It "
+"works once: that browser then stays logged in until you revoke the display here. Copy"
+" it now: it is shown only this once."
+msgstr ""
+"Öppna den i webbläsaren på skärmen som ska visa Thermaestro, inom ett dygn. Den "
+"fungerar en gång: den webbläsaren förblir sedan inloggad tills du återkallar skärmen "
+"här. Kopiera den nu: den visas bara den här gången."
 
 #, python-format
 msgid "Open-Meteo's archive, %(period)s"
@@ -1629,6 +1666,13 @@ msgstr ""
 "klimatsystem svarar, hur mycket värme huset håller och hur kallt vattnet kommer in."
 
 msgid ""
+"This display link has been used, has expired, or was revoked. Make a new one on your "
+"account page."
+msgstr ""
+"Den här skärmlänken har använts, har gått ut eller har återkallats. Skapa en ny på "
+"din kontosida."
+
+msgid ""
 "This installation's certificate is its own, not from an authority, so the browser "
 "warns about it. Compare its SHA-256 fingerprint with the one the browser shows:"
 msgstr ""
@@ -1738,6 +1782,12 @@ msgstr "Ventilation"
 
 msgid "View"
 msgstr "Visning"
+
+msgid "Wall display"
+msgstr "Väggskärm"
+
+msgid "Wall displays"
+msgstr "Väggskärmar"
 
 msgid "Warmer or cooler lasts until the pattern next changes."
 msgstr "Varmare eller svalare gäller tills schemat ändras nästa gång."
@@ -1907,6 +1957,9 @@ msgstr ""
 msgid "Your new token"
 msgstr "Din nya token"
 
+msgid "Your new wall display's link"
+msgstr "Din nya väggskärms länk"
+
 msgid ""
 "Your own names replace the built-in ones for everyone; leave a field empty for the "
 "built-in name."
@@ -1914,6 +1967,9 @@ msgstr "Egna namn ersätter de inbyggda för alla; lämna ett fält tomt för de
 
 msgid "a country, and maybe a region: SE, DE-BY; empty: none"
 msgstr "ett land, och kanske en region: SE, DE-BY; tomt: inga"
+
+msgid "a display's name is 1 to 64 characters"
+msgstr "en skärms namn har 1 till 64 tecken"
 
 msgid "a newer request replaced it"
 msgstr "en nyare begäran ersatte den"
@@ -1932,6 +1988,9 @@ msgstr "en termostat med gränssnitt"
 
 msgid "a user name is 1 to 64 letters, digits or . _ @ -"
 msgstr "ett användarnamn är 1 till 64 bokstäver, siffror eller . _ @ -"
+
+msgid "a wall display can't make changes that need a password"
+msgstr "en väggskärm kan inte göra ändringar som kräver lösenord"
 
 msgid "a zoning controller"
 msgstr "en zonstyrning"
@@ -2058,6 +2117,9 @@ msgstr "nere"
 
 msgid "e.g. backup script"
 msgstr "t.ex. säkerhetskopieringsskript"
+
+msgid "e.g. kitchen tablet"
+msgstr "t.ex. surfplattan i köket"
 
 msgid "each day: lowest, mean and highest"
 msgstr "varje dag: lägsta, medel och högsta"
@@ -2188,8 +2250,14 @@ msgstr "minus %(spot)s: det leverantören lägger till; spotpriset kommer från 
 msgid "let go"
 msgstr "släpp"
 
+msgid "logged out"
+msgstr "utloggad"
+
 msgid "lowest"
 msgstr "lägsta"
+
+msgid "make and revoke one's own wall displays, which stay logged in"
+msgstr "skapa och återkalla egna väggskärmar, som förblir inloggade"
 
 msgid "mean"
 msgstr "medel"
@@ -2245,6 +2313,10 @@ msgstr "inte levererad"
 
 msgid "not known"
 msgstr "okänt"
+
+#, python-format
+msgid "not opened yet; the link works until %(end)s"
+msgstr "inte öppnad än; länken fungerar till %(end)s"
 
 msgid "not said yet"
 msgstr "inte angivet än"
@@ -2457,6 +2529,9 @@ msgstr "de två lösenorden skiljer sig åt"
 msgid "there is already an administrator"
 msgstr "det finns redan en administratör"
 
+msgid "this display link has been used, has expired, or was revoked"
+msgstr "skärmlänken har använts, har gått ut eller har återkallats"
+
 msgid "this one"
 msgstr "den här"
 
@@ -2495,6 +2570,10 @@ msgstr "igång"
 
 msgid "waiting"
 msgstr "väntar"
+
+#, python-format
+msgid "wall display: %(name)s"
+msgstr "väggskärm: %(name)s"
 
 msgid "warning"
 msgstr "varning"

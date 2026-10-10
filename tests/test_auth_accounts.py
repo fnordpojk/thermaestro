@@ -449,6 +449,113 @@ async def test_a_disabled_user_has_no_sessions_or_tokens(accounts: Accounts, db:
     assert await accounts.principal_for_token(token) is None
 
 
+async def test_a_page_refreshing_itself_doesnt_keep_the_session(
+    accounts: Accounts, clock: Clock
+) -> None:
+    anna = await accounts.create_user("anna", GOOD, by="cli")
+    raw = await accounts.start_session(anna)
+    while clock.now < 1_000_000 + SESSION_IDLE_S - 120:
+        clock.now += 60
+        assert await accounts.session(raw, active=False) is not None
+    clock.now += 120
+    assert await accounts.session(raw, active=False) is None
+
+
+# --- wall displays -----------------------------------------------------------------------
+
+
+async def test_a_wall_display(
+    accounts: Accounts, db: Database, clock: Clock, tmp_path: Path
+) -> None:
+    await accounts.set_group(
+        "Readers", ["points.read", "plan.read", "audit.read", "wall_displays.own"], by="cli"
+    )
+    anna = await accounts.create_user("anna", GOOD, ["Readers"], by="cli")
+    link = await accounts.create_display(Principal(anna), " Kitchen ", ["points.read", "plan.read"])
+    assert link.startswith("thd_")
+    assert await accounts.display_link(link) == ("Kitchen", "anna")
+    [made] = await accounts.displays(anna)
+    assert (made.name, made.permissions, made.opened) == (
+        "Kitchen",
+        ("plan.read", "points.read"),
+        None,
+    )
+    assert made.link_expires == clock.now + 86_400
+    raw = await accounts.open_display(link, source="192.0.2.9", agent="Tablet")
+    # The link is used up; only its hash was ever kept.
+    assert await accounts.display_link(link) is None
+    with pytest.raises(AccountError, match="has been used"):
+        await accounts.open_display(link)
+    assert link not in (tmp_path / "audit" / "audit.jsonl").read_text()
+    stored = await db.run(lambda t: [h for (h,) in t.execute("SELECT hash FROM sessions")])
+    assert raw not in stored
+    # It never idles out, and carries only its rights.
+    for _ in range(3):
+        clock.now += 30 * 86_400
+        assert await accounts.session(raw, active=False) is not None
+    session = await accounts.session(raw)
+    assert session is not None
+    principal = session.principal()
+    assert principal.name == "display:anna"
+    assert principal.allows("plan.read")
+    assert not principal.allows("audit.read")  # anna may; the display may not
+    with pytest.raises(AccountError, match="can't make changes that need a password"):
+        await accounts.confirm(session, GOOD, source="192.0.2.9")
+    [listed] = await accounts.sessions(anna)
+    assert (listed.display, listed.agent) == ("Kitchen", "Tablet")
+    [opened] = await accounts.displays(anna)
+    assert (opened.opened, opened.link_expires) == (1_000_000.0, None)
+    assert opened.last_seen == clock.now
+    assert [e["what"] for e in audit(tmp_path)][-2:] == ["wall_display.create", "wall_display.open"]
+
+
+async def test_a_display_ends_when_revoked_or_the_password_changes(
+    accounts: Accounts, clock: Clock
+) -> None:
+    await accounts.set_group("Readers", ["points.read", "wall_displays.own"], by="cli")
+    anna = await accounts.create_user("anna", GOOD, ["Readers"], by="cli")
+    bo = await accounts.create_user("bo", GOOD + " two", ["Readers"], by="cli")
+    first = await accounts.open_display(
+        await accounts.create_display(Principal(anna), "hall", ["points.read"])
+    )
+    second = await accounts.open_display(
+        await accounts.create_display(Principal(anna), "kitchen", ["points.read"])
+    )
+    hall, _ = await accounts.displays(anna)
+    with pytest.raises(AccountError, match="no such display"):
+        await accounts.revoke_display(Principal(bo), hall.id)
+    await accounts.revoke_display(Principal(anna), hall.id)
+    assert await accounts.session(first) is None
+    assert [d.name for d in await accounts.displays(anna)] == ["kitchen"]
+    await accounts.set_password("anna", GOOD + " anew", by="cli")
+    assert await accounts.session(second) is None
+    [kitchen] = await accounts.displays(anna)
+    assert kitchen.last_seen is None  # listed as logged out, until revoked
+
+
+async def test_a_display_link_lasts_a_day_and_carries_at_most_its_users_rights(
+    accounts: Accounts, clock: Clock
+) -> None:
+    await accounts.set_group("Readers", ["points.read", "wall_displays.own"], by="cli")
+    anna = await accounts.create_user("anna", GOOD, ["Readers"], by="cli")
+    me = Principal(anna)
+    for wanted in (["users.manage"], ["*"], ["no.such"]):
+        with pytest.raises(AccountError):
+            await accounts.create_display(me, "d", wanted)
+    with pytest.raises(AccountError, match="1 to 64"):
+        await accounts.create_display(me, "  ", ["points.read"])
+    viewer = await accounts.create_user("bo", GOOD + " two", ["Viewers"], by="cli")
+    with pytest.raises(Forbidden):
+        await accounts.create_display(Principal(viewer), "d", ["points.read"])
+    link = await accounts.create_display(me, "d", ["points.read"])
+    clock.now += 86_400
+    assert await accounts.display_link(link) is None
+    with pytest.raises(AccountError, match="has expired"):
+        await accounts.open_display(link)
+    with pytest.raises(AccountError):
+        await accounts.open_display("thm_" + link[4:])  # a token isn't a display link
+
+
 # --- the first administrator -------------------------------------------------------------
 
 

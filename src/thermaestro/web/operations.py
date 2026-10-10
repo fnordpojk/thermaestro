@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 from ..auth import (
     AccountError,
     Accounts,
+    DisplayInfo,
     Preferences,
     Principal,
     Session,
@@ -662,6 +663,22 @@ class Services(
     async def revoke_token(self, caller: Caller, token_id: int) -> None:
         caller.principal.require("tokens.own")
         await self.accounts.revoke_token(caller.principal, token_id, source=caller.source)
+
+    async def displays(self, caller: Caller) -> list[DisplayInfo]:
+        caller.principal.require("wall_displays.own")
+        return await self.accounts.displays(caller.principal.user)
+
+    async def create_display(self, caller: Caller, name: str, permissions: Collection[str]) -> str:
+        """A lasting login: made only with the password entered again."""
+        caller.principal.require("wall_displays.own")
+        self._require_confirmed(caller)
+        return await self.accounts.create_display(
+            caller.principal, name, permissions, source=caller.source
+        )
+
+    async def revoke_display(self, caller: Caller, display_id: int) -> None:
+        caller.principal.require("wall_displays.own")
+        await self.accounts.revoke_display(caller.principal, display_id, source=caller.source)
 
     async def sessions(self, caller: Caller, user: str | None = None) -> list[SessionInfo]:
         """One's own sessions, or with users.manage, another user's."""

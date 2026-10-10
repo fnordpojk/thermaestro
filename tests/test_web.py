@@ -159,6 +159,8 @@ async def test_everything_else_needs_a_login(site: Site) -> None:
                 "/theme/x",
                 "/api/v1/login",
                 "/api/v1/setup",
+                "/wall-display/x",  # a display's link: its secret is the login
+                "/api/v1/displays/open",
             ):
                 continue
             for method in route.methods or ():
@@ -747,6 +749,60 @@ async def test_own_sessions_and_tokens(site: Site) -> None:
             ended = await form(other, "/account", f"/account/sessions/{sessions[0]['id']}/end")
             assert ended.headers["location"] == "/account"
         assert (await client.get("/")).status_code == 303  # that was this one
+
+
+async def test_a_wall_display_stays_logged_in_with_its_rights(site: Site) -> None:
+    async with admin(site) as client:
+        made = await form(
+            client, "/account", "/account/displays", name="Kitchen", rights=["points.read"]
+        )
+        assert made.status_code == 200
+        found = re.search(r"http://testserver/wall-display/(thd_[A-Za-z0-9_-]+)", made.text)
+        assert found
+        raw = found.group(1)
+        assert raw not in (await client.get("/account")).text  # shown once
+        assert [d["name"] for d in (await client.get("/api/v1/displays")).json()] == ["Kitchen"]
+    async with site.client() as display:
+        # A preview of the link opens nothing: the page asks first.
+        page = await display.get(f"/wall-display/{raw}")
+        assert page.status_code == 200
+        assert "Kitchen" in page.text
+        assert (await display.get("/")).status_code == 303
+        opened = await display.post(f"/wall-display/{raw}", data={"csrf": csrf_of(page.text)})
+        assert opened.status_code == 303
+        assert "Max-Age=34560000" in opened.headers["set-cookie"]
+        # Days later, without anyone touching it, and with only its rights.
+        site.clock.now += 30 * 86_400
+        overview = await display.get("/", headers={"x-thermaestro-background": "1"})
+        assert overview.status_code == 200
+        assert "Max-Age=34560000" in overview.headers["set-cookie"]  # kept from running out
+        assert (await display.get("/api/v1/status")).status_code == 200
+        assert (await display.get("/api/v1/users")).status_code == 403
+    async with site.client() as late:
+        used = await late.get(f"/wall-display/{raw}")
+        assert used.status_code == 404
+    async with admin(site) as client:
+        listed = (await client.get("/api/v1/sessions")).json()
+        assert [s["display"] for s in listed] == [None, "Kitchen"] or [
+            s["display"] for s in listed
+        ] == ["Kitchen", None]
+        [shown] = (await client.get("/api/v1/displays")).json()
+        assert shown["opened"] is not None
+        revoked = await form(client, "/account", f"/account/displays/{shown['id']}/revoke")
+        assert revoked.headers["location"] == "/account#displays"
+    async with site.client() as gone:
+        gone.cookies.update(display.cookies)
+        assert (await gone.get("/")).status_code == 303
+
+
+async def test_a_page_refreshing_itself_doesnt_keep_the_login(site: Site) -> None:
+    async with admin(site) as client:
+        site.clock.now += 6 * 3600
+        assert (await client.get("/")).status_code == 200  # someone using it
+        for _ in range(13):
+            site.clock.now += 3600
+            refreshed = await client.get("/", headers={"x-thermaestro-background": "1"})
+        assert refreshed.status_code == 303  # idle for 12 hours, however often it refreshed
 
 
 async def test_the_audit_page(site: Site) -> None:

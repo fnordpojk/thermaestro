@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Wall display") }}{% endblock %}
+{% block main %}
+<section class="narrow">
+<h1>{{ _("Wall display") }}</h1>
+{% if found %}
+<p>{{ _("Open Thermaestro on this screen as the wall display “%(name)s”, made by %(user)s. This browser then stays logged in until the display is revoked.", name=found[0], user=found[1]) }}</p>
+<form method="post" action="/wall-display/{{ raw | urlencode }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Open it here") }}</button>
+</form>
+{% else %}
+<p>{{ _("This display link has been used, has expired, or was revoked. Make a new one on your account page.") }}</p>
+<p><a href="/login">{{ _("Log in") }}</a></p>
+{% endif %}
+</section>
+{% endblock %}

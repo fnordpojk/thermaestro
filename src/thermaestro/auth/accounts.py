@@ -43,6 +43,12 @@ STEP_UP_S = 900.0
 """A session's or token's last use is written at most this often."""
 TOKEN_PREFIX = "thm_"  # noqa: S105 - marks a token, isn't one
 TOKEN_DAYS = 365
+DISPLAY_PREFIX = "thd_"
+DISPLAY_LINK_S = 86_400.0
+"""How long a wall display's link can be opened: once, within a day of being made."""
+DISPLAY_SESSION_S = 100 * 365 * 86_400.0
+"""A wall display's session doesn't end by itself: until it is revoked, its user's password
+changes, or the user is disabled or removed."""
 DELAY_BASE_S = 1.0
 DELAY_MAX_S = 900.0
 DISABLE_AFTER = 100
@@ -77,14 +83,18 @@ class User:
 
 @dataclass(frozen=True, slots=True)
 class Principal:
-    """Who a request acts as: a user, and for a token, the rights the token carries."""
+    """Who a request acts as: a user, and for a token or a wall display, the rights it
+    carries."""
 
     user: User
     scope: frozenset[str] | None = None
+    via: str = "user"
+    """How: "user" (a login), "token", or "display" (a wall display's)."""
 
     @property
     def name(self) -> str:
-        return f"user:{self.user.name}" if self.scope is None else f"token:{self.user.name}"
+        via = "token" if self.via == "user" and self.scope is not None else self.via
+        return f"{via}:{self.user.name}"
 
     def allows(self, permission: str) -> bool:
         if not allows(self.user.permissions, permission):
@@ -104,11 +114,19 @@ class Session:
     expires: float
     confirmed: float
     """When the password was last entered: at login, or again for a step-up."""
+    display: "DisplayInfo | None" = None
+    """For a wall display's session, the display: it doesn't end by itself, and carries
+    only the display's rights."""
 
     @property
     def id(self) -> str:
         """Names the session in lists; the hash's start, which can't log anyone in."""
         return self.hash[:16]
+
+    def principal(self) -> Principal:
+        if self.display is None:
+            return Principal(self.user)
+        return Principal(self.user, frozenset(self.display.permissions), via="display")
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +136,20 @@ class SessionInfo:
     last_seen: float
     source: str | None
     agent: str | None
+    display: str | None = None
+    """The wall display's name, for a display's session."""
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayInfo:
+    id: int
+    name: str
+    permissions: tuple[str, ...]
+    created: float
+    link_expires: float | None
+    """Until when its link opens it; None once it has been opened."""
+    opened: float | None
+    last_seen: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,7 +403,10 @@ class Accounts:
 
     async def confirm(self, session: Session, password: str, *, source: str) -> None:
         """The password entered again, for changes that need it (STEP_UP). Wrong ones count
-        against the address like failed logins."""
+        against the address like failed logins. A wall display has no password of its own
+        to enter: it can't make such changes."""
+        if session.display is not None:
+            raise AccountError("a wall display can't make changes that need a password")
         if not self._limiter.allow(source, self._clock()):
             raise AccountError("too many attempts; wait a few minutes")
         stored = await self._db.run(
@@ -478,7 +513,10 @@ class Accounts:
         )
         return raw
 
-    async def session(self, raw: str) -> Session | None:
+    async def session(self, raw: str, *, active: bool = True) -> Session | None:
+        """The session, if it is still valid. `active` is False for what a page does by
+        itself (refreshing what it shows): that doesn't count as using it, so a page left
+        open still logs out when idle. A wall display's session never idles out."""
         key = digest(raw)
         now = self._clock()
 
@@ -491,15 +529,17 @@ class Accounts:
             if row is None:
                 return None
             user_id, created, last_seen, expires, confirmed = row
-            if now >= expires or now - last_seen >= SESSION_IDLE_S:
+            display = _display_of(t, key)
+            idle = display is None and now - last_seen >= SESSION_IDLE_S
+            if now >= expires or idle:
                 t.execute("DELETE FROM sessions WHERE hash = ?", (key,))
                 return None
             users = _rows_by_id(t, user_id)
             if not users or users[0][2]:
                 return None
-            if now - last_seen >= TOUCH_S:
+            if (active or display is not None) and now - last_seen >= TOUCH_S:
                 t.execute("UPDATE sessions SET last_seen = ? WHERE hash = ?", (now, key))
-            return Session(key, _user(t, users[0]), created, expires, confirmed)
+            return Session(key, _user(t, users[0]), created, expires, confirmed, display)
 
         return await self._db.run(find)
 
@@ -513,12 +553,16 @@ class Accounts:
         now = self._clock()
         rows = await self._db.run(
             lambda t: t.execute(
-                "SELECT hash, created, last_seen, source, agent FROM sessions"
-                " WHERE user_id = ? AND expires > ? AND last_seen > ? ORDER BY created DESC",
+                "SELECT s.hash, s.created, s.last_seen, s.source, s.agent, d.name"
+                " FROM sessions s"
+                " LEFT JOIN display_sessions ds ON ds.session = s.hash"
+                " LEFT JOIN displays d ON d.id = ds.display"
+                " WHERE s.user_id = ? AND s.expires > ?"
+                " AND (s.last_seen > ? OR ds.display IS NOT NULL) ORDER BY s.created DESC",
                 (user.id, now, now - SESSION_IDLE_S),
             ).fetchall()
         )
-        return [SessionInfo(h[:16], c, seen, s, a) for h, c, seen, s, a in rows]
+        return [SessionInfo(h[:16], c, seen, s, a, d) for h, c, seen, s, a, d in rows]
 
     async def end_session_by_id(
         self, principal: Principal, user: str, session_id: str, *, source: str | None = None
@@ -644,6 +688,168 @@ class Accounts:
             return Principal(_user(t, users[0]), frozenset(json.loads(row[1])))
 
         return await self._db.run(find)
+
+    # --- wall displays ------------------------------------------------------------------
+
+    async def create_display(
+        self,
+        principal: Principal,
+        name: str,
+        permissions: Iterable[str],
+        *,
+        source: str | None = None,
+    ) -> str:
+        """A wall display for the principal's own user, carrying at most its rights: its
+        link, which opens it once, within a day, on the browser that will show it."""
+        principal.require("wall_displays.own")
+        name = name.strip()
+        if not 1 <= len(name) <= 64:
+            raise AccountError("a display's name is 1 to 64 characters")
+        wanted = frozenset(permissions)
+        for p in wanted:
+            if not known(p):
+                raise AccountError(f"no such right: {p}")
+            if not principal.allows(p):
+                raise AccountError(f"a display can't carry {p}, which you don't have")
+        raw = DISPLAY_PREFIX + secrets.token_urlsafe(32)
+        now = self._clock()
+        await self._db.run(
+            lambda t: t.execute(
+                "INSERT INTO displays (user_id, name, permissions, created, link_hash,"
+                " link_expires) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    principal.user.id,
+                    name,
+                    json.dumps(sorted(wanted)),
+                    now,
+                    digest(raw),
+                    now + DISPLAY_LINK_S,
+                ),
+            )
+        )
+        await self._audit.record(
+            principal.name,
+            "wall_display.create",
+            source=source,
+            details={"name": name, "permissions": sorted(wanted)},
+        )
+        return raw
+
+    async def displays(self, user: User) -> list[DisplayInfo]:
+        def read(t: Transaction) -> list[DisplayInfo]:
+            rows = t.execute(
+                "SELECT d.id, d.name, d.permissions, d.created, d.link_expires, d.opened,"
+                " max(s.last_seen) FROM displays d"
+                " LEFT JOIN display_sessions ds ON ds.display = d.id"
+                " LEFT JOIN sessions s ON s.hash = ds.session"
+                " WHERE d.user_id = ? GROUP BY d.id ORDER BY d.created",
+                (user.id,),
+            )
+            return [
+                DisplayInfo(i, n, tuple(json.loads(p)), c, e, o, seen)
+                for i, n, p, c, e, o, seen in rows
+            ]
+
+        return await self._db.run(read)
+
+    async def revoke_display(
+        self, principal: Principal, display_id: int, *, source: str | None = None
+    ) -> None:
+        """Revoke one's own display, or, with users.manage, anyone's: its link stops
+        working, and the browser showing it is logged out."""
+
+        def revoke(t: Transaction) -> None:
+            row = t.execute("SELECT user_id FROM displays WHERE id = ?", (display_id,)).fetchone()
+            if row is None or (
+                row[0] != principal.user.id and not principal.allows("users.manage")
+            ):
+                raise AccountError("no such display")
+            t.execute(
+                "DELETE FROM sessions WHERE hash IN"
+                " (SELECT session FROM display_sessions WHERE display = ?)",
+                (display_id,),
+            )
+            t.execute("DELETE FROM displays WHERE id = ?", (display_id,))
+
+        await self._db.run(revoke)
+        await self._audit.record(
+            principal.name, "wall_display.revoke", source=source, details={"display": display_id}
+        )
+
+    async def display_link(self, raw: str) -> tuple[str, str] | None:
+        """A display link that can still be opened: the display's name and its user's."""
+        if not raw.startswith(DISPLAY_PREFIX):
+            return None
+        now = self._clock()
+        row = await self._db.run(
+            lambda t: t.execute(
+                "SELECT d.name, u.name FROM displays d JOIN users u ON u.id = d.user_id"
+                " WHERE d.link_hash = ? AND d.link_expires > ? AND u.disabled = 0",
+                (digest(raw), now),
+            ).fetchone()
+        )
+        return None if row is None else (str(row[0]), str(row[1]))
+
+    async def open_display(
+        self, raw: str, *, source: str | None = None, agent: str | None = None
+    ) -> str:
+        """Open a display on this browser: a session that doesn't end by itself, with the
+        display's rights. The link is used up."""
+        if not raw.startswith(DISPLAY_PREFIX):
+            raise AccountError("this display link has been used, has expired, or was revoked")
+        session = secrets.token_urlsafe(32)
+        now = self._clock()
+
+        def open_(t: Transaction) -> str:
+            row = t.execute(
+                "SELECT d.id, d.user_id, u.name FROM displays d JOIN users u ON u.id = d.user_id"
+                " WHERE d.link_hash = ? AND d.link_expires > ? AND u.disabled = 0",
+                (digest(raw), now),
+            ).fetchone()
+            if row is None:
+                raise AccountError("this display link has been used, has expired, or was revoked")
+            display_id, user_id, user = row
+            t.execute(
+                "INSERT INTO sessions"
+                " (hash, user_id, created, last_seen, expires, confirmed, source, agent)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    digest(session),
+                    user_id,
+                    now,
+                    now,
+                    now + DISPLAY_SESSION_S,
+                    0.0,  # no password was entered
+                    source,
+                    (agent or "")[:200],
+                ),
+            )
+            t.execute(
+                "INSERT INTO display_sessions (session, display) VALUES (?, ?)",
+                (digest(session), display_id),
+            )
+            t.execute(
+                "UPDATE displays SET link_hash = NULL, link_expires = NULL, opened = ?"
+                " WHERE id = ?",
+                (now, display_id),
+            )
+            return str(user)
+
+        user = await self._db.run(open_)
+        await self._audit.record(f"display:{user}", "wall_display.open", source=source)
+        return session
+
+
+def _display_of(t: Transaction, session: str) -> DisplayInfo | None:
+    row = t.execute(
+        "SELECT d.id, d.name, d.permissions, d.created, d.link_expires, d.opened"
+        " FROM display_sessions ds JOIN displays d ON d.id = ds.display WHERE ds.session = ?",
+        (session,),
+    ).fetchone()
+    if row is None:
+        return None
+    i, n, p, c, e, o = row
+    return DisplayInfo(i, n, tuple(json.loads(p)), c, e, o)
 
 
 def needs_step_up(permission: str) -> bool:

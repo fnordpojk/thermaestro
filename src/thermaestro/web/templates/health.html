@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "points-table.html" import points_table with context %}
 {% block title %}{{ _("Health") }} · {{ _("System") }}{% endblock %}
+{% block refresh %}1{% endblock %}
 {% block main %}
 <h1>{{ _("System") }}</h1>
 {% include "system-nav.html" %}

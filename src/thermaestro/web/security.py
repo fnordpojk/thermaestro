@@ -20,6 +20,8 @@ SESSION_COOKIE = "thermaestro_session"
 PRE_SESSION_COOKIE = "thermaestro_pre"
 CSRF_FIELD = "csrf"
 CSRF_HEADER = "x-csrf-token"
+BACKGROUND_HEADER = "x-thermaestro-background"
+"""Sent by a page refreshing what it shows by itself: not someone using the session."""
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 CSP = (

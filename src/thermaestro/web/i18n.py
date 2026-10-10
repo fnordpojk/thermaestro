@@ -169,6 +169,7 @@ SHOWN_BY_VALUE = (
     mark("add, change and remove plugin instances"),
     mark("add, change and remove users and their rights"),
     mark("create and revoke one's own API tokens"),
+    mark("make and revoke one's own wall displays, which stay logged in"),
     mark("read the audit log"),
     # refusals the pages show
     mark("wrong user name or password"),
@@ -187,6 +188,9 @@ SHOWN_BY_VALUE = (
         " the product's"
     ),
     mark("enter your password again to make this change"),
+    mark("a display's name is 1 to 64 characters"),
+    mark("a wall display can't make changes that need a password"),
+    mark("this display link has been used, has expired, or was revoked"),
 )
 
 

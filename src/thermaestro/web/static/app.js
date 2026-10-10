@@ -22,8 +22,8 @@
   }
 })();
 
-(function () {
-  const chart = document.getElementById("chart");
+// A point's history. It loads again with each refresh of the page, in the range chosen.
+function historyChart(chart) {
   if (!chart || (chart.dataset.kind === "number" && typeof uPlot === "undefined")) {
     return;
   }
@@ -335,16 +335,16 @@
     chart.append(band, axis, legend);
   }
 
+  let shown = () => load(24);
   for (const button of document.querySelectorAll(".ranges button")) {
     button.addEventListener("click", () => {
       for (const other of document.querySelectorAll(".ranges button")) {
         other.setAttribute("aria-pressed", String(other === button));
       }
-      if (button.dataset.days) {
-        loadDaily(Number(button.dataset.days));
-      } else {
-        load(Number(button.dataset.hours));
-      }
+      shown = button.dataset.days
+        ? () => loadDaily(Number(button.dataset.days))
+        : () => load(Number(button.dataset.hours));
+      shown();
     });
   }
   window.addEventListener("resize", () => {
@@ -352,8 +352,10 @@
       plot.setSize({ width: chart.clientWidth, height: 320 });
     }
   });
-  load(24);
-})();
+  document.addEventListener("page-refreshed", () => shown());
+  shown();
+}
+historyChart(document.getElementById("chart"));
 
 // The colors: each click flips what's shown. Flipping back to the device's own colors
 // means "as the device" again, so there are never clicks that change nothing. Without
@@ -377,8 +379,8 @@
 
 // A chart or its table: a pair of buttons, the choice remembered in this browser. Without
 // this code, the table shows and the chart stays hidden.
-(function () {
-  for (const nav of document.querySelectorAll("nav.view-switch[data-switch]")) {
+function viewSwitches(root) {
+  for (const nav of root.querySelectorAll("nav.view-switch[data-switch]")) {
     const name = nav.dataset.switch;
     const key = `view.${name}`;
     let chosen = "chart";
@@ -409,7 +411,7 @@
     nav.hidden = false;
     show(chosen);
   }
-})();
+}
 
 // Times and numbers as the page writes them: the house's time zone, the user's clock.
 function pageFormats(element) {
@@ -748,24 +750,37 @@ function priceChart(box) {
     }
   }
 
+  whileShown(box, "prices", draw);
+  load();
+}
+
+// Redraw on resizing, and when the chart view is chosen; until the box leaves the page
+// (a refresh brings a new one).
+function whileShown(box, name, draw) {
   let resized = null;
-  window.addEventListener("resize", () => {
+  const onResize = () => {
+    if (!box.isConnected) {
+      window.removeEventListener("resize", onResize);
+      return;
+    }
     clearTimeout(resized);
     resized = setTimeout(() => {
       if (!box.hidden) {
         draw();
       }
     }, 150);
-  });
-  document.addEventListener("view-shown", (event) => {
-    if (event.detail.name === "prices" && event.detail.view === "chart") {
+  };
+  const onView = (event) => {
+    if (!box.isConnected) {
+      document.removeEventListener("view-shown", onView);
+      return;
+    }
+    if (event.detail.name === name && event.detail.view === "chart") {
       draw();
     }
-  });
-  load();
-}
-for (const box of document.querySelectorAll("[data-chart]")) {
-  priceChart(box);
+  };
+  window.addEventListener("resize", onResize);
+  document.addEventListener("view-shown", onView);
 }
 
 // The weather after Yr's meteogram: one graph. On top, the temperature (red above zero,
@@ -1258,22 +1273,98 @@ function meteogram(box) {
     return { degC: "°C", "W/m2": "W/m²", deg: "°" }[code] || code || "";
   }
 
-  let resized = null;
-  window.addEventListener("resize", () => {
-    clearTimeout(resized);
-    resized = setTimeout(() => {
-      if (!box.hidden) {
-        draw();
-      }
-    }, 150);
-  });
-  document.addEventListener("view-shown", (event) => {
-    if (event.detail.name === "weather" && event.detail.view === "chart") {
-      draw();
-    }
-  });
+  whileShown(box, "weather", draw);
   draw();
 }
-for (const box of document.querySelectorAll("[data-meteogram]")) {
-  meteogram(box);
+
+// The charts and switches in a part of the page: on loading, and in what a refresh brings.
+function charts(root) {
+  viewSwitches(root);
+  for (const box of root.querySelectorAll("[data-chart]")) {
+    priceChart(box);
+  }
+  for (const box of root.querySelectorAll("[data-meteogram]")) {
+    meteogram(box);
+  }
 }
+charts(document);
+
+// Pages keep what they show current: every minute while the page is in view, and at once
+// when it comes back into view after longer. The page is fetched again and its part marked
+// `data-refresh` put in place of the old, unless something in it is being filled in. The
+// request says it is the page's own doing, so it doesn't keep the login from idling out.
+(function () {
+  const EVERY_MS = 60_000;
+  let last = Date.now();
+  let busy = false;
+  const touched = new WeakSet();
+  for (const kind of ["input", "change"]) {
+    document.addEventListener(kind, (event) => {
+      const form = event.target.closest && event.target.closest("form");
+      if (form) {
+        touched.add(form);
+      }
+    });
+  }
+
+  function editing(region) {
+    const active = document.activeElement;
+    if (active && region.contains(active) && active.matches("input, select, textarea")) {
+      return true;
+    }
+    return [...region.querySelectorAll("form")].some((form) => touched.has(form));
+  }
+
+  async function refresh() {
+    if (busy || document.hidden) {
+      return;
+    }
+    busy = true;
+    try {
+      const regions = [...document.querySelectorAll("[data-refresh][id]")];
+      if (regions.length) {
+        const response = await fetch(location.href, {
+          credentials: "same-origin",
+          headers: { "X-Thermaestro-Background": "1" },
+        });
+        if (response.redirected || response.status === 401) {
+          location.reload(); // logged out: show the login
+          return;
+        }
+        if (response.ok) {
+          const page = new DOMParser().parseFromString(await response.text(), "text/html");
+          for (const region of regions) {
+            const fresh = page.getElementById(region.id);
+            if (!fresh || editing(region)) {
+              continue;
+            }
+            // Sections opened or closed by hand stay so.
+            const opened = [...region.querySelectorAll("details")].map((d) => d.open);
+            const details = fresh.querySelectorAll("details");
+            if (details.length === opened.length) {
+              details.forEach((d, i) => (d.open = opened[i]));
+            }
+            region.replaceWith(fresh);
+            charts(fresh);
+            if (typeof htmx !== "undefined") {
+              htmx.process(fresh);
+            }
+          }
+        }
+      }
+      last = Date.now();
+      document.dispatchEvent(new CustomEvent("page-refreshed"));
+    } catch (e) {
+      // not reached this time; the next try comes on its own
+    } finally {
+      busy = false;
+    }
+  }
+
+  setInterval(refresh, EVERY_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - last >= EVERY_MS) {
+      refresh();
+    }
+  });
+})();

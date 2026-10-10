@@ -15,7 +15,12 @@ from . import operations
 from .app import action, anonymous_api, caller, services
 from .operations import Caller
 from .security import client_address, csrf_token
-from .sessions import end_browser_session, start_browser_session
+from .sessions import (
+    display_link,
+    end_browser_session,
+    start_browser_session,
+    start_display_session,
+)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -61,6 +66,16 @@ class NewToken(BaseModel):
     name: str = Field(max_length=64)
     permissions: list[str]
     days: int = TOKEN_DAYS
+
+
+class NewDisplay(BaseModel):
+    name: str = Field(max_length=64)
+    permissions: list[str]
+
+
+class OpenDisplay(BaseModel):
+    link: str
+    """The display's link, or its last part."""
 
 
 class Secret(BaseModel):
@@ -337,9 +352,55 @@ async def sessions(
             "last_seen": s.last_seen,
             "from": s.source,
             "agent": s.agent,
+            "display": s.display,
         }
         for s in await services(request).sessions(who, user)
     ]
+
+
+# --- wall displays -----------------------------------------------------------------------
+
+
+@router.get("/displays")
+@action("wall_displays.read")
+async def displays(request: Request, who: Logged) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": d.id,
+            "name": d.name,
+            "permissions": list(d.permissions),
+            "created": d.created,
+            "link_expires": d.link_expires,
+            "opened": d.opened,
+            "last_seen": d.last_seen,
+        }
+        for d in await services(request).displays(who)
+    ]
+
+
+@router.post("/displays", status_code=201)
+@action("wall_display.create")
+async def create_display(body: NewDisplay, request: Request, who: Logged) -> dict[str, str]:
+    """The link is in this answer only. Opened on the display's browser within a day, it
+    logs that browser in for good, with the display's rights; then it is used up."""
+    raw = await services(request).create_display(who, body.name, body.permissions)
+    return {"link": display_link(request, raw)}
+
+
+@router.delete("/displays/{display_id}")
+@action("wall_display.revoke")
+async def revoke_display(display_id: int, request: Request, who: Logged) -> dict[str, str]:
+    await services(request).revoke_display(who, display_id)
+    return {"status": "ok"}
+
+
+@router.post("/displays/open", dependencies=[Anonymous])
+@action("wall_display.open")
+async def open_display(body: OpenDisplay, request: Request, response: Response) -> dict[str, str]:
+    """Open a display with its link's secret: a session that doesn't end by itself. The
+    answer carries its CSRF token."""
+    session_hash = await start_display_session(request, response, body.link.rsplit("/", 1)[-1])
+    return {"csrf": csrf_token(request.app.state.csrf_key, session_hash)}
 
 
 @router.delete("/sessions/{user}/{session_id}")
