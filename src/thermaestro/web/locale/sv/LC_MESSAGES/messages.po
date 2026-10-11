@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 17:18+0200\n"
+"POT-Creation-Date: 2026-10-11 17:48+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -36,6 +36,10 @@ msgstr "%(feature)s är avstängd"
 #, python-format
 msgid "%(hours)s hours"
 msgstr "%(hours)s timmar"
+
+#, python-format
+msgid "%(hours)s hours of heating of %(least)s."
+msgstr "%(hours)s timmar med värmedrift av %(least)s."
 
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
@@ -124,6 +128,10 @@ msgstr "%(part)s: varmare, tack"
 #, python-format
 msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
+
+#, python-format
+msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
+msgstr "%(step)s °C framledning per förskjutningssteg, %(slope)s °C per grad kallare"
 
 #, python-format
 msgid "%(total)s °C of the tank a week"
@@ -1116,6 +1124,9 @@ msgstr "Hur viktigt det är"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Hur rummen följer värmen och vädret"
+
+msgid "How the supply follows the weather and the offset"
+msgstr "Hur framledningen följer vädret och förskjutningen"
 
 msgid "Humidity"
 msgstr "Luftfuktighet"
@@ -2395,6 +2406,9 @@ msgstr "Medelvärdet av de laddningar som setts, där den senaste väger mest."
 
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
+
+msgid "The offset hasn't moved enough to learn what a step does."
+msgstr "Förskjutningen har inte ändrats tillräckligt för att lära vad ett steg gör."
 
 #, python-format
 msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."

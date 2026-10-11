@@ -32,9 +32,10 @@ from ..core.values import Key, Sample, Values
 from ..intents.calendar import Calendar
 from ..intents.entry import RESPONSE_H
 from ..store import Database, Home, Room, Sensor, Transaction
-from . import house
+from . import house, pump
 from .hotwater import house as house_days
 from .hygiene import intervals
+from .inputs import intersect, seconds, spans
 from .model import Learned, State, mark
 from .store import Learnings
 from .tank import bounds
@@ -47,6 +48,7 @@ log = logging.getLogger(__name__)
 MODEL = "house.model"
 TAU = "house.tau_h"
 RESPONSE = "house.response_h"
+PUMP = "pump.response"
 DAYS = 28
 """The days of hours fitted over."""
 RAW_S = 13 * 86_400.0
@@ -54,7 +56,13 @@ RAW_S = 13 * 86_400.0
 FIREPLACE_S = 6 * 3600.0
 AIRED_DROP = 1.0
 AIRED_WITHIN_S = 600.0
-HOLD = {"room": 6 * 3600.0, "outdoor": 3 * 3600.0, "water": 1800.0, "stop": 6 * 3600.0}
+HOLD = {
+    "room": 6 * 3600.0,
+    "outdoor": 3 * 3600.0,
+    "water": 1800.0,
+    "stop": 6 * 3600.0,
+    "offset": 24 * 3600.0,
+}
 """How long a reading holds with nothing after it: a room sensor may report only on a
 change, the pump's values come often."""
 WATER_COVERED = 0.5
@@ -85,6 +93,10 @@ class SystemKeys:
     mean_out: Key
     rooms: list[str]
     """Room ids with a temperature sensor."""
+    demand: Key | None = None
+    compressor: Key | None = None
+    offset: Key | None = None
+    """The point the heating offset is read back by."""
 
 
 class Heating:
@@ -124,6 +136,26 @@ class Heating:
                 if unit is None:
                     continue
                 scope = f"{instance_id}:{node.path}"
+                kinds = {n.path: n.kind for n in described.nodes}
+                compressor = next(
+                    (
+                        Key(instance_id, p.path)
+                        for p in described.points
+                        if p.path.startswith(f"{unit}/")
+                        and p.path.endswith("/state")
+                        and kinds.get(p.path.rpartition("/")[0]) == "compressor"
+                    ),
+                    None,
+                )
+                lever = next(
+                    (
+                        lv
+                        for lv in getattr(described, "levers", ())
+                        if lv.path == f"{node.path}/heating.offset"
+                    ),
+                    None,
+                )
+                point = lever.verify.point if lever is not None else None
                 out.append(
                     SystemKeys(
                         scope,
@@ -140,6 +172,9 @@ class Heating:
                             for id, room in rooms.items()
                             if room.climate_system == scope and id in sensed
                         ),
+                        Key(instance_id, f"{unit}/demand"),
+                        compressor,
+                        Key(instance_id, point) if point else None,
                     )
                 )
         return out
@@ -157,16 +192,8 @@ class Heating:
     def _inputs(self, keys: SystemKeys) -> tuple[Key | None, list[Key], str | None]:
         outdoor = next((k for k in keys.outdoor if self._usable(k)), None)
         rooms = [k for id in keys.rooms if self._usable(k := Key(SITE, f"room.{id}/temperature"))]
-        missing = (
-            "water"
-            if not self._usable(keys.supply)
-            else "room"
-            if not rooms
-            else "outdoor"
-            if outdoor is None
-            else None
-        )
-        return outdoor, rooms, missing
+        missing = "water" if not self._usable(keys.supply) else None
+        return outdoor, rooms, missing or ("outdoor" if outdoor is None else None)
 
     async def _learn(self, keys: SystemKeys, calendar: Calendar, home: Home, now: float) -> None:
         outdoor, rooms, missing = self._inputs(keys)
@@ -188,7 +215,7 @@ class Heating:
             read = True
         # Fitted again only with a new day: it takes seconds.
         if read or self._learnings.get(MODEL, keys.scope) is None:
-            await self._judge(keys, home, now)
+            await self._judge(keys, home, now, bool(rooms))
 
     async def _day(
         self, keys: SystemKeys, outdoor: Key, rooms: list[Key], day: date, calendar: Calendar
@@ -217,6 +244,12 @@ class Heating:
         ]
         stop = await hourly(keys.stop, HOLD["stop"])
         mean_out = await hourly(keys.mean_out, HOLD["stop"])
+        offset = (
+            await hourly(keys.offset, HOLD["offset"], 0.5)
+            if keys.offset is not None
+            else [None] * count
+        )
+        share = await self._heating_share(keys, start, count)
         sun = await self._forecast("irradiance.global", start, count)
         wind = await self._forecast("wind_speed", start, count)
         fires = await self._fireplaces(start, end)
@@ -231,8 +264,41 @@ class Heating:
                 skip = "airing"
             elif (stopping := stop[i]) is not None and (mean := mean_out[i]) is not None:
                 skip = "heating_off" if mean >= stopping else None
-            hours.append(house.Hour(t, room[i], out[i], water[i], sun[i], wind[i], skip))
+            hours.append(
+                house.Hour(
+                    t,
+                    room[i],
+                    out[i],
+                    water[i],
+                    sun[i],
+                    wind[i],
+                    skip,
+                    supply[i],
+                    offset[i],
+                    share[i],
+                )
+            )
         return hours
+
+    async def _heating_share(
+        self, keys: SystemKeys, start: float, count: int
+    ) -> list[float | None]:
+        """The share of each hour the compressor ran with the demand on heating."""
+        if keys.demand is None or keys.compressor is None:
+            return [None] * count
+        end = start + count * 3600
+        demand = await self._values.history(keys.demand, start - 3600, end)
+        compressor = await self._values.history(keys.compressor, start - 3600, end)
+        if not demand or not compressor:
+            return [None] * count
+        heating = intersect(
+            spans(compressor, end, lambda s: s.text == "running"),
+            spans(demand, end, lambda s: s.text == "heating"),
+        )
+        return [
+            seconds(intersect(heating, [(start + i * 3600, start + (i + 1) * 3600)])) / 3600
+            for i in range(count)
+        ]
 
     async def _forecast(self, quantity: str, start: float, count: int) -> list[float | None]:
         if self._weather is None:
@@ -279,11 +345,16 @@ class Heating:
                     found.append(s.t)
         return found
 
-    async def _judge(self, keys: SystemKeys, home: Home, now: float) -> None:
+    async def _judge(self, keys: SystemKeys, home: Home, now: float, rooms: bool) -> None:
         days = await self._events(keys.scope, now - DAYS * 86_400)
         hours = [_hour(h) for _, body in days for h in body["hours"]]
         hours.sort(key=lambda h: h.t)
         if not hours:
+            return
+        # The pump's curve needs no room; the house does.
+        await self._pump(keys.scope, hours, now)
+        if not rooms:
+            await self._note(keys.scope, WHAT["room"])
             return
         recent = [h for h in hours if h.t >= now - 3 * 86_400]
         off = sum(1 for h in recent if h.skip == "heating_off")
@@ -347,6 +418,32 @@ class Heating:
                     since=hours[0].t,
                 )
             )
+
+    async def _pump(self, scope: str, hours: list[house.Hour], now: float) -> None:
+        """How the supply follows the outdoor temperature and the offset."""
+        found, verdict, why, args = pump.judge(hours, now - pump.TEST_HOURS * 3600)
+        before = self._learnings.get(PUMP, scope)
+        if found is None:
+            if before is not None and before.value is not None:
+                return  # kept as it was learned
+            await self._learnings.put(
+                Learned(name=PUMP, scope=scope, kind="model", state="learning", why=why, args=args)
+            )
+            return
+        state: State = "proved" if verdict is not None and verdict.proved else "learning"
+        await self._learnings.put(
+            Learned(
+                name=PUMP,
+                scope=scope,
+                kind="model",
+                value=found.as_value(),
+                state=state,
+                why=verdict.why if verdict is not None else TESTING,
+                args=dict(verdict.args) if verdict is not None else {},
+                n=found.rows,
+                since=before.since if before and before.since else hours[0].t,
+            )
+        )
 
     async def _note(self, scope: str, what: str) -> None:
         found = self._learnings.get(MODEL, scope)
@@ -412,6 +509,9 @@ def _hour_body(h: house.Hour) -> dict[str, Any]:
         "sun": _round(h.sun),
         "wind": _round(h.wind),
         "skip": h.skip,
+        "supply": _round(h.supply),
+        "offset": _round(h.offset),
+        "heating": _round(h.heating),
     }
 
 
@@ -424,6 +524,9 @@ def _hour(body: dict[str, Any]) -> house.Hour:
         body.get("sun"),
         body.get("wind"),
         body.get("skip"),
+        body.get("supply"),
+        body.get("offset"),
+        body.get("heating"),
     )
 
 

@@ -213,6 +213,25 @@ def test_without_a_room_sensor_price_shifts_within_the_bound() -> None:
     assert at(False) == -2
 
 
+def test_a_slow_system_without_a_room_sensor_heats_ahead_of_the_weather() -> None:
+    shift = kinds.no_sensor_band(CS, steps=2, principal="user:a", created=BEFORE)
+    no_rooms = replace(CAPS, rooms={})
+
+    def at(intents: list[Intent], lead: int, cheap: bool = True) -> Decision:
+        sit = situation(intents, price=prices(cheap_now=cheap))
+        return offset(
+            rules.plan(replace(sit, rooms=[], caps=no_rooms, lead={CS: (lead, -8.0, 9.0)}))
+        )
+
+    alone = at([shift], 2)
+    assert value(alone) == 2
+    assert "-8 °C expected in 9 hours" in alone.reason
+    assert value(at([shift, stance()], 2)) == 2  # within the household's bound
+    assert value(at([shift, stance()], 2, cheap=False)) == 0
+    without = rules.plan(replace(situation([shift]), rooms=[], caps=no_rooms))
+    assert not [d for d in without if d.lever == OFFSET and d.op == "set"]
+
+
 def test_the_integral_builds_while_a_room_stays_cold() -> None:
     memory = Memory(last_round=NOW - timedelta(minutes=15))
     rules.plan(situation([band()], temp=20.0, memory=memory))

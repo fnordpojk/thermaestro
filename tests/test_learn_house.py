@@ -11,13 +11,17 @@ from typing import Any, cast
 
 import pytest
 from plant import begin, draw
+from plant.model import FLOW_W_K, curve_for
 
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.sensors import SITE
 from thermaestro.core.values import Key, Sample
-from thermaestro.learn import Learnings
+from thermaestro.core.weather import Forecast, Span
+from thermaestro.intents import Capabilities
+from thermaestro.learn import Learned, Learnings, pump
 from thermaestro.learn import house as h
-from thermaestro.learn.heating import MODEL, RESPONSE, TAU, Heating
+from thermaestro.learn.heating import MODEL, PUMP, RESPONSE, TAU, Heating
+from thermaestro.planner import Planner
 from thermaestro.planner.rules import _response_h
 from thermaestro.store import Database, Room, Sensor
 
@@ -116,18 +120,34 @@ def plant_hours(seed: int = 4, days: int = 12) -> tuple[Any, list[h.Hour]]:
     weather = plant._weather
     assert weather is not None
     out = []
+    offset = 0
     for hour in range(days * 24):
         if hour % 4 == 0:
-            plant.registers[47011] = rng.randint(-3, 3) & 0xFFFF
+            offset = rng.randint(-3, 3)
+            plant.registers[47011] = offset & 0xFFFF
         t0 = plant.t
-        sums = [0.0, 0.0, 0.0]
+        sums = [0.0, 0.0, 0.0, 0.0, 0.0]
         for _ in range(60):
             plant.run(60)
-            sums[0] += plant.zones[0].air
+            zone = plant.zones[0]
+            sums[0] += zone.air
             sums[1] += plant.outdoor
-            sums[2] += plant.zones[0].emitter
+            sums[2] += zone.emitter
+            sums[3] += zone.emitter + zone.heat_w / (2 * FLOW_W_K)
+            sums[4] += plant.compressor_on and plant.demand == "heating"
         out.append(
-            h.Hour(t0, sums[0] / 60, sums[1] / 60, sums[2] / 60, weather.sun(t0), weather.wind(t0))
+            h.Hour(
+                t0,
+                sums[0] / 60,
+                sums[1] / 60,
+                sums[2] / 60,
+                weather.sun(t0),
+                weather.wind(t0),
+                None,
+                sums[3] / 60,
+                offset,
+                sums[4] / 60,
+            )
         )
     return scenario, out
 
@@ -142,6 +162,82 @@ def test_the_simulated_house_is_learned_and_proves_itself() -> None:
     tau = (house.c_air_j_k + house.c_mass_j_k) / house.ua_w_k / 3600
     assert fit.tau_h is not None
     assert tau / 3 < fit.tau_h < tau * 3, (fit.tau_h, tau)
+
+
+def test_the_pumps_curve_is_learned_and_proves_itself() -> None:
+    scenario, hours = plant_hours()
+    found, verdict, why, _ = pump.judge(hours, hours[-pump.TEST_HOURS].t)
+    assert found is not None, why
+    assert verdict is not None
+    assert verdict.proved, verdict
+    curve = curve_for(scenario.houses[0])
+    assert found.c1 == pytest.approx(-(0.09 * curve + 0.06), rel=0.5)
+    assert found.c2 == pytest.approx(1 + 0.15 * curve, rel=0.5)
+
+
+def test_an_offset_that_never_moved_teaches_nothing() -> None:
+    _, hours = plant_hours()
+    still = [
+        h.Hour(x.t, x.room, x.outdoor, x.water, x.sun, x.wind, x.skip, x.supply, 0, x.heating)
+        for x in hours
+    ]
+    found, why, _ = pump.fit(still)
+    assert found is None
+    assert why == pump.STILL
+
+
+def test_colder_weather_ahead_raises_the_offset_now() -> None:
+    curve = pump.Response(40.0, -0.5, 1.5, 100)
+    assert pump.lead(curve, 0.0, -6.0, 3) == 2
+    assert pump.lead(curve, 0.0, 6.0, 3) == -2
+    assert pump.lead(curve, 0.0, -30.0, 3) == 3
+    assert pump.lead(curve, 0.0, 0.4, 3) == 0
+
+
+async def test_the_planner_leads_only_a_proved_curve_without_a_room_sensor(
+    tmp_path: Path,
+) -> None:
+    async def forecast(quantity: str, start: datetime, end: datetime) -> Forecast:
+        return Forecast(quantity, "met", spans=[Span(start, end, -8.0)])
+
+    weather = cast(Any, SimpleNamespace(forecast=forecast))
+    caps = Capabilities(
+        systems=frozenset({"dev:hp1/cs1", "dev:hp1/cs2"}),
+        rooms={"room:living": "dev:hp1/cs2"},
+        emitters={"dev:hp1/cs1": "slab", "dev:hp1/cs2": "slab"},
+    )
+    now = datetime.fromtimestamp(START, UTC)
+    async with await Database.open(tmp_path / "t.db") as db:
+        audit = AuditLog(tmp_path / "audit")
+        learnings = Learnings(db, audit)
+        await learnings.load()
+        nothing = cast(Any, None)
+        planner = Planner(
+            db,
+            Values(db),
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            audit,
+            learnings=learnings,
+            weather=weather,
+        )
+        curve = {"c0": 30.0, "c1": -0.6, "c2": 1.8}
+        for scope in ("dev:hp1/cs1", "dev:hp1/cs2"):
+            await learnings.put(
+                Learned(name=PUMP, scope=scope, kind="model", value=curve, state="learning")
+            )
+        assert await planner._leads(caps, now, 0.0) == {}  # not proved yet
+        for scope in ("dev:hp1/cs1", "dev:hp1/cs2"):
+            await learnings.put(
+                Learned(name=PUMP, scope=scope, kind="model", value=curve, state="proved")
+            )
+        found = await planner._leads(caps, now, 0.0)
+        assert list(found) == ["dev:hp1/cs1"]  # the other has a room sensor
+        steps, ahead, hours = found["dev:hp1/cs1"]
+        assert (steps, ahead) == (3, -8.0)
+        assert hours >= 2
 
 
 def test_the_response_used_is_learned_once_proved() -> None:
@@ -194,14 +290,71 @@ async def test_the_house_is_read_day_by_day_and_kept(tmp_path: Path) -> None:
         response = learnings.get(RESPONSE, "dev:hp1/cs1")
         assert response is not None
         assert response.starting == 4.0  # an unknown emitter's, until learned
+        curve = learnings.get(PUMP, "dev:hp1/cs1")
+        assert curve is not None
+        assert curve.why == pump.FEW  # no heating offset or compressor read here
         days = await heating._events("dev:hp1/cs1", 0.0)
         assert len(days) >= 11
         await heating.run(end)
         assert len(await heating._events("dev:hp1/cs1", 0.0)) == len(days)
 
 
+async def test_a_system_without_a_room_sensor_learns_its_pumps_curve(tmp_path: Path) -> None:
+    _, hours = plant_hours()
+    node = SimpleNamespace
+    described = node(
+        nodes=[
+            node(path="hp1", kind="unit"),
+            node(path="hp1/cs1", kind="climate_system"),
+            node(path="hp1/compressor.ep14", kind="compressor"),
+        ],
+        points=[node(path="hp1/compressor.ep14/state")],
+        levers=[node(path="hp1/cs1/heating.offset", verify=node(point="hp1/cs1/x.nibe.47011"))],
+    )
+    host = cast(Any, node(instances={"dev": node(described=described)}))
+
+    def at(point: str, t: float, value: float | None, text: str | None = None) -> None:
+        instance = SITE if point.startswith("outdoor/") else "dev"
+        rows.append((Key(instance, point), Sample(t, value, text, "good")))
+
+    rows: list[tuple[Key, Sample]] = []
+    for x in hours:
+        assert x.supply is not None
+        assert x.heating is not None
+        for m in range(0, 60, 10):
+            at("outdoor/temperature", x.t + m * 60, x.outdoor)
+            at("hp1/cs1/supply.temp", x.t + m * 60, x.supply)
+        at("hp1/cs1/x.nibe.47011", x.t, x.offset)
+        if x.heating:
+            at("hp1/compressor.ep14/state", x.t, None, "running")
+            at("hp1/demand", x.t, None, "heating")
+        off = x.t + round(x.heating * 60) * 60
+        if off < x.t + 3600:
+            at("hp1/compressor.ep14/state", off, None, "stopped")
+            at("hp1/demand", off, None, "idle")
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [(k.instance, k.point, s.t, s.value, s.text, s.quality) for k, s in rows],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        heating = Heating(
+            db, Values(db), host, learnings, lambda key: key.point != "hp1/cs1/return.temp"
+        )
+        await heating.run(hours[-1].t + 3600)
+        curve = learnings.get(PUMP, "dev:hp1/cs1")
+        assert curve is not None
+        assert curve.state == "proved", curve
+        model = learnings.get(MODEL, "dev:hp1/cs1")
+        assert model is not None
+        assert model.args == {"what": "a room temperature in this climate system"}
+
+
 def test_the_house_is_shown_in_words() -> None:
-    from thermaestro.learn import Learned
     from thermaestro.web.learn_operations import _shown
 
     model = Learned(
@@ -210,6 +363,10 @@ def test_the_house_is_shown_in_words() -> None:
     assert _shown(model) == "off by 0.18 °C on average six hours ahead"
     tau = Learned(name=TAU, scope="dev:hp1/cs1", kind="model", value=41.6, unit="h")
     assert _shown(tau) == "42 hours"
+    curve = Learned(
+        name=PUMP, scope="dev:hp1/cs1", kind="model", value={"c0": 30, "c1": -0.6, "c2": 1.8}
+    )
+    assert _shown(curve) == "1.8 °C of supply per offset step, 0.60 °C per degree colder"
 
 
 async def test_a_system_without_its_inputs_says_why(tmp_path: Path) -> None:

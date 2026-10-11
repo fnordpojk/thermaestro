@@ -83,6 +83,12 @@ class Hour:
     """m/s."""
     skip: str | None = None
     """Why the hour is left out: "fireplace", "airing", "heating_off"."""
+    supply: float | None = None
+    """The supply alone, for the pump's curve."""
+    offset: float | None = None
+    """The heating offset in the hour."""
+    heating: float | None = None
+    """The share of the hour the compressor heated the house."""
 
 
 @dataclass(frozen=True, slots=True)

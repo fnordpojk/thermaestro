@@ -25,6 +25,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta, tzinfo
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from .. import clock
@@ -39,11 +40,13 @@ from ..core.prices import assemble
 from ..core.sensors import DEFAULT_FRESHNESS_S, SITE, SensorHub
 from ..core.series import Series
 from ..core.values import Key, Values
-from ..intents import Intents
+from ..core.weather import value_at
+from ..intents import Capabilities, Intents
 from ..intents.entry import RESPONSE_H
 from ..learn import Learned, Learnings, mark
-from ..learn.heating import RESPONSE
+from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import expected, house
+from ..learn.pump import Response, lead
 from ..store import Control, Database, Location, PriceLayer, Vat
 from . import rules
 from .model import (
@@ -56,6 +59,9 @@ from .model import (
     Situation,
     Tank,
 )
+
+if TYPE_CHECKING:
+    from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +87,10 @@ PERIODIC_ABOVE = 3.0
 """How far above its stop temperature the tank's top must rise to count as the pump's
 periodic increase."""
 
+LEAD_LEAST_H = 2.0
+"""A system that answers faster isn't led by the forecast: the pump's curve keeps up."""
+LEAD_MOST = 3
+"""The most offset steps heating ahead of the weather may add or take."""
 PLANNED = ("heating.offset", "block", "boost_once", "stop_temp", "max_power", "start_temp")
 """The levers the rules use, by name."""
 CHARGE = "tank.charge_s"
@@ -136,8 +146,10 @@ class Planner:
         series: Series | None = None,
         prices: Prices | None = None,
         learnings: Learnings | None = None,
+        weather: "Weather | None" = None,
         check_s: float = CHECK_S,
     ) -> None:
+        self._weather = weather
         self._db = db
         self._learnings = learnings
         """Where what the planner observes is kept, so a restart keeps it; in memory only
@@ -314,6 +326,7 @@ class Planner:
             boost_scopes=boosts,
             memory=self.memory,
             response_h=self._responses(caps.systems),
+            lead=await self._leads(caps, now, outdoor),
         )
 
     def _response(self, system: str, emitters: Mapping[str, str]) -> float:
@@ -328,6 +341,42 @@ class Planner:
             return {}
         found = {s: self._learnings.used(RESPONSE, s) for s in systems}
         return {s: float(v) for s, v in found.items() if isinstance(v, int | float)}
+
+    async def _leads(
+        self, caps: "Capabilities", now: datetime, outdoor: float | None
+    ) -> dict[str, tuple[int, float, float]]:
+        """For each climate system without a room sensor, whose pump's curve is learned and
+        proved: the offset steps that heat now for the weather one response ahead."""
+        if self._learnings is None or self._weather is None:
+            return {}
+        if outdoor is None:
+            outdoor = self._number(self._pump_point("outdoor.temp"))
+        if outdoor is None:
+            return {}
+        sensed = set(caps.rooms.values())
+        out = {}
+        for system in sorted(caps.systems - sensed):
+            curve = self._learnings.used(PUMP, system)
+            if not isinstance(curve, dict):
+                continue
+            hours = self._response(system, caps.emitters)
+            if hours < LEAD_LEAST_H:
+                continue
+            then = now + timedelta(hours=hours)
+            try:
+                found = await self._weather.forecast("temperature", then, then + timedelta(hours=1))
+            except Exception:
+                log.exception("the temperature forecast couldn't be read for heating ahead")
+                continue
+            ahead = value_at(found.spans, then, True)
+            if ahead is None:
+                continue
+            response = Response(curve.get("c0", 0.0), curve.get("c1", 0.0), curve.get("c2", 1.0), 0)
+            if response.c2 <= 0:
+                continue
+            steps = lead(response, outdoor, ahead, LEAD_MOST)
+            out[system] = (steps, ahead, hours)
+        return out
 
     def _heard(self, instance: str, envelope: Envelope) -> None:
         point = envelope.point

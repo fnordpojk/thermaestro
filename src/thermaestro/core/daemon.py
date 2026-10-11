@@ -122,6 +122,7 @@ async def run(
             sensors=sensors,
             series=series,
             learnings=learning.learnings,
+            weather=weather,
         )
         core = Core(
             layout,

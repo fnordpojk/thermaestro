@@ -337,21 +337,36 @@ def _shift(sit: Situation, system: str, lever: LeverState) -> list[Decision]:
         return []
     half = max(WINDOW, timedelta(hours=_response_h(sit, system)))
     s = rank_signal(sit.prices, sit.now, half)
+    lead, ahead, hours = sit.lead.get(system, (0, 0.0, 0.0))
+    weather = (
+        f"{lead:+d} for the {ahead:.0f} °C expected in {hours:.0f} hours, as the floor or"
+        " radiators take that long"
+        if lead
+        else ""
+    )
     if sit.force.slider is None or s is None:
         why = "no cost stance" if sit.force.slider is None else "no prices"
-        return _restore(lever, f"{why}: the pump's own offset")
-    steps = min(abs(bound.low), abs(bound.high))
-    shift = round(steps * sit.force.slider * s)
+        if not lead:
+            return _restore(lever, f"{why}: the pump's own offset")
+        shift = 0
+    else:
+        steps = min(abs(bound.low), abs(bound.high))
+        shift = round(steps * sit.force.slider * s)
     if _quiet(sit) or _over_peak(sit):
         shift = min(shift, 0)
+        lead = min(lead, 0)
     base = _number(lever.baseline, _number(lever.current))
-    value = lever.fit(base + shift)
+    value = lever.fit(base + max(bound.low, min(bound.high, shift + lead)))
     if shift > 0:
         reason = f"cheap hour: the heat raised {shift:+d} ahead of dearer ones"
     elif shift < 0:
         reason = f"dear hour: the heat lowered {shift:+d}, made up in cheaper ones"
+    elif lead:
+        reason = "heating ahead of the weather"
     else:
         reason = "an average hour: normal heat"
+    if weather:
+        reason += f"; {weather}"
     return [Decision(lever.ref, "set", {"value": value}, RANK_SLIDER, reason)]
 
 

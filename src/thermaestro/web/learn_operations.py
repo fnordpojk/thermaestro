@@ -30,11 +30,13 @@ NAMES = {
     "house.model": mark("How the rooms follow the heating and the weather"),
     "house.tau_h": mark("How fast the house loses its heat (its time constant)"),
     "house.response_h": mark("How long the heating takes to show in the rooms"),
+    "pump.response": mark("How the supply follows the weather and the offset"),
 }
 PINNABLE = frozenset({"tank.loss", "house.tau_h", "house.response_h"})
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
 HOURS_SHOWN = mark("%(hours)s hours")
+PUMP_SHOWN = mark("%(step)s °C of supply per offset step, %(slope)s °C per degree colder")
 """What each learned value is, in words."""
 VERDICTS = {
     "usable": mark("Usable"),
@@ -285,6 +287,12 @@ def _shown(x: Learned) -> str:
         return i18n._(LOSS_SHOWN, fall=i18n.number(value * 30, 2))
     if x.name == "house.model" and isinstance(value, dict):
         return i18n._(MODEL_SHOWN, error=i18n.number(value.get("error", 0.0), 2))
+    if x.name == "pump.response" and isinstance(value, dict):
+        return i18n._(
+            PUMP_SHOWN,
+            step=i18n.number(value.get("c2", 0.0), 1),
+            slope=i18n.number(-value.get("c1", 0.0), 2),
+        )
     if x.unit == "h" and isinstance(value, int | float):
         return i18n._(HOURS_SHOWN, hours=i18n.number(value, 0))
     if isinstance(value, dict):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 17:18+0200\n"
+"POT-Creation-Date: 2026-10-11 17:48+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,6 +37,10 @@ msgstr ""
 
 #, python-format
 msgid "%(hours)s hours"
+msgstr ""
+
+#, python-format
+msgid "%(hours)s hours of heating of %(least)s."
 msgstr ""
 
 #, python-format
@@ -125,6 +129,10 @@ msgstr ""
 
 #, python-format
 msgid "%(start)s–%(end)s"
+msgstr ""
+
+#, python-format
+msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
 msgstr ""
 
 #, python-format
@@ -1059,6 +1067,9 @@ msgid "How much it matters"
 msgstr ""
 
 msgid "How the rooms follow the heating and the weather"
+msgstr ""
+
+msgid "How the supply follows the weather and the offset"
 msgstr ""
 
 msgid "Humidity"
@@ -2274,6 +2285,9 @@ msgid "The mean of the charges seen, the newest weighing most."
 msgstr ""
 
 msgid "The next 48 hours"
+msgstr ""
+
+msgid "The offset hasn't moved enough to learn what a step does."
 msgstr ""
 
 #, python-format

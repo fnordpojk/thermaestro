@@ -150,6 +150,10 @@ class Situation:
     memory: Memory = field(default_factory=Memory)
     response_h: dict[str, float] = field(default_factory=dict)
     """Per climate system, how long its heat takes to show, where learned and proved."""
+    lead: dict[str, tuple[int, float, float]] = field(default_factory=dict)
+    """Per climate system without a room sensor: offset steps that heat now for the
+    weather one response ahead, the outdoor temperature expected then, and the hours
+    ahead; where the pump's curve is learned and proved."""
 
 
 @dataclass(frozen=True)
