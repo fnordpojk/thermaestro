@@ -28,6 +28,7 @@ Built today:
 - **The house, learned** per climate system from its rooms, its water and the weather: how fast it loses heat, and how long its heating takes to show, which the planner then aims for instead of the setup answer. The pump's curve is learned too, how its supply follows the weather and the offset; a slow climate system without a room sensor then heats ahead of the forecast weather.
 - **The compressor's electricity, learned** from the pump's own meter where it has one (a pulse counter over MQTT or a Home Assistant entity), else the house's power reading: what it draws heating and making hot water, used under a power limit once proved, and how often it starts.
 - **The COP, learned:** from the maker's figures (given by the plugin where it knows the model, else entered), then from hot-water charges and the brine's drop: how much heat a kWh gives heating and making hot water, and the brine's flow, measured rather than guessed.
+- **Replay:** a period of an installation exported (no accounts, secrets, addresses or coordinates) and the learners run over it again day by day, as they would have run then, with the hot-water use a household noted scored against the draws found.
 - **The forecasts' misses, learned** per weather provider and lead time: a bias that has proved itself is taken off the temperature the planner heats ahead for, and the spread is kept for the optimizer.
 - **The hot-water tank, learned:** its charges, its draws (from how its two temperatures fall outside the charges), its heat loss and a typical week of use, each day judged before it is learned from; once proved, the planner reckons with them before a hot-water deadline, and the hours of most use are offered as hot-water times, applied only if asked for.
 - **Tested against a simulated house**, hot-water tank and pump over simulated days: comfort and the hot-water floor hold, extreme prices buy neither cold nor heat, and shadow decides as control would.
@@ -46,6 +47,7 @@ Coming:
 - [Running it in Docker](docs/docker.md)
 - [The read-only probe](docs/probe.md)
 - [The rig: trying a setting on a pump](docs/rig.md)
+- [Replaying a recording](docs/replay.md)
 - [The HTTP API](docs/api.md)
 - [MQTT and Home Assistant](docs/mqtt.md)
 - [Writing a plugin](docs/plugins.md)

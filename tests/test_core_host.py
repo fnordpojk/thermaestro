@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
@@ -59,6 +60,11 @@ async def test_an_instance_runs_and_its_values_arrive(db: Database, tmp_path: Pa
         assert instance.hello.plugin == "fake"
         assert instance.described is not None
         assert len(instance.described.points) == 5
+        kept = await db.run(
+            lambda t: t.execute("SELECT body FROM described WHERE instance = 'pump'").fetchone()
+        )
+        assert kept is not None  # kept for an export
+        assert len(json.loads(kept[0])["points"]) == 5
         await until(lambda: instance.health is not None)
     finally:
         await h.stop()

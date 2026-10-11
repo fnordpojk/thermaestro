@@ -75,6 +75,7 @@ class PluginHost:
         describe_timeout_s: float = 60.0,
     ) -> None:
         self._db = db
+        self._keeping: set[asyncio.Future[None]] = set()
         self._secrets = secrets
         self.values = values
         self.series = series
@@ -222,10 +223,18 @@ class PluginHost:
             with contextlib.suppress(asyncio.CancelledError):
                 await served
 
+    async def _keep(self, instance: str, described: Described) -> None:
+        """What the plugin described, kept for an export; a failure only logged."""
+        try:
+            await _write_described(self._db, instance, described)
+        except Exception:
+            log.exception("what %s described couldn't be kept", instance)
+
     async def _session(self, instance: Instance, link: Link) -> None:
         """Describe, subscribe to every point, and keep the values until the connection
         ends (Closed)."""
         instance.described = await link.describe(timeout=self._describe_timeout)
+        await self._keep(instance.id, instance.described)
         instance.state = State.UP
         instance.link = link
         await self._audit.record(
@@ -279,8 +288,21 @@ class PluginHost:
                     instance.active.pop(key, None)
         elif isinstance(message, Described) and instance.described is not None:
             instance.described = _merge(instance.described, message)
+            task = asyncio.ensure_future(self._keep(instance.id, instance.described))
+            self._keeping.add(task)
+            task.add_done_callback(self._keeping.discard)
         for listener in self.listeners:
             listener(instance.id, message)
+
+
+async def _write_described(db: Database, instance: str, described: Described) -> None:
+    body = described.model_dump_json(exclude={"id"})
+    await db.run(
+        lambda t: t.execute(
+            "INSERT OR REPLACE INTO described (instance, body, updated) VALUES (?, ?, ?)",
+            (instance, body, clock.time()),
+        )
+    )
 
 
 def _merge(old: Described, change: Described) -> Described:

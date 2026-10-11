@@ -329,6 +329,14 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (scope, kind, t)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 19: what each plugin last described of its devices, so an export can carry it
+    """
+    CREATE TABLE IF NOT EXISTS described (
+        instance TEXT PRIMARY KEY,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        updated REAL NOT NULL
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

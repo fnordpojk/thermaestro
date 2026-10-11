@@ -73,6 +73,24 @@ def main(argv: list[str] | None = None) -> int:
         " is changed: confirm it under Setup → From NibePi",
     )
     nibepi.add_argument("config", type=Path, help="NibePi's config.json")
+    exporting = commands.add_parser(
+        "export",
+        help="write a period of what was recorded, decided and learned, to replay elsewhere;"
+        " no accounts, secrets, addresses or coordinates",
+    )
+    exporting.add_argument("output", type=Path, help="the file to write, e.g. week.jsonl.gz")
+    exporting.add_argument(
+        "--days", type=float, default=14.0, help="how many days back from now (raw history: 14)"
+    )
+    replaying = commands.add_parser(
+        "replay", help="run the learners over an export, day by day, as they would have run then"
+    )
+    replaying.add_argument("export", type=Path, help="a file `thermaestro export` wrote")
+    replaying.add_argument("out", type=Path, help="the directory to write the results to")
+    replaying.add_argument(
+        "--labels", type=Path, help="a CSV of hot-water use (time,what[,liters]) to score against"
+    )
+    replaying.add_argument("--days", type=int, help="replay only this many days")
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
         return _logset(args.model, args.output)
@@ -88,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         return _probe(args)
     if args.command == "rig":
         return _rig(args)
+    if args.command == "replay":
+        return _replay(args)
     layout = Layout.from_environment()
     try:
         layout = load_startup(layout.startup).layout(layout)
@@ -98,10 +118,57 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_setup_code(layout))
         if args.command == "admin":
             return asyncio.run(_admin(layout, args))
+        if args.command == "export":
+            return asyncio.run(_export(layout, args))
         return _verify(args.file or layout.audit / "audit.jsonl")
     except StoreError as e:
         sys.stderr.write(f"{e}\n")
         return 2
+
+
+async def _export(layout: Layout, args: argparse.Namespace) -> int:
+    from . import clock
+    from .replay import export
+
+    end = clock.time()
+    start = end - args.days * 86_400
+    async with await Database.open(layout.database) as db:
+        counts = await export(db, args.output, start, end)
+    sys.stdout.write(
+        f"wrote {args.output}: "
+        + ", ".join(f"{n} {kind}" for kind, n in sorted(counts.items()))
+        + "\n"
+    )
+    return 0
+
+
+def _replay(args: argparse.Namespace) -> int:
+    from zoneinfo import ZoneInfo
+
+    from .replay import replay
+    from .replay.labels import read_labels
+    from .replay.run import ReplayError, read
+
+    try:
+        labels = None
+        if args.labels is not None:
+            zone = ZoneInfo(read(args.export).header.get("timezone", "UTC"))
+            labels = read_labels(args.labels, zone)
+        summary = asyncio.run(replay(args.export, args.out, labels=labels, days=args.days))
+    except (ReplayError, OSError, ValueError) as e:
+        sys.stderr.write(f"{e}\n")
+        return 2
+    sys.stdout.write(
+        f"replayed {len(summary['days'])} days into {args.out}"
+        + (
+            f"; labels: {summary['scorecard']['found']} found, {summary['scorecard']['missed']}"
+            f" missed, {summary['scorecard']['extra']} draws not labeled"
+            if "scorecard" in summary
+            else ""
+        )
+        + "\n"
+    )
+    return 0
 
 
 def _logset(model_name: str, output: Path) -> int:
