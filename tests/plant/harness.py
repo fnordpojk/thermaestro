@@ -107,6 +107,52 @@ class Replay:
         return len(self._frame.indoor)
 
 
+class Caught:
+    """The plant as the bus and the sensors see it: brought up to the last whole step
+    before every reading."""
+
+    def __init__(self, sim: "Sim") -> None:
+        self._sim = sim
+
+    @property
+    def registers(self) -> dict[int, int]:
+        self._sim.catch_up()
+        return self._sim.plant.registers
+
+    @registers.setter
+    def registers(self, value: dict[int, int]) -> None:
+        self._sim.plant.registers = value
+
+    @property
+    def registers32(self) -> dict[int, int]:
+        self._sim.catch_up()
+        return self._sim.plant.registers32
+
+    @registers32.setter
+    def registers32(self, value: dict[int, int]) -> None:
+        self._sim.plant.registers32 = value
+
+    def write(self, register: int, value: int) -> bool:
+        self._sim.catch_up()
+        return self._sim.plant.write(register, value)
+
+    def indoor(self, number: int = 1) -> float:
+        self._sim.catch_up()
+        return self._sim.plant.indoor(number)
+
+    @property
+    def house_kw(self) -> float:
+        self._sim.catch_up()
+        return self._sim.plant.house_kw
+
+    @property
+    def systems(self) -> int:
+        return self._sim.plant.systems
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._sim.plant, name)
+
+
 @dataclass
 class Sim:
     scenario: Scenario
@@ -135,7 +181,7 @@ class Sim:
     async def start(self) -> None:
         if not hasattr(self, "plant"):
             self.plant = begin(self.scenario) if self.replay is None else Replay(self.replay)
-            self.bus = SimBus(self.plant)
+            self.bus = SimBus(Caught(self))
             self.db = await Database.open(self.path / "sim.db")
             await self.db.put(
                 Plugin(plugin="nibe", settings={"host": "plant.invalid", "model": "F1245"}), PUMP
@@ -156,7 +202,7 @@ class Sim:
             self._tasks.append(asyncio.create_task(every(60.0, lambda: self.values.flush())))
         audit = AuditLog(self.path / "audit")
         self.values = Values(self.db)
-        bus, plant = self.bus, self.plant
+        bus, plant = self.bus, Caught(self)
 
         def nibe(context: Any) -> NibePlugin:
             return NibePlugin(
@@ -259,7 +305,16 @@ class Sim:
     # --- the plant -------------------------------------------------------------------------
 
     def _step(self) -> None:
-        self.plant.run(clock.time() - self.plant.t)
+        self.catch_up()
+
+    def catch_up(self) -> None:
+        """The plant moved on to the last whole step. Readings come through here, so what
+        one sees depends on the time alone, not on whether the step or the reading ran
+        first at the same moment: in control, the writes change that order."""
+        to = clock.time() // STEP_S * STEP_S
+        if to <= self.plant.t + 1e-9:
+            return
+        self.plant.run(to - self.plant.t)
         if self.record and isinstance(self.plant, Plant):
             p = self.plant
             self.frames.append(
