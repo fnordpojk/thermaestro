@@ -84,7 +84,7 @@
     <td>{{ v.part }}</td>
     <td>{{ v.label }}{% if v.why_text %}<br><small>{{ v.why_text }}</small>{% endif %}</td>
     {% set per = 60 if v.unit == "s" else (1 / 30) if v.unit == "1/h" else 1 %}
-    {% set typed = _("min") if v.unit == "s" else _("°C an hour at 50 °C") if v.unit == "1/h" else "" %}
+    {% set typed = _("min") if v.unit == "s" else _("°C an hour at 50 °C") if v.unit == "1/h" else _("hours") if v.unit == "h" else "" %}
     <td>{{ v.shown }}{% if v.n %} <small>({{ ngettext("from %(num)s observation", "from %(num)s observations", v.n) }})</small>{% endif %}
       {% if v.pinned is not none %}<br><strong>{{ _("Pinned:") }}</strong> {{ (v.pinned / per) | num(2 if v.unit == "1/h" else 0) }} {{ typed }}{% endif %}</td>
     <td>{{ v.state_text }}</td>

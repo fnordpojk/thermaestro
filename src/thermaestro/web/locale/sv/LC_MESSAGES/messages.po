@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 16:00+0200\n"
+"POT-Creation-Date: 2026-10-11 17:18+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -32,6 +32,14 @@ msgstr "%(fall)s °C i timmen vid 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s är avstängd"
+
+#, python-format
+msgid "%(hours)s hours"
+msgstr "%(hours)s timmar"
+
+#, python-format
+msgid "%(hours)s usable hours of %(least)s."
+msgstr "%(hours)s användbara timmar av %(least)s."
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -1020,6 +1028,9 @@ msgstr "Producerad värme"
 msgid "Heating"
 msgstr "Värmer"
 
+msgid "Heating is held off by the pump's heating stop: kept as learned until it heats."
+msgstr "Värmen hålls av pumpens värmestopp: behålls som inlärt tills den värmer igen."
+
 msgid "Heating offset"
 msgstr "Förskjutning värmekurva"
 
@@ -1091,11 +1102,20 @@ msgstr "Huset"
 msgid "How each has done at this house"
 msgstr "Hur var och en har klarat sig vid det här huset"
 
+msgid "How fast the house loses its heat (its time constant)"
+msgstr "Hur fort huset förlorar sin värme (dess tidskonstant)"
+
 msgid "How long a hot-water charge takes"
 msgstr "Hur lång tid en varmvattenladdning tar"
 
+msgid "How long the heating takes to show in the rooms"
+msgstr "Hur lång tid det tar innan värmen märks i rummen"
+
 msgid "How much it matters"
 msgstr "Hur viktigt det är"
+
+msgid "How the rooms follow the heating and the weather"
+msgstr "Hur rummen följer värmen och vädret"
 
 msgid "Humidity"
 msgstr "Luftfuktighet"
@@ -1148,6 +1168,9 @@ msgstr "JSON-fält"
 
 msgid "Judged once there are two days to test it on."
 msgstr "Bedöms när det finns två dagar att pröva det på."
+
+msgid "Judged once there are two more days to test it on."
+msgstr "Bedöms när det finns två dagar till att pröva det på."
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Fortsätt värma tills den är nådd, eller nästa infaller"
@@ -1564,6 +1587,9 @@ msgstr "Inte kontrollerat än: den första kontrollen kommer tio minuter efter e
 
 msgid "Not done"
 msgstr "Inte gjort"
+
+msgid "Not fitted yet."
+msgstr "Inte anpassad än."
 
 #, python-format
 msgid "Not given by the grid company: %(fields)s"
@@ -2294,6 +2320,10 @@ msgstr ""
 "reserv för en dag då den första saknar priser; alla elområden i ett land tar sina "
 "priser från samma källa."
 
+#, python-format
+msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
+msgstr "Anpassningen ger en tidskonstant på %(tau)s timmar, vilket inte är ett hus."
+
 msgid "The forecast"
 msgstr "Prognosen"
 
@@ -2313,6 +2343,13 @@ msgid ""
 msgstr ""
 "Gatewayen som ansluter Thermaestro till en Nibe-pumps buss: dess adress, och "
 "protokollet den talar."
+
+msgid ""
+"The heating has followed the weather so closely that what it gives and what the house"
+" loses can't be told apart yet."
+msgstr ""
+"Värmen har följt vädret så nära att det den ger och det huset förlorar inte går att "
+"skilja åt än."
 
 #, python-format
 msgid "The highest interval of the month"
@@ -2358,6 +2395,10 @@ msgstr "Medelvärdet av de laddningar som setts, där den senaste väger mest."
 
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
+
+#, python-format
+msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
+msgstr "Utetemperaturen har knappt ändrats: en spridning på %(spread)s °C."
 
 msgid "The periodic hot-water increase, last seen"
 msgstr "Den periodiska varmvattenhöjningen, senast sedd"
@@ -2413,6 +2454,9 @@ msgstr "Pumpens egna funktioner som ändrar samma sak, och måste vara avstängd
 
 msgid "The pump's settings after NibePi"
 msgstr "Pumpens inställningar efter NibePi"
+
+msgid "The rooms have hardly moved: nothing to learn the house from yet."
+msgstr "Rummen har knappt rört sig: inget att lära sig huset av än."
 
 msgid "The same again"
 msgstr "Samma igen"
@@ -2848,6 +2892,9 @@ msgstr "ett lösenord får ha högst 256 tecken"
 msgid "a password needs at least 15 characters"
 msgstr "ett lösenord måste ha minst 15 tecken"
 
+msgid "a room temperature in this climate system"
+msgstr "en rumstemperatur i det här klimatsystemet"
+
 msgid "a simple on/off thermostat"
 msgstr "en enkel av/på-termostat"
 
@@ -2895,6 +2942,9 @@ msgstr "alltid"
 
 msgid "an S-series pump's must be chosen"
 msgstr "måste väljas för en pump i S-serien"
+
+msgid "an outdoor temperature"
+msgstr "en utetemperatur"
 
 msgid "announced"
 msgstr "aviserad"
@@ -3154,6 +3204,9 @@ msgstr "varmvatten"
 msgid "hot water at least %(temp)s °C"
 msgstr "varmvatten minst %(temp)s °C"
 
+msgid "hours"
+msgstr "timmar"
+
 msgid "how many peaks"
 msgstr "hur många toppar"
 
@@ -3299,6 +3352,10 @@ msgstr "inget ännu"
 
 msgid "off"
 msgstr "av"
+
+#, python-format
+msgid "off by %(error)s °C on average six hours ahead"
+msgstr "i snitt %(error)s °C fel sex timmar framåt"
 
 msgid "off: the pump's own"
 msgstr "av: pumpens egen"
@@ -3494,6 +3551,9 @@ msgstr ""
 
 msgid "the base price"
 msgstr "grundpriset"
+
+msgid "the climate system's supply temperature"
+msgstr "klimatsystemets framledningstemperatur"
 
 msgid "the day it falls on"
 msgstr "dagen den infaller"

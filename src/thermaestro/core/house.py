@@ -5,6 +5,7 @@ house has run over the last week. A climate system's emitter is setup's answer o
 
 import logging
 import statistics
+from collections.abc import Callable
 from datetime import UTC, date, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
@@ -27,6 +28,8 @@ class House:
         self._host = host
         self._values = values
         self.capabilities = Capabilities()
+        self.responses: Callable[[frozenset[str]], dict[str, float]] = lambda systems: {}
+        """How long each climate system's heat takes to show, where learned."""
 
     def _nodes(self) -> list[tuple[str, str, str]]:
         """(instance, node path, kind) of every node of every plugin that is up."""
@@ -69,6 +72,7 @@ class House:
             power=any(k.point.endswith("grid.import.power") for k in self._values.latest),
             prices=prices,
             emitters=dict(home.emitters),
+            response_h=self.responses(frozenset(systems)),
         )
         return self.capabilities
 

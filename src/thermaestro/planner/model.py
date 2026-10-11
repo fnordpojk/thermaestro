@@ -148,6 +148,8 @@ class Situation:
     """A round at the start of a slot. Between slots only hot water is planned: the
     heating, the addition and the pool change at most once a slot."""
     memory: Memory = field(default_factory=Memory)
+    response_h: dict[str, float] = field(default_factory=dict)
+    """Per climate system, how long its heat takes to show, where learned and proved."""
 
 
 @dataclass(frozen=True)

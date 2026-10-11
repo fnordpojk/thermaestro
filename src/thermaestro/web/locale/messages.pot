@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 16:00+0200\n"
+"POT-Creation-Date: 2026-10-11 17:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,6 +33,14 @@ msgstr ""
 
 #, python-format
 msgid "%(feature)s is off"
+msgstr ""
+
+#, python-format
+msgid "%(hours)s hours"
+msgstr ""
+
+#, python-format
+msgid "%(hours)s usable hours of %(least)s."
 msgstr ""
 
 #, python-format
@@ -964,6 +972,11 @@ msgstr ""
 msgid "Heating"
 msgstr ""
 
+msgid ""
+"Heating is held off by the pump's heating stop: kept as learned until it "
+"heats."
+msgstr ""
+
 msgid "Heating offset"
 msgstr ""
 
@@ -1033,10 +1046,19 @@ msgstr ""
 msgid "How each has done at this house"
 msgstr ""
 
+msgid "How fast the house loses its heat (its time constant)"
+msgstr ""
+
 msgid "How long a hot-water charge takes"
 msgstr ""
 
+msgid "How long the heating takes to show in the rooms"
+msgstr ""
+
 msgid "How much it matters"
+msgstr ""
+
+msgid "How the rooms follow the heating and the weather"
 msgstr ""
 
 msgid "Humidity"
@@ -1081,6 +1103,9 @@ msgid "JSON field"
 msgstr ""
 
 msgid "Judged once there are two days to test it on."
+msgstr ""
+
+msgid "Judged once there are two more days to test it on."
 msgstr ""
 
 msgid "Keep heating until it is met, or the next one is due"
@@ -1473,6 +1498,9 @@ msgid "Not checked yet: the first check comes ten minutes after a start."
 msgstr ""
 
 msgid "Not done"
+msgstr ""
+
+msgid "Not fitted yet."
 msgstr ""
 
 #, python-format
@@ -2182,6 +2210,10 @@ msgid ""
 " zone of a country takes its prices from the same source."
 msgstr ""
 
+#, python-format
+msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
+msgstr ""
+
 msgid "The forecast"
 msgstr ""
 
@@ -2196,6 +2228,11 @@ msgstr ""
 msgid ""
 "The gateway that connects Thermaestro to a Nibe pump's bus: its address, "
 "and the protocol it speaks."
+msgstr ""
+
+msgid ""
+"The heating has followed the weather so closely that what it gives and "
+"what the house loses can't be told apart yet."
 msgstr ""
 
 #, python-format
@@ -2237,6 +2274,10 @@ msgid "The mean of the charges seen, the newest weighing most."
 msgstr ""
 
 msgid "The next 48 hours"
+msgstr ""
+
+#, python-format
+msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
 msgstr ""
 
 msgid "The periodic hot-water increase, last seen"
@@ -2285,6 +2326,9 @@ msgid "The pump's own features that change the same, and must be off"
 msgstr ""
 
 msgid "The pump's settings after NibePi"
+msgstr ""
+
+msgid "The rooms have hardly moved: nothing to learn the house from yet."
 msgstr ""
 
 msgid "The same again"
@@ -2689,6 +2733,9 @@ msgstr ""
 msgid "a password needs at least 15 characters"
 msgstr ""
 
+msgid "a room temperature in this climate system"
+msgstr ""
+
 msgid "a simple on/off thermostat"
 msgstr ""
 
@@ -2735,6 +2782,9 @@ msgid "always"
 msgstr ""
 
 msgid "an S-series pump's must be chosen"
+msgstr ""
+
+msgid "an outdoor temperature"
 msgstr ""
 
 msgid "announced"
@@ -2995,6 +3045,9 @@ msgstr ""
 msgid "hot water at least %(temp)s °C"
 msgstr ""
 
+msgid "hours"
+msgstr ""
+
 msgid "how many peaks"
 msgstr ""
 
@@ -3141,6 +3194,10 @@ msgid "nothing yet"
 msgstr ""
 
 msgid "off"
+msgstr ""
+
+#, python-format
+msgid "off by %(error)s °C on average six hours ahead"
 msgstr ""
 
 msgid "off: the pump's own"
@@ -3332,6 +3389,9 @@ msgid ""
 msgstr ""
 
 msgid "the base price"
+msgstr ""
+
+msgid "the climate system's supply temperature"
 msgstr ""
 
 msgid "the day it falls on"

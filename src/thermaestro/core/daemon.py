@@ -108,7 +108,8 @@ async def run(
         from ..learn import Learning  # learning and the planner are built on the core's parts
         from ..planner import Planner
 
-        learning = Learning(db, values, host, audit)
+        learning = Learning(db, values, host, audit, weather)
+        house.responses = learning.responses
         await learning.load()
         planner = Planner(
             db,

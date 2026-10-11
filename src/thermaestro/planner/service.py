@@ -22,7 +22,7 @@ import asyncio
 import json
 import logging
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from zoneinfo import ZoneInfo
@@ -42,6 +42,7 @@ from ..core.values import Key, Values
 from ..intents import Intents
 from ..intents.entry import RESPONSE_H
 from ..learn import Learned, Learnings, mark
+from ..learn.heating import RESPONSE
 from ..learn.hotwater import expected, house
 from ..store import Control, Database, Location, PriceLayer, Vat
 from . import rules
@@ -257,8 +258,7 @@ class Planner:
         rooms, ahead = [], {}
         for scope, system in sorted(caps.rooms.items()):
             rooms.append(self._room(scope, system, now))
-            emitter = caps.emitters.get(system, "unknown")
-            later = now + timedelta(hours=RESPONSE_H.get(emitter, RESPONSE_H["unknown"]))
+            later = now + timedelta(hours=self._response(system, caps.emitters))
             then = resolver.in_force(later, heating=heating, outdoor=outdoor)
             bound = then.bound("room_temp", scope) or then.bound("room_temp", system)
             ahead[scope] = (bound.low, bound.high) if bound is not None else (None, None)
@@ -313,7 +313,21 @@ class Planner:
             budget=budget,
             boost_scopes=boosts,
             memory=self.memory,
+            response_h=self._responses(caps.systems),
         )
+
+    def _response(self, system: str, emitters: Mapping[str, str]) -> float:
+        """How long a system's heat takes to show: learned once proved, else from setup."""
+        learned = self._learnings.used(RESPONSE, system) if self._learnings else None
+        if isinstance(learned, int | float):
+            return float(learned)
+        return RESPONSE_H.get(emitters.get(system, "unknown"), RESPONSE_H["unknown"])
+
+    def _responses(self, systems: Iterable[str]) -> dict[str, float]:
+        if self._learnings is None:
+            return {}
+        found = {s: self._learnings.used(RESPONSE, s) for s in systems}
+        return {s: float(v) for s, v in found.items() if isinstance(v, int | float)}
 
     def _heard(self, instance: str, envelope: Envelope) -> None:
         point = envelope.point

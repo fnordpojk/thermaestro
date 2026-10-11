@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 16:00+0200\n"
+"POT-Creation-Date: 2026-10-11 17:18+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -32,6 +32,14 @@ msgstr "%(fall)s °C pro Stunde bei 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s ist aus"
+
+#, python-format
+msgid "%(hours)s hours"
+msgstr "%(hours)s Stunden"
+
+#, python-format
+msgid "%(hours)s usable hours of %(least)s."
+msgstr "%(hours)s verwendbare Stunden von %(least)s."
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -1038,6 +1046,11 @@ msgstr "Erzeugte Wärme"
 msgid "Heating"
 msgstr "Heizt"
 
+msgid "Heating is held off by the pump's heating stop: kept as learned until it heats."
+msgstr ""
+"Die Heizung ruht wegen der Heizgrenze der Pumpe: bleibt wie gelernt, bis sie wieder "
+"heizt."
+
 msgid "Heating offset"
 msgstr "Heizkurvenverschiebung"
 
@@ -1109,11 +1122,20 @@ msgstr "Haus"
 msgid "How each has done at this house"
 msgstr "Wie gut jeder an diesem Haus war"
 
+msgid "How fast the house loses its heat (its time constant)"
+msgstr "Wie schnell das Haus seine Wärme verliert (seine Zeitkonstante)"
+
 msgid "How long a hot-water charge takes"
 msgstr "Wie lange eine Warmwasserladung dauert"
 
+msgid "How long the heating takes to show in the rooms"
+msgstr "Wie lange es dauert, bis die Heizung in den Räumen ankommt"
+
 msgid "How much it matters"
 msgstr "Wie wichtig es ist"
+
+msgid "How the rooms follow the heating and the weather"
+msgstr "Wie die Räume der Heizung und dem Wetter folgen"
 
 msgid "Humidity"
 msgstr "Luftfeuchte"
@@ -1166,6 +1188,9 @@ msgstr "JSON-Feld"
 
 msgid "Judged once there are two days to test it on."
 msgstr "Beurteilt, sobald es zwei Tage gibt, an denen es geprüft werden kann."
+
+msgid "Judged once there are two more days to test it on."
+msgstr "Beurteilt, sobald es zwei weitere Tage gibt, an denen es geprüft werden kann."
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Weiterheizen, bis sie erreicht ist oder die nächste fällig wird"
@@ -1592,6 +1617,9 @@ msgstr "Noch nicht geprüft: die erste Prüfung kommt zehn Minuten nach einem St
 
 msgid "Not done"
 msgstr "Nicht ausgeführt"
+
+msgid "Not fitted yet."
+msgstr "Noch nicht angepasst."
 
 #, python-format
 msgid "Not given by the grid company: %(fields)s"
@@ -2332,6 +2360,10 @@ msgstr ""
 "vor, und einen Ersatz für einen Tag, an dem die erste keine Preise hat; alle Zonen "
 "eines Landes nehmen ihre Preise aus derselben Quelle."
 
+#, python-format
+msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
+msgstr "Die Anpassung ergibt eine Zeitkonstante von %(tau)s Stunden, was zu keinem Haus passt."
+
 msgid "The forecast"
 msgstr "Die Vorhersage"
 
@@ -2353,6 +2385,13 @@ msgid ""
 msgstr ""
 "Das Gateway, das Thermaestro mit dem Bus einer Nibe-Pumpe verbindet: seine Adresse "
 "und das Protokoll, das es spricht."
+
+msgid ""
+"The heating has followed the weather so closely that what it gives and what the house"
+" loses can't be told apart yet."
+msgstr ""
+"Die Heizung ist dem Wetter so eng gefolgt, dass sich noch nicht trennen lässt, was "
+"sie gibt und was das Haus verliert."
 
 #, python-format
 msgid "The highest interval of the month"
@@ -2398,6 +2437,10 @@ msgstr "Der Mittelwert der gesehenen Ladungen, die neueste zählt am meisten."
 
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
+
+#, python-format
+msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
+msgstr "Die Außentemperatur hat sich kaum geändert: eine Spanne von %(spread)s °C."
 
 msgid "The periodic hot-water increase, last seen"
 msgstr "Die periodische Warmwassererhöhung, zuletzt gesehen"
@@ -2454,6 +2497,9 @@ msgstr "Die eigenen Funktionen der Pumpe, die dasselbe ändern und aus sein müs
 
 msgid "The pump's settings after NibePi"
 msgstr "Die Einstellungen der Pumpe nach NibePi"
+
+msgid "The rooms have hardly moved: nothing to learn the house from yet."
+msgstr "Die Räume haben sich kaum verändert: noch nichts, woraus sich das Haus lernen ließe."
 
 msgid "The same again"
 msgstr "Noch einmal"
@@ -2905,6 +2951,9 @@ msgstr "ein Passwort darf höchstens 256 Zeichen haben"
 msgid "a password needs at least 15 characters"
 msgstr "ein Passwort braucht mindestens 15 Zeichen"
 
+msgid "a room temperature in this climate system"
+msgstr "eine Raumtemperatur in diesem Heizkreis"
+
 msgid "a simple on/off thermostat"
 msgstr "ein einfaches Ein/Aus-Thermostat"
 
@@ -2952,6 +3001,9 @@ msgstr "immer"
 
 msgid "an S-series pump's must be chosen"
 msgstr "bei einer Pumpe der S-Serie zu wählen"
+
+msgid "an outdoor temperature"
+msgstr "eine Außentemperatur"
 
 msgid "announced"
 msgstr "angekündigt"
@@ -3211,6 +3263,9 @@ msgstr "Warmwasser"
 msgid "hot water at least %(temp)s °C"
 msgstr "Warmwasser mindestens %(temp)s °C"
 
+msgid "hours"
+msgstr "Stunden"
+
 msgid "how many peaks"
 msgstr "wie viele Spitzen"
 
@@ -3360,6 +3415,10 @@ msgstr "noch nichts"
 
 msgid "off"
 msgstr "aus"
+
+#, python-format
+msgid "off by %(error)s °C on average six hours ahead"
+msgstr "im Mittel %(error)s °C daneben, sechs Stunden voraus"
 
 msgid "off: the pump's own"
 msgstr "aus: die eigene der Pumpe"
@@ -3555,6 +3614,9 @@ msgstr ""
 
 msgid "the base price"
 msgstr "den Grundpreis"
+
+msgid "the climate system's supply temperature"
+msgstr "die Vorlauftemperatur des Heizkreises"
 
 msgid "the day it falls on"
 msgstr "den Tag, auf den er fällt"

@@ -7,7 +7,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Iterator
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from .. import clock
 from ..core.audit import AuditLog
@@ -16,6 +16,7 @@ from ..core.host import PluginHost
 from ..core.sensors import SITE
 from ..core.values import Key, Values
 from ..store import Database, Transaction
+from .heating import RESPONSE, Heating
 from .hotwater import HotWater
 from .inputs import (
     WINDOW_S,
@@ -33,6 +34,9 @@ from .inputs import (
 )
 from .model import mark
 from .store import Learnings
+
+if TYPE_CHECKING:
+    from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
 
@@ -60,13 +64,21 @@ what each must have shown."""
 
 
 class Learning:
-    def __init__(self, db: Database, values: Values, host: PluginHost, audit: AuditLog) -> None:
+    def __init__(
+        self,
+        db: Database,
+        values: Values,
+        host: PluginHost,
+        audit: AuditLog,
+        weather: "Weather | None" = None,
+    ) -> None:
         self._db = db
         self._values = values
         self._host = host
         self.learnings = Learnings(db, audit)
         self.checks: dict[Key, Check] = {}
         self.hot_water = HotWater(db, values, host, self.learnings, self.usable)
+        self.heating = Heating(db, values, host, self.learnings, self.usable, weather)
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
 
@@ -104,9 +116,16 @@ class Learning:
             await asyncio.sleep(CHECK_S)
 
     async def learn(self) -> None:
-        """What the inputs allow: the tanks' days not yet read."""
+        """What the inputs allow: the tanks' and the houses' days not yet read."""
         async with self._lock:
             await self.hot_water.run()
+            await self.heating.run()
+
+    def responses(self, systems: frozenset[str]) -> dict[str, float]:
+        """How long each climate system's heat takes to show, where learned and proved
+        (or pinned)."""
+        found = {s: self.learnings.used(RESPONSE, s) for s in systems}
+        return {s: float(v) for s, v in found.items() if isinstance(v, int | float)}
 
     def usable(self, key: Key) -> bool:
         found = self.checks.get(key)

@@ -63,6 +63,8 @@ class Capabilities:
     """A whole-house power reading."""
     prices: bool = False
     emitters: Mapping[str, Emitter] = field(default_factory=dict)
+    response_h: Mapping[str, float] = field(default_factory=dict)
+    """How long each climate system's heat takes to show, where learned and proved."""
 
 
 @dataclass(frozen=True)
@@ -208,7 +210,8 @@ def _reach(intent: Intent, caps: Capabilities) -> list[str]:
     out = []
     for system in systems:
         emitter = caps.emitters.get(system, "unknown")
-        hours = RESPONSE_H.get(emitter, RESPONSE_H["unknown"])
+        hours = caps.response_h.get(system) or RESPONSE_H.get(emitter, RESPONSE_H["unknown"])
+        hours = round(hours)
         if hours >= 4:
             way = "warmer" if offset > 0 else "cooler"
             out.append(

@@ -231,6 +231,11 @@ def _band(sit: Situation, room: RoomReading) -> tuple[float, float] | None:
 
 
 def _response_h(sit: Situation, system: str) -> float:
+    """How long the system's heat takes to show: learned, once proved; else from its
+    emitter, as setup answered."""
+    learned = sit.response_h.get(system)
+    if learned is not None:
+        return learned
     emitter = sit.caps.emitters.get(system, "unknown")
     return RESPONSE_H.get(emitter, RESPONSE_H["unknown"])
 
