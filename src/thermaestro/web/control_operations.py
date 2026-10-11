@@ -389,7 +389,7 @@ class ControlOperations:
         self._require(caller, "levers.control", step_up=True)
         self._lever(ref)
         if isinstance(value, str):
-            value = _number(value)
+            value = form_number(value)
         refusal = await self._executor().set_baseline(ref, value, who=caller.principal.name)
         if refusal is not None:
             raise AccountError(refusal)
@@ -607,7 +607,7 @@ class ControlOperations:
         }
 
 
-def _number(text: str) -> float | str:
+def form_number(text: str) -> float | str:
     """A number typed in a form, with a comma or a point; else the text, for a name."""
     try:
         return float(text.strip().replace(",", "."))

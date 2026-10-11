@@ -1565,6 +1565,12 @@ charts(document);
   }
 
   setInterval(refresh, EVERY_MS);
+  // While something is read in the background ([data-reading]), every few seconds.
+  setInterval(() => {
+    if (document.querySelector("[data-reading]")) {
+      refresh();
+    }
+  }, 3_000);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && Date.now() - last >= EVERY_MS) {
       refresh();

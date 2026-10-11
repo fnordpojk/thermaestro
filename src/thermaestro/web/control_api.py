@@ -2,12 +2,13 @@
 and their modes, and the plan."""
 
 import csv
+import dataclasses
 import io
 from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .app import action, caller, services
 from .operations import Caller
@@ -308,6 +309,59 @@ async def read_nibepi(body: NibePiFile, request: Request, who: Logged) -> dict[s
         "localhost_broker": draft.localhost_broker,
         "broker_answers": kept.broker,
     }
+
+
+@router.get("/import/nibepi/review")
+@action("nibepi_import.review")
+async def nibepi_review(request: Request, who: Logged) -> dict[str, Any]:
+    """The review of the pump's settings after NibePi: `{pump, why, stopped, rows, reading,
+    compared, levers}`."""
+    found = await services(request).nibepi_review(who)
+    return {
+        **found,
+        "stopped": found["stopped"].isoformat() if found["stopped"] else None,
+        "rows": [dataclasses.asdict(r) for r in found["rows"]],
+        "compared": None
+        if found["compared"] is None
+        else {
+            **found["compared"],
+            "rows": [dataclasses.asdict(r) for r in found["compared"]["rows"]],
+        },
+    }
+
+
+@router.post("/import/nibepi/review/stopped")
+@action("nibepi_import.stopped")
+async def nibepi_stopped(request: Request, who: Logged) -> dict[str, str]:
+    """NibePi is stopped: its values are final, and can be reviewed."""
+    await services(request).nibepi_stopped(who)
+    return {"status": "ok"}
+
+
+class ReadSettings(BaseModel):
+    everything: bool = False
+
+
+@router.post("/import/nibepi/review/read")
+@action("nibepi_import.review_read")
+async def read_pump_settings(body: ReadSettings, request: Request, who: Logged) -> dict[str, str]:
+    """Start reading the listed settings, or with `everything` every one, in the background."""
+    await services(request).read_pump_settings(who, everything=body.everything)
+    return {"status": "ok"}
+
+
+class ReviewWrite(BaseModel):
+    number: int = Field(alias="register")
+    """The register."""
+    value: float
+
+
+@router.post("/import/nibepi/review/write")
+@action("nibepi_import.review_write")
+async def review_write(body: ReviewWrite, request: Request, who: Logged) -> dict[str, str]:
+    """Change one of the pump's settings, by its register, and read it again."""
+    await services(request).review_write(who, body.number, body.value)
+    return {"status": "ok"}
 
 
 @router.post("/import/nibepi/{token}")

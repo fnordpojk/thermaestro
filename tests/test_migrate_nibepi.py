@@ -51,6 +51,7 @@ def test_the_consolidated_fork() -> None:
     }
     assert all(s.freshness_s is None for s in sensors)  # 0 in NibePi: learned instead
     assert any("Pump BT50" in n for n in draft.notes)
+    assert (draft.offsets, draft.before) == ({1: -1.0}, {})
 
 
 def test_every_key_is_in_the_report_and_no_secret_anywhere() -> None:
@@ -101,6 +102,9 @@ def test_tibber_for_another_home_and_vat() -> None:
     assert any("home 2" in n for n in draft.notes)
     vat = next(i for i in draft.items if i.kind == "vat")
     assert (vat.body, vat.optional) == ({"rate": 0.25}, True)
+    # The hot-water period NibePi's learning saved before holding it at 0.
+    assert draft.before == {47134: 30}
+    assert {r.key: r.outcome for r in draft.rows}["hotwater.vv_backup_hw_period"] == "translated"
 
 
 def test_a_serial_pump_and_a_buffer_offset() -> None:
@@ -109,7 +113,9 @@ def test_a_serial_pump_and_a_buffer_offset() -> None:
     assert "pump:pump" not in kinds(draft)
     assert any("thermaestro-gateway" in n for n in draft.notes)
     rows = {r.key: r for r in draft.rows}
-    assert rows["home.adjust_s1"].outcome == "left_out"
+    # Set over MQTT, NibePi kept the raw payload, "1": offered in the settings review.
+    assert rows["home.adjust_s1"].outcome == "translated"
+    assert draft.offsets == {1: 1.0}
     assert "location:" not in kinds(draft)  # no lat/lon in this file
 
 

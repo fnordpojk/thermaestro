@@ -38,7 +38,19 @@ NibePi's control settings (price levels, offsets, the hot-water features) aren't
 
 Thermaestro can run beside NibePi in shadow: it decides and shows what it would change, and changes nothing. **Shadow vs the pump** sets each decision beside what the pump showed. Before you switch a setting to control, turn off NibePi's feature for it, or the two fight over it: Thermaestro lets go of a setting another program changes.
 
-## 6. What's different
+## 6. Stop NibePi, and review the pump's settings
+
+NibePi changed some of the pump's own settings and left them so: the hot-water period (47134) held at 0 by its hot-water learning, which makes hot water wait behind heating; the heating offset at the last price level's; the hot-water mode; and others, depending on what was switched on. Once NibePi is stopped for good, **Setup → From NibePi → The pump's settings after NibePi**:
+
+1. **NibePi is stopped:** while it runs, it keeps writing.
+2. **Read the pump's settings:** each register NibePi is known to change, if the pump has it, with what NibePi did, its value now, its factory default, and its value before NibePi where NibePi kept it (the hot-water period). Putting the hot-water period back is recommended.
+3. Keep what you want kept: that is the default. Otherwise set a register to its default, to its value before NibePi, to NibePi's own heating offset, or to a value you enter. Each change needs the password again, and is read back and recorded.
+4. For a setting Thermaestro changes, the heating offset or the hot-water mode, you can choose what Thermaestro puts it back to instead. Once Thermaestro controls a setting, that is the only way: a direct change would only be put back.
+5. **Compare every setting**, if you want: every setting the pump lets be changed, about 550 on an F1245, is read, about a second each, and those that differ from the factory default are listed with the same choices. Changes NibePi made that aren't on the list, such as values sent by hand, only show up here; an installer's or your own choice differs too.
+
+NibePi's word order (48852) is shown and never changed: Thermaestro reads the pump correctly either way.
+
+## 7. What's different
 
 - What you want, not how: intents instead of price levels and offsets per level.
 - Thermaestro never resets the pump's alarms. NibePi reset whatever alarm was active each time it started.

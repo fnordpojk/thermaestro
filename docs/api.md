@@ -315,6 +315,10 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 | Method and path | Right | Body → answer |
 |---|---|---|
 | `POST /import/nibepi` | `settings.write` | `{config}`, the text of NibePi's `config.json` → a draft, kept for this user for half an hour: `{token, line, items, secrets, rows, notes, timezone, localhost_broker, broker_answers}`. `items` are what it would make, each `{key, kind, id, body, what, optional}`; `secrets` the secrets it would keep, by name only; `rows` every key in the file with what became of it (`carried`, `translated`, `left_out`) and why. Nothing is made. |
+| `GET /import/nibepi/review` | `settings.read` | The review of the pump's settings after NibePi: `{pump, why, stopped, rows, reading, compared, levers}`. `why` says why there is none (no Nibe pump on the bus); `rows` are the registers NibePi is known to change, each `{register, point, title, unit, did, kind, now, default, default_text, before, usual, differs, writable, low, high, step, names, lever, recommended}`; `reading` and `compared` say how far the reads have come (`done`, `total`, `finished`; `compared` also `unread` and its `rows`, those differing from the default); `levers`, per lever over a listed register, its `baseline` and `choices` |
+| `POST /import/nibepi/review/stopped` | `settings.write` | NibePi is stopped: the review can read the pump |
+| `POST /import/nibepi/review/read` | `settings.write` | `{everything}`: read the listed registers, or with `everything: true` every one the pump lets be changed, in the background |
+| `POST /import/nibepi/review/write` | `device.write` ⚿ | `{register, value}`: change one of the pump's settings, as `POST /devices/{instance}/write` does, and read it again; refused (400) unless it took |
 | `POST /import/nibepi/{token}` | `plugins.manage` ⚿ | `{items, timezone, model}`: the `key`s of the items to make, the location's time zone, and an S-series pump's model when the draft has none → `{done, problems}`. Each is made as setup would make it; one refused doesn't stop the others. |
 
 ### Levers and the plan

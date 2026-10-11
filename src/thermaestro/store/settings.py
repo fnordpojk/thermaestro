@@ -10,6 +10,7 @@ from typing import Annotated, Any, ClassVar, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -643,6 +644,22 @@ class Control(Setting):
     """The shortest time between two changes of a setting: one price slot."""
 
 
+class NibePiReview(Setting):
+    """What the review of the pump's settings after NibePi needs from NibePi's file, and
+    whether the household has said NibePi is stopped. One per installation."""
+
+    kind = "nibepi_review"
+
+    pump: Name = "pump"
+    """The pump's plugin instance."""
+    before: dict[int, float] = Field(default_factory=dict)
+    """Per register, its value before NibePi, where NibePi kept it."""
+    offsets: dict[Annotated[int, Field(ge=1, le=8)], float] = Field(default_factory=dict)
+    """Per climate system, NibePi's own manual curve offset."""
+    stopped: AwareDatetime | None = None
+    """When the household said NibePi is stopped; None until then."""
+
+
 class PluginState(Setting):
     """What an in-process plugin keeps across restarts, as it chooses; one per instance,
     under the instance's id. Not a setting anyone changes: the plugin writes it."""
@@ -671,6 +688,7 @@ SETTINGS: dict[str, type[Setting]] = {
         Climate,
         Control,
         Home,
+        NibePiReview,
         PluginState,
     )
 }

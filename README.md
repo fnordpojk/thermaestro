@@ -23,14 +23,14 @@ Built today:
 - **A rule-based planner** that decides every 15 minutes what each setting should be, and why: the curve offset steering the coldest room, hot water kept above its floor and ready by its deadlines, heat moved to cheaper hours as far as the household allows.
 - **Safe changes:** one way to change anything, which takes a setting over, checks the value, reads it back, limits how often it changes, and puts it back as found, or as the household chose, on shutdown or when something goes wrong. A person can also change one of the pump's own settings directly, checked and read back the same way. In shadow mode it decides the same and changes nothing, and each decision is set beside what the pump showed at that moment, as charts, a table and CSV.
 - **Control in the web UI and over MQTT:** each setting off, in shadow or in control; what the household wants on an Intents page, each intent and level changed in place, and as quick requests on the overview; a Plan page with what was decided and why, the house's power kept under the household's and the grid company's limits; Home Assistant buttons and states.
-- **Coming from NibePi:** its `config.json` read into a draft of the pump's connection, the MQTT broker, sensors, rooms, location, prices and secrets, made once confirmed, with every setting accounted for.
+- **Coming from NibePi:** its `config.json` read into a draft of the pump's connection, the MQTT broker, sensors, rooms, location, prices and secrets, made once confirmed, with every setting accounted for. Once NibePi is stopped, the pump's own settings NibePi changed are read and set beside their factory defaults and their values before NibePi, to keep or set back one at a time, and every other setting can be compared with its default too.
 - **Tested against a simulated house**, hot-water tank and pump over simulated days: comfort and the hot-water floor hold, extreme prices buy neither cold nor heat, and shadow decides as control would.
 
 Coming:
 
 - **Control on the test pump**, after a week of shadow beside NibePi, setting by setting: hot water first, the heating offset after.
 - **Learning:** models of the house and the hot-water tank, and an optimizer that plans a day or two ahead with them, using the house and the tank as heat storage.
-- A review of the pump's own settings once NibePi has stopped, and NibePi's control settings as draft intents.
+- NibePi's control settings as draft intents, and its hot-water profile.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.
 
 ## Documentation

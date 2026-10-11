@@ -1,6 +1,7 @@
 """Control over the API: asking for intents and ending them, levels, setup's answers about
 the house, the levers' modes, and the plan."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -10,14 +11,19 @@ from typing import Any
 
 import httpx
 import pytest
+from leverfake import LeverDevice
 from test_core_executor import OFFSET, Rig, rig
 from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of, form
 
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
+from thermaestro.cap import Message, Send
+from thermaestro.cap.messages import Describe, Described, Write
+from thermaestro.cap.model import Envelope, Identity
 from thermaestro.core import AuditLog, Values
 from thermaestro.intents import Capabilities, Intents, Level, kinds
 from thermaestro.intents.resolve import RANKS
-from thermaestro.store import Control, Home, SecretStore
+from thermaestro.nibe.maps import load
+from thermaestro.store import Control, Home, NibePiReview, SecretStore
 from thermaestro.web import Services, create_app
 
 CS = "dev:hp1"
@@ -25,8 +31,10 @@ MODE = "dev:hp1/mode"
 
 
 @asynccontextmanager
-async def site(tmp_path: Path) -> AsyncIterator[tuple[Rig, Services, httpx.AsyncClient]]:
-    async with rig(tmp_path) as r:
+async def site(
+    tmp_path: Path, device: LeverDevice | None = None
+) -> AsyncIterator[tuple[Rig, Services, httpx.AsyncClient]]:
+    async with rig(tmp_path, device=device) as r:
         audit = AuditLog(tmp_path / "web-audit")
         accounts = Accounts(r.db, audit, hasher=FAST, limiter=AddressLimiter(tries=1000))
         caps = Capabilities(systems=frozenset({CS}), tanks=frozenset({CS}))
@@ -532,6 +540,9 @@ async def test_coming_from_nibepi(tmp_path: Path) -> None:
         assert sensors["Living room"].room == next(iter(rooms))
         assert sensors["Hall"].room is None
         assert "Office" not in sensors  # not ticked
+        kept = await services.db.get(NibePiReview)  # for the review of the pump's settings
+        assert kept is not None
+        assert (kept.pump, kept.offsets, kept.stopped) == ("pump", {1: -1.0}, None)
         gone = await client.post(
             f"/setup/nibepi/{token}/confirm", data={"csrf": csrf_of(draft), "items": chosen}
         )
@@ -549,6 +560,107 @@ async def test_coming_from_nibepi(tmp_path: Path) -> None:
         ).items()
         refused = await client.post("/api/v1/import/nibepi", json={"config": "{}"}, headers=headers)
         assert refused.status_code == 400
+
+
+F1245 = load("bus").model("F1245")
+
+
+class NibeLike(LeverDevice):
+    """The fake, saying it is a Nibe F1245 on the bus, with a few of its registers, kept raw
+    and read in their units."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        # The hot-water period 0 min; heating stop 17.0 °C and word order 0, as from the
+        # factory; the addition's stop 6.0 °C, not its 5.0.
+        self.registers.update(
+            {"x.nibe.47134": 0, "x.nibe.47375": 170, "x.nibe.48852": 0, "x.nibe.47376": 60}
+        )
+
+    async def write(self, request: Write, send: Send) -> None:
+        factor = F1245.register(int(request.point.rpartition(".")[2])).factor
+        await super().write(request.model_copy(update={"value": request.value * factor}), send)
+
+    async def handle(self, request: Message, send: Send) -> None:
+        if not isinstance(request, Describe):
+            await super().handle(request, send)
+            return
+
+        async def as_nibe(message: Message) -> None:
+            if isinstance(message, Described):
+                identity = Identity(vendor="Nibe", model="F1245", map="nibe-bus-F1245")
+                unit = message.nodes[0].model_copy(update={"identity": identity})
+                message = message.model_copy(update={"nodes": (unit, *message.nodes[1:])})
+            await send(message)
+
+        await super().handle(request, as_nibe)
+
+    def envelope(self, point: str) -> Envelope:
+        found = super().envelope(point)
+        name = point.rpartition("/")[2]
+        if not name.startswith("x.nibe.") or not isinstance(found.value, int | float):
+            return found
+        raw = round(found.value)
+        factor = F1245.register(int(name[7:])).factor
+        return found.model_copy(update={"raw": raw, "value": raw / factor if factor > 1 else raw})
+
+
+async def test_the_review_of_the_pumps_settings(tmp_path: Path) -> None:
+    async with site(tmp_path, NibeLike()) as (r, _, client):
+        headers = await login(client, "admin")
+        await r.db.put(NibePiReview(pump="dev", before={47134: 30}))
+        page = (await client.get("/setup/nibepi")).text
+        assert "NibePi is stopped" in page
+        early = await client.post("/api/v1/import/nibepi/review/read", json={}, headers=headers)
+        assert early.status_code == 400
+        assert "first say that NibePi is stopped" in early.json()["error"]
+        stopped = await form(client, "/setup/nibepi", "/setup/nibepi/stopped")
+        assert stopped.status_code == 303
+        await form(client, "/setup/nibepi", "/setup/nibepi/read")
+
+        async def reviewed() -> dict[str, Any]:
+            answer = await client.get("/api/v1/import/nibepi/review")
+            body: dict[str, Any] = answer.json()
+            return body
+
+        async with asyncio.timeout(10):
+            while not (await reviewed())["reading"]["finished"]:
+                await asyncio.sleep(0.05)
+        rows = {row["register"]: row for row in (await reviewed())["rows"]}
+        period = rows[47134]
+        assert (period["now"]["value"], period["default"], period["before"]) == (0, 60, 30)
+        assert period["recommended"]
+        assert rows[47375]["differs"] is False  # 17.0 °C, as from the factory
+        assert 48132 not in rows  # the one-time increase isn't on
+        assert rows[48852]["writable"] is False
+        page = (await client.get("/setup/nibepi")).text
+        assert 'id="register-47134"' in page
+        assert "Set to before NibePi" in page
+        done = await form(
+            client, "/setup/nibepi", "/setup/nibepi/write", register="47134", value="30"
+        )
+        assert done.status_code == 303, done.text
+        assert r.device.registers["x.nibe.47134"] == 30
+        rows = {row["register"]: row for row in (await reviewed())["rows"]}
+        assert rows[47134]["now"]["value"] == 30
+        unknown = await client.post(
+            "/api/v1/import/nibepi/review/write",
+            json={"register": 1, "value": 1},
+            headers=headers,
+        )
+        assert unknown.status_code == 400
+        # Every setting beside its default: only those read and differing are listed.
+        everything = await client.post(
+            "/api/v1/import/nibepi/review/read", json={"everything": True}, headers=headers
+        )
+        assert everything.status_code == 200
+        async with asyncio.timeout(20):
+            while not (await reviewed())["compared"]["finished"]:
+                await asyncio.sleep(0.05)
+        compared = (await reviewed())["compared"]
+        assert [row["register"] for row in compared["rows"]] == [47376]
+        assert compared["rows"][0]["now"]["value"] == 6.0
+        assert compared["unread"] == compared["total"] - 1  # the fake has no others
 
 
 async def test_the_overview_asks_for_a_while(

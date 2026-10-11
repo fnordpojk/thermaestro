@@ -1,4 +1,63 @@
 {% extends "setup-base.html" %}
+{% block refresh %}1{% endblock %}
+{% macro value(v, unit) %}{% if v is none %}–{% elif v is sameas true %}{{ _("on") }}{% elif v is sameas false %}{{ _("off") }}{% elif v is number %}{{ "%g" | format(v) }}{% if unit %} {{ unit }}{% endif %}{% else %}{{ v }}{% endif %}{% endmacro %}
+{% macro set_to(row, v, label) %}
+<form method="post" action="/setup/nibepi/write" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="register" value="{{ row.register }}">
+  <input type="hidden" name="value" value="{{ v }}">
+  <button type="submit">{{ label }}</button>
+</form>
+{% endmacro %}
+{% macro settings_table(rows, levers) %}
+<table class="review">
+  <thead><tr><th>{{ _("Setting") }}</th><th>{{ _("What happened") }}</th><th>{{ _("Now") }}</th><th>{{ _("Default") }}</th><th>{{ _("Before NibePi") }}</th><th>{{ _("Change") }}</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+  <tr id="register-{{ row.register }}"{% if row.differs %} class="differs"{% endif %}>
+    <td>{{ row.title }} <small><code>{{ row.register }}</code></small></td>
+    <td><small>{{ _(row.did) }}</small>{% if row.recommended %} <strong>{{ _("Putting it back is recommended.") }}</strong>{% endif %}</td>
+    <td>{% if row.now is none %}{{ _("not read yet") }}{% elif row.now.why %}<small>{{ row.now.why }}</small>{% else %}{{ value(row.now.value, row.unit) }}{% if row.differs %} <small>{{ _("not the default") }}</small>{% endif %}{% endif %}</td>
+    <td>{% if row.default_text is not none %}{{ row.default_text }}{% if row.unit and not row.names %} {{ row.unit }}{% endif %}{% else %}–{% endif %}</td>
+    <td>{% if row.before is not none %}{{ value(row.before, row.unit) }}{% elif row.usual is not none %}<small>{{ _("NibePi's own offset:") }}</small> {{ value(row.usual, row.unit) }}{% else %}–{% endif %}</td>
+    <td>
+      {% if row.writable and row.now is not none and not row.now.why and can("device.write") %}
+      {% if row.default is not none and row.differs %}{{ set_to(row, row.default, _("Set to default")) }}{% endif %}
+      {% if row.before is not none %}{{ set_to(row, row.before, _("Set to before NibePi")) }}{% endif %}
+      {% if row.usual is not none %}{{ set_to(row, row.usual, _("Set to NibePi's own offset")) }}{% endif %}
+      <form method="post" action="/setup/nibepi/write" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="register" value="{{ row.register }}">
+        {% if row.names %}
+        <select name="value" aria-label="{{ row.title }}">
+          {% for raw, name in row.names.items() %}<option value="{{ raw * row.step }}"{% if row.now.raw == raw %} selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+        {% else %}
+        <input name="value" inputmode="decimal" size="6" required aria-label="{{ row.title }}"{% if row.low is not none %} placeholder="{{ '%g' | format(row.low) }}–{{ '%g' | format(row.high) }}"{% endif %}>
+        {% endif %}
+        <button type="submit">{{ _("Set") }}</button>
+      </form>
+      {% endif %}
+      {% if row.lever and row.lever in levers and can("levers.control") %}
+      {% set lv = levers[row.lever] %}
+      <form method="post" action="/setup/nibepi/baseline" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="lever" value="{{ row.lever }}">
+        <label>{{ _("Thermaestro puts it back to") }}
+          {% if lv.choices %}
+          <select name="value">{% for c in lv.choices %}<option value="{{ c }}"{% if c == lv.baseline %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+          {% else %}
+          <input name="value" inputmode="decimal" size="4" required value="{% if lv.baseline is not none %}{{ lv.baseline }}{% elif row.usual is not none %}{{ '%g' | format(row.usual) }}{% endif %}">
+          {% endif %}</label>
+        <button type="submit">{{ _("Save") }}</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
 {% block topic %}
 <p>{{ _("Read NibePi's config.json to bring its pump connection, MQTT broker, sensors and rooms, location and prices over, with its secrets. You see what it would make first; nothing changes until you confirm, and nothing is written to the pump.") }}</p>
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
@@ -64,6 +123,50 @@
 </table>
 </details>
 <p><a href="/setup/nibepi">{{ _("Read another file") }}</a></p>
+</section>
+{% endif %}
+
+{% if review %}
+<section id="review">
+<h2>{{ _("The pump's settings after NibePi") }}</h2>
+{% if review.why %}
+<p class="hint">{{ _("Not offered: %(why)s.", why=review.why) }}</p>
+{% elif not review.stopped %}
+<p>{{ _("NibePi changed some of the pump's own settings and left them so. Once NibePi is stopped for good, they are read here, each beside its factory default and, where NibePi kept it, its value before NibePi, to keep or set back one at a time. While NibePi runs it keeps writing, so stop it first.") }}</p>
+{% if can("settings.write") %}
+<form method="post" action="/setup/nibepi/stopped" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("NibePi is stopped") }}</button>
+</form>
+{% endif %}
+{% else %}
+<p class="hint">{{ _("NibePi stopped: said %(when)s. Keeping a setting is the default: change only what you want changed. Each change is read back and recorded.", when=review.stopped.isoformat() | when) }}</p>
+{% if review.reading and not review.reading.finished %}
+<p data-reading>{{ _("Reading the pump: %(done)s of %(total)s.", done=review.reading.done, total=review.reading.total) }}</p>
+{% elif can("settings.write") %}
+<form method="post" action="/setup/nibepi/read" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{% if review.reading %}{{ _("Read them again") }}{% else %}{{ _("Read the pump's settings") }}{% endif %}</button>
+</form>
+{% endif %}
+{{ settings_table(review.rows, review.levers) }}
+
+<h3>{{ _("Every setting beside its default") }}</h3>
+<p>{{ _("Changes NibePi made that aren't on the list, such as values sent by hand, show up only here. Every setting the pump lets be changed is read, about a second each, and those that differ from the factory default are listed: an installer's or your own choice differs too.") }}</p>
+{% if review.compared and not review.compared.finished %}
+<p data-reading>{{ _("Reading the pump: %(done)s of %(total)s.", done=review.compared.done, total=review.compared.total) }}</p>
+{% elif can("settings.write") %}
+<form method="post" action="/setup/nibepi/read" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="everything" value="1">
+  <button type="submit">{% if review.compared %}{{ _("Compare them again") }}{% else %}{{ _("Compare every setting") }}{% endif %}</button>
+</form>
+{% endif %}
+{% if review.compared %}
+{% if review.compared.rows %}{{ settings_table(review.compared.rows, review.levers) }}{% elif review.compared.finished and not review.compared.unread %}<p>{{ _("Every other setting is at its factory default.") }}</p>{% endif %}
+{% if review.compared.unread %}<p class="hint">{{ _("%(n)s couldn't be read, so they aren't compared.", n=review.compared.unread) }}</p>{% endif %}
+{% endif %}
+{% endif %}
 </section>
 {% endif %}
 {% endblock %}

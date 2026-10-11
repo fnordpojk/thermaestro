@@ -253,16 +253,19 @@ async def _control(request: Request, who: Caller) -> dict[str, Any]:
 
 
 async def _nibepi(request: Request, who: Caller) -> dict[str, Any]:
-    """Nothing until a file is read; then its draft, by the token in the query."""
-    empty: dict[str, Any] = {"result": None, "error": None}
+    """Nothing until a file is read; then its draft, by the token in the query. And the
+    review of the pump's settings."""
+    s = services(request)
+    empty: dict[str, Any] = {"result": None, "error": None, "zones": time_zones()}
+    empty["review"] = await s.nibepi_review(who) if who.principal.allows("settings.read") else None
     token = request.query_params.get("draft")
     if not token:
-        return {"draft": None, "token": None, "kept": None, "zones": time_zones(), **empty}
+        return {"draft": None, "token": None, "kept": None, **empty}
     try:
-        kept = services(request).nibepi_draft(who, token)
+        kept = s.nibepi_draft(who, token)
     except AccountError:
-        return {"draft": None, "token": None, "kept": None, "zones": time_zones(), **empty}
-    return {"draft": kept.draft, "token": token, "kept": kept, "zones": time_zones(), **empty}
+        return {"draft": None, "token": None, "kept": None, **empty}
+    return {"draft": kept.draft, "token": token, "kept": kept, **empty}
 
 
 CONTEXTS = {
@@ -388,3 +391,52 @@ async def apply_nibepi(request: Request, who: Logged, token: str) -> Response:
     except AccountError as e:
         return await show(request, who, "nibepi", 400, error=_message(e))
     return await show(request, who, "nibepi", result=result)
+
+
+REVIEW = "/setup/nibepi#review"
+
+
+@router.post("/setup/nibepi/stopped")
+@action("nibepi_import.stopped")
+async def nibepi_stopped(request: Request, who: Logged) -> Response:
+    """The household says NibePi is stopped."""
+    work = services(request).nibepi_stopped(who)
+    return await attempt(request, who, work, "nibepi", REVIEW)
+
+
+@router.post("/setup/nibepi/read")
+@action("nibepi_import.review_read")
+async def read_pump_settings(request: Request, who: Logged) -> Response:
+    """Read the listed settings from the pump; with `everything`, every one of them."""
+    everything = (await request.form()).get("everything") == "1"
+    work = services(request).read_pump_settings(who, everything=everything)
+    return await attempt(request, who, work, "nibepi", REVIEW)
+
+
+@router.post("/setup/nibepi/write")
+@action("nibepi_import.review_write")
+async def review_write(request: Request, who: Logged) -> Response:
+    """Change one of the pump's settings from the review."""
+    from .control_operations import form_number
+
+    form = await request.form()
+    register, value = form.get("register"), form.get("value")
+    number = form_number(value) if isinstance(value, str) else None
+    if not isinstance(register, str) or not register.isdigit() or not isinstance(number, float):
+        error = AccountError("give the setting a number")
+        return await show(request, who, "nibepi", 400, error=_message(error))
+    work = services(request).review_write(who, int(register), number)
+    return await attempt(request, who, work, "nibepi", REVIEW)
+
+
+@router.post("/setup/nibepi/baseline")
+@action("lever.baseline")
+async def review_baseline(request: Request, who: Logged) -> Response:
+    """Use a value as what one of Thermaestro's settings is put back to."""
+    form = await request.form()
+    lever, value = form.get("lever"), form.get("value")
+    if not isinstance(lever, str) or not isinstance(value, str):
+        error = AccountError("choose a value")
+        return await show(request, who, "nibepi", 400, error=_message(error))
+    work = services(request).set_baseline(who, lever, value)
+    return await attempt(request, who, work, "nibepi", REVIEW)

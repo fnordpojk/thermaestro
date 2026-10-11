@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 03:14+0200\n"
+"POT-Creation-Date: 2026-10-11 03:34+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -28,6 +28,10 @@ msgstr "%(feature)s ist aus"
 #, python-format
 msgid "%(lever)s: mode"
 msgstr "%(lever)s: Modus"
+
+#, python-format
+msgid "%(n)s couldn't be read, so they aren't compared."
+msgstr "%(n)s ließen sich nicht lesen und werden daher nicht verglichen."
 
 #, python-format
 msgid "%(n)s d"
@@ -386,6 +390,9 @@ msgstr "Grundpreis je kWh"
 msgid "Became"
 msgstr "Wurde zu"
 
+msgid "Before NibePi"
+msgstr "Vor NibePi"
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -437,6 +444,17 @@ msgstr "Ändern"
 
 msgid "Change your password"
 msgstr "Passwort ändern"
+
+msgid ""
+"Changes NibePi made that aren't on the list, such as values sent by hand, show up "
+"only here. Every setting the pump lets be changed is read, about a second each, and "
+"those that differ from the factory default are listed: an installer's or your own "
+"choice differs too."
+msgstr ""
+"Änderungen von NibePi, die nicht in der Liste stehen, etwa von Hand gesendete Werte, "
+"zeigen sich nur hier. Jede Einstellung, die die Pumpe ändern lässt, wird gelesen, "
+"etwa eine Sekunde je Einstellung, und die von der Werkseinstellung abweichenden "
+"werden aufgeführt: auch die Wahl eines Installateurs oder deine eigene weicht ab."
 
 msgid "Changes here need your password within the last 15 minutes; you'll be asked for it."
 msgstr ""
@@ -511,6 +529,12 @@ msgstr "Komfort"
 
 msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
 msgstr "Komfort: ein Band für ein Heizsystem oder einen Raum, nach einem Wochenplan"
+
+msgid "Compare every setting"
+msgstr "Jede Einstellung vergleichen"
+
+msgid "Compare them again"
+msgstr "Erneut vergleichen"
 
 msgid "Compare with what the pump showed"
 msgstr "Mit dem vergleichen, was die Pumpe zeigte"
@@ -600,6 +624,9 @@ msgstr "Gültigkeit in Tagen"
 msgid "Decimal sign"
 msgstr "Dezimalzeichen"
 
+msgid "Default"
+msgstr "Werkseinstellung"
+
 msgid "Degree minutes"
 msgstr "Gradminuten"
 
@@ -620,6 +647,9 @@ msgstr "Taupunkt"
 
 msgid "Diagnostic values"
 msgstr "Diagnosewerte"
+
+msgid "Differs from the factory default."
+msgstr "Weicht von der Werkseinstellung ab."
 
 msgid "Diffuse sunlight"
 msgstr "Diffuses Sonnenlicht"
@@ -716,6 +746,12 @@ msgstr "Entität"
 
 msgid "Every key in the file"
 msgstr "Jeder Schlüssel in der Datei"
+
+msgid "Every other setting is at its factory default."
+msgstr "Alle anderen Einstellungen stehen auf Werkseinstellung."
+
+msgid "Every setting beside its default"
+msgstr "Jede Einstellung neben ihrer Werkseinstellung"
 
 msgid "Everyday"
 msgstr "Alltägliche"
@@ -1045,6 +1081,15 @@ msgstr "Schicht"
 msgid "Layers"
 msgstr "Schichten"
 
+msgid "Left as NibePi last wrote it."
+msgstr "So belassen, wie NibePi sie zuletzt schrieb."
+
+msgid "Left at the last price level's values."
+msgstr "Auf den Werten der letzten Preisstufe belassen."
+
+msgid "Left wherever NibePi's airflow control last stepped it."
+msgstr "Dort belassen, wohin NibePis Lüftungssteuerung sie zuletzt stellte."
+
 #, python-format
 msgid "Let go after a change made elsewhere: %(why)s. Thermaestro doesn't write over it."
 msgstr ""
@@ -1211,8 +1256,73 @@ msgstr "Weiter: Namen und Räume"
 msgid "NibeGW (plain)"
 msgstr "NibeGW (einfach)"
 
+msgid ""
+"NibePi changed some of the pump's own settings and left them so. Once NibePi is "
+"stopped for good, they are read here, each beside its factory default and, where "
+"NibePi kept it, its value before NibePi, to keep or set back one at a time. While "
+"NibePi runs it keeps writing, so stop it first."
+msgstr ""
+"NibePi hat einige der eigenen Einstellungen der Pumpe geändert und so belassen. "
+"Sobald NibePi endgültig gestoppt ist, werden sie hier gelesen, jede neben ihrer "
+"Werkseinstellung und, wo NibePi ihn aufbewahrte, ihrem Wert vor NibePi, um sie "
+"einzeln zu behalten oder zurückzusetzen. Solange NibePi läuft, schreibt es weiter, "
+"also stoppe es zuerst."
+
+msgid "NibePi is stopped"
+msgstr "NibePi ist gestoppt"
+
+msgid ""
+"NibePi set it per price level and left it at the last level's mode; a Smart Control "
+"setting was replaced."
+msgstr ""
+"NibePi stellte ihn je Preisstufe ein und beließ ihn im Modus der letzten Stufe; eine "
+"Smart-Control-Einstellung wurde ersetzt."
+
+#, python-format
+msgid ""
+"NibePi stopped: said %(when)s. Keeping a setting is the default: change only what you"
+" want changed. Each change is read back and recorded."
+msgstr ""
+"NibePi gestoppt: angegeben %(when)s. Eine Einstellung zu behalten ist der Normalfall:"
+" ändere nur, was du ändern willst. Jede Änderung wird zurückgelesen und festgehalten."
+
+msgid ""
+"NibePi wrote 0 here at every start. Thermaestro reads the pump correctly either way, "
+"and so does any other program on the gateway, so it is shown and not changed."
+msgstr ""
+"NibePi schrieb hier bei jedem Start 0. Thermaestro liest die Pumpe so oder so "
+"richtig, ebenso jedes andere Programm am Gateway, daher wird sie angezeigt und nicht "
+"geändert."
+
+msgid ""
+"NibePi wrote its offset here, the sum of its features' steps; when price control was "
+"switched off, the last price level's offset stayed."
+msgstr ""
+"NibePi schrieb hier seine Verschiebung, die Summe der Schritte seiner Funktionen; als"
+" die Preissteuerung ausgeschaltet wurde, blieb die Verschiebung der letzten "
+"Preisstufe stehen."
+
 msgid "NibePi's config.json"
 msgstr "NibePis config.json"
+
+msgid "NibePi's frequency control rewrote these, and may have left them active."
+msgstr "NibePis Frequenzsteuerung hat diese umgeschrieben und sie womöglich aktiv gelassen."
+
+msgid "NibePi's hot-water features set a one-time increase here; it ends by itself."
+msgstr ""
+"NibePis Warmwasserfunktionen setzten hier eine einmalige Erhöhung; sie endet von "
+"selbst."
+
+msgid ""
+"NibePi's hot-water learning held it at 0, and didn't put it back when learning was "
+"switched off or NibePi removed: hot water then waits behind heating."
+msgstr ""
+"NibePis Warmwasser-Lernfunktion hielt ihn auf 0 und setzte ihn nicht zurück, als das "
+"Lernen ausgeschaltet oder NibePi entfernt wurde: Warmwasser wartet dann hinter der "
+"Heizung."
+
+msgid "NibePi's own offset:"
+msgstr "NibePis eigene Verschiebung:"
 
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
@@ -1322,6 +1432,10 @@ msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu
 
 msgid "Not made:"
 msgstr "Nicht angelegt:"
+
+#, python-format
+msgid "Not offered: %(why)s."
+msgstr "Nicht angeboten: %(why)s."
 
 msgid "Not said"
 msgstr "Nicht angegeben"
@@ -1573,6 +1687,9 @@ msgstr "Wärmepumpe"
 msgid "Put back to"
 msgstr "Zurückgesetzt auf"
 
+msgid "Putting it back is recommended."
+msgstr "Ihn zurückzusetzen wird empfohlen."
+
 msgid "Quantity"
 msgstr "Größe"
 
@@ -1618,6 +1735,16 @@ msgstr "Leseport"
 
 msgid "Read the picked ones"
 msgstr "Die gewählten lesen"
+
+msgid "Read the pump's settings"
+msgstr "Einstellungen der Pumpe lesen"
+
+msgid "Read them again"
+msgstr "Erneut lesen"
+
+#, python-format
+msgid "Reading the pump: %(done)s of %(total)s."
+msgstr "Lese die Pumpe: %(done)s von %(total)s."
 
 msgid "Refused."
 msgstr "Abgelehnt."
@@ -1732,6 +1859,18 @@ msgstr "Reihe"
 msgid "Series offered"
 msgstr "Angebotene Reihen"
 
+msgid "Set"
+msgstr "Einstellen"
+
+msgid ""
+"Set from NibePi's dashboard when one of its controls was moved: most likely your own "
+"choice. Choosing Off for the room sensor there wrote 0 even if the pump's own room "
+"control was on."
+msgstr ""
+"Über NibePis Oberfläche gesetzt, als eines seiner Bedienelemente bewegt wurde: "
+"höchstwahrscheinlich deine eigene Wahl. Aus für den Raumfühler zu wählen schrieb dort"
+" 0, auch wenn die eigene Raumregelung der Pumpe an war."
+
 msgid "Set password and log out everywhere"
 msgstr "Passwort setzen und überall abmelden"
 
@@ -1740,6 +1879,15 @@ msgstr "Legen Sie zuerst oben den MQTT-Broker fest."
 
 msgid "Set the location first: forecasts are for a place."
 msgstr "Legen Sie zuerst den Standort fest: Vorhersagen gelten für einen Ort."
+
+msgid "Set to NibePi's own offset"
+msgstr "Auf NibePis eigene Verschiebung setzen"
+
+msgid "Set to before NibePi"
+msgstr "Auf den Wert vor NibePi setzen"
+
+msgid "Set to default"
+msgstr "Auf Werkseinstellung setzen"
 
 msgid "Set up the MQTT broker under External to add MQTT sensors here."
 msgstr "Richten Sie den MQTT-Broker unter Extern ein, um hier MQTT-Sensoren hinzuzufügen."
@@ -2015,6 +2163,9 @@ msgstr ""
 msgid "The pump's own features that change the same, and must be off"
 msgstr "Die eigenen Funktionen der Pumpe, die dasselbe ändern und aus sein müssen"
 
+msgid "The pump's settings after NibePi"
+msgstr "Die Einstellungen der Pumpe nach NibePi"
+
 msgid "The same again"
 msgstr "Noch einmal"
 
@@ -2032,6 +2183,9 @@ msgstr "Thermaestro ändert nichts an der Pumpe."
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestro-Gateway (mit Schlüssel)"
+
+msgid "Thermaestro puts it back to"
+msgstr "Thermaestro setzt sie zurück auf"
 
 msgid ""
 "Thermaestro reads the entities you choose, through Home Assistant's WebSocket API. "
@@ -2225,6 +2379,9 @@ msgstr "Was daraus wurde"
 
 msgid "What each provider gives"
 msgstr "Was jeder Anbieter liefert"
+
+msgid "What happened"
+msgstr "Was geschah"
 
 #, python-format
 msgid "What heats %(system)s"
@@ -2832,8 +2989,14 @@ msgstr "unbekannt"
 msgid "not opened yet; the link works until %(end)s"
 msgstr "noch nicht geöffnet; der Link funktioniert bis %(end)s"
 
+msgid "not read yet"
+msgstr "noch nicht gelesen"
+
 msgid "not said yet"
 msgstr "noch nicht angegeben"
+
+msgid "not the default"
+msgstr "nicht die Werkseinstellung"
 
 msgid "not valid"
 msgstr "nicht gültig"

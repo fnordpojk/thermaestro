@@ -74,6 +74,10 @@ class Draft:
     localhost_broker: bool = False
     timezone: str | None = None
     """From the price area; None where the area isn't known."""
+    before: dict[int, float] = field(default_factory=dict)
+    """For the review of the pump's settings: per register, its value before NibePi."""
+    offsets: dict[int, float] = field(default_factory=dict)
+    """For the review: per climate system, NibePi's own manual curve offset."""
 
     def item(self, key: str) -> Item | None:
         return next((i for i in self.items if f"{i.kind}:{i.id}" == key), None)
@@ -195,6 +199,7 @@ def read(text: str, *, pump: str = "pump") -> Draft:
     rooms = _sensors(draft, section, row, pump)
     _location(draft, section, row)
     _price(draft, section, row)
+    _for_review(draft, section, row)
     for key in ("plejd.pass", "plejd.cloud_name", "plejd.cloud_user", "plejd.cloud_pass"):
         row(key, "left_out", "a Plejd secret: Plejd isn't part of Thermaestro, so not imported")
     for key in sorted(keys - set(done)):
@@ -207,6 +212,45 @@ def read(text: str, *, pump: str = "pump") -> Draft:
             " system; untick any you don't want, or move them between rooms later."
         )
     return draft
+
+
+def _for_review(draft: Draft, section: Any, row: Any) -> None:
+    """What the review of the pump's settings offers: the hot-water period NibePi's learning
+    saved before holding it at 0, and NibePi's own curve offset per climate system (stored
+    as the raw MQTT payload after a set over MQTT)."""
+    period = _number(section("hotwater").get("vv_backup_hw_period"))
+    if period is not None and period > 0:
+        draft.before[47134] = period
+        row(
+            "hotwater.vv_backup_hw_period",
+            "translated",
+            f"the hot-water period before NibePi, {period:g} min: offered in the review of the"
+            " pump's settings",
+        )
+    for key, value in section("home").items():
+        match = re.fullmatch(r"adjust_s([1-4])", key)
+        if match is None:
+            continue
+        offset = _number(_payload(value))
+        if offset is None:
+            continue
+        draft.offsets[int(match[1])] = offset
+        row(
+            f"home.{key}",
+            "translated",
+            f"NibePi's own curve offset for climate system {match[1]}, {offset:g}: offered in"
+            " the review of the pump's settings",
+        )
+
+
+def _payload(value: object) -> object:
+    """A serialized Buffer's bytes as text; anything else as it is."""
+    if isinstance(value, dict) and value.get("type") == "Buffer":
+        data = value.get("data")
+        if isinstance(data, list) and all(isinstance(b, int) and 0 <= b < 256 for b in data):
+            return bytes(data).decode("utf-8", "replace")
+        return None
+    return value
 
 
 def _pump(draft: Draft, section: Any, row: Any, pump: str) -> None:
