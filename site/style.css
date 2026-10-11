@@ -186,6 +186,7 @@ section:last-of-type { border-bottom: 0; }
 @media (min-width: 760px) { .features { grid-template-columns: 1fr 1fr; } }
 .feat { display: grid; grid-template-columns: 2.6rem 1fr; gap: 0.9rem; align-items: start; }
 .feat p { margin: 0; }
+.feat p + p { margin-top: 0.6rem; }
 .ico {
   width: 2.6rem;
   height: 2.6rem;
