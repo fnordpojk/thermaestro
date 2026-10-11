@@ -207,9 +207,11 @@ Each setting Thermaestro could change, by part of the pump: the heating offset o
 
 - **Off** (the start): Thermaestro reads and plans, and changes nothing.
 - **Shadow:** it decides as it would in control, shows what it would have done at the bottom of the page, and changes nothing. **Shadow vs the pump** (linked there and from the Plan page) sets each decision beside what the pump showed at that moment, to compare with what the pump did meanwhile, by itself or as another program such as NibePi set it: a chart per setting over the last day, week or 30 days (the pump's line and shadow's steps; a hold or a start as bands), the decisions in a table by setting and day, and a CSV download of the same.
-- **Control:** it makes the change, reads it back, limits how often it changes, and puts it back as it found it when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering.
+- **Control:** it makes the change, reads it back, limits how often it changes, and puts it back when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering.
 
 Switching needs the password again. A setting the pump has its own feature for (its hot-water schedule, Smart Price Adaption) asks you to confirm the feature is off first: two controllers on one setting fight. The heating offset also needs the pump's own room control off, which Thermaestro reads from the pump itself. A setting someone changed elsewhere (the pump's menu, NibePi) is let go and never written over; **Keep the change** takes it over again from there.
+
+**Put back to** is what a setting is put back to: at first what Thermaestro found it at, or a value you choose, such as your usual heating offset rather than whatever another program last left it at. It needs the password again too.
 
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
 

@@ -4,7 +4,7 @@
 {% block main %}
 {% set names = {"house": _("The whole house")} %}
 {% for group in scopes.values() %}{% for ref, label in group %}{% set ignored = names.update({ref: label}) %}{% endfor %}{% endfor %}
-{% macro asked(op, params) %}{% if op == "set" %}{{ _("set to %(value)s", value=params.value) }}{% elif op == "engage" %}{{ _("hold") }}{% elif op == "release" %}{{ _("let go") }}{% elif op == "fire" %}{{ _("start") }}{% elif op == "restore" %}{{ _("put back as found") }}{% else %}{{ op }}{% endif %}{% endmacro %}
+{% macro asked(op, params) %}{% if op == "set" %}{{ _("set to %(value)s", value=params.value) }}{% elif op == "engage" %}{{ _("hold") }}{% elif op == "release" %}{{ _("let go") }}{% elif op == "fire" %}{{ _("start") }}{% elif op == "restore" %}{{ _("put back as found") }}{% elif op == "write" %}{{ _("written by hand: %(value)s", value=params.value) }}{% else %}{{ op }}{% endif %}{% endmacro %}
 {% macro serves(rank) %}{% if rank == 1 %}{{ _("the hot water's floor") }}{% elif rank == 7 %}{{ _("price") }}{% elif plan.ranking and plan.ranking[rank - 2] in ranks %}{{ _(ranks[plan.ranking[rank - 2]]) }}{% endif %}{% endmacro %}
 <h1>{{ _("Plan") }}</h1>
 <p>{{ _("What Thermaestro decides every 15 minutes, and why. It decides for now from what applies now; a plan that looks a day or two ahead comes with the house's model.") }} <a href="/intents">{{ _("Intents") }}</a> · <a href="/shadow">{{ _("Shadow vs the pump") }}</a></p>

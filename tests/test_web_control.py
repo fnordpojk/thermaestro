@@ -179,6 +179,41 @@ async def test_a_lever_off_in_shadow_and_in_control(tmp_path: Path) -> None:
         assert missing.status_code == 404
 
 
+async def test_a_baseline_and_a_persons_write(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        headers = await login(client, "admin")
+        put = await client.put(
+            f"/api/v1/levers/{OFFSET}/baseline", json={"value": 2}, headers=headers
+        )
+        assert put.status_code == 200, put.text
+        levers = {lv["lever"]: lv for lv in (await client.get("/api/v1/levers")).json()}
+        assert levers[OFFSET]["baseline"] == 2
+        assert levers[MODE]["choices"] == ["eco", "normal"]
+        bad = await client.put(
+            f"/api/v1/levers/{OFFSET}/baseline", json={"value": 99}, headers=headers
+        )
+        assert (bad.status_code, bad.json()["error"]) == (400, "99 is above 10")
+        wrote = await client.post(
+            "/api/v1/devices/dev/write",
+            json={"point": "hp1/x.fake.start", "value": 50},
+            headers=headers,
+        )
+        assert wrote.json() == {"outcome": "verified", "detail": None}
+        assert f'action="/levers/{OFFSET}/baseline"' in (await client.get("/setup/control")).text
+        done = await form(client, "/setup/control", f"/levers/{OFFSET}/baseline", value="-1")
+        assert done.status_code == 303
+        assert r.executor.claims[OFFSET].baseline == -1
+        await form(client, "/", "/logout")
+        household = await login(client, "kid")
+        refused = await client.post(
+            "/api/v1/devices/dev/write",
+            json={"point": "hp1/x.fake.start", "value": 40},
+            headers=household,
+        )
+        assert refused.status_code == 403
+        assert r.device.registers["x.fake.start"] == 50
+
+
 @pytest.mark.parametrize("path", ["/api/v1/plan", "/api/v1/intents", "/api/v1/levels"])
 async def test_a_viewer_sees_nothing_of_control(tmp_path: Path, path: str) -> None:
     async with site(tmp_path) as (_, services, client):

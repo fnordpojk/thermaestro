@@ -317,6 +317,8 @@ class ControlOperations:
                 used, soft = budgets.get(instance_id, (0, control.soft_budget))
                 confirmed = set(control.confirmed_off.get(ref, ()))
                 limits = assume(lever).ranges.get("value")
+                param = lever.params.get("value")
+                names = param.enum.value if param is not None and param.enum.trusted else None
                 out.append(
                     {
                         "lever": ref,
@@ -327,6 +329,7 @@ class ControlOperations:
                         "range": None
                         if limits is None
                         else {"min": limits.min, "max": limits.max, "step": limits.step},
+                        "choices": list(names) if names else None,
                         "competing": [
                             {"name": f.name, "confirmed_off": f.name in confirmed}
                             for f in lever.competing_features
@@ -379,6 +382,28 @@ class ControlOperations:
         self._require(caller, "levers.control", step_up=True)
         self._lever(ref)
         await self._executor().accept_drift(ref, who=caller.principal.name)
+
+    async def set_baseline(self, caller: "Caller", ref: str, value: Any) -> None:
+        """What a setting lever is put back to, chosen by a person: a number, or one of
+        the lever's names for its values."""
+        self._require(caller, "levers.control", step_up=True)
+        self._lever(ref)
+        if isinstance(value, str):
+            value = _number(value)
+        refusal = await self._executor().set_baseline(ref, value, who=caller.principal.name)
+        if refusal is not None:
+            raise AccountError(refusal)
+
+    async def write_device(
+        self, caller: "Caller", instance: str, point: str, value: float, why: str | None = None
+    ) -> dict[str, Any]:
+        """A person's change of one of a device's own settings, outside the levers: sent,
+        read back and recorded. `{outcome, detail}`."""
+        self._require(caller, "device.write", step_up=True)
+        result = await self._executor().write(
+            instance, point, value, who=caller.principal.name, why=why
+        )
+        return {"outcome": result.outcome, "detail": result.detail}
 
     # --- the plan --------------------------------------------------------------------------
 
@@ -580,3 +605,11 @@ class ControlOperations:
                 for n in reversed(planner.notices if planner else [])
             ],
         }
+
+
+def _number(text: str) -> float | str:
+    """A number typed in a form, with a comma or a point; else the text, for a name."""
+    try:
+        return float(text.strip().replace(",", "."))
+    except ValueError:
+        return text.strip()

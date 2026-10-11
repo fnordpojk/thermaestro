@@ -412,6 +412,46 @@ async def test_another_clients_write_is_reported(stocked: SimPump, gateway: Gate
     assert [(e.unit, e.datapoint, e.value) for e in foreign] == [("hp1", "x.nibe.47011", -2)]
 
 
+async def test_a_persons_write_of_the_pumps_own_settings(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """Any writable register, even one no lever writes, read back though no point describes
+    it; never the word order, a register a hold has engaged, or a value it doesn't take."""
+    stocked.registers[47134] = 0  # the hot-water period, as NibePi's learning left it
+    p = plugin(gateway)
+    async with served(p) as link:
+        assert "write" in p.features
+
+        async def write(point: str, value: float) -> Fate:
+            return [f async for f in link.write(f"hp1/{point}", value, timeout=20)][-1]
+
+        accepted = await write("x.nibe.47134", 30)
+        assert accepted.stage == "device_accepted"
+        back = await link.read(["hp1/x.nibe.47134"], after=accepted.t, timeout=10)
+        assert (back.values[0].value, back.values[0].quality) == (30, "good")
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+        cases = [
+            ("x.nibe.48852", 1, "the word order other clients decode by is never written"),
+            ("x.nibe.47044", 30, "hp1/dhw/block holds it now"),
+            ("x.nibe.47011", 11, "outside the register's range"),
+            ("x.nibe.40004", 1, "read-only"),
+            ("x.nibe.1", 1, "not one of the pump's registers"),
+            ("cs1/heating.offset", 1, "not one of the pump's registers"),
+        ]
+        for point, value, why in cases:
+            fate = await write(point, value)
+            assert fate.stage == "dropped", point
+            assert why in (fate.detail or ""), (point, fate.detail)
+    assert stocked.registers[47134] == 30
+    assert [r for r, _ in stocked.taken_writes] == [47134, 47044]
+
+
+async def test_writes_wait_for_a_route_that_has_them() -> None:
+    """Writing isn't built for Modbus TCP: an S-series pump's plugin doesn't offer it."""
+    s = NibePlugin(NibeGateway(protocol="modbus-tcp", host="192.0.2.30", model="S1255"))
+    assert "write" not in s.features
+
+
 async def test_nothing_is_written_unasked(stocked: SimPump, gateway: Gateway) -> None:
     async with served(plugin(gateway)):
         stocked.registers[47041] = 0  # what the block follows changes

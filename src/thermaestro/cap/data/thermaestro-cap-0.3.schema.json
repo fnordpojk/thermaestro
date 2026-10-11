@@ -1,0 +1,3491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thermaestro-cap 0.3",
+  "description": "One message between the Thermaestro core and a plugin; over a socket, one message per line.",
+  "$defs": {
+    "Access": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/KnowledgeBool",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "rate_limit": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "requirements": {
+          "$ref": "#/$defs/KnowledgeStrList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        }
+      },
+      "title": "Access",
+      "type": "object"
+    },
+    "Ack": {
+      "additionalProperties": false,
+      "properties": {
+        "means": {
+          "enum": [
+            "accepted",
+            "applied",
+            "none"
+          ],
+          "title": "Means",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "means"
+      ],
+      "title": "Ack",
+      "type": "object"
+    },
+    "Act": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "act",
+          "default": "act",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "lever": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Lever",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "set",
+            "engage",
+            "release",
+            "fire",
+            "cancel",
+            "feed",
+            "renew"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "lever",
+        "op"
+      ],
+      "title": "Act",
+      "type": "object"
+    },
+    "Arming": {
+      "additionalProperties": false,
+      "description": "A setting that must be in place before the lever works, restored at release.",
+      "properties": {
+        "datapoint": {
+          "title": "Datapoint",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "datapoint",
+        "value"
+      ],
+      "title": "Arming",
+      "type": "object"
+    },
+    "Auth": {
+      "additionalProperties": false,
+      "description": "Over TCP, the plugin's first line. Without it, or with the wrong token, the core\ncloses the connection without answering.",
+      "properties": {
+        "type": {
+          "const": "auth",
+          "default": "auth",
+          "title": "Type",
+          "type": "string"
+        },
+        "token": {
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "title": "Auth",
+      "type": "object"
+    },
+    "CompetingFeature": {
+      "additionalProperties": false,
+      "description": "A device or route feature that moves the same thing as the lever.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "can_disable": {
+          "$ref": "#/$defs/KnowledgeBool",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "how": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "How"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "CompetingFeature",
+      "type": "object"
+    },
+    "Delivery": {
+      "additionalProperties": false,
+      "description": "How a point's values arrive: pushed unasked, polled at a cost, or on change.",
+      "properties": {
+        "how": {
+          "enum": [
+            "pushed",
+            "polled",
+            "on_change"
+          ],
+          "title": "How",
+          "type": "string"
+        },
+        "interval_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interval S"
+        },
+        "cost_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost S"
+        }
+      },
+      "required": [
+        "how"
+      ],
+      "title": "Delivery",
+      "type": "object"
+    },
+    "Describe": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "describe",
+          "default": "describe",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Describe",
+      "type": "object"
+    },
+    "Described": {
+      "additionalProperties": false,
+      "description": "The device tree, every point and lever, and the series. The answer to `describe`\ncarries its `id` and is complete; sent unasked, it carries the changed parts only.",
+      "properties": {
+        "type": {
+          "const": "described",
+          "default": "described",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "complete": {
+          "default": true,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "nodes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "points": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Point"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "levers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Lever"
+          },
+          "title": "Levers",
+          "type": "array"
+        },
+        "series": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SeriesInfo"
+          },
+          "title": "Series",
+          "type": "array"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provider"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "removed": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+            "type": "string"
+          },
+          "title": "Removed",
+          "type": "array"
+        }
+      },
+      "title": "Described",
+      "type": "object"
+    },
+    "DeviceEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "device_event",
+          "default": "device_event",
+          "title": "Type",
+          "type": "string"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "unit": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Unit",
+          "type": "string"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "active": {
+          "default": true,
+          "title": "Active",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "t",
+        "unit",
+        "code",
+        "text"
+      ],
+      "title": "DeviceEvent",
+      "type": "object"
+    },
+    "Envelope": {
+      "additionalProperties": false,
+      "description": "One value, as every read, subscription and verification delivers it.",
+      "properties": {
+        "point": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Point",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw"
+        },
+        "t_observed": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "T Observed"
+        },
+        "t_received": {
+          "format": "date-time",
+          "title": "T Received",
+          "type": "string"
+        },
+        "quality": {
+          "enum": [
+            "good",
+            "stale",
+            "not_connected",
+            "no_flow",
+            "transitional",
+            "assumed",
+            "out_of_range",
+            "unknown"
+          ],
+          "title": "Quality",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "measured",
+            "calculated",
+            "estimated",
+            "assumed"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Why"
+        }
+      },
+      "required": [
+        "point",
+        "value",
+        "t_observed",
+        "t_received",
+        "quality",
+        "source"
+      ],
+      "title": "Envelope",
+      "type": "object"
+    },
+    "Error": {
+      "additionalProperties": false,
+      "description": "A plugin's answer to a request it can't serve. Requests with their own way to fail\ndon't use it: a read of an unknown point answers with quality unknown, and an act on\nan unknown lever ends with fate dropped.",
+      "properties": {
+        "type": {
+          "const": "error",
+          "default": "error",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Id"
+        },
+        "code": {
+          "enum": [
+            "version",
+            "unsupported",
+            "invalid"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "id",
+        "code"
+      ],
+      "title": "Error",
+      "type": "object"
+    },
+    "Fate": {
+      "additionalProperties": false,
+      "description": "What became of an `act`, as far as the route can know. Accepted isn't applied:\nwhether a change took is the core's to decide.",
+      "properties": {
+        "type": {
+          "const": "fate",
+          "default": "fate",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "stage": {
+          "enum": [
+            "queued",
+            "sent",
+            "device_accepted",
+            "device_refused",
+            "dropped",
+            "unknown"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "id",
+        "stage",
+        "t"
+      ],
+      "title": "Fate",
+      "type": "object"
+    },
+    "ForecastModel": {
+      "additionalProperties": false,
+      "description": "A weather model behind a forecast.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "grid_km": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grid Km"
+        },
+        "area": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ForecastModel",
+      "type": "object"
+    },
+    "ForeignWrite": {
+      "additionalProperties": false,
+      "description": "Another client wrote a datapoint, where the route can see it.",
+      "properties": {
+        "type": {
+          "const": "foreign_write",
+          "default": "foreign_write",
+          "title": "Type",
+          "type": "string"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "unit": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Unit",
+          "type": "string"
+        },
+        "datapoint": {
+          "title": "Datapoint",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "t",
+        "unit",
+        "datapoint"
+      ],
+      "title": "ForeignWrite",
+      "type": "object"
+    },
+    "Health": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "health",
+          "default": "health",
+          "title": "Type",
+          "type": "string"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "state": {
+          "enum": [
+            "up",
+            "down",
+            "contended"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "last_traffic": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Traffic"
+        },
+        "counters": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counters",
+          "type": "object"
+        },
+        "queue_depth": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queue Depth"
+        },
+        "silence_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Silence S"
+        },
+        "needs_user_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Needs User Action"
+        },
+        "stale": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Stale",
+          "type": "array"
+        }
+      },
+      "required": [
+        "t",
+        "state"
+      ],
+      "title": "Health",
+      "type": "object"
+    },
+    "Hello": {
+      "additionalProperties": false,
+      "description": "Opens a connection: the core says it first, and the plugin answers with its own.\nMajor versions must match; minor differences are handled by `features`, of which the\ncore uses only those both list.",
+      "properties": {
+        "type": {
+          "const": "hello",
+          "default": "hello",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "protocol": {
+          "title": "Protocol",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "core",
+            "plugin"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "plugin": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plugin"
+        },
+        "plugin_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plugin Version"
+        },
+        "features": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "protocol",
+        "version",
+        "role"
+      ],
+      "title": "Hello",
+      "type": "object"
+    },
+    "Identity": {
+      "additionalProperties": false,
+      "description": "A unit's identity. The core keys learned knowledge on plugin, model and firmware.",
+      "properties": {
+        "vendor": {
+          "title": "Vendor",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "firmware": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Firmware"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serial"
+        },
+        "map": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map"
+        }
+      },
+      "required": [
+        "vendor",
+        "model"
+      ],
+      "title": "Identity",
+      "type": "object"
+    },
+    "Implementation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "native",
+            "emulated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "how": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "How"
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Side Effects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Implementation",
+      "type": "object"
+    },
+    "Interval": {
+      "additionalProperties": false,
+      "properties": {
+        "series": {
+          "title": "Series",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "vat": {
+          "default": "n/a",
+          "enum": [
+            "incl",
+            "excl",
+            "n/a"
+          ],
+          "title": "Vat",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "final",
+            "preliminary",
+            "estimate",
+            "forecast"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "revision": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "t_published": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "T Published"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "derived",
+                "calculated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Why"
+        }
+      },
+      "required": [
+        "series",
+        "start",
+        "end",
+        "value",
+        "unit",
+        "status"
+      ],
+      "title": "Interval",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "KnowledgeAnnotated": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "pattern": "^P(\\d+D(T\\d+H(\\d+M)?|T\\d+M)?|T\\d+H(\\d+M)?|T\\d+M)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeAnnotated",
+      "type": "object"
+    },
+    "KnowledgeBool": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeBool",
+      "type": "object"
+    },
+    "KnowledgeEnumMap": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeEnumMap",
+      "type": "object"
+    },
+    "KnowledgeFloat": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeFloat",
+      "type": "object"
+    },
+    "KnowledgeForecastModelList": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ForecastModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeForecastModelList",
+      "type": "object"
+    },
+    "KnowledgeJsonValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeJsonValue",
+      "type": "object"
+    },
+    "KnowledgeOnLapse": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OnLapse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeOnLapse",
+      "type": "object"
+    },
+    "KnowledgePersistence": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Persistence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgePersistence",
+      "type": "object"
+    },
+    "KnowledgeRange": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeRange",
+      "type": "object"
+    },
+    "KnowledgeStr": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeStr",
+      "type": "object"
+    },
+    "KnowledgeStrList": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeStrList",
+      "type": "object"
+    },
+    "KnowledgeWear": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wear"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeWear",
+      "type": "object"
+    },
+    "KnowledgeWindowList": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Window"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeWindowList",
+      "type": "object"
+    },
+    "KnowledgeYesNoPartial": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "enum": [
+                "yes",
+                "no",
+                "partial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "known": {
+          "default": "unknown",
+          "enum": [
+            "documented",
+            "verified",
+            "observed",
+            "user",
+            "reported",
+            "refuted",
+            "unknown"
+          ],
+          "title": "Known",
+          "type": "string"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [],
+          "title": "Basis"
+        }
+      },
+      "title": "KnowledgeYesNoPartial",
+      "type": "object"
+    },
+    "Lever": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "setting",
+            "hold",
+            "trigger",
+            "feed"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Param"
+          },
+          "default": {},
+          "title": "Params",
+          "type": "object"
+        },
+        "works": {
+          "$ref": "#/$defs/KnowledgeBool",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "preconditions": {
+          "$ref": "#/$defs/KnowledgeStrList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "persistence": {
+          "$ref": "#/$defs/KnowledgePersistence",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "on_lapse": {
+          "$ref": "#/$defs/KnowledgeOnLapse",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "arming": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Arming"
+          },
+          "title": "Arming",
+          "type": "array"
+        },
+        "min_interval_s": {
+          "$ref": "#/$defs/KnowledgeFloat",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "overridden_by": {
+          "$ref": "#/$defs/KnowledgeStrList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "wear": {
+          "$ref": "#/$defs/KnowledgeWear",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "implementation": {
+          "$ref": "#/$defs/Implementation",
+          "default": {
+            "kind": "native",
+            "how": null,
+            "side_effects": []
+          }
+        },
+        "verify": {
+          "$ref": "#/$defs/Verify"
+        },
+        "effect_delay_s": {
+          "$ref": "#/$defs/KnowledgeFloat",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "irreversible": {
+          "$ref": "#/$defs/KnowledgeBool",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "competing_features": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CompetingFeature"
+          },
+          "title": "Competing Features",
+          "type": "array"
+        },
+        "touches": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Touches",
+          "type": "array"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline"
+        },
+        "hazard": {
+          "anyOf": [
+            {
+              "const": "control_sensor",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hazard"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unavailable"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "verify"
+      ],
+      "title": "Lever",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "site",
+                "unit",
+                "climate_system",
+                "dhw_tank",
+                "pool",
+                "compressor",
+                "addition",
+                "brine_circuit",
+                "ventilation",
+                "room",
+                "meter",
+                "output"
+              ],
+              "type": "string"
+            },
+            {
+              "pattern": "^x\\.[a-z0-9_]+\\.[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          ],
+          "title": "Kind"
+        },
+        "presence": {
+          "$ref": "#/$defs/Presence"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Promises"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "constraints": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_mode_at_a_time",
+                  "one_demand_at_a_time"
+                ],
+                "type": "string"
+              },
+              {
+                "pattern": "^x\\.[a-z0-9_]+\\.[A-Za-z0-9_.-]+$",
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Constraints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "presence"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "OnLapse": {
+      "additionalProperties": false,
+      "description": "What the device does when a lease lapses.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "reverts",
+            "holds",
+            "alarms",
+            "unknown"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "to": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "To",
+          "type": "array"
+        },
+        "hazard": {
+          "default": false,
+          "title": "Hazard",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "OnLapse",
+      "type": "object"
+    },
+    "Param": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "number",
+            "enum",
+            "bool"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "range": {
+          "$ref": "#/$defs/KnowledgeRange",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "enum": {
+          "$ref": "#/$defs/KnowledgeEnumMap",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "per_mode": {
+          "additionalProperties": {
+            "$ref": "#/$defs/KnowledgeRange"
+          },
+          "default": {},
+          "title": "Per Mode",
+          "type": "object"
+        },
+        "form": {
+          "default": "absolute",
+          "enum": [
+            "absolute",
+            "toggle"
+          ],
+          "title": "Form",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Param",
+      "type": "object"
+    },
+    "Persistence": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "stored",
+            "volatile",
+            "leased",
+            "momentary"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "period_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Period S"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Persistence",
+      "type": "object"
+    },
+    "Point": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "enum": [
+                "config",
+                "diagnostic"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "wraps_at": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wraps At"
+        },
+        "resolution": {
+          "$ref": "#/$defs/KnowledgeFloat",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "range": {
+          "$ref": "#/$defs/KnowledgeRange",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "enum": {
+          "$ref": "#/$defs/KnowledgeEnumMap",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "delivery": {
+          "$ref": "#/$defs/Delivery"
+        },
+        "freshness_s": {
+          "$ref": "#/$defs/KnowledgeFloat",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "validity": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Validity",
+          "type": "array"
+        },
+        "placement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Placement"
+        }
+      },
+      "required": [
+        "path",
+        "delivery"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Presence": {
+      "additionalProperties": false,
+      "description": "How a node is known to exist. Never from \"the register answers\": some pumps answer\nfor hardware that isn't fitted.",
+      "properties": {
+        "how": {
+          "enum": [
+            "detected",
+            "configured",
+            "assumed"
+          ],
+          "title": "How",
+          "type": "string"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule"
+        }
+      },
+      "required": [
+        "how"
+      ],
+      "title": "Presence",
+      "type": "object"
+    },
+    "Promises": {
+      "additionalProperties": false,
+      "description": "What a route can know and guarantee, so the core can plan reads and trust results.",
+      "properties": {
+        "fate": {
+          "enum": [
+            "none",
+            "best_effort",
+            "exact"
+          ],
+          "title": "Fate",
+          "type": "string"
+        },
+        "ack": {
+          "$ref": "#/$defs/Ack"
+        },
+        "exclusive": {
+          "default": "none",
+          "enum": [
+            "none",
+            "refuse_new",
+            "evict_old"
+          ],
+          "title": "Exclusive",
+          "type": "string"
+        },
+        "sees_other_writers": {
+          "$ref": "#/$defs/KnowledgeYesNoPartial",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "budget": {
+          "$ref": "#/$defs/KnowledgeWindowList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "deadman": {
+          "default": "unsupported",
+          "enum": [
+            "supported",
+            "unsupported"
+          ],
+          "title": "Deadman",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fate",
+        "ack"
+      ],
+      "title": "Promises",
+      "type": "object"
+    },
+    "Provider": {
+      "additionalProperties": false,
+      "description": "Who a plugin's series come from, and on what terms: the capability register's\npart per plugin (protocol 0.2).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "access": {
+          "$ref": "#/$defs/Access",
+          "default": {
+            "key": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            },
+            "rate_limit": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            },
+            "requirements": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            }
+          }
+        },
+        "terms": {
+          "$ref": "#/$defs/Terms",
+          "default": {
+            "license": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            },
+            "attribution": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            },
+            "conditions": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            },
+            "storing_allowed": {
+              "basis": [],
+              "known": "unknown",
+              "value": null
+            }
+          }
+        },
+        "verification": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Provider",
+      "type": "object"
+    },
+    "Publication": {
+      "additionalProperties": false,
+      "properties": {
+        "daily_after": {
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "title": "Daily After",
+          "type": "string"
+        },
+        "tz": {
+          "title": "Tz",
+          "type": "string"
+        }
+      },
+      "required": [
+        "daily_after",
+        "tz"
+      ],
+      "title": "Publication",
+      "type": "object"
+    },
+    "Range": {
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        }
+      },
+      "title": "Range",
+      "type": "object"
+    },
+    "Read": {
+      "additionalProperties": false,
+      "description": "With `after`, only values sampled after that time: what a fresh read after a write\nneeds. A route that can't tell answers with `t_observed` null.",
+      "properties": {
+        "type": {
+          "const": "read",
+          "default": "read",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "points": {
+          "items": {
+            "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After"
+        }
+      },
+      "required": [
+        "id",
+        "points"
+      ],
+      "title": "Read",
+      "type": "object"
+    },
+    "RuleRecord": {
+      "additionalProperties": false,
+      "description": "A grid rule as data, each parameter with what is known about it.",
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner"
+        },
+        "status": {
+          "enum": [
+            "in_force",
+            "announced",
+            "paused",
+            "withdrawn"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "valid_from": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid From"
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid To"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/KnowledgeJsonValue"
+          },
+          "default": {},
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "status"
+      ],
+      "title": "RuleRecord",
+      "type": "object"
+    },
+    "Rules": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "rules",
+          "default": "rules",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/RuleRecord"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "rules"
+      ],
+      "title": "Rules",
+      "type": "object"
+    },
+    "RulesGet": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "rules.get",
+          "default": "rules.get",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "scope"
+      ],
+      "title": "RulesGet",
+      "type": "object"
+    },
+    "SeriesData": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "series.data",
+          "default": "series.data",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "series": {
+          "title": "Series",
+          "type": "string"
+        },
+        "intervals": {
+          "items": {
+            "$ref": "#/$defs/Interval"
+          },
+          "title": "Intervals",
+          "type": "array"
+        },
+        "known_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Known Until"
+        }
+      },
+      "required": [
+        "id",
+        "series",
+        "intervals"
+      ],
+      "title": "SeriesData",
+      "type": "object"
+    },
+    "SeriesGet": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "series.get",
+          "default": "series.get",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "series": {
+          "title": "Series",
+          "type": "string"
+        },
+        "from": {
+          "format": "date-time",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "format": "date-time",
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "series",
+        "from",
+        "to"
+      ],
+      "title": "SeriesGet",
+      "type": "object"
+    },
+    "SeriesInfo": {
+      "additionalProperties": false,
+      "description": "A series a plugin offers: a layer of the price stack, a grid rule or a forecast.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "price",
+            "rule",
+            "forecast"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "role": {
+          "pattern": "^[a-z_]+(\\.[a-z_]+)*$",
+          "title": "Role",
+          "type": "string"
+        },
+        "covers": {
+          "$ref": "#/$defs/KnowledgeStrList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "vat": {
+          "default": "n/a",
+          "enum": [
+            "incl",
+            "excl",
+            "n/a"
+          ],
+          "title": "Vat",
+          "type": "string"
+        },
+        "resolution": {
+          "pattern": "^P(\\d+D(T\\d+H(\\d+M)?|T\\d+M)?|T\\d+H(\\d+M)?|T\\d+M)$",
+          "title": "Resolution",
+          "type": "string"
+        },
+        "area": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area"
+        },
+        "publication": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Publication"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "pattern": "^P(\\d+D(T\\d+H(\\d+M)?|T\\d+M)?|T\\d+H(\\d+M)?|T\\d+M)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Horizon"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity"
+        },
+        "derived": {
+          "default": false,
+          "title": "Derived",
+          "type": "boolean"
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "models": {
+          "$ref": "#/$defs/KnowledgeForecastModelList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "updates": {
+          "$ref": "#/$defs/KnowledgeAnnotated",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "percentiles": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Percentiles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "role",
+        "unit",
+        "resolution"
+      ],
+      "title": "SeriesInfo",
+      "type": "object"
+    },
+    "SeriesSubscribe": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "series.subscribe",
+          "default": "series.subscribe",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "series": {
+          "title": "Series",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "series"
+      ],
+      "title": "SeriesSubscribe",
+      "type": "object"
+    },
+    "SeriesUpdate": {
+      "additionalProperties": false,
+      "description": "New intervals, or a revision of published ones.",
+      "properties": {
+        "type": {
+          "const": "series.update",
+          "default": "series.update",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "series": {
+          "title": "Series",
+          "type": "string"
+        },
+        "intervals": {
+          "items": {
+            "$ref": "#/$defs/Interval"
+          },
+          "title": "Intervals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "series",
+        "intervals"
+      ],
+      "title": "SeriesUpdate",
+      "type": "object"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "description": "A provider's time step up to a lead time: MET Norway gives hours to about 54 h,\nthen 6 hours.",
+      "properties": {
+        "step": {
+          "pattern": "^P(\\d+D(T\\d+H(\\d+M)?|T\\d+M)?|T\\d+H(\\d+M)?|T\\d+M)$",
+          "title": "Step",
+          "type": "string"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "pattern": "^P(\\d+D(T\\d+H(\\d+M)?|T\\d+M)?|T\\d+H(\\d+M)?|T\\d+M)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Until"
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "Subscribe": {
+      "additionalProperties": false,
+      "description": "Updates on points, from pushes where the route has them and polls otherwise.",
+      "properties": {
+        "type": {
+          "const": "subscribe",
+          "default": "subscribe",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "points": {
+          "items": {
+            "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "min_interval_s": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Min Interval S",
+          "type": "number"
+        },
+        "on_change": {
+          "default": true,
+          "title": "On Change",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "points"
+      ],
+      "title": "Subscribe",
+      "type": "object"
+    },
+    "Terms": {
+      "additionalProperties": false,
+      "properties": {
+        "license": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "attribution": {
+          "$ref": "#/$defs/KnowledgeStr",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "conditions": {
+          "$ref": "#/$defs/KnowledgeStrList",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        },
+        "storing_allowed": {
+          "$ref": "#/$defs/KnowledgeBool",
+          "default": {
+            "value": null,
+            "known": "unknown",
+            "basis": []
+          }
+        }
+      },
+      "title": "Terms",
+      "type": "object"
+    },
+    "Unsubscribe": {
+      "additionalProperties": false,
+      "description": "Ends the subscription whose `id` it carries.",
+      "properties": {
+        "type": {
+          "const": "unsubscribe",
+          "default": "unsubscribe",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Unsubscribe",
+      "type": "object"
+    },
+    "Update": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "update",
+          "default": "update",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/Envelope"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "values"
+      ],
+      "title": "Update",
+      "type": "object"
+    },
+    "Values": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "values",
+          "default": "values",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/Envelope"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "values"
+      ],
+      "title": "Values",
+      "type": "object"
+    },
+    "Verify": {
+      "additionalProperties": false,
+      "description": "How a result can be checked: read back, watch an effect, or not at all.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "readback",
+            "effect",
+            "none"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point"
+        },
+        "expectation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expectation"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Verify",
+      "type": "object"
+    },
+    "Wear": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "flash",
+            "cloud_calls"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "per_call": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Per Call",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Wear",
+      "type": "object"
+    },
+    "Window": {
+      "additionalProperties": false,
+      "description": "A call limit: at most `calls` in any `per_s` seconds.",
+      "properties": {
+        "calls": {
+          "exclusiveMinimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "per_s": {
+          "exclusiveMinimum": 0,
+          "title": "Per S",
+          "type": "number"
+        },
+        "sliding": {
+          "default": true,
+          "title": "Sliding",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "calls",
+        "per_s"
+      ],
+      "title": "Window",
+      "type": "object"
+    },
+    "Write": {
+      "additionalProperties": false,
+      "description": "A person's change of one of the device's own settings, outside the levers: a point\nunder `x.<plugin>`, described or not, in the units its reads give (protocol 0.3, the\n`write` feature). Answered with fates, as `act` is. The core sends it only for a person,\nnever for the planner.",
+      "properties": {
+        "type": {
+          "const": "write",
+          "default": "write",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "point": {
+          "pattern": "^[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?(/[A-Za-z0-9_.-]+(\\{[A-Za-z0-9_.=,-]+\\})?(#[0-9]+)?)*$",
+          "title": "Point",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "point",
+        "value"
+      ],
+      "title": "Write",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "act": "#/$defs/Act",
+      "auth": "#/$defs/Auth",
+      "describe": "#/$defs/Describe",
+      "described": "#/$defs/Described",
+      "device_event": "#/$defs/DeviceEvent",
+      "error": "#/$defs/Error",
+      "fate": "#/$defs/Fate",
+      "foreign_write": "#/$defs/ForeignWrite",
+      "health": "#/$defs/Health",
+      "hello": "#/$defs/Hello",
+      "read": "#/$defs/Read",
+      "rules": "#/$defs/Rules",
+      "rules.get": "#/$defs/RulesGet",
+      "series.data": "#/$defs/SeriesData",
+      "series.get": "#/$defs/SeriesGet",
+      "series.subscribe": "#/$defs/SeriesSubscribe",
+      "series.update": "#/$defs/SeriesUpdate",
+      "subscribe": "#/$defs/Subscribe",
+      "unsubscribe": "#/$defs/Unsubscribe",
+      "update": "#/$defs/Update",
+      "values": "#/$defs/Values",
+      "write": "#/$defs/Write"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Hello"
+    },
+    {
+      "$ref": "#/$defs/Describe"
+    },
+    {
+      "$ref": "#/$defs/Described"
+    },
+    {
+      "$ref": "#/$defs/Read"
+    },
+    {
+      "$ref": "#/$defs/Values"
+    },
+    {
+      "$ref": "#/$defs/Subscribe"
+    },
+    {
+      "$ref": "#/$defs/Unsubscribe"
+    },
+    {
+      "$ref": "#/$defs/Update"
+    },
+    {
+      "$ref": "#/$defs/Act"
+    },
+    {
+      "$ref": "#/$defs/Write"
+    },
+    {
+      "$ref": "#/$defs/Fate"
+    },
+    {
+      "$ref": "#/$defs/Health"
+    },
+    {
+      "$ref": "#/$defs/DeviceEvent"
+    },
+    {
+      "$ref": "#/$defs/ForeignWrite"
+    },
+    {
+      "$ref": "#/$defs/SeriesGet"
+    },
+    {
+      "$ref": "#/$defs/SeriesData"
+    },
+    {
+      "$ref": "#/$defs/SeriesSubscribe"
+    },
+    {
+      "$ref": "#/$defs/SeriesUpdate"
+    },
+    {
+      "$ref": "#/$defs/RulesGet"
+    },
+    {
+      "$ref": "#/$defs/Rules"
+    },
+    {
+      "$ref": "#/$defs/Error"
+    },
+    {
+      "$ref": "#/$defs/Auth"
+    }
+  ]
+}

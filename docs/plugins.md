@@ -112,7 +112,7 @@ Standard names make points and levers findable. They are listed in [`cap/vocabul
 
 Names are `area.quantity`. On a node of the area's own kind the area may be left out: `dhw.block` on a hot-water tank is written `hp1/dhw/block`. A name may carry qualifiers in braces, `heat.produced{purpose=dhw}`, and a suffix telling several of the same apart, `temperature#2`.
 
-Anything outside the vocabulary goes under the plugin's own namespace, `x.<plugin>.<name>`, such as `x.nibe.47134`. The core logs and shows it, but never plans on it. Give such a point a `label` so people can tell what it is.
+Anything outside the vocabulary goes under the plugin's own namespace, `x.<plugin>.<name>`, such as `x.nibe.47134`. The core logs and shows it, but never plans on it. Give such a point a `label` so people can tell what it is. A plugin may also answer reads of its own points that it doesn't describe, as the Nibe plugin answers `x.nibe.<register>` for any register of the model.
 
 ## The messages
 
@@ -128,6 +128,7 @@ Every request carries an `id` the core chooses, and everything that answers it c
 | `subscribe` | `update` messages until `unsubscribe` |
 | `unsubscribe` | none; ends the subscription with this `id` |
 | `act` | one or more `fate` messages |
+| `write` | one or more `fate` messages: a person's change of one of the device's own settings, a point under `x.<plugin>`, to `value` in the units its reads give. Sent only to a plugin whose `hello` lists the `write` feature, and only for a person, never for the planner |
 | `series.get` | `series.data` |
 | `series.subscribe` | `series.update` messages until `unsubscribe` |
 | `rules.get` | `rules` |
@@ -143,26 +144,27 @@ Every request carries an `id` the core chooses, and everything that answers it c
 
 ### Fates
 
-An `act` is answered by its fates, in order: optionally `queued`, then optionally `sent`, then one final stage: `device_accepted`, `device_refused`, `dropped` or `unknown`. Accepted isn't applied: whether a change took is the core's to decide, using the lever's `verify`.
+An `act` or a `write` is answered by its fates, in order: optionally `queued`, then optionally `sent`, then one final stage: `device_accepted`, `device_refused`, `dropped` or `unknown`. Accepted isn't applied: whether a change took is the core's to decide, using the lever's `verify`, or for a `write` a read of the point.
 
 ### Errors
 
 A plugin answers a request it can't serve with `error`, with the code `version`, `unsupported` or `invalid`. Two requests have their own way to fail instead:
 
 - a read of an unknown point answers with quality `unknown`;
-- an act on an unknown lever ends with fate `dropped`, saying why.
+- an act on an unknown lever, or a write the plugin won't send, ends with fate `dropped`, saying why.
 
 ### Examples
 
 These lines were produced by the message types themselves:
 
 ```json
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.2","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast"]}
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.2","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.3","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.3","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
 {"type":"read","id":3,"points":["hp1/dhw/temp.top"],"after":null}
 {"type":"values","id":3,"values":[{"point":"hp1/dhw/temp.top","value":52.3,"unit":"degC","raw":null,"t_observed":"2026-10-09T12:00:00Z","t_received":"2026-10-09T12:00:00Z","quality":"good","source":"measured","resolution":null,"why":null}]}
 {"type":"act","id":4,"lever":"hp1/dhw/block","op":"engage","params":{}}
 {"type":"fate","id":4,"stage":"device_accepted","t":"2026-10-09T12:00:00Z","detail":null}
+{"type":"write","id":5,"point":"hp1/x.nibe.47134","value":30.0}
 {"type":"series.get","id":5,"series":"spot","from":"2026-10-09T12:00:00Z","to":"2026-10-09T12:00:00Z"}
 {"type":"error","id":6,"code":"unsupported","detail":"not offered"}
 ```
@@ -171,7 +173,7 @@ Times are ISO 8601 with a time zone. Fields with defaults may be left out.
 
 ### The JSON Schema
 
-For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.2.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.2.schema.json). It is generated from the message types:
+For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.3.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.3.schema.json). It is generated from the message types:
 
 ```sh
 uv run python scripts/make-capschema.py          # write it
@@ -182,7 +184,7 @@ The test suite fails if the checked-in copy differs from the types.
 
 ### Versions
 
-The protocol is `thermaestro-cap`, version `0.2`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking `0.1` still talks to a `0.2` core: `0.2` added the provider description and the forecast fields of `SeriesInfo`.
+The protocol is `thermaestro-cap`, version `0.3`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking an older minor version still talks to a newer core: `0.2` added the provider description and the forecast fields of `SeriesInfo`, and `0.3` the `write` message, offered with the `write` feature.
 
 ## Running a plugin
 

@@ -422,3 +422,77 @@ async def test_a_lever_whose_plugin_is_down(tmp_path: Path) -> None:
         result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         assert result.outcome in ("dropped", "refused")
         assert r.device.registers["x.fake.offset"] == -4
+
+
+# --- A person's write, and a baseline a person sets ---------------------------------------
+
+CURVE = "dev:hp1/curve"
+
+
+async def test_a_person_writes_a_setting_outside_the_levers(tmp_path: Path) -> None:
+    async with rig(tmp_path) as r:
+        refused = await r.executor.write("dev", "hp1/x.fake.start", 50, who="planner")
+        assert (refused.outcome, refused.detail) == (
+            "refused",
+            "only a person may write a device's settings",
+        )
+        result = await r.executor.write("dev", "hp1/x.fake.start", 50, who="admin", why="as before")
+        assert result.outcome == "verified"
+        assert r.device.registers["x.fake.start"] == 50
+        assert [w.point for w in r.device.writes] == ["hp1/x.fake.start"]
+        assert acts(tmp_path / "t.db")[-1] == (
+            "dev:hp1/x.fake.start",
+            "write",
+            '{"value": 50}',
+            "verified",
+        )
+        written = [e for e in audited(r) if e["what"] == "device.write"]
+        assert [(e["who"], e["why"], e["outcome"]) for e in written] == [
+            ("admin", "as before", "verified")
+        ]
+
+
+async def test_a_lever_in_control_keeps_its_setting(tmp_path: Path) -> None:
+    """Changing it would only be put back: its baseline is the way."""
+    async with rig(tmp_path, {CURVE: "control"}) as r:
+        assert (await r.executor.act(CURVE, "set", {"value": 9}, who="planner")).outcome == (
+            "verified"
+        )
+        result = await r.executor.write("dev", "hp1/x.fake.curve", 5, who="admin")
+        assert (result.outcome, result.detail) == (
+            "refused",
+            "hp1/curve is in control: change its baseline instead",
+        )
+        assert r.device.writes == []
+
+
+async def test_a_write_under_a_lever_in_shadow_starts_it_afresh(tmp_path: Path) -> None:
+    async with rig(tmp_path, {CURVE: "shadow"}) as r:
+        await r.executor.act(CURVE, "set", {"value": 9}, who="planner")
+        assert r.executor.claims[CURVE].baseline == 7
+        assert (await r.executor.write("dev", "hp1/x.fake.curve", 5, who="admin")).outcome == (
+            "verified"
+        )
+        assert CURVE not in r.executor.claims
+        await until(lambda: r.host.values.latest[Key("dev", "hp1/x.fake.curve")].value == 5)
+        await r.executor.act(CURVE, "set", {"value": 9}, who="planner")
+        assert r.executor.claims[CURVE].baseline == 5
+
+
+async def test_a_baseline_a_person_sets_is_what_is_put_back(tmp_path: Path) -> None:
+    async with rig(tmp_path, {CURVE: "control"}) as r:
+        # Before Thermaestro has taken it over: kept, and used when it does.
+        assert await r.executor.set_baseline(CURVE, 8, who="admin") is None
+        assert r.executor.claims[CURVE].baseline == 8
+        assert await r.executor.set_baseline(CURVE, 20, who="admin") == "20 is above 15"
+        assert await r.executor.set_baseline(BLOCK, 1, who="admin") == (
+            "only a setting has a baseline"
+        )
+        assert (await r.executor.act(CURVE, "set", {"value": 10}, who="planner")).outcome == (
+            "verified"
+        )
+        assert r.executor.claims[CURVE].baseline == 8
+        await r.executor.restore("stopping")
+        assert r.device.registers["x.fake.curve"] == 8
+        changes = [e["details"] for e in audited(r) if e["what"] == "lever.baseline"]
+        assert changes == [{"lever": CURVE, "from": None, "to": 8}]

@@ -85,7 +85,8 @@ A user has the rights of its groups, plus its own. A new installation has three 
 | `intent.ranking.write`, `intent.slider.write` | change what gives way first, and how much comfort may give for savings |
 | `intent.any.end` | end what someone else asked for |
 | `plan.read` | see the intents, the levels and the plan, and why |
-| `levers.control` | put levers off, in shadow or in control ⚿ |
+| `levers.control` | put levers off, in shadow or in control, and set what they are put back to ⚿ |
+| `device.write` | change a device's own settings directly, outside the levers ⚿ |
 
 ## Answers and errors
 
@@ -322,10 +323,12 @@ A lever is a setting Thermaestro could change. Every lever starts off: Thermaest
 
 | Method and path | Right | Body → answer |
 |---|---|---|
-| `GET /levers` | `settings.read` | `[{lever, kind, mode, unavailable, works, range, competing, claimed, baseline, last, held, drift, writes_today, budget}]`: `competing` lists the device's own features that change the same, each with whether it's confirmed off; `baseline` is what it was found at; `drift` why it was let go after a change made elsewhere |
+| `GET /levers` | `settings.read` | `[{lever, kind, mode, unavailable, works, range, choices, competing, claimed, baseline, last, held, drift, writes_today, budget}]`: `choices` are an enum setting's values; `competing` lists the device's own features that change the same, each with whether it's confirmed off; `baseline` is what it is put back to, at first what it was found at; `drift` why it was let go after a change made elsewhere |
 | `PUT /levers/{lever}/mode` | `levers.control` ⚿ | `{"mode": "shadow"}`: `off`, `shadow` or `control`. Leaving control puts the setting back as it was found. |
 | `PUT /levers/{lever}/confirmed-off` | `levers.control` ⚿ | `{"features": ["Smart Price Adaption"]}`: these are switched off on the device |
 | `POST /levers/{lever}/accept-drift` | `levers.control` ⚿ | Keep the change made elsewhere: the lever is taken over again from how it is now |
+| `PUT /levers/{lever}/baseline` | `levers.control` ⚿ | `{"value": 0}`: what a setting is put back to, instead of what it was found at; checked against its range or choices |
+| `POST /devices/{instance}/write` | `device.write` ⚿ | `{"point": "hp1/x.nibe.47134", "value": 60, "why": "as before NibePi"}` → `{outcome, detail}`: one of the device's own settings, outside the levers, changed by a person: sent, read back, counted in the day's changes and audited. Refused for a setting a lever in control has taken over (change its baseline instead); a lever in shadow or off over the same setting is taken over afresh, from the new value. The device must offer it: on Nibe, a pump on the bus, any writable register but the word order (48852) and one a hold has engaged, in the register's units and range. |
 | `GET /plan` | `plan.read` | `{at, decisions, notices, ahead, house_kw, limit_kw, limit_why, ranking}`: the planner's last round, each decision (`lever`, `op`, `params`, `rank`, `reason`) with its `outcome`; `notices`, newest first, are what shadow would have done; `ahead`, the hot-water deadlines to come, each with the cheapest time to charge for it (`charge_from`); the house's power and its limit: the household's, or the grid company's where lower, which `limit_why` names |
 | `GET /plan/changes?hours=24` | `plan.read` | Every change asked in the last `hours` (at most 168), newest first: `{t, lever, op, params, who, why, mode, outcome, detail}`, made, shadowed or refused |
 | `GET /shadow?days=7&lever=&day=` | `plan.read` | What shadow would have done, newest first: `{t, lever, op, params, why, found}`, where `found` is what the device showed at that moment (point → `{value, unit}`: the point the lever is checked by, and those it writes). Over the last `days` (at most 30), or one `day` (`YYYY-MM-DD`, the house's), for one `lever` or all |

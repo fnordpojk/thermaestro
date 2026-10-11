@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 00:33+0200\n"
+"POT-Creation-Date: 2026-10-11 03:14+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -1551,6 +1551,9 @@ msgstr "Publicerad verifiering"
 msgid "Pump"
 msgstr "Värmepump"
 
+msgid "Put back to"
+msgstr "Återställs till"
+
 msgid "Quantity"
 msgstr "Storhet"
 
@@ -2615,10 +2618,6 @@ msgstr "avslutat"
 msgid "firmware %(version)s"
 msgstr "programvara %(version)s"
 
-#, python-format
-msgid "found at %(value)s"
-msgstr "hittad på %(value)s"
-
 msgid "found to be false"
 msgstr "befunnet felaktigt"
 
@@ -2876,6 +2875,10 @@ msgstr "publicerar"
 msgid "put back as found"
 msgstr "återställd som den hittades"
 
+#, python-format
+msgid "put back to %(value)s"
+msgstr "återställs till %(value)s"
+
 msgid "quiet hours"
 msgstr "tysta timmar"
 
@@ -3121,6 +3124,9 @@ msgstr "helger"
 msgid "weekends and holidays"
 msgstr "helger och helgdagar"
 
+msgid "what Thermaestro sets when it lets go; at first, what it found"
+msgstr "det Thermaestro ställer in när det släpper inställningen; först det värde det hittade"
+
 msgid "where it's from"
 msgstr "var den kommer ifrån"
 
@@ -3138,6 +3144,10 @@ msgstr "återkallad"
 
 msgid "working days"
 msgstr "helgfria vardagar"
+
+#, python-format
+msgid "written by hand: %(value)s"
+msgstr "skrivet för hand: %(value)s"
 
 msgid "wrong user name or password"
 msgstr "fel användarnamn eller lösenord"

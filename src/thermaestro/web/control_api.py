@@ -153,6 +153,34 @@ async def confirm_off(ref: str, body: Features, request: Request, who: Logged) -
     return {"status": "ok"}
 
 
+class Baseline(BaseModel):
+    value: float | str
+
+
+@router.put("/levers/{ref:path}/baseline")
+@action("lever.baseline")
+async def set_baseline(ref: str, body: Baseline, request: Request, who: Logged) -> dict[str, str]:
+    """`{"value": 0}`: what a setting is put back to, instead of what it was found at."""
+    await services(request).set_baseline(who, ref, body.value)
+    return {"status": "ok"}
+
+
+class DeviceWrite(BaseModel):
+    point: str
+    value: float
+    why: str | None = None
+
+
+@router.post("/devices/{instance}/write")
+@action("device.write")
+async def write_device(
+    instance: str, body: DeviceWrite, request: Request, who: Logged
+) -> dict[str, Any]:
+    """`{"point": "hp1/x.nibe.47134", "value": 30}`: one of the device's own settings,
+    changed by a person, read back and recorded → `{outcome, detail}`."""
+    return await services(request).write_device(who, instance, body.point, body.value, body.why)
+
+
 @router.post("/levers/{ref:path}/accept-drift")
 @action("lever.accept_drift")
 async def accept_drift(ref: str, request: Request, who: Logged) -> dict[str, str]:

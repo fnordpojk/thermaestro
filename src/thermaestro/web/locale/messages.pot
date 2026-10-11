@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 00:33+0200\n"
+"POT-Creation-Date: 2026-10-11 03:14+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1476,6 +1476,9 @@ msgstr ""
 msgid "Pump"
 msgstr ""
 
+msgid "Put back to"
+msgstr ""
+
 msgid "Quantity"
 msgstr ""
 
@@ -2489,10 +2492,6 @@ msgstr ""
 msgid "firmware %(version)s"
 msgstr ""
 
-#, python-format
-msgid "found at %(value)s"
-msgstr ""
-
 msgid "found to be false"
 msgstr ""
 
@@ -2752,6 +2751,10 @@ msgstr ""
 msgid "put back as found"
 msgstr ""
 
+#, python-format
+msgid "put back to %(value)s"
+msgstr ""
+
 msgid "quiet hours"
 msgstr ""
 
@@ -2993,6 +2996,9 @@ msgstr ""
 msgid "weekends and holidays"
 msgstr ""
 
+msgid "what Thermaestro sets when it lets go; at first, what it found"
+msgstr ""
+
 msgid "where it's from"
 msgstr ""
 
@@ -3009,6 +3015,10 @@ msgid "withdrawn"
 msgstr ""
 
 msgid "working days"
+msgstr ""
+
+#, python-format
+msgid "written by hand: %(value)s"
 msgstr ""
 
 msgid "wrong user name or password"

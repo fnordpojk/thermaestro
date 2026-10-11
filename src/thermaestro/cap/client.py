@@ -36,6 +36,7 @@ from .messages import (
     Unsubscribe,
     Update,
     Values,
+    Write,
 )
 from .model import Value
 
@@ -142,9 +143,21 @@ class Link:
         """Each fate the plugin reports, up to and including a final one. `timeout` is
         the longest wait for the next."""
         message = Act(id=self.next_id(), lever=lever, op=op, params=dict(params or {}))
+        async for fate in self._fates(message, "act", timeout):
+            yield fate
+
+    async def write(
+        self, point: str, value: float, *, timeout: float = TIMEOUT_S
+    ) -> AsyncIterator[Fate]:
+        """A person's change of one of the device's own settings: each fate, as `act`."""
+        message = Write(id=self.next_id(), point=point, value=value)
+        async for fate in self._fates(message, "write", timeout):
+            yield fate
+
+    async def _fates(self, message: Act | Write, name: str, timeout: float) -> AsyncIterator[Fate]:
         async with self._exchange(message) as replies:
             while True:
-                fate = _expect(Fate, "act", await self._next(replies, timeout))
+                fate = _expect(Fate, name, await self._next(replies, timeout))
                 yield fate
                 if fate.stage in FINAL_STAGES:
                     return

@@ -24,13 +24,16 @@ PERMISSIONS: dict[str, str] = {
     "intent.any.end": "end what someone else asked for",
     "plan.read": "see the plan and why",
     "levers.control": "put levers off, in shadow or in control",
+    "device.write": "change a device's own settings directly, outside the levers",
 }
 
 MQTT_GROUP = "MQTT"
 """The group whose rights requests over MQTT have: none until the administrator gives
 some. The broker isn't trusted to say who sent a message."""
 
-STEP_UP = frozenset({"users.manage", "secrets.manage", "plugins.manage", "levers.control"})
+STEP_UP = frozenset(
+    {"users.manage", "secrets.manage", "plugins.manage", "levers.control", "device.write"}
+)
 """Changes under these rights need the password entered again."""
 
 

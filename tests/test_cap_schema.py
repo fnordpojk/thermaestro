@@ -162,6 +162,7 @@ EXAMPLES: list[dict[str, Any]] = [
         "op": "set",
         "params": {"value": -2},
     },
+    {"type": "write", "id": 44, "point": "hp1/x.nibe.47134", "value": 30},
     {"type": "fate", "id": 42, "stage": "queued", "t": T},
     {"type": "fate", "id": 42, "stage": "device_accepted", "t": T, "detail": "0x6C = 1"},
     {
@@ -248,6 +249,7 @@ def test_parts_validate_against_their_definitions(
         {"type": "read", "id": 1, "points": ["hp1 has spaces"]},
         {"type": "act", "id": 1, "lever": "hp1/dhw/block", "op": "toggle"},
         {"type": "fate", "id": 1, "stage": "applied", "t": T},
+        {"type": "write", "id": 1, "point": "hp1/x.nibe.47134", "value": "thirty"},
         {"type": "describe", "id": -1},
         {"type": "describe", "id": 1, "extra": True},
         {"type": "values", "id": 1, "values": [ENVELOPE | {"quality": "fine"}]},

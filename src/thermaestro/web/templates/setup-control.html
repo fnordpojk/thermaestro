@@ -19,7 +19,7 @@
   <p>
     {{ _("Now:") }} <strong>{{ _(modes[lv.mode]) }}</strong>
     {% if lv.claimed %}
-    · {{ _("found at %(value)s", value=lv.baseline if lv.baseline is not none else "–") }}
+    · {{ _("put back to %(value)s", value=lv.baseline if lv.baseline is not none else "–") }}
     {% if lv.held %}· {{ _("held now") }}{% elif lv.last is not none %}· {{ _("set to %(value)s", value=lv.last) }}{% endif %}
     {% endif %}
   </p>
@@ -51,6 +51,20 @@
       </select></label>
     <button type="submit">{{ _("Save") }}</button>
   </form>
+  {% if lv.kind == "setting" and not lv.drift %}
+  <form method="post" action="/levers/{{ lv.lever }}/baseline" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>{{ _("Put back to") }} <small>{{ _("what Thermaestro sets when it lets go; at first, what it found") }}</small>
+      {% if lv.choices %}
+      <select name="value">
+        {% for c in lv.choices %}<option value="{{ c }}"{% if c == lv.baseline %} selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <input name="value" inputmode="decimal" size="6" required value="{{ lv.baseline if lv.baseline is not none else '' }}">
+      {% endif %}</label>
+    <button type="submit">{{ _("Save") }}</button>
+  </form>
+  {% endif %}
   {% endif %}
 </div>
 {% else %}

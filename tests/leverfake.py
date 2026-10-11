@@ -20,6 +20,7 @@ from thermaestro.cap.messages import (
     Subscribe,
     Update,
     Values,
+    Write,
 )
 from thermaestro.cap.model import (
     CompetingFeature,
@@ -143,11 +144,12 @@ def now() -> datetime:
 class LeverDevice:
     name = "leverfake"
     version = "0.1.0"
-    features: tuple[str, ...] = ("subscribe",)
+    features: tuple[str, ...] = ("subscribe", "write")
 
     def __init__(self) -> None:
         self.registers = dict(REGISTERS)
         self.acts: list[Act] = []
+        self.writes: list[Write] = []
         self.not_kept: set[str] = set()
         """Lever paths whose writes are accepted and then dropped."""
         self.refused: set[str] = set()
@@ -181,6 +183,8 @@ class LeverDevice:
                     )
             case Act():
                 await self.act(request, send)
+            case Write():
+                await self.write(request, send)
             case _:
                 await send(Error(id=getattr(request, "id", None), code="unsupported"))
 
@@ -233,6 +237,16 @@ class LeverDevice:
         elif request.op == "release":
             self.held.discard(request.lever)
             self.registers[register] = REGISTERS[register]
+
+    async def write(self, request: Write, send: Send) -> None:
+        """A person's change of one of its registers, by its point."""
+        self.writes.append(request)
+        register = request.point.removeprefix("hp1/")
+        if register not in self.registers:
+            await send(Fate(id=request.id, stage="dropped", t=now(), detail="no such register"))
+            return
+        await send(Fate(id=request.id, stage="device_accepted", t=now()))
+        self.registers[register] = request.value  # type: ignore[assignment]
 
     async def redescribe(self, path: str) -> None:
         """Describe a lever anew, as a plugin does when what a hold acts on has moved."""

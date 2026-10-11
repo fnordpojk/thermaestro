@@ -12,9 +12,11 @@ its model is set by the user. Modbus's own device identification is asked for an
 not relied on. Every point is polled, one value per request. Its levers are described as
 unavailable: none has been tried on a real S-series pump.
 
-It writes only when the core asks, with an `act` on a lever, and never a register outside
-that lever's own. A hold's release (what the hot-water block puts back) is kept across
-restarts. Where the route shows other clients' writes, each is reported as a
+It writes only when the core asks: with an `act` on a lever, never a register outside
+that lever's own; or, on the bus, with a `write` of one of the pump's own settings, which
+the core sends only for a person. Any register of the model can be read as
+`x.nibe.<register>`, described or not. A hold's release (what the hot-water block puts back)
+is kept across restarts. Where the route shows other clients' writes, each is reported as a
 `foreign_write`.
 """
 
@@ -47,6 +49,7 @@ from ..cap.messages import (
     Subscribe,
     Update,
     Values,
+    Write,
 )
 from ..cap.model import (
     Ack,
@@ -92,6 +95,8 @@ METER_SAVE_S = 60.0
 COUNTERS = ("heat.produced", "elec.used")
 """Points that only count up, and start over from 0 at their register's size."""
 IDENTIFICATION = "x.nibe.identification"
+REGISTER = re.compile(r"^x\.nibe\.(\d+)$")
+"""Any register of the model, as a point directly under the unit."""
 """What an S-series pump answers to Modbus's device identification, as text."""
 WRITE_TIMEOUT_S = 30.0
 """The longest a write waits for its turn on the bus and the pump's answer."""
@@ -146,6 +151,8 @@ class NibePlugin:
     ) -> None:
         self.gateway = gateway
         self.family = sprofile.S_SERIES if gateway.protocol == "modbus-tcp" else profile.BUS
+        if self.family.name == "bus":
+            self.features = ("subscribe", "write")
         self._poll_round = self.family.poll_round_s if poll_round_s is None else poll_round_s
         self._state = state
         self._secrets = secrets
@@ -246,7 +253,10 @@ class NibePlugin:
             await self._transport.close()
 
     async def handle(self, request: Message, send: Send) -> None:
-        if not isinstance(request, Describe | Read | Subscribe | Act):
+        offered = isinstance(request, Describe | Read | Subscribe | Act) or (
+            isinstance(request, Write) and "write" in self.features
+        )
+        if not offered:
             await send(
                 Error(id=getattr(request, "id", None), code="unsupported", detail="not offered")
             )
@@ -255,11 +265,14 @@ class NibePlugin:
         if isinstance(request, Act):
             async with self._act_lock:  # one change at a time: the bus carries one anyway
                 await self._act(request, send)
+        elif isinstance(request, Write):
+            async with self._act_lock:
+                await self._write_setting(request, send)
         elif isinstance(request, Describe):
             await send(self.describe(request.id))
         elif isinstance(request, Read):
             await send(Values(id=request.id, values=tuple(await self._read_points(request))))
-        else:
+        elif isinstance(request, Subscribe):
             await self._subscription(request, send)
 
     # --- connecting and identifying ---------------------------------------------------------
@@ -720,10 +733,18 @@ class NibePlugin:
     # --- values ----------------------------------------------------------------------------
 
     def _definition(self, path: str) -> profile.PointDef | None:
+        """A described point, or any register of the model directly under the unit."""
         prefix = f"{profile.UNIT}/"
         if self.layout is None or not path.startswith(prefix):
             return None
-        return self.layout.points.get(path[len(prefix) :])
+        below = path[len(prefix) :]
+        found = self.layout.points.get(below)
+        if found is not None:
+            return found
+        match = REGISTER.match(below)
+        if match is None or self.model is None or int(match[1]) not in self.model:
+            return None
+        return profile.PointDef(below, int(match[1]))
 
     def _derived(self, path: str) -> profile.Derived | None:
         """A point worked out from the pump's values: the brine's delta-T always; the
@@ -976,10 +997,42 @@ class NibePlugin:
             log.info("%s %s not sent: %s", request.lever, request.op, e)
             await send(Fate(id=request.id, stage="dropped", t=_now(), detail=str(e)))
             return
+        await self._report(request.id, f"{request.lever} {request.op}", outcome, send)
+
+    async def _write_setting(self, request: Write, send: Send) -> None:
+        """A person's change of one of the pump's own settings: any writable register but
+        the word order, and none a hold of this plugin's has engaged."""
+        try:
+            register = self._writable(request.point)
+            await send(Fate(id=request.id, stage="queued", t=_now()))
+            model, _ = self._pump()
+            try:
+                raw = encode(model.register(register), request.value)
+            except EncodeError as e:
+                raise Refused(str(e)) from None
+            outcome = await self._send_write(register, raw)
+        except Refused as e:
+            log.info("write %s not sent: %s", request.point, e)
+            await send(Fate(id=request.id, stage="dropped", t=_now(), detail=str(e)))
+            return
+        await self._report(request.id, f"write {request.point}", outcome, send)
+
+    def _writable(self, point: str) -> int:
+        definition = self._definition(point)
+        if definition is None or not point.rpartition("/")[2].startswith("x.nibe."):
+            raise Refused("not one of the pump's registers")
+        register = definition.register
+        if register == self.family.word_swap:
+            raise Refused("the word order other clients decode by is never written")
+        for path, kept in self.holds.items():
+            if int(kept["register"]) == register:
+                raise Refused(f"{path} holds it now")
+        return register
+
+    async def _report(self, id: int, what: str, outcome: WriteOutcome, send: Send) -> None:
         log.info(
-            "%s %s: %d = %d, %s (%s)",
-            request.lever,
-            request.op,
+            "%s: %d = %d, %s (%s)",
+            what,
             outcome.register,
             outcome.value,
             outcome.result.value,
@@ -988,7 +1041,7 @@ class NibePlugin:
         t = _now()
         if outcome.t_result is not None:
             t -= timedelta(seconds=max(0.0, clock.monotonic() - outcome.t_result))
-        await send(Fate(id=request.id, stage=FATES[outcome.result], t=t, detail=outcome.why))
+        await send(Fate(id=id, stage=FATES[outcome.result], t=t, detail=outcome.why))
 
     async def _carry_out(self, spec: profile.Spec, request: Act) -> WriteOutcome:
         kind, op = spec.lever.kind, request.op
@@ -1081,12 +1134,15 @@ class NibePlugin:
             raise Refused(f"register {register} isn't one {spec.path} changes")
         if register in profile.NEVER_WRITTEN:
             raise Refused(f"register {register} is never written")
-        if self._transport is None:
-            raise Refused("not connected")
         try:
             raw = encode(model.register(register), value)
         except EncodeError as e:
             raise Refused(str(e)) from None
+        return await self._send_write(register, raw)
+
+    async def _send_write(self, register: int, raw: int) -> WriteOutcome:
+        if self._transport is None:
+            raise Refused("not connected")
         frame = nibe.write_request(register, raw)
         self._mine[frame] += 1
         # Kept a while: a gateway may still send a request whose fate was unknown.

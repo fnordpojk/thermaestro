@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 00:33+0200\n"
+"POT-Creation-Date: 2026-10-11 03:14+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -1570,6 +1570,9 @@ msgstr "Veröffentlichte Verifikation"
 msgid "Pump"
 msgstr "Wärmepumpe"
 
+msgid "Put back to"
+msgstr "Zurückgesetzt auf"
+
 msgid "Quantity"
 msgstr "Größe"
 
@@ -2654,10 +2657,6 @@ msgstr "beendet"
 msgid "firmware %(version)s"
 msgstr "Firmware %(version)s"
 
-#, python-format
-msgid "found at %(value)s"
-msgstr "vorgefunden bei %(value)s"
-
 msgid "found to be false"
 msgstr "als falsch befunden"
 
@@ -2919,6 +2918,10 @@ msgstr "veröffentlicht"
 msgid "put back as found"
 msgstr "wie vorgefunden zurückgestellt"
 
+#, python-format
+msgid "put back to %(value)s"
+msgstr "wird auf %(value)s zurückgesetzt"
+
 msgid "quiet hours"
 msgstr "Ruhezeiten"
 
@@ -3164,6 +3167,9 @@ msgstr "Wochenenden"
 msgid "weekends and holidays"
 msgstr "Wochenenden und Feiertage"
 
+msgid "what Thermaestro sets when it lets go; at first, what it found"
+msgstr "was Thermaestro einstellt, wenn es loslässt; zuerst der Wert, den es vorfand"
+
 msgid "where it's from"
 msgstr "woher sie stammt"
 
@@ -3181,6 +3187,10 @@ msgstr "zurückgezogen"
 
 msgid "working days"
 msgstr "Werktage"
+
+#, python-format
+msgid "written by hand: %(value)s"
+msgstr "von Hand geschrieben: %(value)s"
 
 msgid "wrong user name or password"
 msgstr "falscher Benutzername oder falsches Passwort"

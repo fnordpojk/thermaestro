@@ -51,6 +51,14 @@ async def accept_drift(request: Request, who: Logged, ref: str) -> Response:
     return await attempt(request, who, services(request).accept_drift(who, ref), "control")
 
 
+@router.post("/levers/{ref:path}/baseline")
+@action("lever.baseline")
+async def set_baseline(request: Request, who: Logged, ref: str, value: Text) -> Response:
+    from .setup_pages import attempt
+
+    return await attempt(request, who, services(request).set_baseline(who, ref, value), "control")
+
+
 @router.post("/settings/home")
 @action("home.write")
 async def set_home(request: Request, who: Logged) -> Response:

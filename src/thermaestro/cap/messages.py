@@ -25,10 +25,12 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.2"
+VERSION = "0.3"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
-`SeriesInfo`, announced by the `forecast` feature. 0.1 peers still talk to 0.2 ones."""
-FEATURES = ("subscribe", "forecast")
+`SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
+one of the device's own settings, which a plugin offers with the `write` feature. Older
+peers still talk to newer ones."""
+FEATURES = ("subscribe", "forecast", "write")
 """What this side of the protocol understands."""
 
 RequestId = Annotated[int, Field(ge=0)]
@@ -129,6 +131,18 @@ class Act(Model):
     lever: Path
     op: Op
     params: dict[str, Value] = Field(default_factory=dict)
+
+
+class Write(Model):
+    """A person's change of one of the device's own settings, outside the levers: a point
+    under `x.<plugin>`, described or not, in the units its reads give (protocol 0.3, the
+    `write` feature). Answered with fates, as `act` is. The core sends it only for a person,
+    never for the planner."""
+
+    type: Literal["write"] = "write"
+    id: RequestId
+    point: Path
+    value: float
 
 
 FateStage = Literal["queued", "sent", "device_accepted", "device_refused", "dropped", "unknown"]
@@ -260,6 +274,7 @@ Message = Annotated[
     | Unsubscribe
     | Update
     | Act
+    | Write
     | Fate
     | Health
     | DeviceEvent
@@ -285,6 +300,7 @@ TO_PLUGIN = frozenset(
         "subscribe",
         "unsubscribe",
         "act",
+        "write",
         "series.get",
         "series.subscribe",
         "rules.get",

@@ -16,6 +16,11 @@ again.
 
 A lever the vocabulary keeps for people (an alarm reset) is never used by the planner,
 the core or an MQTT request.
+
+`write` is a person's change of one of the device's own settings, outside the levers: never
+the planner's, nor one a lever in control has taken over. Whatever Thermaestro kept of a
+lever over the same setting is dropped after it, so the lever is taken over afresh, from the
+new value. A setting lever's baseline can also be set by a person (`set_baseline`).
 """
 
 import asyncio
@@ -218,6 +223,44 @@ class Executor:
                 return Result("replaced", "a newer request for this lever came")
             return await self._act(ref, op, dict(params or {}), who, why)
 
+    async def write(
+        self, instance: str, point: str, value: float, *, who: str, why: str | None = None
+    ) -> Result:
+        """A person's change of one of the device's own settings (`point`, under `x.<plugin>`):
+        sent, read back and recorded like a lever's."""
+        ref = f"{instance}:{point}"
+        async with self._lock(ref):
+            return await self._write(ref, instance, point, value, who, why)
+
+    async def set_baseline(self, ref: str, value: Value, *, who: str) -> str | None:
+        """Set what a setting lever is put back to: a value a person chooses rather than
+        the one it was found at. Why not, or None."""
+        lever = self.lever(ref)
+        if lever is None:
+            return "no such lever, or its plugin isn't running"
+        if lever.kind != "setting":
+            return "only a setting has a baseline"
+        async with self._lock(ref):
+            claim = self.claims.get(ref)
+            if claim is not None and claim.drift is not None:
+                return f"let go after a change Thermaestro didn't make: {claim.drift}"
+            refusal = self._fits(lever, {"value": value}, claim)
+            if refusal is not None:
+                return refusal
+            before = claim.baseline if claim is not None else None
+            if claim is None:
+                mode = (await self._control()).levers.get(ref, "off")
+                claim = Claim(ref, self._clock(), value, mode)
+                self.claims[ref] = claim
+            claim.baseline = value
+            if claim.last is not None and same(claim.last, value, lever.params.get("value")):
+                claim.last = None
+            await self._save(claim)
+        await self._audit.record(
+            who, "lever.baseline", details={"lever": ref, "from": before, "to": value}
+        )
+        return None
+
     async def budget(self, instance: str) -> tuple[int, int]:
         """Writes in the last day for an instance's levers, and the soft budget: the
         planner aims to stay under it."""
@@ -374,6 +417,112 @@ class Executor:
             self._took(claim, op, params)
             await self._save(claim)
         return await self._record(ref, op, params, who, why, mode, result, found)
+
+    async def _write(
+        self, ref: str, instance: str, point: str, value: float, who: str, why: str | None
+    ) -> Result:
+        params: dict[str, Value] = {"value": value}
+
+        async def done(result: Result, found: dict[str, dict[str, Any]] | None = None) -> Result:
+            return await self._record(
+                ref, "write", params, who, why, "control", result, found, action="device.write"
+            )
+
+        if who in AUTOMATIC:
+            return await done(Result("refused", "only a person may write a device's settings"))
+        found_instance = self._host.instances.get(instance)
+        link = (
+            found_instance.link
+            if found_instance is not None and found_instance.state is State.UP
+            else None
+        )
+        if link is None or found_instance is None:
+            return await done(Result("dropped", "its plugin isn't running"))
+        hello = found_instance.hello
+        if hello is None or "write" not in hello.features:
+            return await done(Result("refused", "its plugin doesn't take writes"))
+        datapoint = point.rpartition("/")[2]
+        under: list[str] = []
+        for other, claim in self.claims.items():
+            lever = self.lever(other)
+            if split(other)[0] != instance or lever is None or datapoint not in lever.touches:
+                continue
+            if claim.drift is not None:  # let go: the household decides that apart
+                continue
+            if claim.mode == "control":
+                return await done(
+                    Result(
+                        "refused",
+                        f"{split(other)[1]} is in control: change its baseline instead",
+                    )
+                )
+            under.append(other)
+        control = await self._control()
+        written = await self._db.run(lambda t: _count(t, ref, self._clock() - DAY_S))
+        if written >= control.guard:
+            return await done(
+                Result("refused", f"stopped by the runaway guard: {control.guard} writes in a day")
+            )
+        seen = self._values.latest.get(Key(instance, point))
+        found = (
+            {point: {"value": seen.value, "unit": seen.unit}}
+            if seen is not None and seen.quality == "good"
+            else None
+        )
+        self._writing.add(ref)
+        try:
+            final = None
+            try:
+                async for fate in link.write(point, value, timeout=self._act_timeout_s):
+                    final = fate
+            except TimeoutError:
+                return await done(Result("timeout", "the plugin didn't say what became of it"))
+            except (Closed, CapError) as e:
+                return await done(Result("dropped", f"the plugin's connection: {e}"))
+            if final is None or final.stage == "dropped":
+                return await done(Result("dropped", final.detail if final else None), found)
+            if final.stage == "device_refused":
+                return await done(Result("device_refused", final.detail), found)
+            result = await self._read_back(link, point, value, final.t)
+        finally:
+            self._writing.discard(ref)
+        if result.outcome in TAKEN:
+            # Taken over afresh, from the new value.
+            for other in under:
+                self.claims.pop(other, None)
+            await self._db.run(
+                lambda t: t.executemany("DELETE FROM claims WHERE lever = ?", [(r,) for r in under])
+            )
+        return await done(result, found)
+
+    async def _read_back(self, link: Link, point: str, value: float, accepted: datetime) -> Result:
+        """Whether a written setting reads what was written: its value, or its raw count
+        in the steps it reads in (a register shown as words or as on/off)."""
+        deadline = clocks.monotonic() + self._verify_s
+        seen: Value | None = None
+        while True:
+            with contextlib.suppress(TimeoutError, CapError):
+                answer = await link.read([point], after=accepted, timeout=self._verify_s)
+                for envelope in answer.values:
+                    if envelope.quality != "good" or not _after(envelope, accepted):
+                        continue
+                    raw = envelope.raw
+                    step = envelope.resolution or 1.0
+                    counted = (
+                        isinstance(raw, int | float)
+                        and not isinstance(raw, bool)
+                        and same(raw * step, value)
+                    )
+                    if same(envelope.value, value) or counted:
+                        return Result("verified")
+                    seen = envelope.value
+            left = deadline - clocks.monotonic()
+            if left <= 0:
+                break
+            await asyncio.sleep(min(self._poll_s, left))
+        if seen is None:
+            return Result("timeout", "no fresh value came back")
+        return Result("not_kept", f"accepted, but it reads {seen}")
 
     def _found(self, ref: str, lever: Lever) -> dict[str, dict[str, Any]]:
         """What the device shows now where a change of the lever can be compared: the point
@@ -601,13 +750,15 @@ class Executor:
     async def _record(
         self,
         ref: str,
-        op: Op,
+        op: Op | Literal["write"],
         params: dict[str, Value],
         who: str,
         why: str | None,
         mode: LeverMode,
         result: Result,
         found: dict[str, dict[str, Any]] | None = None,
+        *,
+        action: str = "lever.act",
     ) -> Result:
         row = (
             self._clock(),
@@ -640,7 +791,7 @@ class Executor:
         ):
             await self._audit.record(
                 who,
-                "lever.act",
+                action,
                 why=why,
                 outcome=result.outcome,
                 details={
