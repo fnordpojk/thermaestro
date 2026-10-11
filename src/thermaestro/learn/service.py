@@ -16,6 +16,7 @@ from ..core.host import PluginHost
 from ..core.sensors import SITE
 from ..core.values import Key, Values
 from ..store import Database, Transaction
+from .hotwater import HotWater
 from .inputs import (
     WINDOW_S,
     Check,
@@ -30,11 +31,13 @@ from .inputs import (
     warmer_when_heating,
     warms_in_charges,
 )
+from .model import mark
 from .store import Learnings
 
 log = logging.getLogger(__name__)
 
 CHECK_S = 3600.0
+KEPT = mark("Behaved as it should when last seen, %(seen)s; not seen since.")
 FIRST_S = 600.0
 """The first check waits this long after a start: until then the devices may not have
 said what they have, and what was kept from before stands."""
@@ -63,6 +66,7 @@ class Learning:
         self._host = host
         self.learnings = Learnings(db, audit)
         self.checks: dict[Key, Check] = {}
+        self.hot_water = HotWater(db, values, host, self.learnings, self.usable)
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
 
@@ -94,9 +98,15 @@ class Learning:
         while True:
             try:
                 await self.check_inputs()
+                await self.learn()
             except Exception:
-                log.exception("checking the learners' inputs failed; trying again later")
+                log.exception("learning failed; trying again later")
             await asyncio.sleep(CHECK_S)
+
+    async def learn(self) -> None:
+        """What the inputs allow: the tanks' days not yet read."""
+        async with self._lock:
+            await self.hot_water.run()
 
     def usable(self, key: Key) -> bool:
         found = self.checks.get(key)
@@ -109,7 +119,8 @@ class Learning:
             recorded = Recorded(self._values, now - WINDOW_S, now)
             found = []
             for key, expect, context in self._inputs():
-                found.append(await judge(key, expect, recorded, context, now))
+                judged = await judge(key, expect, recorded, context, now)
+                found.append(_kept_proof(judged, self.checks.get(key)))
             await self._db.run(lambda t: _keep(t, found))
             self.checks = {Key(c.instance, c.point): c for c in found}
             return found
@@ -153,6 +164,16 @@ class Learning:
                 key.point.startswith("room.") and key.point.endswith("/temperature")
             ):
                 yield key, Expect(), Context()
+
+
+def _kept_proof(now: Check, before: Check | None) -> Check:
+    """A week that shows nothing doesn't undo what an earlier one proved: the addition may
+    run only for the periodic increase, every week or two, and in the coldest days. Only a
+    week that shows something wrong does."""
+    if now.verdict != "not_yet" or before is None or before.verdict != "usable":
+        return now
+    seen = before.args.get("seen", before.checked)
+    return Check(now.instance, now.point, "usable", KEPT, now.checked, {"seen": seen})
 
 
 def _key(instance: str, path: str, paths: set[str]) -> Key | None:

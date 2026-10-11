@@ -91,6 +91,12 @@ class Tank:
     """The pump's own start temperature, as the household has it."""
     stop: float | None = None
     """Its stop temperature."""
+    loss_per_h: float | None = None
+    """The learned standing loss, per hour, times how far the tank is above its room; None
+    until it and the demand have proved themselves."""
+    draws: tuple[float, ...] = ()
+    """What the household is expected to draw in each hour from now's, in degrees of the
+    tank: with `loss_per_h`, from the learned week."""
 
 
 @dataclass

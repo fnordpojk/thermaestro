@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 14:38+0200\n"
+"POT-Creation-Date: 2026-10-11 15:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,14 @@ msgstr ""
 msgid ""
 "%(device)s: %(used)s changes in the last day, of about %(budget)s planned"
 " at most."
+msgstr ""
+
+#, python-format
+msgid "%(drawn)s °C of the tank in all"
+msgstr ""
+
+#, python-format
+msgid "%(fall)s °C an hour at 50 °C"
 msgstr ""
 
 #, python-format
@@ -60,12 +68,34 @@ msgid "%(n)s minutes"
 msgstr ""
 
 #, python-format
+msgid "%(n)s of %(least)s comparisons so far."
+msgstr ""
+
+#, python-format
 msgid "%(n)s so far"
 msgstr ""
 
 #, python-format
+msgid "%(num)s charge"
+msgid_plural "%(num)s charges"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
 msgid "%(num)s day"
 msgid_plural "%(num)s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)s day read"
+msgid_plural "%(num)s days read"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)s draw"
+msgid_plural "%(num)s draws"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -87,6 +117,10 @@ msgstr ""
 
 #, python-format
 msgid "%(start)s–%(end)s"
+msgstr ""
+
+#, python-format
+msgid "%(total)s °C of the tank a week"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -389,6 +423,10 @@ msgstr ""
 msgid "Behaved as it should in the last week."
 msgstr ""
 
+#, python-format
+msgid "Behaved as it should when last seen, %(seen)s; not seen since."
+msgstr ""
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once "
 "there are a day's worth."
@@ -596,6 +634,11 @@ msgstr ""
 msgid "Currency"
 msgstr ""
 
+msgid ""
+"Darker hours draw more; a public holiday counts as the weekday chosen "
+"under House."
+msgstr ""
+
 msgid "Dates"
 msgstr ""
 
@@ -610,6 +653,10 @@ msgid "Days"
 msgstr ""
 
 msgid "Days it lasts"
+msgstr ""
+
+#, python-format
+msgid "Days learned from: %(days)s. Judged once each weekday has been seen."
 msgstr ""
 
 msgid "Decimal sign"
@@ -661,6 +708,13 @@ msgid "Download"
 msgstr ""
 
 msgid "Download as CSV"
+msgstr ""
+
+msgid ""
+"Draws are read from how the tank's two temperatures fall outside its "
+"charges, faster than the tank loses heat by itself. Their size is in "
+"degrees of the tank: how far a draw takes the mean of its two "
+"temperatures down."
 msgstr ""
 
 msgid "Each decision"
@@ -930,10 +984,16 @@ msgstr ""
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr ""
 
+msgid "Hot water drawn, through the week"
+msgstr ""
+
 msgid "Hot water that must be ready"
 msgstr ""
 
 msgid "Hot water that should be ready"
+msgstr ""
+
+msgid "Hot water, the last week"
 msgstr ""
 
 msgid "Hot water: ready by a time, and its lowest temperature"
@@ -996,6 +1056,9 @@ msgid "Its own control"
 msgstr ""
 
 msgid "JSON field"
+msgstr ""
+
+msgid "Judged once there are two days to test it on."
 msgstr ""
 
 msgid "Keep heating until it is met, or the next one is due"
@@ -1390,6 +1453,10 @@ msgstr ""
 msgid "Not learned yet"
 msgstr ""
 
+#, python-format
+msgid "Not learned: %(what)s isn't usable on this pump yet."
+msgstr ""
+
 msgid "Not made:"
 msgstr ""
 
@@ -1467,6 +1534,16 @@ msgid "Occupied"
 msgstr ""
 
 msgid "Off"
+msgstr ""
+
+#, python-format
+msgid "Off by %(error)s on average where a simple guess is off by %(baseline)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than a simple guess, off "
+"by %(baseline)s."
 msgstr ""
 
 msgid "On different days"
@@ -2080,6 +2157,11 @@ msgid_plural "The mean of the month's %(num)s highest"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid ""
+"The highest the top has reached at the end of a charge, the periodic "
+"increase left out."
+msgstr ""
+
 msgid "The highest, how many"
 msgstr ""
 
@@ -2161,7 +2243,13 @@ msgstr ""
 msgid "The same again"
 msgstr ""
 
+msgid "The tank's standing loss"
+msgstr ""
+
 msgid "The values could not be loaded."
+msgstr ""
+
+msgid "The warmest a charge has made the top"
 msgstr ""
 
 msgid "The water"
@@ -3228,6 +3316,9 @@ msgstr ""
 msgid "the pump refused it"
 msgstr ""
 
+msgid "the pump's demand"
+msgstr ""
+
 msgid "the pump's own"
 msgstr ""
 
@@ -3238,6 +3329,12 @@ msgid "the settings"
 msgstr ""
 
 msgid "the setup code isn't right, or has expired"
+msgstr ""
+
+msgid "the tank's charge sensor"
+msgstr ""
+
+msgid "the tank's top temperature"
 msgstr ""
 
 msgid "the two passwords differ"
@@ -3339,5 +3436,8 @@ msgid "yes"
 msgstr ""
 
 msgid "your token"
+msgstr ""
+
+msgid "°C an hour at 50 °C"
 msgstr ""
 

@@ -226,9 +226,18 @@ What Thermaestro has learned, and what it learns from. Learning only watches: it
 - recorded for at least a day, with good values, and changing where its quantity changes;
 - in step with the values it goes with: the compressor runs only while there is a demand, the tank warms during hot-water charges, the supply is warmer while the compressor heats the house, and the house's power is higher while the compressor runs.
 
-Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Always 0 in the last week"), or **Not seen enough yet** (no hot-water charge in the week, the addition never running). One that isn't usable is left out. The check runs every hour, ten minutes after a start the first time, and **Check now** runs it at once.
+Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Always 0 in the last week"), or **Not seen enough yet** (no hot-water charge in the week, the addition never running). One that isn't usable is left out. A week that shows nothing doesn't undo an earlier proof: the addition may run only for the periodic hot-water increase and on the coldest days, so it stays usable, with when it was last seen. The check runs every hour, ten minutes after a start the first time, and **Check now** runs it at once.
 
-**What it has learned** lists each value, how many observations it rests on, and its state. A learned model is used only once it has shown it predicts better than a simple guess; until then the answer given at setup stands. A few figures are used as seen: how long the tank's charges take (used to choose the cheapest time for one), and when the pump's periodic hot-water increase was last seen. **Pin** sets a number to use instead (a duration in minutes), and learning goes on beside it; pinning an empty field lifts it. **Start over** forgets what was learned. Both are recorded in the audit log.
+**Hot water, the last week** counts the draws and charges read for each hot-water tank. Once a day is over, it is read from the tank's two temperatures and the pump's demand:
+
+- a **charge** is the demand on hot water for ten minutes or more; during one, and for 15 minutes after, the charge sensor shows the charge rather than the tank, so it isn't read;
+- the **standing loss** is how fast the tank cools by itself, from its slowest hours outside charges;
+- a **draw** is a fall faster than that, by more than the tank's own quiet noise. A draw that makes the pump start a charge counts up to the charge. Its size is in degrees of the tank: how far it takes the mean of the two temperatures down;
+- the **week**: what is drawn in each hour of the week, learned day by day. A public holiday counts as the weekday chosen under House. Where the location's climate is known (Weather), a draw is compared across seasons at the year's mean cold-water temperature, from the water source answered under House.
+
+Days already recorded are read at once, up to two weeks back. The tank is learned only once its top, its charge sensor and the pump's demand are usable.
+
+**What it has learned** lists each value, how many observations it rests on, and its state; the week is drawn hour by hour. A learned model is used only once it has shown it predicts better than a simple guess; until then the answer given at setup, or the planner's own rule, stands. The week is judged each day before it learns from it, against a flat guess; the standing loss on its last two days, fitted on the days before. Once both have proved themselves, the planner reckons how warm the tank's top will be by a hot-water deadline from them, instead of assuming it falls half a degree an hour. A few figures are used as seen: how long the tank's charges take (used to choose the cheapest time for one), when the pump's periodic hot-water increase was last seen, and the warmest a charge has made the top. **Pin** sets a number to use instead (a duration in minutes, the standing loss as its fall an hour at 50 °C), and learning goes on beside it; pinning an empty field lifts it. **Start over** forgets what was learned. Both are recorded in the audit log.
 
 ### From NibePi
 

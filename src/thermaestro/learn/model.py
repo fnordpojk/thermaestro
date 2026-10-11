@@ -40,6 +40,9 @@ class Learned(BaseModel):
     unit: str | None = None
     state: State = "starting"
     why: str | None = None
+    """Why it is in its state, as a message for the web UI's catalog."""
+    args: dict[str, float | int | str] = {}
+    """The values `why` names, as `%(name)s`."""
     n: int = 0
     """How many observations or intervals it rests on."""
     since: float | None = None

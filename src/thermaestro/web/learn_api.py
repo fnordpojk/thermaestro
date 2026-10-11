@@ -28,7 +28,7 @@ class Pin(Named):
 async def learned(request: Request, who: Logged) -> dict[str, Any]:
     """Which inputs work here (`inputs`: each point's verdict, `usable`, `not_usable` or
     `not_yet`, and why), and what has been learned (`values`)."""
-    return services(request).learned(who)
+    return await services(request).learned(who)
 
 
 @router.post("/learned/inputs/check")

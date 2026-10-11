@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import httpx
+import pytest
 from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, form
 from test_web_control import login
 
@@ -15,6 +16,7 @@ from thermaestro.core import AuditLog, Values
 from thermaestro.core.values import Key
 from thermaestro.learn import Learned, Learning
 from thermaestro.learn.inputs import Check
+from thermaestro.learn.tank import Demand
 from thermaestro.store import Database, SecretStore
 from thermaestro.web import Services, create_app
 
@@ -122,6 +124,49 @@ async def test_a_pin_is_typed_in_minutes_on_the_page(tmp_path: Path) -> None:
         assert learning.learnings.used("tank.charge_s", "dev:hp1/dhw") == 3000.0
         wrong = await form(client, "/setup/learned", "/setup/learned/pin", key=CHARGE, value="soon")
         assert wrong.status_code == 400
+
+
+async def test_the_tanks_week_and_loss_are_shown(tmp_path: Path) -> None:
+    async with site(tmp_path) as (learning, client):
+        week = Demand()
+        week.learn(0, [0.0] * 7 + [3.0] + [0.0] * 16)
+        await learning.learnings.put(
+            Learned(
+                name="tank.demand",
+                scope="dev:hp1/dhw",
+                kind="model",
+                value=week.to_value(),
+                state="learning",
+                why="Days learned from: %(days)s. Judged once each weekday has been seen.",
+                args={"days": 1},
+                n=1,
+            )
+        )
+        loss = await learning.learnings.put(
+            Learned(name="tank.loss", scope="dev:hp1/dhw", kind="model", value=0.012, unit="1/h")
+        )
+        headers = await login(client, "admin")
+        page = (await client.get("/setup/learned")).text
+        assert "3.0 °C of the tank a week" in page
+        assert "0.36 °C an hour at 50 °C" in page
+        assert "Days learned from: 1." in page
+        assert page.count('class="w4"') == 1
+        assert page.count('class="w0"') == 7 * 24 - 1
+        await form(
+            client,
+            "/setup/learned",
+            "/setup/learned/pin",
+            key=loss.key,
+            value="0,3",
+            **{"in": "fall_at_50"},
+        )
+        assert learning.learnings.used("tank.loss", "dev:hp1/dhw") == pytest.approx(0.01)
+        demand = await client.put(
+            "/api/v1/learned/pin",
+            json={"key": "tank.demand@dev:hp1/dhw", "value": 1},
+            headers=headers,
+        )
+        assert demand.status_code == 400
 
 
 async def test_the_household_sees_but_doesnt_change(tmp_path: Path) -> None:

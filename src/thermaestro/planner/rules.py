@@ -27,7 +27,17 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 from ..intents.entry import RESPONSE_H
-from .model import RANK_SLIDER, SLOT, Decision, LeverState, Memory, Price, RoomReading, Situation
+from .model import (
+    RANK_SLIDER,
+    SLOT,
+    Decision,
+    LeverState,
+    Memory,
+    Price,
+    RoomReading,
+    Situation,
+    Tank,
+)
 
 WINDOW = timedelta(hours=12)
 """How far back and ahead prices are compared, at least."""
@@ -43,6 +53,8 @@ water isn't learned yet."""
 DEADLINE_MARGIN = 1.0
 TANK_LOSS_C_H = 0.5
 """How fast the tank's top is assumed to cool, until it is learned."""
+TANK_ROOM_C = 20.0
+"""Where a tank stands, about, as the learned standing loss is reckoned."""
 CHARGE_S = 3600.0
 """How long a charge is assumed to take until one has been seen."""
 KP = {
@@ -350,6 +362,27 @@ def next_periodic(memory: Memory, scope: str) -> datetime | None:
     return seen + (seen - before)
 
 
+def expected_top(tank: Tank, now: datetime, until: datetime) -> float | None:
+    """How warm the tank's top is expected to be at `until`, with no charge between: with
+    the learned standing loss and what the household is expected to draw, once both have
+    proved themselves (a draw counted as if it all came off the top, to be on the safe
+    side); else at a guessed fall per hour."""
+    if tank.top is None:
+        return None
+    hours = max(0.0, (until - now).total_seconds() / 3600)
+    if tank.loss_per_h is None:
+        return tank.top - TANK_LOSS_C_H * hours
+    lost = tank.loss_per_h * max(0.0, tank.top - TANK_ROOM_C) * hours
+    first = now.timestamp() // 3600 * 3600
+    drawn = 0.0
+    for i, drop in enumerate(tank.draws):
+        t0, t1 = first + i * 3600, first + (i + 1) * 3600
+        share = (min(t1, until.timestamp()) - max(t0, now.timestamp())) / 3600
+        if share > 0:
+            drawn += drop * share
+    return tank.top - lost - drawn
+
+
 def hot_water(sit: Situation) -> list[Decision]:
     out: list[Decision] = []
     charging = sit.demand == "dhw"
@@ -377,8 +410,7 @@ def hot_water(sit: Situation) -> list[Decision]:
                 continue
             if periodic is not None and sit.now < periodic <= deadline.t:
                 continue  # the pump's periodic increase heats it before then anyway
-            hours = (deadline.t - sit.now).total_seconds() / 3600
-            expected = None if top is None else top - TANK_LOSS_C_H * hours
+            expected = expected_top(tank, sit.now, deadline.t)
             if expected is None or expected < deadline.at_least + DEADLINE_MARGIN:
                 need = deadline
                 break

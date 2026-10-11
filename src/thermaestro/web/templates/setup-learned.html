@@ -35,6 +35,18 @@
 {% endif %}
 </section>
 
+{% if learned.tanks %}
+<section id="hot-water">
+<h2>{{ _("Hot water, the last week") }}</h2>
+<p>{{ _("Draws are read from how the tank's two temperatures fall outside its charges, faster than the tank loses heat by itself. Their size is in degrees of the tank: how far a draw takes the mean of its two temperatures down.") }}</p>
+<ul>
+{% for t in learned.tanks %}
+  <li>{{ t.part }}: {{ ngettext("%(num)s draw", "%(num)s draws", t.draws) }}, {{ _("%(drawn)s °C of the tank in all", drawn=(t.drawn | num)) }}; {{ ngettext("%(num)s charge", "%(num)s charges", t.charges) }} ({{ ngettext("%(num)s day read", "%(num)s days read", t.days) }})</li>
+{% endfor %}
+</ul>
+</section>
+{% endif %}
+
 <section id="values">
 <h2>{{ _("What it has learned") }}</h2>
 {% if learned["values"] %}
@@ -45,8 +57,10 @@
   <tr>
     <td>{{ v.part }}</td>
     <td>{{ v.label }}{% if v.why_text %}<br><small>{{ v.why_text }}</small>{% endif %}</td>
+    {% set per = 60 if v.unit == "s" else (1 / 30) if v.unit == "1/h" else 1 %}
+    {% set typed = _("min") if v.unit == "s" else _("°C an hour at 50 °C") if v.unit == "1/h" else "" %}
     <td>{{ v.shown }}{% if v.n %} <small>({{ ngettext("from %(num)s observation", "from %(num)s observations", v.n) }})</small>{% endif %}
-      {% if v.pinned is not none %}<br><strong>{{ _("Pinned:") }}</strong> {{ (v.pinned / 60) | num(0) if v.unit == "s" else v.pinned | num }}{% if v.unit == "s" %} {{ _("min") }}{% endif %}{% endif %}</td>
+      {% if v.pinned is not none %}<br><strong>{{ _("Pinned:") }}</strong> {{ (v.pinned / per) | num(2 if v.unit == "1/h" else 0) }} {{ typed }}{% endif %}</td>
     <td>{{ v.state_text }}</td>
     <td>
       {% if can("settings.write") %}
@@ -59,15 +73,30 @@
       <form method="post" action="/setup/learned/pin" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <input type="hidden" name="key" value="{{ v.key }}">
-        {% if v.unit == "s" %}<input type="hidden" name="in" value="minutes">{% endif %}
-        <label>{{ _("Use instead") }}{% if v.unit == "s" %} ({{ _("min") }}){% endif %}
-          <input name="value" inputmode="decimal" size="6" value="{% if v.pinned is not none %}{{ (v.pinned / 60) | num(0) if v.unit == 's' else v.pinned }}{% endif %}"></label>
+        {% if v.unit == "s" %}<input type="hidden" name="in" value="minutes">{% elif v.unit == "1/h" %}<input type="hidden" name="in" value="fall_at_50">{% endif %}
+        <label>{{ _("Use instead") }}{% if typed %} ({{ typed }}){% endif %}
+          <input name="value" inputmode="decimal" size="6" value="{% if v.pinned is not none %}{{ (v.pinned / per) | num(2 if v.unit == '1/h' else 0) }}{% endif %}"></label>
         <button type="submit">{{ _("Pin") }}</button>
       </form>
       {% endif %}
       {% endif %}
     </td>
   </tr>
+  {% if v.get("week") %}
+  <tr><td></td><td colspan="4">
+    <div class="week-wrap">
+    <table class="week" aria-label="{{ v.label }}">
+      <thead><tr><th></th>{% for h in range(24) %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in v.week %}
+        <tr><th>{{ row.day }}</th>{% for cell in row.hours %}<td class="w{{ cell.shade }}" title="{{ cell.value | num(2) }}"></td>{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <small>{{ _("Darker hours draw more; a public holiday counts as the weekday chosen under House.") }}</small>
+  </td></tr>
+  {% endif %}
   {% endfor %}
   </tbody>
 </table>

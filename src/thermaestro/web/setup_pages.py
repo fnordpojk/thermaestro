@@ -273,7 +273,7 @@ async def _learned(request: Request, who: Caller) -> dict[str, Any]:
     s = services(request)
     if s.learning is None or not who.principal.allows("settings.read"):
         return {"learned": None}
-    return {"learned": s.learned(who)}
+    return {"learned": await s.learned(who)}
 
 
 CONTEXTS = {
@@ -381,7 +381,8 @@ async def pin_learned(request: Request, who: Logged) -> Response:
     if not isinstance(key, str) or isinstance(number, str):
         error = AccountError("give a number, or leave it empty to lift the pin")
         return await show(request, who, "learned", 400, error=_message(error))
-    per = 60.0 if form.get("in") == "minutes" else 1.0  # a duration is typed in minutes
+    # A duration is typed in minutes, a standing loss as its fall an hour at 50 °C.
+    per = {"minutes": 60.0, "fall_at_50": 1 / 30}.get(str(form.get("in")), 1.0)
     work = services(request).pin_learned(who, key, None if number is None else number * per)
     return await attempt(request, who, work, "learned", "/setup/learned#values")
 

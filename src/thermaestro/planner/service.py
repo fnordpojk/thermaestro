@@ -42,6 +42,7 @@ from ..core.values import Key, Values
 from ..intents import Intents
 from ..intents.entry import RESPONSE_H
 from ..learn import Learned, Learnings, mark
+from ..learn.hotwater import expected, house
 from ..store import Control, Database, Location, PriceLayer, Vat
 from . import rules
 from .model import (
@@ -262,14 +263,20 @@ class Planner:
             bound = then.bound("room_temp", scope) or then.bound("room_temp", system)
             ahead[scope] = (bound.low, bound.high) if bound is not None else (None, None)
         tanks = {}
+        days = await house(self._db) if self._learnings is not None and caps.tanks else None
         for scope in sorted(caps.tanks):
             self._remembered(scope)
             instance, path = split(scope)
+            learned = None
+            if self._learnings is not None and days is not None:
+                learned = expected(self._learnings, scope, days[0], days[1], now)
             tanks[scope] = Tank(
                 scope,
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.top"))),
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.start"))),
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.stop"))),
+                loss_per_h=learned[0] if learned else None,
+                draws=learned[1] if learned else (),
             )
         pools = {}
         for scope in sorted(caps.pools):

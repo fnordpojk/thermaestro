@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 14:38+0200\n"
+"POT-Creation-Date: 2026-10-11 15:43+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -20,6 +20,14 @@ msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned
 msgstr ""
 "%(device)s: %(used)s Änderungen in den letzten 24 Stunden, von höchstens etwa "
 "%(budget)s geplanten."
+
+#, python-format
+msgid "%(drawn)s °C of the tank in all"
+msgstr "%(drawn)s °C des Speichers insgesamt"
+
+#, python-format
+msgid "%(fall)s °C an hour at 50 °C"
+msgstr "%(fall)s °C pro Stunde bei 50 °C"
 
 #, python-format
 msgid "%(feature)s is off"
@@ -58,14 +66,36 @@ msgid "%(n)s minutes"
 msgstr "%(n)s Minuten"
 
 #, python-format
+msgid "%(n)s of %(least)s comparisons so far."
+msgstr "Bisher %(n)s von %(least)s Vergleichen."
+
+#, python-format
 msgid "%(n)s so far"
 msgstr "bisher %(n)s"
+
+#, python-format
+msgid "%(num)s charge"
+msgid_plural "%(num)s charges"
+msgstr[0] "%(num)s Ladung"
+msgstr[1] "%(num)s Ladungen"
 
 #, python-format
 msgid "%(num)s day"
 msgid_plural "%(num)s days"
 msgstr[0] "%(num)s Tag"
 msgstr[1] "%(num)s Tage"
+
+#, python-format
+msgid "%(num)s day read"
+msgid_plural "%(num)s days read"
+msgstr[0] "%(num)s Tag gelesen"
+msgstr[1] "%(num)s Tage gelesen"
+
+#, python-format
+msgid "%(num)s draw"
+msgid_plural "%(num)s draws"
+msgstr[0] "%(num)s Zapfung"
+msgstr[1] "%(num)s Zapfungen"
 
 #, python-format
 msgid "%(offset)s °C on whatever band is in force"
@@ -86,6 +116,10 @@ msgstr "%(part)s: wärmer, bitte"
 #, python-format
 msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
+
+#, python-format
+msgid "%(total)s °C of the tank a week"
+msgstr "%(total)s °C des Speichers pro Woche"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -421,6 +455,12 @@ msgstr "Vor NibePi"
 msgid "Behaved as it should in the last week."
 msgstr "Hat sich in der letzten Woche verhalten, wie es soll."
 
+#, python-format
+msgid "Behaved as it should when last seen, %(seen)s; not seen since."
+msgstr ""
+"Hat sich wie vorgesehen verhalten, als es zuletzt gesehen wurde, %(seen)s; seitdem "
+"nicht gesehen."
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -636,6 +676,11 @@ msgstr "Token erstellen"
 msgid "Currency"
 msgstr "Währung"
 
+msgid "Darker hours draw more; a public holiday counts as the weekday chosen under House."
+msgstr ""
+"Dunklere Stunden zapfen mehr; ein Feiertag zählt als der unter Haus gewählte "
+"Wochentag."
+
 msgid "Dates"
 msgstr "Datum"
 
@@ -655,6 +700,10 @@ msgstr "Tage"
 
 msgid "Days it lasts"
 msgstr "Gültigkeit in Tagen"
+
+#, python-format
+msgid "Days learned from: %(days)s. Judged once each weekday has been seen."
+msgstr "Gelernte Tage: %(days)s. Beurteilt, sobald jeder Wochentag gesehen wurde."
 
 msgid "Decimal sign"
 msgstr "Dezimalzeichen"
@@ -706,6 +755,16 @@ msgstr "Herunterladen"
 
 msgid "Download as CSV"
 msgstr "Als CSV herunterladen"
+
+msgid ""
+"Draws are read from how the tank's two temperatures fall outside its charges, faster "
+"than the tank loses heat by itself. Their size is in degrees of the tank: how far a "
+"draw takes the mean of its two temperatures down."
+msgstr ""
+"Zapfungen werden daraus gelesen, wie die beiden Temperaturen des Speichers außerhalb "
+"seiner Ladungen fallen, schneller als der Speicher von selbst Wärme verliert. Ihre "
+"Größe wird in Grad des Speichers angegeben: wie weit eine Zapfung den Mittelwert "
+"seiner beiden Temperaturen senkt."
 
 msgid "Each decision"
 msgstr "Jede Entscheidung"
@@ -997,11 +1056,17 @@ msgstr "Warmwasser bis"
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr "Warmwasser auf seine niedrigste Temperatur, und das Haus zur Rückkehr wieder bereit."
 
+msgid "Hot water drawn, through the week"
+msgstr "Gezapftes Warmwasser, über die Woche"
+
 msgid "Hot water that must be ready"
 msgstr "Warmwasser, das bereit sein muss"
 
 msgid "Hot water that should be ready"
 msgstr "Warmwasser, das bereit sein sollte"
+
+msgid "Hot water, the last week"
+msgstr "Warmwasser, die letzte Woche"
 
 msgid "Hot water: ready by a time, and its lowest temperature"
 msgstr "Warmwasser: bereit zu einer Zeit, und seine niedrigste Temperatur"
@@ -1072,6 +1137,9 @@ msgstr "Eigene Regelung"
 
 msgid "JSON field"
 msgstr "JSON-Feld"
+
+msgid "Judged once there are two days to test it on."
+msgstr "Beurteilt, sobald es zwei Tage gibt, an denen es geprüft werden kann."
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Weiterheizen, bis sie erreicht ist oder die nächste fällig wird"
@@ -1496,6 +1564,10 @@ msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu
 msgid "Not learned yet"
 msgstr "Noch nicht gelernt"
 
+#, python-format
+msgid "Not learned: %(what)s isn't usable on this pump yet."
+msgstr "Nicht gelernt: %(what)s ist auf dieser Pumpe noch nicht verwendbar."
+
 msgid "Not made:"
 msgstr "Nicht angelegt:"
 
@@ -1578,6 +1650,20 @@ msgstr "Belegt"
 
 msgid "Off"
 msgstr "Aus"
+
+#, python-format
+msgid "Off by %(error)s on average where a simple guess is off by %(baseline)s."
+msgstr ""
+"Im Mittel um %(error)s daneben, wo eine einfache Schätzung um %(baseline)s daneben "
+"liegt."
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than a simple guess, off by "
+"%(baseline)s."
+msgstr ""
+"Im Mittel um %(error)s daneben, nicht deutlich besser als eine einfache Schätzung, "
+"die um %(baseline)s daneben liegt."
 
 msgid "On different days"
 msgstr "An verschiedenen Tagen"
@@ -2220,6 +2306,13 @@ msgid_plural "The mean of the month's %(num)s highest"
 msgstr[0] "Das höchste Intervall des Monats"
 msgstr[1] "Der Mittelwert der %(num)s höchsten des Monats"
 
+msgid ""
+"The highest the top has reached at the end of a charge, the periodic increase left "
+"out."
+msgstr ""
+"Das Höchste, das die Oberseite am Ende einer Ladung erreicht hat, ohne die "
+"periodische Erhöhung."
+
 msgid "The highest, how many"
 msgstr "Die höchsten, wie viele"
 
@@ -2311,8 +2404,14 @@ msgstr "Die Einstellungen der Pumpe nach NibePi"
 msgid "The same again"
 msgstr "Noch einmal"
 
+msgid "The tank's standing loss"
+msgstr "Die Bereitschaftsverluste des Speichers"
+
 msgid "The values could not be loaded."
 msgstr "Die Werte konnten nicht geladen werden."
+
+msgid "The warmest a charge has made the top"
+msgstr "Das Wärmste, das eine Ladung oben erreicht hat"
 
 msgid "The water"
 msgstr "Das Wasser"
@@ -3432,6 +3531,9 @@ msgstr "den Preis je kW"
 msgid "the pump refused it"
 msgstr "die Pumpe hat abgelehnt"
 
+msgid "the pump's demand"
+msgstr "der Bedarf der Pumpe"
+
 msgid "the pump's own"
 msgstr "der der Pumpe"
 
@@ -3443,6 +3545,12 @@ msgstr "den Einstellungen"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "der Einrichtungscode ist falsch oder abgelaufen"
+
+msgid "the tank's charge sensor"
+msgstr "der Ladefühler des Speichers"
+
+msgid "the tank's top temperature"
+msgstr "die obere Temperatur des Speichers"
 
 msgid "the two passwords differ"
 msgstr "die beiden Passwörter stimmen nicht überein"
@@ -3544,4 +3652,7 @@ msgstr "ja"
 
 msgid "your token"
 msgstr "Ihr Token"
+
+msgid "°C an hour at 50 °C"
+msgstr "°C pro Stunde bei 50 °C"
 

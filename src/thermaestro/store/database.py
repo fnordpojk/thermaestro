@@ -319,6 +319,16 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (instance, point)
     ) STRICT, WITHOUT ROWID;
     """,
+    # 18: what the learners found, as events: a tank's charges and draws, and each day read
+    """
+    CREATE TABLE IF NOT EXISTS learn_events (
+        scope TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        t REAL NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        PRIMARY KEY (scope, kind, t)
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

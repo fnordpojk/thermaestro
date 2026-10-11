@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 14:38+0200\n"
+"POT-Creation-Date: 2026-10-11 15:43+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -20,6 +20,14 @@ msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned
 msgstr ""
 "%(device)s: %(used)s ändringar det senaste dygnet, av högst omkring %(budget)s "
 "planerade."
+
+#, python-format
+msgid "%(drawn)s °C of the tank in all"
+msgstr "%(drawn)s °C av beredaren totalt"
+
+#, python-format
+msgid "%(fall)s °C an hour at 50 °C"
+msgstr "%(fall)s °C i timmen vid 50 °C"
 
 #, python-format
 msgid "%(feature)s is off"
@@ -58,14 +66,36 @@ msgid "%(n)s minutes"
 msgstr "%(n)s minuter"
 
 #, python-format
+msgid "%(n)s of %(least)s comparisons so far."
+msgstr "%(n)s av %(least)s jämförelser hittills."
+
+#, python-format
 msgid "%(n)s so far"
 msgstr "%(n)s hittills"
+
+#, python-format
+msgid "%(num)s charge"
+msgid_plural "%(num)s charges"
+msgstr[0] "%(num)s laddning"
+msgstr[1] "%(num)s laddningar"
 
 #, python-format
 msgid "%(num)s day"
 msgid_plural "%(num)s days"
 msgstr[0] "%(num)s dag"
 msgstr[1] "%(num)s dagar"
+
+#, python-format
+msgid "%(num)s day read"
+msgid_plural "%(num)s days read"
+msgstr[0] "%(num)s dag läst"
+msgstr[1] "%(num)s dagar lästa"
+
+#, python-format
+msgid "%(num)s draw"
+msgid_plural "%(num)s draws"
+msgstr[0] "%(num)s tappning"
+msgstr[1] "%(num)s tappningar"
 
 #, python-format
 msgid "%(offset)s °C on whatever band is in force"
@@ -86,6 +116,10 @@ msgstr "%(part)s: varmare, tack"
 #, python-format
 msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
+
+#, python-format
+msgid "%(total)s °C of the tank a week"
+msgstr "%(total)s °C av beredaren i veckan"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
@@ -416,6 +450,10 @@ msgstr "Före NibePi"
 msgid "Behaved as it should in the last week."
 msgstr "Betedde sig som det ska under den senaste veckan."
 
+#, python-format
+msgid "Behaved as it should when last seen, %(seen)s; not seen since."
+msgstr "Betedde sig som det ska när det senast sågs, %(seen)s; inte sett sedan dess."
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -629,6 +667,9 @@ msgstr "Skapa token"
 msgid "Currency"
 msgstr "Valuta"
 
+msgid "Darker hours draw more; a public holiday counts as the weekday chosen under House."
+msgstr "Mörkare timmar tappar mer; en helgdag räknas som den veckodag som valts under Huset."
+
 msgid "Dates"
 msgstr "Datum"
 
@@ -648,6 +689,10 @@ msgstr "Dagar"
 
 msgid "Days it lasts"
 msgstr "Giltig antal dagar"
+
+#, python-format
+msgid "Days learned from: %(days)s. Judged once each weekday has been seen."
+msgstr "Dagar inlärda från: %(days)s. Bedöms när varje veckodag har setts."
 
 msgid "Decimal sign"
 msgstr "Decimaltecken"
@@ -699,6 +744,15 @@ msgstr "Ladda ner"
 
 msgid "Download as CSV"
 msgstr "Ladda ner som CSV"
+
+msgid ""
+"Draws are read from how the tank's two temperatures fall outside its charges, faster "
+"than the tank loses heat by itself. Their size is in degrees of the tank: how far a "
+"draw takes the mean of its two temperatures down."
+msgstr ""
+"Tappningar läses av hur beredarens två temperaturer sjunker utanför laddningarna, "
+"snabbare än beredaren förlorar värme av sig själv. Deras storlek anges i grader av "
+"beredaren: hur långt en tappning sänker medelvärdet av dess två temperaturer."
 
 msgid "Each decision"
 msgstr "Varje beslut"
@@ -985,11 +1039,17 @@ msgstr "Varmvatten till"
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr "Varmvattnet ner till sin lägsta temperatur, och huset klart igen till hemkomsten."
 
+msgid "Hot water drawn, through the week"
+msgstr "Tappat varmvatten, veckan igenom"
+
 msgid "Hot water that must be ready"
 msgstr "Varmvatten som måste vara klart"
 
 msgid "Hot water that should be ready"
 msgstr "Varmvatten som bör vara klart"
+
+msgid "Hot water, the last week"
+msgstr "Varmvatten, den senaste veckan"
 
 msgid "Hot water: ready by a time, and its lowest temperature"
 msgstr "Varmvatten: klart till en tid, och dess lägsta temperatur"
@@ -1060,6 +1120,9 @@ msgstr "Egen styrning"
 
 msgid "JSON field"
 msgstr "JSON-fält"
+
+msgid "Judged once there are two days to test it on."
+msgstr "Bedöms när det finns två dagar att pröva det på."
 
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Fortsätt värma tills den är nådd, eller nästa infaller"
@@ -1474,6 +1537,10 @@ msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pump
 msgid "Not learned yet"
 msgstr "Inte inlärt än"
 
+#, python-format
+msgid "Not learned: %(what)s isn't usable on this pump yet."
+msgstr "Inte inlärt: %(what)s är inte användbar på den här pumpen än."
+
 msgid "Not made:"
 msgstr "Inte gjort:"
 
@@ -1554,6 +1621,16 @@ msgstr "Upptaget"
 
 msgid "Off"
 msgstr "Av"
+
+#, python-format
+msgid "Off by %(error)s on average where a simple guess is off by %(baseline)s."
+msgstr "I snitt %(error)s fel, där en enkel gissning har %(baseline)s fel."
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than a simple guess, off by "
+"%(baseline)s."
+msgstr "I snitt %(error)s fel, inte tydligt bättre än en enkel gissning, med %(baseline)s fel."
 
 msgid "On different days"
 msgstr "På olika dagar"
@@ -2190,6 +2267,13 @@ msgid_plural "The mean of the month's %(num)s highest"
 msgstr[0] "Månadens högsta intervall"
 msgstr[1] "Medel av månadens %(num)s högsta"
 
+msgid ""
+"The highest the top has reached at the end of a charge, the periodic increase left "
+"out."
+msgstr ""
+"Det högsta toppen har nått i slutet av en laddning, den periodiska höjningen "
+"borträknad."
+
 msgid "The highest, how many"
 msgstr "De högsta, hur många"
 
@@ -2280,8 +2364,14 @@ msgstr "Pumpens inställningar efter NibePi"
 msgid "The same again"
 msgstr "Samma igen"
 
+msgid "The tank's standing loss"
+msgstr "Beredarens stilleståndsförlust"
+
 msgid "The values could not be loaded."
 msgstr "Värdena kunde inte hämtas."
+
+msgid "The warmest a charge has made the top"
+msgstr "Det varmaste en laddning har gjort toppen"
 
 msgid "The water"
 msgstr "Vattnet"
@@ -3381,6 +3471,9 @@ msgstr "priset per kW"
 msgid "the pump refused it"
 msgstr "pumpen vägrade"
 
+msgid "the pump's demand"
+msgstr "pumpens behov"
+
 msgid "the pump's own"
 msgstr "pumpens egen"
 
@@ -3392,6 +3485,12 @@ msgstr "inställningarna"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "installationskoden stämmer inte, eller har gått ut"
+
+msgid "the tank's charge sensor"
+msgstr "beredarens laddgivare"
+
+msgid "the tank's top temperature"
+msgstr "beredarens topptemperatur"
 
 msgid "the two passwords differ"
 msgstr "de två lösenorden skiljer sig åt"
@@ -3493,4 +3592,7 @@ msgstr "ja"
 
 msgid "your token"
 msgstr "din token"
+
+msgid "°C an hour at 50 °C"
+msgstr "°C i timmen vid 50 °C"
 

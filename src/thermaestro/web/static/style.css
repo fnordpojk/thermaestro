@@ -238,6 +238,14 @@ section.device.card { margin: 1rem 0; padding: 0.5rem 1rem; }
 .part h3 { font-size: 0.95rem; color: var(--muted); margin: 0.6rem 0 0.1rem; }
 .part table { margin: 0; }
 section.device > h2 { margin-bottom: 0.2rem; }
+.week-wrap { overflow-x: auto; max-width: 100%; }
+table.week { width: auto; font-size: 0.75rem; }
+table.week th, table.week td { padding: 0.1rem 0.15rem; text-align: center; border: 1px solid var(--line); }
+table.week td { min-width: 0.9rem; height: 1.1rem; }
+table.week .w1 { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+table.week .w2 { background: color-mix(in srgb, var(--accent) 40%, transparent); }
+table.week .w3 { background: color-mix(in srgb, var(--accent) 65%, transparent); }
+table.week .w4 { background: var(--accent); }
 table.detail { table-layout: fixed; }
 table.detail th:nth-child(1) { width: 50%; }
 table.detail th:nth-child(2) { width: 22%; }

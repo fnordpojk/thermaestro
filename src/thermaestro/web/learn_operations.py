@@ -5,10 +5,11 @@ value over or pinning one needs `settings.write`."""
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from .. import durations
+from .. import clock, durations
 from ..auth import AccountError
 from ..core.executor import split
 from ..learn import Learned, NotLearned, mark
+from ..learn.tank import Demand
 from . import i18n
 
 if TYPE_CHECKING:
@@ -18,6 +19,9 @@ if TYPE_CHECKING:
 NAMES = {
     "tank.charge_s": mark("How long a hot-water charge takes"),
     "tank.periodic": mark("The periodic hot-water increase, last seen"),
+    "tank.loss": mark("The tank's standing loss"),
+    "tank.demand": mark("Hot water drawn, through the week"),
+    "tank.ceiling": mark("The warmest a charge has made the top"),
 }
 """What each learned value is, in words."""
 VERDICTS = {
@@ -32,6 +36,10 @@ STATES = {
     "frozen": mark("Frozen"),
     "rejected": mark("Rejected"),
 }
+LOSS_SHOWN = mark("%(fall)s °C an hour at 50 °C")
+WEEK_SHOWN = mark("%(total)s °C of the tank a week")
+RECENT_DAYS = 7
+SHADES = 4
 
 
 class LearnOperations:
@@ -51,19 +59,40 @@ class LearnOperations:
             raise AccountError("learning isn't running here")
         return self.learning
 
-    def learned(self, caller: "Caller") -> dict[str, Any]:
-        """Which inputs work here, and what has been learned."""
+    async def learned(self, caller: "Caller") -> dict[str, Any]:
+        """Which inputs work here, what has been learned, and each tank's last week."""
         caller.principal.require("settings.read")
         learning = self._learning()
         checks = sorted(learning.checks.values(), key=lambda c: (c.instance, c.point))
+        values = [self._value(caller, x) for x in learning.learnings.all()]
+        since = clock.time() - RECENT_DAYS * 86_400
+        tanks = []
+        for keys in learning.hot_water.tanks():
+            days = await learning.hot_water.events(keys.scope, "day", since)
+            if not days:
+                continue
+            instance, path = split(keys.scope)
+            tanks.append(
+                {
+                    "scope": keys.scope,
+                    "part": self.node_label(caller, instance, path),
+                    "days": len(days),
+                    "draws": sum(int(b["draws"]) for _, b in days),
+                    "drawn": round(sum(float(b["drawn"]) for _, b in days), 1),
+                    "charges": sum(int(b["charges"]) for _, b in days),
+                }
+            )
         return {
             "inputs": [self._input(caller, c) for c in checks],
-            "values": [self._value(caller, x) for x in learning.learnings.all()],
+            "values": values,
+            "tanks": tanks,
         }
 
     async def check_inputs(self, caller: "Caller") -> list[dict[str, Any]]:
         caller.principal.require("settings.write")
-        found = await self._learning().check_inputs()
+        learning = self._learning()
+        found = await learning.check_inputs()
+        await learning.learn()
         return [self._input(caller, c) for c in found]
 
     async def start_over(self, caller: "Caller", key: str) -> dict[str, Any]:
@@ -86,7 +115,6 @@ class LearnOperations:
 
     def _input(self, caller: "Caller", c: "Check") -> dict[str, Any]:
         node = c.point.rpartition("/")[0]
-        args = {k: _arg(v) for k, v in c.args.items()}
         return {
             "instance": c.instance,
             "point": c.point,
@@ -96,13 +124,13 @@ class LearnOperations:
             "verdict_text": i18n._(VERDICTS[c.verdict]),
             "why": c.why,
             "args": dict(c.args),
-            "why_text": i18n._(c.why, **args),
+            "why_text": _said(c.why, c.args),
             "checked": datetime.fromtimestamp(c.checked, UTC).isoformat(),
         }
 
     def _value(self, caller: "Caller", x: Learned) -> dict[str, Any]:
         instance, path = split(x.scope)
-        return {
+        out: dict[str, Any] = {
             "key": x.key,
             "name": x.name,
             "label": i18n._(NAMES.get(x.name, x.name)),
@@ -111,43 +139,79 @@ class LearnOperations:
             "kind": x.kind,
             "value": x.value,
             "unit": x.unit,
-            "shown": _shown(x.value, x.unit),
+            "shown": _shown(x),
             "starting": x.starting,
             "pinned": x.pinned,
             "used": x.used,
             "state": x.state,
             "state_text": i18n._(STATES[x.state]),
             "why": x.why,
-            "why_text": i18n._(x.why) if x.why else None,
+            "args": dict(x.args),
+            "why_text": _said(x.why, x.args) if x.why else None,
             "n": x.n,
             "since": _iso(x.since),
             "updated": _iso(x.updated),
-            "pinnable": not isinstance(x.value, dict),
+            "pinnable": x.kind == "observed" or x.name == "tank.loss",
         }
+        if x.name == "tank.demand" and isinstance(x.value, dict):
+            out["week"] = _week(Demand.from_value(x.value))
+        return out
 
 
 def _who(caller: "Caller") -> str:
     return caller.principal.name
 
 
-def _arg(v: float | int | str) -> str:
-    """A value in a check's reason, in the page's number format."""
-    if isinstance(v, int):
-        return i18n.number(v, 0)
-    if isinstance(v, float):
-        return i18n.number(v, 2 if abs(v) < 1 else 1)
-    return v
+def _said(why: str, args: dict[str, float | int | str] | Any) -> str:
+    """A reason in the page's language, its values in its formats: a moment as a time, a
+    number with the page's decimal sign, a marked phrase translated."""
+    shown = {}
+    for k, v in args.items():
+        if k == "seen" and isinstance(v, int | float):
+            shown[k] = i18n.when(v)
+        elif isinstance(v, int):
+            shown[k] = i18n.number(v, 0)
+        elif isinstance(v, float):
+            shown[k] = i18n.number(v, 2 if abs(v) < 1 else 1)
+        else:
+            shown[k] = i18n._(v)
+    return i18n._(why, **shown)
 
 
 def _iso(t: float | None) -> str | None:
     return None if t is None else datetime.fromtimestamp(t, UTC).isoformat()
 
 
-def _shown(value: float | dict[str, float] | None, unit: str | None) -> str:
+def _shown(x: Learned) -> str:
+    value = x.value
     if value is None:
         return i18n.NOTHING
+    if x.name == "tank.demand" and isinstance(value, dict):
+        total = sum(Demand.from_value(value).hours)
+        return i18n._(WEEK_SHOWN, total=i18n.number(total, 1))
+    if x.name == "tank.loss" and isinstance(value, int | float):
+        return i18n._(LOSS_SHOWN, fall=i18n.number(value * 30, 2))
     if isinstance(value, dict):
         return ", ".join(i18n.when(t) for _, t in sorted(value.items(), key=lambda kv: -kv[1]))
-    if unit == "s":
+    if x.unit == "s":
         return durations.text(value // 60 * 60)
-    return i18n.number(value, 1) + (f" {unit}" if unit else "")
+    return i18n.number(value, 1) + (f" {x.unit}" if x.unit else "")
+
+
+def _week(demand: Demand) -> list[dict[str, Any]]:
+    """The week as rows of days and their hours, each shaded by how much is drawn in it."""
+    most = max(demand.hours) or 1.0
+    return [
+        {
+            "day": i18n.weekday(d),
+            "seen": demand.seen[d],
+            "hours": [
+                {
+                    "value": round(v, 2),
+                    "shade": 0 if v <= 0 else min(SHADES, 1 + int(v / most * SHADES)),
+                }
+                for v in demand.day(d)
+            ],
+        }
+        for d in range(7)
+    ]

@@ -54,6 +54,7 @@ class Learnings:
                 "value": None,
                 "state": "starting",
                 "why": mark("Started over."),
+                "args": {},
                 "n": 0,
                 "since": None,
                 "updated": clock.time(),

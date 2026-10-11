@@ -104,7 +104,7 @@ def test_a_model_must_beat_its_baseline() -> None:
     assert not held_out(flat, close, actual).proved
     few = held_out(close[:5], flat[:5], actual[:5])
     assert not few.proved
-    assert few.why == "5 of 24 comparisons so far"
+    assert (few.why, few.args) == ("%(n)s of %(least)s comparisons so far.", {"n": 5, "least": 24})
 
 
 # --- what is kept ----------------------------------------------------------------------------
