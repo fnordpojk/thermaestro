@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 15:43+0200\n"
+"POT-Creation-Date: 2026-10-11 16:00+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -538,6 +538,13 @@ msgstr "Laddningstemperatur"
 msgid "Chart"
 msgstr "Diagram"
 
+msgid ""
+"Check it against your habits: the morning showers should be in the morning. If the "
+"week looks hours off, read it again with the time zone NibePi ran in."
+msgstr ""
+"Jämför med era vanor: morgonduscharna ska ligga på morgonen. Om veckan ser ut att "
+"ligga timmar fel, läs den igen med den tidszon NibePi körde i."
+
 msgid "Check now"
 msgstr "Kontrollera nu"
 
@@ -877,6 +884,10 @@ msgstr "Flöde"
 msgid "For"
 msgstr "För"
 
+#, python-format
+msgid "For %(tank)s, read as NibePi's time in %(zone)s."
+msgstr "För %(tank)s, läst som NibePis tid i %(zone)s."
+
 msgid "For a while"
 msgstr "En stund"
 
@@ -885,6 +896,9 @@ msgstr "För prognoser och solen. Koordinater med decimalpunkt, till exempel 59.
 
 msgid "For six hours, the heat isn't raised for the fireplace's warmth."
 msgstr "I sex timmar höjs inte värmen, för brasans värme."
+
+msgid "For the tank"
+msgstr "För beredaren"
 
 msgid ""
 "Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
@@ -1033,6 +1047,10 @@ msgstr "Varmvatten"
 msgid "Hot water ahead"
 msgstr "Varmvatten framåt"
 
+#, python-format
+msgid "Hot water at %(what)s by %(by)s on %(days)s"
+msgstr "Varmvatten på %(what)s till %(by)s på %(days)s"
+
 msgid "Hot water by"
 msgstr "Varmvatten till"
 
@@ -1059,6 +1077,13 @@ msgstr "Varmvattenläge"
 
 msgid "Hot-water top, °C"
 msgstr "Varmvattentopp, °C"
+
+msgid ""
+"Hours when hot water is drawn most, week after week, that no hot-water time covers "
+"yet. Nothing changes unless you ask for one."
+msgstr ""
+"Timmar då mest varmvatten tappas, vecka efter vecka, som ingen varmvattentid täcker "
+"än. Inget ändras om du inte ber om någon."
 
 msgid "House"
 msgstr "Huset"
@@ -1419,8 +1444,24 @@ msgstr ""
 "NibePis varmvatteninlärning höll den på 0 och återställde den inte när inlärningen "
 "stängdes av eller NibePi togs bort: varmvattnet får då vänta bakom värmen."
 
+msgid ""
+"NibePi's hot-water learning kept a week of use in vv_ai_profile.json, next to "
+"config.json. It can be where the hot-water tank's week starts: what Thermaestro "
+"learns itself takes over within a few weeks. Nothing changes but that week."
+msgstr ""
+"NibePis varmvatteninlärning sparade en vecka av användning i vv_ai_profile.json, "
+"bredvid config.json. Den kan vara där varmvattenberedarens vecka börjar: det "
+"Thermaestro själv lär sig tar över inom några veckor. Inget annat än den veckan "
+"ändras."
+
+msgid "NibePi's hot-water profile"
+msgstr "NibePis varmvattenprofil"
+
 msgid "NibePi's own offset:"
 msgstr "NibePis egen förskjutning:"
+
+msgid "NibePi's vv_ai_profile.json"
+msgstr "NibePis vv_ai_profile.json"
 
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
@@ -1543,6 +1584,9 @@ msgstr "Inte inlärt: %(what)s är inte användbar på den här pumpen än."
 
 msgid "Not made:"
 msgstr "Inte gjort:"
+
+msgid "Not now"
+msgstr "Inte nu"
 
 #, python-format
 msgid "Not offered: %(why)s."
@@ -2131,6 +2175,12 @@ msgstr "Börja om"
 msgid "Start temperature"
 msgstr "Starttemperatur"
 
+msgid "Start the week from it"
+msgstr "Börja veckan från den"
+
+msgid "Started from NibePi's hot-water profile; learning goes on from there."
+msgstr "Började från NibePis varmvattenprofil; inlärningen fortsätter därifrån."
+
 msgid "Started over."
 msgstr "Började om."
 
@@ -2169,6 +2219,9 @@ msgstr "Abonnerad effekt"
 
 msgid "Subsidy"
 msgstr "Stöd"
+
+msgid "Suggested from the week"
+msgstr "Förslag utifrån veckan"
 
 msgid "Sunlight"
 msgstr "Solljus"
@@ -2367,6 +2420,9 @@ msgstr "Samma igen"
 msgid "The tank's standing loss"
 msgstr "Beredarens stilleståndsförlust"
 
+msgid "The time zone NibePi ran in"
+msgstr "Tidszonen NibePi körde i"
+
 msgid "The values could not be loaded."
 msgstr "Värdena kunde inte hämtas."
 
@@ -2430,6 +2486,11 @@ msgstr ""
 "Den här installationens certifikat är dess eget, inte utfärdat av en "
 "certifikatutfärdare, så webbläsaren varnar för det. Jämför dess SHA-256-fingeravtryck"
 " med det som webbläsaren visar:"
+
+msgid "This profile is empty: NibePi learned no use. There is nothing to start from."
+msgstr ""
+"Den här profilen är tom: NibePi lärde sig ingen användning. Det finns inget att börja"
+" från."
 
 msgid "This value"
 msgstr "Det här värdet"
@@ -3101,6 +3162,9 @@ msgstr "vila"
 
 msgid "implausible"
 msgstr "orimligt"
+
+msgid "in Docker without a time zone set, usually UTC"
+msgstr "i Docker utan inställd tidszon, oftast UTC"
 
 msgid "in a room"
 msgstr "i ett rum"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 15:43+0200\n"
+"POT-Creation-Date: 2026-10-11 16:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -503,6 +503,12 @@ msgstr ""
 msgid "Chart"
 msgstr ""
 
+msgid ""
+"Check it against your habits: the morning showers should be in the "
+"morning. If the week looks hours off, read it again with the time zone "
+"NibePi ran in."
+msgstr ""
+
 msgid "Check now"
 msgstr ""
 
@@ -830,6 +836,10 @@ msgstr ""
 msgid "For"
 msgstr ""
 
+#, python-format
+msgid "For %(tank)s, read as NibePi's time in %(zone)s."
+msgstr ""
+
 msgid "For a while"
 msgstr ""
 
@@ -839,6 +849,9 @@ msgid ""
 msgstr ""
 
 msgid "For six hours, the heat isn't raised for the fireplace's warmth."
+msgstr ""
+
+msgid "For the tank"
 msgstr ""
 
 msgid ""
@@ -978,6 +991,10 @@ msgstr ""
 msgid "Hot water ahead"
 msgstr ""
 
+#, python-format
+msgid "Hot water at %(what)s by %(by)s on %(days)s"
+msgstr ""
+
 msgid "Hot water by"
 msgstr ""
 
@@ -1003,6 +1020,11 @@ msgid "Hot-water mode"
 msgstr ""
 
 msgid "Hot-water top, °C"
+msgstr ""
+
+msgid ""
+"Hours when hot water is drawn most, week after week, that no hot-water "
+"time covers yet. Nothing changes unless you ask for one."
 msgstr ""
 
 msgid "House"
@@ -1343,7 +1365,20 @@ msgid ""
 "heating."
 msgstr ""
 
+msgid ""
+"NibePi's hot-water learning kept a week of use in vv_ai_profile.json, "
+"next to config.json. It can be where the hot-water tank's week starts: "
+"what Thermaestro learns itself takes over within a few weeks. Nothing "
+"changes but that week."
+msgstr ""
+
+msgid "NibePi's hot-water profile"
+msgstr ""
+
 msgid "NibePi's own offset:"
+msgstr ""
+
+msgid "NibePi's vv_ai_profile.json"
 msgstr ""
 
 msgid "No administrator exists yet."
@@ -1458,6 +1493,9 @@ msgid "Not learned: %(what)s isn't usable on this pump yet."
 msgstr ""
 
 msgid "Not made:"
+msgstr ""
+
+msgid "Not now"
 msgstr ""
 
 #, python-format
@@ -2031,6 +2069,12 @@ msgstr ""
 msgid "Start temperature"
 msgstr ""
 
+msgid "Start the week from it"
+msgstr ""
+
+msgid "Started from NibePi's hot-water profile; learning goes on from there."
+msgstr ""
+
 msgid "Started over."
 msgstr ""
 
@@ -2068,6 +2112,9 @@ msgid "Subscribed power"
 msgstr ""
 
 msgid "Subsidy"
+msgstr ""
+
+msgid "Suggested from the week"
 msgstr ""
 
 msgid "Sunlight"
@@ -2246,6 +2293,9 @@ msgstr ""
 msgid "The tank's standing loss"
 msgstr ""
 
+msgid "The time zone NibePi ran in"
+msgstr ""
+
 msgid "The values could not be loaded."
 msgstr ""
 
@@ -2296,6 +2346,11 @@ msgid ""
 "This installation's certificate is its own, not from an authority, so the"
 " browser warns about it. Compare its SHA-256 fingerprint with the one the"
 " browser shows:"
+msgstr ""
+
+msgid ""
+"This profile is empty: NibePi learned no use. There is nothing to start "
+"from."
 msgstr ""
 
 msgid "This value"
@@ -2947,6 +3002,9 @@ msgid "idle"
 msgstr ""
 
 msgid "implausible"
+msgstr ""
+
+msgid "in Docker without a time zone set, usually UTC"
 msgstr ""
 
 msgid "in a room"

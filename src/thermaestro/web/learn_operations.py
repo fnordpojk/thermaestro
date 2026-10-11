@@ -2,17 +2,22 @@
 page and the API. Seeing them needs `settings.read`; checking the inputs again, starting a
 value over or pinning one needs `settings.write`."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from .. import clock, durations
 from ..auth import AccountError
 from ..core.executor import split
 from ..learn import Learned, NotLearned, mark
+from ..learn.hotwater import DEMAND
+from ..learn.offers import DISMISSED_S, Offer, offers
 from ..learn.tank import Demand
 from . import i18n
 
 if TYPE_CHECKING:
+    from ..core.audit import AuditLog
+    from ..core.values import Values
+    from ..intents import Intents
     from ..learn import Check, Learning
     from .operations import Caller
 
@@ -36,6 +41,7 @@ STATES = {
     "frozen": mark("Frozen"),
     "rejected": mark("Rejected"),
 }
+OFFER = mark("Hot water at %(what)s by %(by)s on %(days)s")
 LOSS_SHOWN = mark("%(fall)s °C an hour at 50 °C")
 WEEK_SHOWN = mark("%(total)s °C of the tank a week")
 RECENT_DAYS = 7
@@ -47,8 +53,13 @@ class LearnOperations:
 
     if TYPE_CHECKING:
         learning: Learning | None
+        intents: Intents | None
+        values: Values
+        audit: AuditLog
 
         def label(self, instance: str, path: str) -> str: ...
+
+        async def ask(self, caller: Caller, body: dict[str, Any]) -> dict[str, Any]: ...
 
         def node_label(
             self, caller: Caller, instance: str, node: str, *, built_in: bool = False
@@ -82,11 +93,85 @@ class LearnOperations:
                     "charges": sum(int(b["charges"]) for _, b in days),
                 }
             )
+        levels: dict[str, Any] = await self.intents.levels() if self.intents is not None else {}
         return {
             "inputs": [self._input(caller, c) for c in checks],
             "values": values,
             "tanks": tanks,
+            "offers": [self._offer(caller, o, levels) for o in await self.offers(caller)],
         }
+
+    def _offer(self, caller: "Caller", o: Offer, levels: dict[str, Any]) -> dict[str, Any]:
+        instance, path = split(o.scope)
+        level = levels.get(o.level) if o.level is not None else None
+        days = ", ".join(i18n.weekday(d) for d in o.days)
+        what = level.name if level is not None else f"{i18n.number(o.temp or 0.0, 0)} °C"
+        return {
+            "id": o.id,
+            "scope": o.scope,
+            "part": self.node_label(caller, instance, path),
+            "by": f"{o.by:%H:%M}",
+            "days": list(o.days),
+            "drawn": o.drawn,
+            "request": o.request(),
+            "text": i18n._(OFFER, what=what, by=i18n.time_of_day(o.by), days=days),
+        }
+
+    async def offers(self, caller: "Caller") -> list[Offer]:
+        """What the tanks' proved weeks suggest, where no deadline covers it yet."""
+        caller.principal.require("settings.read")
+        learning = self._learning()
+        found: list[Offer] = []
+        if self.intents is None:
+            return found
+        now = clock.now()
+        resolver = await self.intents.resolver()
+        zone = resolver.calendar.zone
+        levels = await self.intents.levels()
+        since = clock.time() - DISMISSED_S
+        for keys in learning.hot_water.tanks():
+            learned = learning.learnings.get(DEMAND, keys.scope)
+            if learned is None or learned.state != "proved" or not isinstance(learned.value, dict):
+                continue
+            covered = set()
+            for d in resolver.deadlines(now, now + timedelta(days=8)):
+                if d.scope in (keys.scope, "house"):
+                    local = d.t.astimezone(zone)
+                    covered.add((resolver.calendar.weekday(local.date()), local.hour))
+            dismissed = {
+                str(b["id"])
+                for _, b in await learning.hot_water.events(keys.scope, "offer_dismissed", since)
+            }
+            level = next(
+                (lv.id for lv in levels.values() if lv.scope == keys.scope and lv.top is not None),
+                None,
+            )
+            stop = self.values.latest.get(keys.stop)
+            temp = float(stop.value) if stop and isinstance(stop.value, int | float) else 50.0
+            week = Demand.from_value(learned.value)
+            found += offers(keys.scope, week, covered, dismissed, level=level, temp=temp)
+        return found
+
+    async def accept_offer(self, caller: "Caller", id: str) -> dict[str, Any]:
+        """Ask for an offered deadline, as the caller: with the caller's rights."""
+        offer = next((o for o in await self.offers(caller) if o.id == id), None)
+        if offer is None:
+            raise AccountError("that suggestion isn't offered now")
+        answer = await self.ask(caller, offer.request())
+        if not answer["accepted"]:
+            raise AccountError("; ".join(answer["messages"]) or "it wasn't accepted")
+        return answer
+
+    async def dismiss_offer(self, caller: "Caller", id: str) -> None:
+        """Not now: the suggestion isn't made again for eight weeks."""
+        caller.principal.require("settings.write")
+        offer = next((o for o in await self.offers(caller) if o.id == id), None)
+        if offer is None:
+            raise AccountError("that suggestion isn't offered now")
+        await self._learning().hot_water.keep(offer.scope, "offer_dismissed", {"id": id})
+        await self.audit.record(
+            _who(caller), "learned.offer_dismissed", details={"offer": offer.request()}
+        )
 
     async def check_inputs(self, caller: "Caller") -> list[dict[str, Any]]:
         caller.principal.require("settings.write")
@@ -154,7 +239,7 @@ class LearnOperations:
             "pinnable": x.kind == "observed" or x.name == "tank.loss",
         }
         if x.name == "tank.demand" and isinstance(x.value, dict):
-            out["week"] = _week(Demand.from_value(x.value))
+            out["week"] = week_rows(Demand.from_value(x.value))
         return out
 
 
@@ -198,7 +283,7 @@ def _shown(x: Learned) -> str:
     return i18n.number(value, 1) + (f" {x.unit}" if x.unit else "")
 
 
-def _week(demand: Demand) -> list[dict[str, Any]]:
+def week_rows(demand: Demand) -> list[dict[str, Any]]:
     """The week as rows of days and their hours, each shaded by how much is drawn in it."""
     most = max(demand.hours) or 1.0
     return [

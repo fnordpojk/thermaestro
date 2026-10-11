@@ -259,6 +259,7 @@ async def _nibepi(request: Request, who: Caller) -> dict[str, Any]:
     s = services(request)
     empty: dict[str, Any] = {"result": None, "error": None, "zones": time_zones()}
     empty["review"] = await s.nibepi_review(who) if who.principal.allows("settings.read") else None
+    empty |= _profile(request, who)
     token = request.query_params.get("draft")
     if not token:
         return {"draft": None, "token": None, "kept": None, **empty}
@@ -274,6 +275,40 @@ async def _learned(request: Request, who: Caller) -> dict[str, Any]:
     if s.learning is None or not who.principal.allows("settings.read"):
         return {"learned": None}
     return {"learned": await s.learned(who)}
+
+
+def _profile(request: Request, who: Caller) -> dict[str, Any]:
+    """NibePi's hot-water profile: the tanks it could be for, and once a file is read, its
+    week as it would start, by the token in the query."""
+    from .learn_operations import week_rows
+
+    s = services(request)
+    tanks = []
+    if s.learning is not None:
+        for keys in s.learning.hot_water.tanks():
+            instance, path = keys.scope.split(":", 1)
+            tanks.append((keys.scope, s.node_label(who, instance, path)))
+    found: dict[str, Any] = {
+        "profile": None,
+        "tanks": tanks,
+        "house_zone": getattr(s.zone, "key", "UTC"),
+    }
+    token = request.query_params.get("profile")
+    if not token or not who.principal.allows("settings.write"):
+        return found
+    try:
+        kept = s.profile_draft(who, token)
+    except AccountError:
+        return found
+    instance, path = kept.scope.split(":", 1)
+    found["profile"] = {
+        "token": token,
+        "part": s.node_label(who, instance, path),
+        "timezone": kept.timezone,
+        "empty": kept.empty,
+        "week": week_rows(kept.week),
+    }
+    return found
 
 
 CONTEXTS = {
@@ -387,6 +422,28 @@ async def pin_learned(request: Request, who: Logged) -> Response:
     return await attempt(request, who, work, "learned", "/setup/learned#values")
 
 
+@router.post("/setup/learned/offers/accept")
+@action("learned_offer.accept")
+async def accept_offer(request: Request, who: Logged) -> Response:
+    """Ask for a suggested hot-water time, as a standing intent."""
+    id = (await request.form()).get("id")
+    if not isinstance(id, str):
+        return await show(request, who, "learned", 400, error=_message(AccountError("choose one")))
+    work = services(request).accept_offer(who, id)
+    return await attempt(request, who, work, "learned", "/intents")
+
+
+@router.post("/setup/learned/offers/dismiss")
+@action("learned_offer.dismiss")
+async def dismiss_offer(request: Request, who: Logged) -> Response:
+    """Not now: the suggestion isn't made again for eight weeks."""
+    id = (await request.form()).get("id")
+    if not isinstance(id, str):
+        return await show(request, who, "learned", 400, error=_message(AccountError("choose one")))
+    work = services(request).dismiss_offer(who, id)
+    return await attempt(request, who, work, "learned", "/setup/learned#offers")
+
+
 # --- from NibePi ---------------------------------------------------------------------------
 
 UPLOAD_MOST = 1_000_000
@@ -440,6 +497,41 @@ async def apply_nibepi(request: Request, who: Logged, token: str) -> Response:
     except AccountError as e:
         return await show(request, who, "nibepi", 400, error=_message(e))
     return await show(request, who, "nibepi", result=result)
+
+
+@router.post("/setup/nibepi/profile")
+@action("nibepi_profile.read")
+async def read_profile(request: Request, who: Logged) -> Response:
+    """Read NibePi's vv_ai_profile.json: its week is shown before anything is kept."""
+    async with request.form() as form:
+        upload = form.get("profile")
+        data = (
+            await upload.read(UPLOAD_MOST + 1)
+            if upload is not None and not isinstance(upload, str)
+            else None
+        )
+        timezone, tank = form.get("timezone"), form.get("tank")
+    if data is None or len(data) > UPLOAD_MOST:
+        error = AccountError("choose the file" if data is None else "that file is too large")
+        return await show(request, who, "nibepi", 400, error=_message(error))
+    try:
+        token, _ = await services(request).read_profile(
+            who,
+            data.decode("utf-8", errors="replace"),
+            timezone=timezone if isinstance(timezone, str) and timezone else None,
+            tank=tank if isinstance(tank, str) and tank else None,
+        )
+    except AccountError as e:
+        return await show(request, who, "nibepi", 400, error=_message(e))
+    return back(f"/setup/nibepi?profile={token}#profile")
+
+
+@router.post("/setup/nibepi/profile/{token}/confirm")
+@action("nibepi_profile.apply")
+async def apply_profile(request: Request, who: Logged, token: str) -> Response:
+    """Start the tank's week from the profile."""
+    work = services(request).apply_profile(who, token)
+    return await attempt(request, who, work, "learned", "/setup/learned#values")
 
 
 REVIEW = "/setup/nibepi#review"

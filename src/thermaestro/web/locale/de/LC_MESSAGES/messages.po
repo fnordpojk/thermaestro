@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 15:43+0200\n"
+"POT-Creation-Date: 2026-10-11 16:00+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -545,6 +545,14 @@ msgstr "Ladetemperatur"
 msgid "Chart"
 msgstr "Diagramm"
 
+msgid ""
+"Check it against your habits: the morning showers should be in the morning. If the "
+"week looks hours off, read it again with the time zone NibePi ran in."
+msgstr ""
+"Vergleiche es mit euren Gewohnheiten: die Morgenduschen sollten am Morgen liegen. "
+"Wenn die Woche um Stunden verschoben aussieht, lies sie erneut mit der Zeitzone, in "
+"der NibePi lief."
+
 msgid "Check now"
 msgstr "Jetzt prüfen"
 
@@ -892,6 +900,10 @@ msgstr "Durchfluss"
 msgid "For"
 msgstr "Für"
 
+#, python-format
+msgid "For %(tank)s, read as NibePi's time in %(zone)s."
+msgstr "Für %(tank)s, gelesen als NibePis Zeit in %(zone)s."
+
 msgid "For a while"
 msgstr "Für eine Weile"
 
@@ -900,6 +912,9 @@ msgstr "Für Vorhersagen und den Sonnenstand. Koordinaten mit Dezimalpunkt, zum 
 
 msgid "For six hours, the heat isn't raised for the fireplace's warmth."
 msgstr "Sechs Stunden lang wird die Heizung wegen der Wärme des Kamins nicht erhöht."
+
+msgid "For the tank"
+msgstr "Für den Speicher"
 
 msgid ""
 "Forecasts for 1, 6, 24 and 48 hours ahead are kept, and compared with the outdoor "
@@ -1050,6 +1065,10 @@ msgstr "Warmwasser"
 msgid "Hot water ahead"
 msgstr "Warmwasser voraus"
 
+#, python-format
+msgid "Hot water at %(what)s by %(by)s on %(days)s"
+msgstr "Warmwasser mit %(what)s bis %(by)s am %(days)s"
+
 msgid "Hot water by"
 msgstr "Warmwasser bis"
 
@@ -1076,6 +1095,13 @@ msgstr "Warmwassermodus"
 
 msgid "Hot-water top, °C"
 msgstr "Warmwasser-Obergrenze, °C"
+
+msgid ""
+"Hours when hot water is drawn most, week after week, that no hot-water time covers "
+"yet. Nothing changes unless you ask for one."
+msgstr ""
+"Stunden, in denen Woche für Woche am meisten Warmwasser gezapft wird und die noch "
+"keine Warmwasserzeit abdeckt. Nichts ändert sich, solange du keine anforderst."
 
 msgid "House"
 msgstr "Haus"
@@ -1442,8 +1468,24 @@ msgstr ""
 "Lernen ausgeschaltet oder NibePi entfernt wurde: Warmwasser wartet dann hinter der "
 "Heizung."
 
+msgid ""
+"NibePi's hot-water learning kept a week of use in vv_ai_profile.json, next to "
+"config.json. It can be where the hot-water tank's week starts: what Thermaestro "
+"learns itself takes over within a few weeks. Nothing changes but that week."
+msgstr ""
+"NibePis Warmwasser-Lernfunktion hat eine Woche der Nutzung in vv_ai_profile.json "
+"neben config.json gespeichert. Dort kann die Woche des Warmwasserspeichers beginnen: "
+"was Thermaestro selbst lernt, übernimmt innerhalb weniger Wochen. Nichts als diese "
+"Woche ändert sich."
+
+msgid "NibePi's hot-water profile"
+msgstr "NibePis Warmwasserprofil"
+
 msgid "NibePi's own offset:"
 msgstr "NibePis eigene Verschiebung:"
+
+msgid "NibePi's vv_ai_profile.json"
+msgstr "NibePis vv_ai_profile.json"
 
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
@@ -1570,6 +1612,9 @@ msgstr "Nicht gelernt: %(what)s ist auf dieser Pumpe noch nicht verwendbar."
 
 msgid "Not made:"
 msgstr "Nicht angelegt:"
+
+msgid "Not now"
+msgstr "Nicht jetzt"
 
 #, python-format
 msgid "Not offered: %(why)s."
@@ -2166,6 +2211,12 @@ msgstr "Neu beginnen"
 msgid "Start temperature"
 msgstr "Starttemperatur"
 
+msgid "Start the week from it"
+msgstr "Die Woche damit beginnen"
+
+msgid "Started from NibePi's hot-water profile; learning goes on from there."
+msgstr "Begonnen mit NibePis Warmwasserprofil; das Lernen geht von dort weiter."
+
 msgid "Started over."
 msgstr "Neu begonnen."
 
@@ -2204,6 +2255,9 @@ msgstr "Abonnierte Leistung"
 
 msgid "Subsidy"
 msgstr "Förderung"
+
+msgid "Suggested from the week"
+msgstr "Vorschläge aus der Woche"
 
 msgid "Sunlight"
 msgstr "Sonnenlicht"
@@ -2407,6 +2461,9 @@ msgstr "Noch einmal"
 msgid "The tank's standing loss"
 msgstr "Die Bereitschaftsverluste des Speichers"
 
+msgid "The time zone NibePi ran in"
+msgstr "Die Zeitzone, in der NibePi lief"
+
 msgid "The values could not be loaded."
 msgstr "Die Werte konnten nicht geladen werden."
 
@@ -2470,6 +2527,11 @@ msgstr ""
 "Das Zertifikat dieser Installation ist ein eigenes, nicht von einer "
 "Zertifizierungsstelle, daher warnt der Browser davor. Vergleichen Sie seinen "
 "SHA-256-Fingerabdruck mit dem, den der Browser anzeigt:"
+
+msgid "This profile is empty: NibePi learned no use. There is nothing to start from."
+msgstr ""
+"Dieses Profil ist leer: NibePi hat keine Nutzung gelernt. Es gibt nichts, womit "
+"begonnen werden kann."
 
 msgid "This value"
 msgstr "Dieser Wert"
@@ -3157,6 +3219,9 @@ msgstr "Ruhe"
 
 msgid "implausible"
 msgstr "unplausibel"
+
+msgid "in Docker without a time zone set, usually UTC"
+msgstr "in Docker ohne eingestellte Zeitzone meist UTC"
 
 msgid "in a room"
 msgstr "in einem Raum"

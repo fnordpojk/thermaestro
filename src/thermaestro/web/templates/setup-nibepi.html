@@ -59,6 +59,7 @@
 </table>
 {% endmacro %}
 {% block topic %}
+{% from "week-grid.html" import week_grid %}
 <p>{{ _("Read NibePi's config.json to bring its pump connection, MQTT broker, sensors and rooms, location and prices over, with its secrets. You see what it would make first; nothing changes until you confirm, and nothing is written to the pump.") }}</p>
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
 {% if result %}
@@ -123,6 +124,45 @@
 </table>
 </details>
 <p><a href="/setup/nibepi">{{ _("Read another file") }}</a></p>
+</section>
+{% endif %}
+
+{% if can("settings.write") %}
+<section id="profile">
+<h2>{{ _("NibePi's hot-water profile") }}</h2>
+<p>{{ _("NibePi's hot-water learning kept a week of use in vv_ai_profile.json, next to config.json. It can be where the hot-water tank's week starts: what Thermaestro learns itself takes over within a few weeks. Nothing changes but that week.") }}</p>
+{% if profile %}
+<p class="hint">{{ _("For %(tank)s, read as NibePi's time in %(zone)s.", tank=profile.part, zone=profile.timezone) }}</p>
+{% if profile.empty %}<p class="notice">{{ _("This profile is empty: NibePi learned no use. There is nothing to start from.") }}</p>{% else %}
+{{ week_grid(profile.week, _("NibePi's hot-water profile")) }}
+<p class="hint">{{ _("Check it against your habits: the morning showers should be in the morning. If the week looks hours off, read it again with the time zone NibePi ran in.") }}</p>
+<form method="post" action="/setup/nibepi/profile/{{ profile.token }}/confirm" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Start the week from it") }}</button>
+</form>
+{% endif %}
+<p><a href="/setup/nibepi#profile">{{ _("Read another file") }}</a></p>
+{% else %}
+<form method="post" action="/setup/nibepi/profile" enctype="multipart/form-data" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>{{ _("NibePi's vv_ai_profile.json") }}
+    <input type="file" name="profile" accept=".json,application/json" required></label>
+  <label>{{ _("The time zone NibePi ran in") }} <small>{{ _("in Docker without a time zone set, usually UTC") }}</small>
+    <select name="timezone" required>
+      {% for region, places in zones.items() %}
+      <optgroup label="{{ region }}">
+        {% for name, label in places %}<option value="{{ name }}"{% if name == house_zone %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+      <optgroup label="UTC"><option value="UTC"{% if house_zone == "UTC" %} selected{% endif %}>UTC</option></optgroup>
+    </select></label>
+  {% if tanks | length > 1 %}
+  <label>{{ _("For the tank") }}
+    <select name="tank">{% for scope, name in tanks %}<option value="{{ scope }}">{{ name }}</option>{% endfor %}</select></label>
+  {% endif %}
+  <button type="submit">{{ _("Read it") }}</button>
+</form>
+{% endif %}
 </section>
 {% endif %}
 

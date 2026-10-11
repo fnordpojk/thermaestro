@@ -1,0 +1,12 @@
+{% macro week_grid(rows, label) %}
+<div class="week-wrap">
+<table class="week" aria-label="{{ label }}">
+  <thead><tr><th></th>{% for h in range(24) %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr><th>{{ row.day }}</th>{% for cell in row.hours %}<td class="w{{ cell.shade }}" title="{{ cell.value | num(2) }}"></td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}

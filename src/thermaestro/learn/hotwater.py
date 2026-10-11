@@ -167,7 +167,7 @@ class HotWater:
                 unit="tank_c",
                 state=learned.state if learned and learned.state != "starting" else "learning",
                 why=learned.why if learned else None,
-                n=demand_now.days,
+                n=(learned.n if learned else 0) + 1,
                 since=learned.since if learned and learned.since else start,
             )
         )
@@ -330,6 +330,11 @@ class HotWater:
             return [(at, json.loads(body)) for at, body in rows]
 
         return await self._db.run(read)
+
+    async def keep(self, scope: str, kind: str, body: dict[str, Any]) -> None:
+        """An event of the household's, such as an offer turned down."""
+        at = clock.time()
+        await self._db.run(lambda t: _events(t, scope, [(kind, at, body)]))
 
     async def events(
         self, scope: str, kind: str, since: float

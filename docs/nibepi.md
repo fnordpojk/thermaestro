@@ -34,6 +34,8 @@ Every key in the file is listed as carried over, translated, or left out, and wh
 
 NibePi's control settings (price levels, offsets, the hot-water features) aren't carried over yet: set what you want on the Intents page.
 
+**NibePi's hot-water profile.** If NibePi's hot-water learning was on, it kept a week of use in `vv_ai_profile.json` next to `config.json` (or in NibePi's package directory). Under **Setup → From NibePi → NibePi's hot-water profile**, choose it and the time zone NibePi ran in: in Docker without a time zone set, that is usually UTC, and a wrong one shifts the whole week by hours. The week is shown hour by hour before anything is kept; check that the morning showers are in the morning. **Start the week from it** makes it where the hot-water tank's week starts, and what Thermaestro learns itself takes over within a few weeks. NibePi's profile may hold little: its learning missed many draws, and before a later fix it took the pump's own charges for use. It can only start a week nothing has been learned into yet: start it over under Setup → Learned first.
+
 ## 5. Run both for a while
 
 Thermaestro can run beside NibePi in shadow: it decides and shows what it would change, and changes nothing. **Shadow vs the pump** sets each decision beside what the pump showed. Before you switch a setting to control, turn off NibePi's feature for it, or the two fight over it: Thermaestro lets go of a setting another program changes.

@@ -1,4 +1,5 @@
 {% extends "setup-base.html" %}
+{% from "week-grid.html" import week_grid %}
 {% block topic %}
 <p>{{ _("Thermaestro learns how the house, the hot-water tank and the pump behave, only by watching: learning never changes anything. A learned value is used once it has shown it predicts better than a simple guess; until then the answer given at setup stands. A few figures, such as how long a charge takes, are used as seen.") }}</p>
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
@@ -34,6 +35,31 @@
 </form>
 {% endif %}
 </section>
+
+{% if learned.offers %}
+<section id="offers">
+<h2>{{ _("Suggested from the week") }}</h2>
+<p>{{ _("Hours when hot water is drawn most, week after week, that no hot-water time covers yet. Nothing changes unless you ask for one.") }}</p>
+<ul>
+{% for o in learned.offers %}
+  <li>{{ o.part }}: {{ o.text }}
+    {% if can("intent.standing.write") %}
+    <form method="post" action="/setup/learned/offers/accept" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ o.id }}">
+      <button type="submit">{{ _("Ask for it") }}</button>
+    </form>
+    {% endif %}
+    {% if can("settings.write") %}
+    <form method="post" action="/setup/learned/offers/dismiss" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ o.id }}">
+      <button type="submit" class="link">{{ _("Not now") }}</button>
+    </form>
+    {% endif %}
+  </li>
+{% endfor %}
+</ul>
+</section>
+{% endif %}
 
 {% if learned.tanks %}
 <section id="hot-water">
@@ -84,16 +110,7 @@
   </tr>
   {% if v.get("week") %}
   <tr><td></td><td colspan="4">
-    <div class="week-wrap">
-    <table class="week" aria-label="{{ v.label }}">
-      <thead><tr><th></th>{% for h in range(24) %}<th>{{ h }}</th>{% endfor %}</tr></thead>
-      <tbody>
-      {% for row in v.week %}
-        <tr><th>{{ row.day }}</th>{% for cell in row.hours %}<td class="w{{ cell.shade }}" title="{{ cell.value | num(2) }}"></td>{% endfor %}</tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    </div>
+    {{ week_grid(v.week, v.label) }}
     <small>{{ _("Darker hours draw more; a public holiday counts as the weekday chosen under House.") }}</small>
   </td></tr>
   {% endif %}

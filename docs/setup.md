@@ -237,11 +237,15 @@ Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Al
 
 Days already recorded are read at once, up to two weeks back. The tank is learned only once its top, its charge sensor and the pump's demand are usable.
 
+**Suggested from the week**: once a tank's week has proved itself, the hours when hot water is drawn most, week after week, that no hot-water time covers yet, are offered as hot-water times: "Hot water at 50 °C by 07:00 on Monday, Tuesday, …", at the tank's hot-water level where there is one, else at its stop temperature. **Ask for it** asks for it as a standing intent, as the Intents page would, with your rights; **Not now** doesn't offer it again for eight weeks. Nothing is applied unless asked for.
+
 **What it has learned** lists each value, how many observations it rests on, and its state; the week is drawn hour by hour. A learned model is used only once it has shown it predicts better than a simple guess; until then the answer given at setup, or the planner's own rule, stands. The week is judged each day before it learns from it, against a flat guess; the standing loss on its last two days, fitted on the days before. Once both have proved themselves, the planner reckons how warm the tank's top will be by a hot-water deadline from them, instead of assuming it falls half a degree an hour. A few figures are used as seen: how long the tank's charges take (used to choose the cheapest time for one), when the pump's periodic hot-water increase was last seen, and the warmest a charge has made the top. **Pin** sets a number to use instead (a duration in minutes, the standing loss as its fall an hour at 50 °C), and learning goes on beside it; pinning an empty field lifts it. **Start over** forgets what was learned. Both are recorded in the audit log.
 
 ### From NibePi
 
 Choose NibePi's `config.json` and **Read it**. The page shows what it would make: the pump's connection, the MQTT broker and Home Assistant discovery, the location and its time zone, sensors and rooms, and prices (the spot price for NibePi's area, or Tibber), with the MQTT password and the Tibber token kept in the secrets file. NibePi's VAT and fees are offered unticked, since they may be out of date. Untick what you don't want, and **Make it**: the password is asked again, and each part is made as its own topic would make it. If NibePi's broker ran on NibePi's own host, the page says whether one answers on Thermaestro's.
+
+**NibePi's hot-water profile**, below, reads `vv_ai_profile.json`, NibePi's learned week of hot-water use, in the time zone NibePi ran in, and shows it hour by hour; **Start the week from it** makes it where the tank's week starts (see [Coming from NibePi](nibepi.md)).
 
 **Every key in the file** lists what became of each setting, and why one was left out. Nothing is written to the pump. `thermaestro import nibepi config.json` shows the same on the host, and makes nothing. The guide is [Coming from NibePi](nibepi.md).
 

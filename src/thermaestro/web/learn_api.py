@@ -45,6 +45,64 @@ async def start_over(body: Named, request: Request, who: Logged) -> dict[str, An
     return await services(request).start_over(who, body.key)
 
 
+class Offered(BaseModel):
+    id: str
+    """An offer's id, as listed under `offers`."""
+
+
+@router.post("/learned/offers/accept")
+@action("learned_offer.accept")
+async def accept_offer(body: Offered, request: Request, who: Logged) -> dict[str, Any]:
+    """Ask for a suggested hot-water time: as asking for its `request` does, with the
+    caller's rights. Refused (400) unless it was accepted."""
+    return await services(request).accept_offer(who, body.id)
+
+
+@router.post("/learned/offers/dismiss")
+@action("learned_offer.dismiss")
+async def dismiss_offer(body: Offered, request: Request, who: Logged) -> dict[str, str]:
+    """Not now: the suggestion isn't made again for eight weeks."""
+    await services(request).dismiss_offer(who, body.id)
+    return {"status": "ok"}
+
+
+class Profile(BaseModel):
+    profile: str
+    """The text of NibePi's vv_ai_profile.json."""
+    timezone: str | None = None
+    """The time zone NibePi ran in; the house's if left out."""
+    tank: str | None = None
+    """The tank it is for, `instance:path`; the first if left out."""
+
+
+@router.post("/import/nibepi/profile/read")
+@action("nibepi_profile.read")
+async def read_profile(body: Profile, request: Request, who: Logged) -> dict[str, Any]:
+    """Read NibePi's hot-water profile into the tank's week as it would start, kept for this
+    user for half an hour. Nothing changes."""
+    from .learn_operations import week_rows
+
+    s = services(request)
+    token, kept = await s.read_profile(who, body.profile, timezone=body.timezone, tank=body.tank)
+    return {
+        "token": token,
+        "tank": kept.scope,
+        "timezone": kept.timezone,
+        "empty": kept.empty,
+        "week": kept.week.to_value(),
+        "rows": week_rows(kept.week),
+    }
+
+
+@router.post("/import/nibepi/profile/{token}")
+@action("nibepi_profile.apply")
+async def apply_profile(token: str, request: Request, who: Logged) -> dict[str, str]:
+    """Start the tank's week from the profile read. Refused once the week has been learned
+    from a day or more: start it over first."""
+    await services(request).apply_profile(who, token)
+    return {"status": "ok"}
+
+
 @router.put("/learned/pin")
 @action("learned.pin")
 async def pin(body: Pin, request: Request, who: Logged) -> dict[str, Any]:

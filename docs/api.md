@@ -314,10 +314,12 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 
 | Method and path | Right | Body → answer |
 |---|---|---|
-| `GET /learned` | `settings.read` | `{inputs, values, tanks}`. `tanks`: each hot-water tank's last week as read, `{scope, part, days, draws, drawn, charges}`, `drawn` in degrees of the tank. A tank's week (`tank.demand`) also has `week`, seven rows of `{day, seen, hours}`, each hour `{value, shade}`. `inputs`: each value learning would use, `{instance, point, label, part, verdict, verdict_text, why, args, why_text, checked}`, where `verdict` is `usable`, `not_usable` or `not_yet`, `why` the reason as a message with `%(name)s` for each of `args`, and `why_text` it in the caller's language. `values`: each learned value, `{key, name, label, scope, part, kind, value, unit, shown, starting, pinned, used, state, why, why_text, n, since, updated, pinnable}`, where `kind` is `observed` (used as seen) or `model` (used once `state` is `proved`), `state` one of `starting`, `learning`, `proved`, `frozen`, `rejected`, and `used` what decisions use |
+| `GET /learned` | `settings.read` | `{inputs, values, tanks, offers}`. `offers`: hot-water times a tank's proved week suggests, `{id, scope, part, by, days, drawn, request, text}`, where `request` is the standing intent asking for it would make. `tanks`: each hot-water tank's last week as read, `{scope, part, days, draws, drawn, charges}`, `drawn` in degrees of the tank. A tank's week (`tank.demand`) also has `week`, seven rows of `{day, seen, hours}`, each hour `{value, shade}`. `inputs`: each value learning would use, `{instance, point, label, part, verdict, verdict_text, why, args, why_text, checked}`, where `verdict` is `usable`, `not_usable` or `not_yet`, `why` the reason as a message with `%(name)s` for each of `args`, and `why_text` it in the caller's language. `values`: each learned value, `{key, name, label, scope, part, kind, value, unit, shown, starting, pinned, used, state, why, why_text, n, since, updated, pinnable}`, where `kind` is `observed` (used as seen) or `model` (used once `state` is `proved`), `state` one of `starting`, `learning`, `proved`, `frozen`, `rejected`, and `used` what decisions use |
 | `POST /learned/inputs/check` | `settings.write` | Judge the inputs over the last week now → the `inputs` |
 | `PUT /learned/pin` | `settings.write` | `{"key": "tank.charge_s@pump:hp1/dhw", "value": 2700}`: use this number, in the value's own unit, instead of what was learned; `"value": null` lifts the pin. Refused for a value that isn't one number |
 | `POST /learned/start-over` | `settings.write` | `{"key": "tank.charge_s@pump:hp1/dhw"}`: forget what was learned; a pin stays |
+| `POST /learned/offers/accept` | as asking for the intent | `{"id": "…"}`: ask for an offered hot-water time, as `POST /intents` with its `request` → that answer; refused (400) unless accepted |
+| `POST /learned/offers/dismiss` | `settings.write` | `{"id": "…"}`: not offered again for eight weeks |
 
 ### Coming from NibePi
 
@@ -328,6 +330,8 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 | `POST /import/nibepi/review/stopped` | `settings.write` | NibePi is stopped: the review can read the pump |
 | `POST /import/nibepi/review/read` | `settings.write` | `{everything}`: read the listed registers, or with `everything: true` every one the pump lets be changed, in the background |
 | `POST /import/nibepi/review/write` | `device.write` ⚿ | `{register, value}`: change one of the pump's settings, as `POST /devices/{instance}/write` does, and read it again; refused (400) unless it took |
+| `POST /import/nibepi/profile/read` | `settings.write` | `{profile, timezone, tank}`: the text of NibePi's `vv_ai_profile.json`, the time zone NibePi ran in (the house's if left out) and the tank (`instance:path`, the first if left out) → `{token, tank, timezone, empty, week, rows}`: the tank's week as it would start, in degrees of the tank, kept for this user for half an hour. Nothing changes |
+| `POST /import/nibepi/profile/{token}` | `settings.write` | Start the tank's week from it; refused once the week has been learned from a day or more (start it over first) |
 | `POST /import/nibepi/{token}` | `plugins.manage` ⚿ | `{items, timezone, model}`: the `key`s of the items to make, the location's time zone, and an S-series pump's model when the draft has none → `{done, problems}`. Each is made as setup would make it; one refused doesn't stop the others. |
 
 ### Levers and the plan

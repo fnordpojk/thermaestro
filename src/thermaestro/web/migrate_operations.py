@@ -13,14 +13,19 @@ import secrets
 import time
 from collections.abc import Collection
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .. import clock
 from ..auth import AccountError, Forbidden
 from ..cap import Closed
 from ..cap.client import CapError
 from ..core.executor import TAKEN
-from ..migrate import review
+from ..learn import Learned, mark
+from ..learn.hotwater import DEMAND
+from ..learn.tank import Demand
+from ..migrate import profile, review
 from ..migrate.nibepi import LOCALHOSTS, Draft, NotNibePi, read
 from ..nibe.maps import ModelMap, RegisterMap, load
 from ..spotsources import choices
@@ -29,6 +34,7 @@ from ..store import NibePiReview, Plugin, PriceLayer
 if TYPE_CHECKING:
     from ..core import Executor, PluginHost
     from ..core.audit import AuditLog
+    from ..learn import Learning
     from ..store import Database
     from .operations import Caller
 
@@ -38,6 +44,7 @@ BROKER_WAIT_S = 2.0
 READ_S = 15.0
 """The longest wait for one register: a read waits its turn on the bus."""
 REVIEWED = "the review of the pump's settings after NibePi"
+SEEDED = mark("Started from NibePi's hot-water profile; learning goes on from there.")
 
 
 @dataclass
@@ -51,6 +58,19 @@ class Reading:
     @property
     def finished(self) -> bool:
         return self.task is None or self.task.done()
+
+
+@dataclass
+class KeptProfile:
+    week: Demand
+    scope: str
+    """The tank it is for."""
+    timezone: str
+    """The time zone NibePi ran in, as the household said."""
+    user: str
+    made: float
+    empty: bool
+    """Every hour 0: NibePi learned nothing."""
 
 
 @dataclass
@@ -70,7 +90,10 @@ class MigrateOperations:
         host: PluginHost | None
         executor: Executor | None
         audit: AuditLog
+        learning: Learning | None
+        zone: tzinfo
         _drafts: dict[str, Kept]
+        _profiles: dict[str, KeptProfile]
 
         def _require(self, caller: Caller, permission: str, *, step_up: bool = False) -> None: ...
 
@@ -120,6 +143,90 @@ class MigrateOperations:
         kept = Kept(draft, caller.principal.name, time.monotonic(), broker)
         self._kept()[token] = kept
         return token, kept
+
+    # --- the hot-water profile --------------------------------------------------------------
+
+    def _kept_profiles(self) -> dict[str, KeptProfile]:
+        if not hasattr(self, "_profiles"):
+            self._profiles = {}
+        now = time.monotonic()
+        for token in [t for t, k in self._profiles.items() if now - k.made > DRAFT_S]:
+            del self._profiles[token]
+        return self._profiles
+
+    async def read_profile(
+        self, caller: "Caller", text: str, *, timezone: str | None, tank: str | None
+    ) -> tuple[str, KeptProfile]:
+        """Read NibePi's vv_ai_profile.json into the tank's week as it would start, kept for
+        this user for half an hour."""
+        self._require(caller, "settings.write")
+        if self.learning is None:
+            raise AccountError("learning isn't running here")
+        try:
+            hours = profile.read(text)
+        except profile.NotProfile as e:
+            raise AccountError(str(e)) from None
+        tanks = [k.scope for k in self.learning.hot_water.tanks()]
+        if not tanks:
+            raise AccountError("no hot-water tank is connected yet: connect the pump first")
+        scope = tank or tanks[0]
+        if scope not in tanks:
+            raise AccountError(f"no hot-water tank {scope}")
+        name: str = timezone or str(getattr(self.zone, "key", None) or "UTC")
+        try:
+            kept_in = ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise AccountError(f"unknown time zone {name!r}") from None
+        week = profile.week(hours, kept_in, self.zone, clock.now().astimezone(self.zone).date())
+        kept = KeptProfile(
+            week, scope, name, caller.principal.name, time.monotonic(), not any(hours)
+        )
+        token = secrets.token_urlsafe(16)
+        self._kept_profiles()[token] = kept
+        return token, kept
+
+    def profile_draft(self, caller: "Caller", token: str) -> KeptProfile:
+        self._require(caller, "settings.write")
+        kept = self._kept_profiles().get(token)
+        if kept is None or kept.user != caller.principal.name:
+            raise AccountError("that profile is gone: read the file again")
+        return kept
+
+    async def apply_profile(self, caller: "Caller", token: str) -> None:
+        """Start the tank's week from the profile, where nothing has been learned yet."""
+        kept = self.profile_draft(caller, token)
+        if self.learning is None:
+            raise AccountError("learning isn't running here")
+        learnings = self.learning.learnings
+        found = learnings.get(DEMAND, kept.scope)
+        if found is not None and found.value is not None and found.n > 0:
+            raise AccountError(
+                f"the week has been learned from {found.n} days already: start it over under"
+                " Setup → Learned first, to begin from NibePi's profile"
+            )
+        await learnings.put(
+            Learned(
+                name=DEMAND,
+                scope=kept.scope,
+                kind="model",
+                value=kept.week.to_value(),
+                unit="tank_c",
+                state="learning",
+                why=SEEDED,
+                n=0,
+                since=clock.time(),
+            )
+        )
+        del self._kept_profiles()[token]
+        await self.audit.record(
+            caller.principal.name,
+            "learned.seed",
+            details={
+                "learned": f"{DEMAND}@{kept.scope}",
+                "from": "vv_ai_profile.json",
+                "timezone": kept.timezone,
+            },
+        )
 
     def nibepi_draft(self, caller: "Caller", token: str) -> Kept:
         self._require(caller, "settings.write")
