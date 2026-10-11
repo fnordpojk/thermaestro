@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 20:51+0200\n"
+"POT-Creation-Date: 2026-10-11 22:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -65,6 +65,10 @@ msgstr ""
 
 #, python-format
 msgid "%(kw)s kW making hot water"
+msgstr ""
+
+#, python-format
+msgid "%(kwh)s kWh a day"
 msgstr ""
 
 #, python-format
@@ -395,6 +399,9 @@ msgid ""
 "been checked on a real one."
 msgstr ""
 
+msgid "An energy counter"
+msgstr ""
+
 #, python-format
 msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
 msgstr ""
@@ -697,6 +704,9 @@ msgid "Counts"
 msgstr ""
 
 msgid "Counts at all times"
+msgstr ""
+
+msgid "Counts per kWh"
 msgstr ""
 
 msgid "Coverage"
@@ -1725,6 +1735,9 @@ msgstr ""
 msgid "On different days"
 msgstr ""
 
+msgid "On the supply of"
+msgstr ""
+
 msgid "One extra charge"
 msgstr ""
 
@@ -2384,6 +2397,12 @@ msgid "The mean of the charges seen, the newest weighing most."
 msgstr ""
 
 #, python-format
+msgid ""
+"The mean over the last %(days)s days, from the pump's own meter; "
+"%(addition)s kWh a day of it while the addition ran."
+msgstr ""
+
+#, python-format
 msgid "The mean over the last %(days)s days."
 msgstr ""
 
@@ -2719,6 +2738,9 @@ msgid ""
 "when not everything can be met, and says so."
 msgstr ""
 
+msgid "What the pump uses a day, by its own meter"
+msgstr ""
+
 msgid "What the rights allow"
 msgstr ""
 
@@ -2854,6 +2876,9 @@ msgstr ""
 msgid "a display's name is 1 to 64 characters"
 msgstr ""
 
+msgid "a heat pump whose electricity it counts"
+msgstr ""
+
 msgid "a newer request replaced it"
 msgstr ""
 
@@ -2861,6 +2886,9 @@ msgid "a password can have at most 256 characters"
 msgstr ""
 
 msgid "a password needs at least 15 characters"
+msgstr ""
+
+msgid "a power reading: the pump's own meter, or the whole house's"
 msgstr ""
 
 msgid "a room temperature in this climate system"
@@ -2876,9 +2904,6 @@ msgid "a user name is 1 to 64 letters, digits or . _ @ -"
 msgstr ""
 
 msgid "a wall display can't make changes that need a password"
-msgstr ""
-
-msgid "a whole-house power reading"
 msgstr ""
 
 msgid "a zoning controller"
@@ -3115,6 +3140,9 @@ msgstr ""
 
 #, python-format
 msgid "firmware %(version)s"
+msgstr ""
+
+msgid "for a counter of pulses, such as 10000; empty: it gives kWh"
 msgstr ""
 
 msgid "found to be false"

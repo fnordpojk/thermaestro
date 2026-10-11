@@ -9,7 +9,8 @@ pump is that share.
 
 - **Hot water**, from charges with no draw: the tank's rise in degrees (the mean of its two
   sensors) times its heat per degree, plus its standing loss over the charge, against the
-  compressor's learned draw times how long it ran on hot water. The water made is the
+  electricity the pump's own meter counted, or where it has none, the compressor's
+  learned draw times how long it ran on hot water. The water made is the
   charge sensor's, which shows the charge while it runs.
 - **The brine**, from the same charges: the heat that didn't come from electricity came
   from the ground, so the brine's heat per kelvin is that heat over the brine's drop,
@@ -81,8 +82,13 @@ class Run:
     """The brine's drop, summed over the time it ran: K·s."""
     rise_c: float = 0.0
     """A charge's rise in degrees of the tank, its standing loss added; 0 for an hour."""
+    measured_kwh: float | None = None
+    """The electricity the pump's own meter counted over it, where it has one."""
 
     def kwh(self, draw_kw: float) -> float:
+        """Its electricity: as metered, else the draw times how long it ran."""
+        if self.measured_kwh is not None:
+            return self.measured_kwh
         return draw_kw * self.run_s / 3600
 
     @property

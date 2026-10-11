@@ -145,6 +145,27 @@ async def test_room_cards_leave_out_what_is_derived(site: Site) -> None:
     assert {"dew_point", "absolute_humidity"} <= quantities
 
 
+async def test_a_pumps_meter_counting_pulses(site: Site) -> None:
+    async with logged_in(site) as client:
+        added = await form(
+            client,
+            "/setup/sensors",
+            "/sensors",
+            name="Heat pump energy",
+            topic="hhv7/energy/heatpump",
+            quantity="energy",
+            placement="other",
+            per_kwh="10000",
+            meters="pump:hp1",
+        )
+        assert added.status_code == 303, added.text
+        found = [s for s in (await site.services.db.all(Sensor)).values() if s.quantity == "energy"]
+        assert [(s.per_kwh, s.meters) for s in found] == [(10000.0, "pump:hp1")]
+        hub = site.services.sensors
+        assert hub is not None
+        hub.receive_mqtt("hhv7/energy/heatpump", b"125000")
+
+
 async def test_bad_sensors_are_refused(site: Site) -> None:
     async with logged_in(site) as client:
         token = csrf_of((await client.get("/setup/sensors")).text)

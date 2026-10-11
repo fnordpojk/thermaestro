@@ -175,6 +175,8 @@ A sensor:
 | `room`, `reference` | for a room sensor: its room's id, and whether it alone stands for the room |
 | `freshness_s` | how long it may stay quiet before its value is stale; `null` learns it from how often it reports |
 | `calibration_offset` | added to each value, default 0 |
+| `per_kwh` | for an `energy` counter of pulses: how many make a kWh (`10000`); left out, its values are kWh (or Wh, where its plugin says so) |
+| `meters` | for an `energy` counter on a heat pump's supply: the pump's unit, `pump:hp1` |
 
 A room: `name`, `climate_system` (the climate system's node, such as `pump:hp1/cs1`), and `own_device`: `unknown` (default), `none`, `simple_thermostat`, `smart_thermostat`, `radiator_valves` or `zone_controller`.
 

@@ -36,6 +36,7 @@ NAMES = {
     "pump.response": mark("How the supply follows the weather and the offset"),
     "compressor.draw": mark("What the compressor draws while it runs"),
     "compressor.starts": mark("How often the compressor starts"),
+    "pump.energy": mark("What the pump uses a day, by its own meter"),
     "cop.heating": mark("How much heat a kWh gives heating (COP)"),
     "cop.dhw": mark("How much heat a kWh gives making hot water (COP)"),
     "brine.w_k": mark("What the brine carries per degree of its drop"),
@@ -53,6 +54,7 @@ DRAW_SHOWN = {
     "pool": mark("%(kw)s kW heating the pool"),
 }
 STARTS_SHOWN = mark("%(starts)s starts a day")
+ENERGY_SHOWN = mark("%(kwh)s kWh a day")
 COP_SHOWN = mark("COP %(cop)s at %(source)s/%(supply)s °C, %(share)s of the ideal")
 COP_DOCUMENTED = mark("COP %(cop)s at %(source)s/%(supply)s °C, as documented")
 BRINE_SHOWN = mark("%(w_k)s W per kelvin: about %(flow)s l/s of brine")
@@ -361,6 +363,8 @@ def _shown(x: Learned) -> str:
     if x.name == "brine.w_k" and isinstance(value, int | float):
         flow = value / (BRINE_HEAT["ethanol28"] * 1000)
         return i18n._(BRINE_SHOWN, w_k=i18n.number(value, 0), flow=i18n.number(flow, 2))
+    if x.name == "pump.energy" and isinstance(value, int | float):
+        return i18n._(ENERGY_SHOWN, kwh=i18n.number(value, 1))
     if x.name == "compressor.starts" and isinstance(value, int | float):
         return i18n._(STARTS_SHOWN, starts=i18n.number(value, 1))
     if x.unit == "h" and isinstance(value, int | float):

@@ -168,7 +168,7 @@ async def test_without_a_house_meter_it_says_why(tmp_path: Path) -> None:
         await energy.run(2_000_000_000.0)
         found = learnings.get(DRAW, "dev:hp1")
         assert found is not None
-        assert found.args == {"what": "a whole-house power reading"}
+        assert found.args == {"what": "a power reading: the pump's own meter, or the whole house's"}
         assert found.used is None
 
 

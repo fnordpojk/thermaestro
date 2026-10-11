@@ -25,6 +25,15 @@
       {% for rid, room in rooms.items() %}<option value="{{ rid }}"{% if s and s.room == rid %} selected{% endif %}>{{ room.name }}</option>{% endfor %}
     </select></label>
   <label class="check"><input type="checkbox" name="reference" value="1"{% if s and s.reference %} checked{% endif %}> {{ _("the room's reference") }}</label>
+  <fieldset><legend>{{ _("An energy counter") }}</legend>
+  <label>{{ _("Counts per kWh") }} <small>{{ _("for a counter of pulses, such as 10000; empty: it gives kWh") }}</small>
+    <input name="per_kwh" inputmode="decimal" value="{{ s.per_kwh | num(0) if s and s.per_kwh else '' }}"></label>
+  <label>{{ _("On the supply of") }} <small>{{ _("a heat pump whose electricity it counts") }}</small>
+    <select name="meters">
+      <option value="">–</option>
+      {% for ref, label in pumps %}<option value="{{ ref }}"{% if s and s.meters == ref %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label>
+  </fieldset>
   <label>{{ _("Calibration") }} <small>{{ _("added to each value") }}</small>
     <input name="calibration_offset" inputmode="decimal" value="{{ s.calibration_offset if s else 0 }}"></label>
   <label>{{ _("Stale after (minutes)") }} <small>{{ _("empty: learned from how often it reports, 60 to 720") }}</small>

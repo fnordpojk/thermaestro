@@ -14,7 +14,7 @@ proved itself.
 import json
 import logging
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -24,9 +24,11 @@ from ..core.host import PluginHost
 from ..core.values import Key, Sample, Values
 from ..store import Database, Rated, Transaction
 from . import cop, tank
+from .electric import counter_kwh
 from .energy import DRAW
 from .hotwater import KEEP_S, LOSS, house
 from .inputs import Span, intersect, spans
+from .meters import pump_meters
 from .model import Learned, State
 from .store import Learnings
 
@@ -57,6 +59,8 @@ class PumpKeys:
     rating: Rating | None
     """The compressor's documented figures."""
     compressor_ref: str
+    meter: Key | None = None
+    """The pump's own meter on its supply, in kWh, where one is set up."""
 
 
 class Efficiency:
@@ -114,7 +118,9 @@ class Efficiency:
         now = clock.time() if now is None else now
         calendar, _ = await house(self._db)
         rated = await self._db.get(Rated) or Rated()
+        meters = await pump_meters(self._db)
         for keys in self.pumps():
+            keys = replace(keys, meter=meters.get(keys.scope))
             try:
                 await self._learn(keys, rated, calendar.zone, now)
             except Exception:
@@ -179,6 +185,11 @@ class Efficiency:
         brine_in = tank.Series(await history(keys.brine_in))
         brine_out = tank.Series(await history(keys.brine_out))
         supply = tank.Series(await history(keys.supply)) if keys.supply else None
+        counter = (
+            tank.Series(await history(keys.meter))
+            if keys.meter is not None and self._usable(keys.meter)
+            else None
+        )
         demand = await history(keys.demand)
         ran = spans(await history(keys.compressor), until, lambda s: s.text == "running")
         on_dhw = intersect(ran, spans(demand, until, lambda s: s.text == "dhw"))
@@ -196,7 +207,7 @@ class Efficiency:
                 continue  # a draw would hide part of what the charge made
             before, after = tank._mean(top, low, c.start - 60), tank._mean(top, low, settled)
             stretch = intersect(on_dhw, [(c.start, c.end)])
-            run = _run(c.start, stretch, low, brine_in, brine_out)
+            run = _run(c.start, stretch, low, brine_in, brine_out, counter)
             if before is None or after is None or run is None:
                 continue
             lost = k * ((before + after) / 2 - tank.ROOM_C) * (settled - c.start) / 3600
@@ -207,7 +218,7 @@ class Efficiency:
             t = start
             while t < end:
                 stretch = intersect(on_heat, [(t, t + 3600)])
-                run = _run(t, stretch, supply, brine_in, brine_out)
+                run = _run(t, stretch, supply, brine_in, brine_out, counter)
                 if run is not None and run.run_s >= cop.RUN_LEAST_S:
                     rows.append(("cop_hour", t, _body(run)))
                 t += 3600
@@ -233,6 +244,11 @@ class Efficiency:
         ]
         dhw_kw = draw.get("dhw") if isinstance(draw, dict) else None
         heat_kw = draw.get("heating") if isinstance(draw, dict) else None
+        # Metered, the electricity is in each run: no draw needed.
+        if charges and all(c.measured_kwh is not None for c in charges):
+            dhw_kw = dhw_kw or 0.0
+        if hours and all(h.measured_kwh is not None for h in hours):
+            heat_kw = heat_kw or 0.0
         if dhw_kw is None:
             await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_DRAW, {}, 0)
             await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_DRAW, {}, 0)
@@ -361,7 +377,12 @@ def _point(instance: str, paths: set[str], node: str | None, name: str) -> Key |
 
 
 def _run(
-    t: float, stretch: list[Span], water: tank.Series, brine_in: tank.Series, brine_out: tank.Series
+    t: float,
+    stretch: list[Span],
+    water: tank.Series,
+    brine_in: tank.Series,
+    brine_out: tank.Series,
+    counter: tank.Series | None = None,
 ) -> cop.Run | None:
     """A minute at a time over `stretch`: the water made, the brine in and its drop."""
     made: list[float] = []
@@ -380,7 +401,15 @@ def _run(
             at += SAMPLE_S
     if not made:
         return None
-    return cop.Run(t, run_s, sum(made) / len(made), sum(source) / len(source), drop)
+    measured = None
+    if counter is not None:
+        parts = [counter_kwh(counter, t0, t1) for t0, t1 in stretch]
+        measured = (
+            sum(p for p in parts if p is not None) if all(p is not None for p in parts) else None
+        )
+    return cop.Run(
+        t, run_s, sum(made) / len(made), sum(source) / len(source), drop, measured_kwh=measured
+    )
 
 
 def _body(run: cop.Run) -> dict[str, Any]:
@@ -389,6 +418,7 @@ def _body(run: cop.Run) -> dict[str, Any]:
         "supply_c": round(run.supply_c, 2),
         "source_c": round(run.source_c, 2),
         "brine_ks": round(run.brine_ks, 1),
+        "kwh": None if run.measured_kwh is None else round(run.measured_kwh, 4),
     }
 
 
@@ -400,6 +430,7 @@ def _unbody(t: float, body: dict[str, Any]) -> cop.Run:
         body["source_c"],
         body["brine_ks"],
         body.get("rise_c", 0.0),
+        body.get("kwh"),
     )
 
 

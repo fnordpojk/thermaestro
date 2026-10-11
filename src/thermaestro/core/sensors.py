@@ -48,6 +48,10 @@ sensor is stale once it has been quiet for twice its longest silence over the la
 within those bounds, unless its setting says otherwise."""
 
 ROOM_UNITS = {"heat_demand": "%", "setpoint": "degC"}
+COUNTER_EVERY_S = 10.0
+"""An energy counter that reports at every pulse is kept at most this often: what it
+counted in between is in the next reading, and a Pi's SD card isn't written several
+times a second. A counter that falls (it started over) is always kept."""
 ANY_OPEN = {"zone.open", "window.open", *STATES}
 """On/off quantities: a room's is on when any of its sensors is."""
 
@@ -187,7 +191,14 @@ class SensorHub:
         now = self._clock()
         t = (envelope.t_observed or envelope.t_received).timestamp()
         for id in ids:
-            self._accept(id, Reading(envelope.value, envelope.quality, envelope.why, t, now))
+            value = envelope.value
+            if (
+                self.sensors[id].quantity == "energy"
+                and envelope.unit == "Wh"
+                and isinstance(value, int | float)
+            ):
+                value = float(value) / 1000  # kept in kWh, as the quantity is
+            self._accept(id, Reading(value, envelope.quality, envelope.why, t, now))
         if not ids and envelope.point.endswith("/outdoor.temp"):
             self._derive()  # the default outdoor reference
 
@@ -195,8 +206,12 @@ class SensorHub:
         sensor = self.sensors[id]
         value = reading.value
         if isinstance(value, int | float) and not isinstance(value, bool):
+            if sensor.per_kwh is not None:
+                value = float(value) / sensor.per_kwh
             reading.value = float(value) + sensor.calibration_offset
         previous = self._readings.get(id)
+        if _too_soon(sensor, previous, reading):
+            return
         if previous is not None and reading.t > previous.t:
             self._silence(id, reading.t - previous.t, reading.t)
         self._readings[id] = reading
@@ -426,6 +441,16 @@ class SensorHub:
     def readings(self) -> Iterable[tuple[str, Reading | None]]:
         for id in sorted(self.sensors, key=lambda i: self.sensors[i].name.lower()):
             yield id, self._current(id)
+
+
+def _too_soon(sensor: Sensor, previous: Reading | None, reading: Reading) -> bool:
+    """An energy counter's reading too soon after the last kept one, and not a fall."""
+    if sensor.quantity != "energy" or previous is None or previous.quality != reading.quality:
+        return False
+    before, now = previous.value, reading.value
+    if isinstance(before, float) and isinstance(now, float) and now < before:
+        return False
+    return reading.t - previous.t < COUNTER_EVERY_S
 
 
 def _key(node: str, quantity: str) -> Key:

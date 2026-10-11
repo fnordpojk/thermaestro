@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 20:51+0200\n"
+"POT-Creation-Date: 2026-10-11 22:42+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -64,6 +64,10 @@ msgstr "%(kw)s kW beim Beheizen des Pools"
 #, python-format
 msgid "%(kw)s kW making hot water"
 msgstr "%(kw)s kW bei der Warmwasserbereitung"
+
+#, python-format
+msgid "%(kwh)s kWh a day"
+msgstr "%(kwh)s kWh am Tag"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -425,6 +429,9 @@ msgstr ""
 "einer Pumpe der S-Serie liest, stammt aus Nibes Dokumenten und wurde noch nicht an "
 "einer echten Pumpe geprüft."
 
+msgid "An energy counter"
+msgstr "Ein Energiezähler"
+
 #, python-format
 msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
 msgstr "Jahresmittel %(mean)s °C, Monatsspanne %(spread)s K"
@@ -740,6 +747,9 @@ msgstr "Zählt"
 
 msgid "Counts at all times"
 msgstr "Zählt zu jeder Zeit"
+
+msgid "Counts per kWh"
+msgstr "Impulse je kWh"
 
 msgid "Coverage"
 msgstr "Abdeckung"
@@ -1849,6 +1859,9 @@ msgstr ""
 msgid "On different days"
 msgstr "An verschiedenen Tagen"
 
+msgid "On the supply of"
+msgstr "An der Zuleitung von"
+
 msgid "One extra charge"
 msgstr "Eine zusätzliche Ladung"
 
@@ -2544,6 +2557,14 @@ msgid "The mean of the charges seen, the newest weighing most."
 msgstr "Der Mittelwert der gesehenen Ladungen, die neueste zählt am meisten."
 
 #, python-format
+msgid ""
+"The mean over the last %(days)s days, from the pump's own meter; %(addition)s kWh a "
+"day of it while the addition ran."
+msgstr ""
+"Der Mittelwert der letzten %(days)s Tage, vom eigenen Zähler der Wärmepumpe; "
+"%(addition)s kWh am Tag davon, während der Zuheizer lief."
+
+#, python-format
 msgid "The mean over the last %(days)s days."
 msgstr "Der Mittelwert der letzten %(days)s Tage."
 
@@ -2921,6 +2942,9 @@ msgstr ""
 "Was der Haushalt möchte. Thermaestro plant dafür, ordnet, was nachgibt, wenn nicht "
 "alles erfüllt werden kann, und sagt es."
 
+msgid "What the pump uses a day, by its own meter"
+msgstr "Was die Wärmepumpe am Tag verbraucht, laut ihrem eigenen Zähler"
+
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
 
@@ -3074,6 +3098,9 @@ msgstr "ein Land und vielleicht eine Region: SE, DE-BY; leer: keine"
 msgid "a display's name is 1 to 64 characters"
 msgstr "der Name eines Displays hat 1 bis 64 Zeichen"
 
+msgid "a heat pump whose electricity it counts"
+msgstr "eine Wärmepumpe, deren Strom er zählt"
+
 msgid "a newer request replaced it"
 msgstr "eine neuere Anfrage hat sie ersetzt"
 
@@ -3082,6 +3109,9 @@ msgstr "ein Passwort darf höchstens 256 Zeichen haben"
 
 msgid "a password needs at least 15 characters"
 msgstr "ein Passwort braucht mindestens 15 Zeichen"
+
+msgid "a power reading: the pump's own meter, or the whole house's"
+msgstr "eine Leistungsmessung: der eigene Zähler der Wärmepumpe, oder der des ganzen Hauses"
 
 msgid "a room temperature in this climate system"
 msgstr "eine Raumtemperatur in diesem Heizkreis"
@@ -3097,9 +3127,6 @@ msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
 
 msgid "a wall display can't make changes that need a password"
 msgstr "ein Wanddisplay kann keine Änderungen vornehmen, die ein Passwort erfordern"
-
-msgid "a whole-house power reading"
-msgstr "eine Messung der Leistung des ganzen Hauses"
 
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
@@ -3336,6 +3363,9 @@ msgstr "beendet"
 #, python-format
 msgid "firmware %(version)s"
 msgstr "Firmware %(version)s"
+
+msgid "for a counter of pulses, such as 10000; empty: it gives kWh"
+msgstr "für einen Impulszähler, etwa 10000; leer: er liefert kWh"
 
 msgid "found to be false"
 msgstr "als falsch befunden"
@@ -3939,4 +3969,7 @@ msgstr "°C pro Stunde bei 50 °C"
 #~ "COP is taken as half of what physics "
 #~ "allows."
 #~ msgstr ""
+
+#~ msgid "a whole-house power reading"
+#~ msgstr "eine Messung der Leistung des ganzen Hauses"
 

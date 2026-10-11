@@ -6,7 +6,7 @@ in the database, so the page and the learners see it after a restart."""
 import asyncio
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, cast
 
 from .. import clock
@@ -28,6 +28,7 @@ from .inputs import (
     Expect,
     Recorded,
     Verdict,
+    counts_with_compressor,
     draws_with_compressor,
     follows_demand,
     judge,
@@ -35,6 +36,7 @@ from .inputs import (
     warmer_when_heating,
     warms_in_charges,
 )
+from .meters import pump_meters
 from .model import mark
 from .store import Learnings
 
@@ -154,14 +156,15 @@ class Learning:
             now = clock.time()
             recorded = Recorded(self._values, now - WINDOW_S, now)
             found = []
-            for key, expect, context in self._inputs():
+            meters = await pump_meters(self._db)
+            for key, expect, context in self._inputs(meters):
                 judged = await judge(key, expect, recorded, context, now)
                 found.append(_kept_proof(judged, self.checks.get(key)))
             await self._db.run(lambda t: _keep(t, found))
             self.checks = {Key(c.instance, c.point): c for c in found}
             return found
 
-    def _inputs(self) -> Iterator[tuple[Key, Expect, Context]]:
+    def _inputs(self, meters: Mapping[str, Key]) -> Iterator[tuple[Key, Expect, Context]]:
         house = GridLimits(self._db, self._values).house_power()
         for instance_id, instance in sorted(self._host.instances.items()):
             described = instance.described
@@ -193,6 +196,9 @@ class Learning:
                         yield Key(instance_id, path), expect, context
                 if house is not None and context.compressor is not None:
                     yield house[0], Expect(relation=draws_with_compressor), context
+                meter = meters.get(f"{instance_id}:{unit}")
+                if meter is not None:
+                    yield meter, Expect(relation=counts_with_compressor), context
         for key in sorted(self._values.latest, key=lambda k: k.point):
             if key.instance != SITE:
                 continue

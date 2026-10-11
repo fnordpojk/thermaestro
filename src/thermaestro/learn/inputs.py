@@ -14,6 +14,7 @@ seen (no hot-water charge in the week). Nothing here does more than read what is
 Why is said as a message for the web UI's catalog, with its values apart.
 """
 
+import itertools
 from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
@@ -300,3 +301,37 @@ def _held(samples: Sequence[Sample], end: float) -> Iterable[tuple[float, float,
         t1 = min(until, s.t + HOLD_S, end)
         if t1 > s.t:
             yield s.t, t1, s.value
+
+
+async def counts_with_compressor(
+    samples: list[Sample], recorded: Recorded, context: Context
+) -> Judged | None:
+    """A pump's own meter counts faster while the compressor runs than while it stands."""
+    if context.compressor is None:
+        return None
+    compressor = await recorded.get(context.compressor)
+    running = spans(compressor, recorded.end, lambda s: s.text == "running")
+    stopped = spans(compressor, recorded.end, lambda s: s.text == "stopped")
+    on, off = _rate(samples, running), _rate(samples, stopped)
+    if on is None or off is None:
+        why = mark("The compressor wasn't seen both running and standing in the last week.")
+        return "not_yet", why, {}
+    more = on - off
+    if more < 0.3:
+        why = mark("Only %(kw)s kW more while the compressor runs than while it stands.")
+        return "not_usable", why, {"kw": round(more, 2)}
+    return None
+
+
+def _rate(samples: Sequence[Sample], within: Sequence[Span]) -> float | None:
+    """How fast an energy counter rose, kWh an hour, between readings both inside
+    `within`; a fall (it started over) isn't counted."""
+    energy = seconds_ = 0.0
+    good = [s for s in samples if s.quality == "good" and s.value is not None]
+    for a, b in itertools.pairwise(good):
+        if a.value is None or b.value is None or b.value < a.value or b.t - a.t > HOLD_S:
+            continue
+        if any(w0 <= a.t and b.t <= w1 for w0, w1 in within):
+            energy += b.value - a.value
+            seconds_ += b.t - a.t
+    return energy * 3600 / seconds_ if seconds_ >= SEEN_LEAST_S else None

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 20:51+0200\n"
+"POT-Creation-Date: 2026-10-11 22:42+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -64,6 +64,10 @@ msgstr "%(kw)s kW vid poolvärmning"
 #, python-format
 msgid "%(kw)s kW making hot water"
 msgstr "%(kw)s kW vid varmvattenberedning"
+
+#, python-format
+msgid "%(kwh)s kWh a day"
+msgstr "%(kwh)s kWh per dygn"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -420,6 +424,9 @@ msgstr ""
 "lokala nätverket. Det Thermaestro läser från en pump i S-serien bygger på Nibes "
 "dokument och har ännu inte kontrollerats på en riktig pump."
 
+msgid "An energy counter"
+msgstr "En energiräknare"
+
 #, python-format
 msgid "Annual mean %(mean)s °C, monthly spread %(spread)s K"
 msgstr "Årsmedel %(mean)s °C, månadsspridning %(spread)s K"
@@ -730,6 +737,9 @@ msgstr "Räknas"
 
 msgid "Counts at all times"
 msgstr "Räknas hela tiden"
+
+msgid "Counts per kWh"
+msgstr "Pulser per kWh"
 
 msgid "Coverage"
 msgstr "Täckning"
@@ -1813,6 +1823,9 @@ msgstr "I snitt %(error)s fel, inte tydligt bättre än en enkel gissning, med %
 msgid "On different days"
 msgstr "På olika dagar"
 
+msgid "On the supply of"
+msgstr "På matningen till"
+
 msgid "One extra charge"
 msgstr "En extra laddning"
 
@@ -2502,6 +2515,14 @@ msgid "The mean of the charges seen, the newest weighing most."
 msgstr "Medelvärdet av de laddningar som setts, där den senaste väger mest."
 
 #, python-format
+msgid ""
+"The mean over the last %(days)s days, from the pump's own meter; %(addition)s kWh a "
+"day of it while the addition ran."
+msgstr ""
+"Medelvärdet över de senaste %(days)s dygnen, från värmepumpens egen mätare; "
+"%(addition)s kWh per dygn av det medan tillsatsen gick."
+
+#, python-format
 msgid "The mean over the last %(days)s days."
 msgstr "Medelvärdet över de senaste %(days)s dygnen."
 
@@ -2873,6 +2894,9 @@ msgstr ""
 "Vad hushållet vill. Thermaestro planerar för det, rangordnar vad som ger vika när "
 "inte allt kan uppfyllas, och säger det."
 
+msgid "What the pump uses a day, by its own meter"
+msgstr "Vad värmepumpen förbrukar per dygn, enligt sin egen mätare"
+
 msgid "What the rights allow"
 msgstr "Vad rättigheterna tillåter"
 
@@ -3015,6 +3039,9 @@ msgstr "ett land, och kanske en region: SE, DE-BY; tomt: inga"
 msgid "a display's name is 1 to 64 characters"
 msgstr "en skärms namn har 1 till 64 tecken"
 
+msgid "a heat pump whose electricity it counts"
+msgstr "en värmepump vars el den räknar"
+
 msgid "a newer request replaced it"
 msgstr "en nyare begäran ersatte den"
 
@@ -3023,6 +3050,9 @@ msgstr "ett lösenord får ha högst 256 tecken"
 
 msgid "a password needs at least 15 characters"
 msgstr "ett lösenord måste ha minst 15 tecken"
+
+msgid "a power reading: the pump's own meter, or the whole house's"
+msgstr "en effektmätning: värmepumpens egen mätare, eller hela husets"
 
 msgid "a room temperature in this climate system"
 msgstr "en rumstemperatur i det här klimatsystemet"
@@ -3038,9 +3068,6 @@ msgstr "ett användarnamn är 1 till 64 bokstäver, siffror eller . _ @ -"
 
 msgid "a wall display can't make changes that need a password"
 msgstr "en väggskärm kan inte göra ändringar som kräver lösenord"
-
-msgid "a whole-house power reading"
-msgstr "en mätning av hela husets effekt"
 
 msgid "a zoning controller"
 msgstr "en zonstyrning"
@@ -3277,6 +3304,9 @@ msgstr "avslutat"
 #, python-format
 msgid "firmware %(version)s"
 msgstr "programvara %(version)s"
+
+msgid "for a counter of pulses, such as 10000; empty: it gives kWh"
+msgstr "för en pulsräknare, till exempel 10000; tomt: den ger kWh"
 
 msgid "found to be false"
 msgstr "befunnet felaktigt"
@@ -3876,4 +3906,7 @@ msgstr "°C i timmen vid 50 °C"
 #~ "COP is taken as half of what physics "
 #~ "allows."
 #~ msgstr ""
+
+#~ msgid "a whole-house power reading"
+#~ msgstr "en mätning av hela husets effekt"
 

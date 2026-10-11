@@ -2,18 +2,23 @@
 
 Once a day is over (and an hour more), the house's power steps at the compressor's starts
 and stops are read and kept as events, with the day's starts and how long the compressor
-ran for each purpose. Days still in the raw history (two weeks) are read in order. The
-draw is the median of the last four weeks' steps, judged on the last two days.
+ran for each purpose. Where the pump has a meter of its own on its supply, the draw over
+each stretch it ran on one purpose is read from that too, with the day's energy and how
+much of it was used while the addition ran. Days still in the raw history (two weeks)
+are read in order. The draw is the median of the last four weeks' stretches from the
+pump's meter, where there are enough, else of the house's steps; judged on the last two
+days.
 
-It is learned only once the compressor's state, the pump's demand and the house's power
-have each behaved as they should (the input checks).
+It is learned only once the compressor's state, the pump's demand and a power reading
+(the pump's meter, or the house's) have each behaved as they should (the input checks).
 """
 
 import json
 import logging
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
+from functools import partial
 from typing import Any
 
 from .. import clock
@@ -22,7 +27,8 @@ from ..core.values import Key, Values
 from ..store import Database, Transaction
 from . import electric, tank
 from .hotwater import KEEP_S, house
-from .inputs import spans
+from .inputs import intersect, spans
+from .meters import pump_meters
 from .model import Learned, State, mark
 from .store import Learnings
 
@@ -30,14 +36,19 @@ log = logging.getLogger(__name__)
 
 DRAW = "compressor.draw"
 STARTS = "compressor.starts"
+PUMP_ENERGY = "pump.energy"
 STEP_DAYS = 28
 """The days of steps the draw is the median of."""
 STARTS_DAYS = 7
 
 NOT_USABLE = mark("Not learned: %(what)s isn't usable on this pump yet.")
 STARTS_WHY = mark("The mean over the last %(days)s days.")
+ENERGY_WHY = mark(
+    "The mean over the last %(days)s days, from the pump's own meter; %(addition)s kWh a"
+    " day of it while the addition ran."
+)
 WHAT = {
-    "house": mark("a whole-house power reading"),
+    "house": mark("a power reading: the pump's own meter, or the whole house's"),
     "compressor": mark("the compressor's state"),
     "demand": mark("the pump's demand"),
 }
@@ -50,6 +61,8 @@ class UnitKeys:
     compressor: Key | None
     demand: Key
     addition: Key | None
+    meter: Key | None = None
+    """The pump's own meter on its supply, in kWh, where one is set up."""
 
 
 class Energy:
@@ -105,7 +118,9 @@ class Energy:
         now = clock.time() if now is None else now
         calendar, _ = await house(self._db)
         found = self._house_power()
+        meters = await pump_meters(self._db)
         for keys in self.units():
+            keys = replace(keys, meter=meters.get(keys.scope))
             try:
                 await self._learn(keys, found, calendar.zone, now)
             except Exception:
@@ -116,16 +131,18 @@ class Energy:
     async def _learn(
         self, keys: UnitKeys, found: tuple[Key, float] | None, zone: Any, now: float
     ) -> None:
+        house_ = found if found is not None and self._usable(found[0]) else None
+        meter = keys.meter if keys.meter is not None and self._usable(keys.meter) else None
         missing = (
             "compressor"
             if keys.compressor is None or not self._usable(keys.compressor)
             else "demand"
             if not self._usable(keys.demand)
             else "house"
-            if found is None or not self._usable(found[0])
+            if house_ is None and meter is None
             else None
         )
-        if missing is not None or found is None or keys.compressor is None:
+        if missing is not None or keys.compressor is None:
             await self._note(keys.scope, WHAT[missing or "house"])
             return
         first = await self._first_raw(keys.compressor)
@@ -137,49 +154,85 @@ class Energy:
             day += timedelta(days=1)  # the first day recorded only in part
         read = False
         while tank.bounds(day, zone)[1] <= now - 3600:
-            await self._read(keys, keys.compressor, found, day, zone)
+            await self._read(keys, keys.compressor, house_, meter, day, zone)
             day += timedelta(days=1)
             read = True
         if read or self._learnings.get(DRAW, keys.scope) is None:
             await self._judge(keys.scope, now)
 
     async def _read(
-        self, keys: UnitKeys, state: Key, found: tuple[Key, float], day: date, zone: Any
+        self,
+        keys: UnitKeys,
+        state: Key,
+        found: tuple[Key, float] | None,
+        meter: Key | None,
+        day: date,
+        zone: Any,
     ) -> None:
         start, end = tank.bounds(day, zone)
         since, until = start - 3600, end + 3600
         compressor = await self._values.history(state, since, until)
         demand = await self._values.history(keys.demand, since, until)
-        power = tank.Series(await self._values.history(found[0], since, until))
         addition: list[tuple[float, float]] = []
         if keys.addition is not None and self._usable(keys.addition):
             samples = await self._values.history(keys.addition, since, until)
             addition = spans(samples, until, lambda s: bool(s.value))
         ran = electric.runs(compressor, until)
-        seen = electric.steps(
-            ran, power, demand, factor=found[1], addition=addition, start=start, end=end
-        )
+        seen: list[electric.Step] = []
+        if found is not None:
+            power = tank.Series(await self._values.history(found[0], since, until))
+            seen = electric.steps(
+                ran, power, demand, factor=found[1], addition=addition, start=start, end=end
+            )
+        body: dict[str, Any] = {
+            "day": day.isoformat(),
+            "starts": electric.starts(ran, start, end),
+            "run_s": electric.run_seconds(ran, demand, start, end),
+            "steps": len(seen),
+        }
+        stretches: list[electric.Step] = []
+        if meter is not None:
+            counter = tank.Series(await self._values.history(meter, since, until))
+            stood = spans(compressor, until, lambda s: s.text == "stopped")
+            standby = electric.standby_kw(stood, counter) or 0.0
+            serving = {
+                p: intersect(ran, spans(demand, until, partial(_serves, p)))
+                for p in electric.PURPOSES
+            }
+            stretches = electric.meter_runs(
+                serving, counter, standby, addition=addition, start=start, end=end
+            )
+            kwh = electric.counter_kwh(counter, start, end)
+            if kwh is not None:
+                body["kwh"] = round(kwh, 3)
+                during = [
+                    electric.counter_kwh(counter, max(a0, start), min(a1, end))
+                    for a0, a1 in addition
+                    if a0 < end and start < a1
+                ]
+                body["addition_kwh"] = round(sum(k for k in during if k is not None), 3)
+            body["standby_kw"] = round(standby, 3)
         rows: list[tuple[str, float, dict[str, Any]]] = [
-            (
-                "compressor_day",
-                start,
-                {
-                    "day": day.isoformat(),
-                    "starts": electric.starts(ran, start, end),
-                    "run_s": electric.run_seconds(ran, demand, start, end),
-                    "steps": len(seen),
-                },
-            ),
+            ("compressor_day", start, body),
             *(
                 ("power_step", s.t, {"edge": s.edge, "purpose": s.purpose, "kw": s.kw})
                 for s in seen
             ),
+            *(("power_run", s.t, {"purpose": s.purpose, "kw": s.kw}) for s in stretches),
         ]
         await self._db.run(lambda t: _events(t, keys.scope, rows))
 
     async def _judge(self, scope: str, now: float) -> None:
-        kept = await self._events(scope, "power_step", now - STEP_DAYS * 86_400)
-        found = [electric.Step(t, b["edge"], b["purpose"], b["kw"]) for t, b in kept]
+        since_ = now - STEP_DAYS * 86_400
+        steps = [
+            electric.Step(t, b["edge"], b["purpose"], b["kw"])
+            for t, b in await self._events(scope, "power_step", since_)
+        ]
+        metered = [
+            electric.Step(t, "run", b["purpose"], b["kw"])
+            for t, b in await self._events(scope, "power_run", since_)
+        ]
+        found = metered if electric.draws(metered) else steps
         draws = electric.draws(found)
         before = self._learnings.get(DRAW, scope)
         since = before.since if before and before.since else (found[0].t if found else None)
@@ -232,6 +285,23 @@ class Energy:
                     since=recent[0][0],
                 )
             )
+        used = [b for _, b in recent if "kwh" in b]
+        if used:
+            addition = sum(b.get("addition_kwh", 0.0) for b in used) / len(used)
+            await self._learnings.put(
+                Learned(
+                    name=PUMP_ENERGY,
+                    scope=scope,
+                    kind="observed",
+                    value=round(sum(b["kwh"] for b in used) / len(used), 1),
+                    unit="kWh/day",
+                    state="learning",
+                    why=ENERGY_WHY,
+                    args={"days": len(used), "addition": round(addition, 1)},
+                    n=len(used),
+                    since=recent[0][0],
+                )
+            )
 
     async def _note(self, scope: str, what: str) -> None:
         found = self._learnings.get(DRAW, scope)
@@ -275,6 +345,10 @@ class Energy:
             return [(at, json.loads(body)) for at, body in rows]
 
         return await self._db.run(read)
+
+
+def _serves(purpose: str, s: Any) -> bool:
+    return bool(s.text == purpose)
 
 
 def charge_kw(learnings: Learnings) -> float | None:

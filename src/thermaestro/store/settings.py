@@ -308,6 +308,12 @@ class Sensor(Setting):
     None to learn it from how often the sensor reports. A room sensor is never 'never
     stale', since a stale one restores the pump's settings."""
     calibration_offset: float = 0.0
+    per_kwh: Annotated[float, Field(gt=0)] | None = None
+    """For an energy counter that counts pulses: how many make a kWh (10000: a value of
+    10000 is 1 kWh). None: its values are kWh already, or Wh where its plugin says so."""
+    meters: PointRef | None = None
+    """For an energy counter on a pump's supply: the pump (its unit, `pump:hp1`) whose
+    electricity it counts."""
 
     @model_validator(mode="after")
     def _names_its_source(self) -> Self:
@@ -319,6 +325,10 @@ class Sensor(Setting):
             raise ValueError("a sensor from another plugin names its point")
         if self.placement != "room" and (self.room or self.reference):
             raise ValueError("only a room sensor belongs to a room")
+        if (self.per_kwh is not None or self.meters) and self.quantity != "energy":
+            raise ValueError("only an energy counter counts pulses or meters a pump")
+        if self.meters and self.placement == "room":
+            raise ValueError("a pump's meter isn't in a room")
         return self
 
 

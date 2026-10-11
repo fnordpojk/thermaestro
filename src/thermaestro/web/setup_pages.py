@@ -127,7 +127,21 @@ async def _sensors(request: Request, who: Caller) -> dict[str, Any]:
         "quantities": SENSOR_QUANTITIES,
         "connections": {id: p for id, p in plugins.items() if p.plugin == HA_PLUGIN},
         "has_broker": await s.mqtt_settings(who) is not None,
+        "pumps": _pumps(s, who),
     }
+
+
+def _pumps(s: Any, who: Caller) -> list[tuple[str, str]]:
+    """Each heat pump (its unit), for a meter on its supply."""
+    out = []
+    for instance_id, instance in sorted((s.host.instances if s.host else {}).items()):
+        described = instance.described
+        for node in described.nodes if described else ():
+            if node.kind == "unit":
+                out.append(
+                    (f"{instance_id}:{node.path}", s.node_label(who, instance_id, node.path))
+                )
+    return out
 
 
 async def _prices(request: Request, who: Caller) -> dict[str, Any]:

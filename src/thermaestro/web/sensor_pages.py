@@ -109,6 +109,10 @@ def _sensor_body(form: dict[str, str]) -> dict[str, Any]:
         "reference": bool(form.get("reference")) and placement == "room",
         "calibration_offset": form.get("calibration_offset") or 0,
     }
+    if body["quantity"] == "energy":
+        per_kwh = form.get("per_kwh", "").strip().replace(",", ".")
+        body["per_kwh"] = float(per_kwh) if per_kwh else None
+        body["meters"] = form.get("meters") or None
     if form.get("freshness_min"):
         body["freshness_s"] = float(form["freshness_min"]) * 60
     if body["source"] == "mqtt":

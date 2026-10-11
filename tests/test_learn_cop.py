@@ -19,7 +19,7 @@ from thermaestro.learn import cop as c
 from thermaestro.learn.efficiency import BRINE, DHW, HEATING, Efficiency
 from thermaestro.learn.energy import DRAW
 from thermaestro.learn.hotwater import HotWater
-from thermaestro.store import Database, Rated
+from thermaestro.store import Database, Rated, Sensor
 
 DAYS = 14
 SEED = 9
@@ -55,12 +55,16 @@ def recorded(seed: int = SEED, days: int = DAYS) -> tuple[dict[str, list[Sample]
     share of the ideal it makes heat at, and what the compressor drew, by purpose."""
     plant = begin(draw(seed, start=datetime(2026, 1, 12, tzinfo=UTC)))
     out: dict[str, list[Sample]] = {name: [] for name in POINTS}
+    out["meter"] = []
+    kwh = 0.0
     cops: dict[str, list[float]] = {"heating": [], "dhw": []}
     shares: list[float] = []
     drawn: dict[str, list[float]] = {"heating": [], "dhw": []}
     for _ in range(days * 24 * 60):
         plant.run(60)
         on, t = plant.compressor_on, plant.t
+        kwh += plant.pump_kw / 60
+        out["meter"].append(Sample(t, round(kwh, 4), None, "good"))
         out["state"].append(Sample(t, None, "running" if on else "stopped", "good"))
         out["demand"].append(Sample(t, None, plant.demand, "good"))
         read = {name: _word(plant.registers[r]) for name, r in REGISTERS.items()}
@@ -115,6 +119,47 @@ async def learned(tmp_path: Path, rating: Rating | None) -> Learnings:
         await efficiency.run(truth["end"])
         await efficiency.run(truth["end"])  # the brine, proved, lets heating be learned
         return learnings
+
+
+async def test_metered_the_cop_needs_no_draw(tmp_path: Path) -> None:
+    """With the pump's own meter, each charge's electricity is counted, not reckoned."""
+    series, truth = recorded()
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.put(
+            Sensor(
+                name="m",
+                source="mqtt",
+                topic="m",
+                quantity="energy",
+                placement="other",
+                meters="dev:hp1",
+            ),
+            "meter",
+        )
+        await db.run(
+            lambda tr: tr.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    ("dev", POINTS[n], s.t, s.value, s.text, s.quality)
+                    for n in POINTS
+                    for s in series[n]
+                ]
+                + [
+                    ("sensors", "meter/energy", s.t, s.value, None, "good") for s in series["meter"]
+                ],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        await HotWater(db, Values(db), host(RATED), learnings, lambda key: True).run(truth["end"])
+        await Efficiency(db, Values(db), host(RATED), learnings, lambda key: True).run(truth["end"])
+        dhw = learnings.get(DHW, "dev:hp1")
+        assert dhw is not None
+        assert isinstance(dhw.value, float)
+        assert dhw.value * c.carnot(47.5, 5.0) == pytest.approx(
+            statistics.median(truth["cop"]["dhw"]), rel=0.25
+        )
 
 
 RATED = Rating(
