@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 03:34+0200\n"
+"POT-Creation-Date: 2026-10-11 14:38+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -164,6 +164,14 @@ msgstr ""
 msgid "A fireplace is on"
 msgstr "Ein Kaminfeuer brennt"
 
+msgid ""
+"A pinned number is used instead of what was learned, and learning goes on beside it; "
+"leave the field empty and pin to lift it. Starting over forgets what was learned."
+msgstr ""
+"Eine festgelegte Zahl wird statt des Gelernten verwendet, und das Lernen geht daneben"
+" weiter; lass das Feld leer und lege fest, um sie aufzuheben. Neu beginnen vergisst "
+"das Gelernte."
+
 msgid "A private well"
 msgstr "Ein eigener Brunnen"
 
@@ -210,6 +218,16 @@ msgid ""
 msgstr ""
 "Ein Token erlaubt einem Skript oder der Kommandozeile, die API zu nutzen. Es hat nur "
 "die Rechte, die Sie ihm geben, nie mehr als Ihre eigenen."
+
+msgid ""
+"A value a pump offers isn't always a measurement: some answer 0, or the same value "
+"forever. Each one learning would use must first have behaved as it should over the "
+"last week; one that hasn't is left out. Checked every hour."
+msgstr ""
+"Ein Wert, den eine Pumpe anbietet, ist nicht immer eine Messung: manche antworten mit"
+" 0 oder für immer mit demselben Wert. Jeder Wert, den das Lernen verwenden würde, "
+"muss sich in der letzten Woche erst so verhalten haben, wie er soll; einer, der das "
+"nicht hat, bleibt außen vor. Stündlich geprüft."
 
 msgid ""
 "A weather entity's hourly forecast, to stand in while the chosen provider has none. "
@@ -290,6 +308,13 @@ msgstr "Auch die eigenen Werte jedes Sensors"
 
 msgid "Always"
 msgstr "Immer"
+
+#, python-format
+msgid "Always %(value)s in the last week."
+msgstr "In der letzten Woche immer %(value)s."
+
+msgid "Always 0 in the last week: an answer of 0 says nothing."
+msgstr "In der letzten Woche immer 0: eine Antwort von 0 sagt nichts."
 
 msgid "Amount per kWh"
 msgstr "Betrag pro kWh"
@@ -393,6 +418,9 @@ msgstr "Wurde zu"
 msgid "Before NibePi"
 msgstr "Vor NibePi"
 
+msgid "Behaved as it should in the last week."
+msgstr "Hat sich in der letzten Woche verhalten, wie es soll."
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -477,10 +505,17 @@ msgstr "Ladetemperatur"
 msgid "Chart"
 msgstr "Diagramm"
 
+msgid "Check now"
+msgstr "Jetzt prüfen"
+
 msgid "Check this: underfloor heating is now two kinds, and this was taken as a slab."
 msgstr ""
 "Bitte prüfen: Fußbodenheizung gibt es jetzt in zwei Arten, und dies wurde als Heizung"
 " im Estrich angenommen."
+
+#, python-format
+msgid "Checked %(when)s."
+msgstr "Geprüft %(when)s."
 
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
@@ -852,6 +887,9 @@ msgstr ""
 msgid "From, °C"
 msgstr "Von, °C"
 
+msgid "Frozen"
+msgstr "Eingefroren"
+
 msgid "Get it from Open-Meteo's archive"
 msgstr "Aus dem Archiv von Open-Meteo holen"
 
@@ -980,6 +1018,9 @@ msgstr "Haus"
 msgid "How each has done at this house"
 msgstr "Wie gut jeder an diesem Haus war"
 
+msgid "How long a hot-water charge takes"
+msgstr "Wie lange eine Warmwasserladung dauert"
+
 msgid "How much it matters"
 msgstr "Wie wichtig es ist"
 
@@ -1080,6 +1121,15 @@ msgstr "Schicht"
 
 msgid "Layers"
 msgstr "Schichten"
+
+msgid "Learned"
+msgstr "Gelernt"
+
+msgid "Learning"
+msgstr "Lernt"
+
+msgid "Learning isn't running here."
+msgstr "Das Lernen läuft hier nicht."
 
 msgid "Left as NibePi last wrote it."
 msgstr "So belassen, wie NibePi sie zuletzt schrieb."
@@ -1227,6 +1277,9 @@ msgstr "Namen"
 msgid "Needs attention"
 msgstr "Braucht Aufmerksamkeit"
 
+msgid "Never 0 in the last week: never seen off."
+msgstr "In der letzten Woche nie 0: nie aus gesehen."
+
 msgid "Never below, °C"
 msgstr "Nie unter, °C"
 
@@ -1361,6 +1414,13 @@ msgstr "Keine Entscheidungen im Schatten in diesem Zeitraum."
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Noch keine Vorhersage: Wählen Sie unter Einrichtung einen Hauptanbieter."
 
+#, python-format
+msgid "No good value in the last week, only: %(qualities)s."
+msgstr "In der letzten Woche kein guter Wert, nur: %(qualities)s."
+
+msgid "No hot-water charge seen in the last week."
+msgstr "In der letzten Woche keine Warmwasserladung gesehen."
+
 msgid "No layers yet."
 msgstr "Noch keine Schichten."
 
@@ -1417,6 +1477,9 @@ msgstr "Nichts angegeben: die Leistung zählt zu jeder Zeit."
 msgid "None yet."
 msgstr "Noch keine."
 
+msgid "Not checked yet: the first check comes ten minutes after a start."
+msgstr "Noch nicht geprüft: die erste Prüfung kommt zehn Minuten nach einem Start."
+
 msgid "Not done"
 msgstr "Nicht ausgeführt"
 
@@ -1430,6 +1493,9 @@ msgstr "Nicht in teuren Stunden"
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu werden."
 
+msgid "Not learned yet"
+msgstr "Noch nicht gelernt"
+
 msgid "Not made:"
 msgstr "Nicht angelegt:"
 
@@ -1439,6 +1505,12 @@ msgstr "Nicht angeboten: %(why)s."
 
 msgid "Not said"
 msgstr "Nicht angegeben"
+
+msgid "Not seen enough yet"
+msgstr "Noch nicht genug gesehen"
+
+msgid "Not usable on this pump"
+msgstr "Auf dieser Pumpe nicht verwendbar"
 
 msgid "Note"
 msgstr "Notiz"
@@ -1458,6 +1530,9 @@ msgstr "Nichts in diesem Zeitraum."
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
 
+msgid "Nothing recorded in the last week."
+msgstr "In der letzten Woche nichts aufgezeichnet."
+
 msgid ""
 "Nothing to compare yet. Forecasts are kept from now on, and compared as their hours "
 "come."
@@ -1470,6 +1545,9 @@ msgstr "Aus dieser Datei ist nichts anzulegen."
 
 msgid "Nothing was picked."
 msgstr "Nichts wurde gewählt."
+
+msgid "Nothing yet."
+msgstr "Noch nichts."
 
 msgid "Nothing yet: a provider shows here once it has sent its first forecast."
 msgstr ""
@@ -1512,6 +1590,14 @@ msgstr "Eine zusätzliche Ladung, jetzt."
 
 msgid "One hot-water charge, now."
 msgstr "Eine Warmwasserladung, jetzt."
+
+#, python-format
+msgid "Only %(kelvin)s K warmer while the compressor heats than while it stands."
+msgstr "Nur %(kelvin)s K wärmer, während der Verdichter heizt, als während er steht."
+
+#, python-format
+msgid "Only %(kw)s kW more while the compressor runs than while it stands."
+msgstr "Nur %(kw)s kW mehr, während der Verdichter läuft, als während er steht."
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -1590,6 +1676,9 @@ msgstr "PM10"
 msgid "PM2.5"
 msgstr "PM2,5"
 
+msgid "Part"
+msgstr "Teil"
+
 msgid "Password"
 msgstr "Passwort"
 
@@ -1602,8 +1691,14 @@ msgstr "Zeitraum"
 msgid "Personal access token"
 msgstr "Persönliches Zugriffstoken"
 
+msgid "Pin"
+msgstr "Festlegen"
+
 msgid "Pinned to the overview"
 msgstr "An die Übersicht angeheftet"
+
+msgid "Pinned:"
+msgstr "Festgelegt:"
 
 msgid "Plan"
 msgstr "Plan"
@@ -1665,6 +1760,9 @@ msgstr "Preise"
 
 msgid "Protocol"
 msgstr "Protokoll"
+
+msgid "Proved"
+msgstr "Bewährt"
 
 msgid "Provider"
 msgstr "Anbieter"
@@ -1746,11 +1844,18 @@ msgstr "Erneut lesen"
 msgid "Reading the pump: %(done)s of %(total)s."
 msgstr "Lese die Pumpe: %(done)s von %(total)s."
 
+#, python-format
+msgid "Recorded for %(span)s; a day is needed."
+msgstr "Aufgezeichnet seit %(span)s; ein Tag ist nötig."
+
 msgid "Refused."
 msgstr "Abgelehnt."
 
 msgid "Region"
 msgstr "Region"
+
+msgid "Rejected"
+msgstr "Verworfen"
 
 msgid "Remove"
 msgstr "Entfernen"
@@ -1793,6 +1898,14 @@ msgstr "Räume nicht über ihrem Band"
 
 msgid "Rooms not below their band"
 msgstr "Räume nicht unter ihrem Band"
+
+#, python-format
+msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
+msgstr "Stieg bei %(warmed)s von %(charges)s Warmwasserladungen."
+
+#, python-format
+msgid "Running while the demand said idle, for %(share)s %% of its running time."
+msgstr "Lief, während der Bedarf Ruhe anzeigte, während %(share)s %% seiner Laufzeit."
 
 msgid "S-series"
 msgstr "S-Serie"
@@ -1961,8 +2074,14 @@ msgstr "Veraltet nach (Minuten)"
 msgid "Stale:"
 msgstr "Veraltet:"
 
+msgid "Start over"
+msgstr "Neu beginnen"
+
 msgid "Start temperature"
 msgstr "Starttemperatur"
+
+msgid "Started over."
+msgstr "Neu begonnen."
 
 #, python-format
 msgid "Starts %(when)s"
@@ -2037,6 +2156,9 @@ msgstr "Das Modell der S-Serien-Pumpe"
 msgid "The addition"
 msgstr "Der Zuheizer"
 
+msgid "The addition wasn't seen running in the last week."
+msgstr "Der Zuheizer wurde in der letzten Woche nicht laufend gesehen."
+
 msgid "The addition, the pool, a power limit, quiet hours"
 msgstr "Der Zuheizer, der Pool, eine Leistungsgrenze, Ruhezeiten"
 
@@ -2046,6 +2168,20 @@ msgid ""
 msgstr ""
 "Die mittlere Jahrestemperatur und wie weit das Mittel des wärmsten Monats von dem des"
 " kältesten entfernt ist. Thermaestro schätzt daraus die Temperatur des Kaltwassers."
+
+msgid "The compressor wasn't seen both running and standing in the last week."
+msgstr ""
+"Der Verdichter wurde in der letzten Woche nicht sowohl laufend als auch stehend "
+"gesehen."
+
+msgid "The compressor wasn't seen heating the house in the last week."
+msgstr "Der Verdichter wurde in der letzten Woche nicht beim Heizen des Hauses gesehen."
+
+msgid "The compressor wasn't seen running in the last week."
+msgstr "Der Verdichter wurde in der letzten Woche nicht laufend gesehen."
+
+msgid "The compressor wasn't seen standing in the last week."
+msgstr "Der Verdichter wurde in der letzten Woche nicht stehend gesehen."
 
 msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone,"
@@ -2110,8 +2246,14 @@ msgstr "Die letzten 24 Stunden"
 msgid "The location's climate"
 msgstr "Das Klima des Standorts"
 
+msgid "The mean of the charges seen, the newest weighing most."
+msgstr "Der Mittelwert der gesehenen Ladungen, die neueste zählt am meisten."
+
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
+
+msgid "The periodic hot-water increase, last seen"
+msgstr "Die periodische Warmwassererhöhung, zuletzt gesehen"
 
 msgid "The plan"
 msgstr "Der Plan"
@@ -2183,6 +2325,18 @@ msgstr "Thermaestro ändert nichts an der Pumpe."
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestro-Gateway (mit Schlüssel)"
+
+msgid ""
+"Thermaestro learns how the house, the hot-water tank and the pump behave, only by "
+"watching: learning never changes anything. A learned value is used once it has shown "
+"it predicts better than a simple guess; until then the answer given at setup stands. "
+"A few figures, such as how long a charge takes, are used as seen."
+msgstr ""
+"Thermaestro lernt, wie sich das Haus, der Warmwasserspeicher und die Pumpe verhalten,"
+" nur durch Beobachten: Das Lernen ändert nie etwas. Ein gelernter Wert wird "
+"verwendet, sobald er gezeigt hat, dass er besser vorhersagt als eine einfache "
+"Schätzung; bis dahin gilt die Antwort aus der Einrichtung. Einige Zahlen, etwa wie "
+"lange eine Ladung dauert, werden so verwendet, wie sie gesehen wurden."
 
 msgid "Thermaestro puts it back to"
 msgstr "Thermaestro setzt sie zurück auf"
@@ -2298,6 +2452,12 @@ msgstr "Einheit"
 msgid "Until"
 msgstr "Bis"
 
+msgid "Usable"
+msgstr "Verwendbar"
+
+msgid "Use instead"
+msgstr "Stattdessen verwenden"
+
 msgid "User"
 msgstr "Benutzer"
 
@@ -2327,6 +2487,9 @@ msgstr "Wert"
 
 msgid "Ventilation"
 msgstr "Lüftung"
+
+msgid "Verdict"
+msgstr "Urteil"
 
 msgid "View"
 msgstr "Ansicht"
@@ -2390,6 +2553,12 @@ msgstr "Was %(system)s heizt"
 msgid "What it belongs to"
 msgstr "Wozu er gehört"
 
+msgid "What it has learned"
+msgstr "Was es gelernt hat"
+
+msgid "What it learns from"
+msgstr "Woraus es lernt"
+
 msgid "What it would make"
 msgstr "Was daraus würde"
 
@@ -2424,6 +2593,9 @@ msgstr "Wenn nicht alles erfüllt werden kann, geben diese vom letzten zum erste
 
 msgid "When power counts"
 msgstr "Wann die Leistung zählt"
+
+msgid "When the tank was last seen well above its stop temperature."
+msgstr "Wann der Speicher zuletzt deutlich über seiner Stopptemperatur gesehen wurde."
 
 msgid "Where"
 msgstr "Wo"
@@ -2818,6 +2990,12 @@ msgid "found to be false"
 msgstr "als falsch befunden"
 
 #, python-format
+msgid "from %(num)s observation"
+msgid_plural "from %(num)s observations"
+msgstr[0] "aus %(num)s Beobachtung"
+msgstr[1] "aus %(num)s Beobachtungen"
+
+#, python-format
 msgid "from %(series)s"
 msgstr "aus %(series)s"
 
@@ -2930,6 +3108,9 @@ msgstr "Mittel"
 
 msgid "met"
 msgstr "erfüllt"
+
+msgid "min"
+msgstr "min"
 
 msgid "missed"
 msgstr "verpasst"

@@ -21,6 +21,7 @@ from pydantic import BaseModel, ValidationError
 if TYPE_CHECKING:
     from ..core.executor import Executor
     from ..intents import Intents
+    from ..learn import Learning
     from ..planner import Planner
 
 from ..auth import (
@@ -50,6 +51,7 @@ from ..store.errors import name_fields
 from . import i18n, labels
 from .control_operations import ControlOperations
 from .discovery_operations import DiscoveryOperations
+from .learn_operations import LearnOperations
 from .migrate_operations import MigrateOperations
 from .price_operations import PriceOperations
 from .sensor_operations import SensorOperations
@@ -98,6 +100,7 @@ class Services(
     DiscoveryOperations,
     ControlOperations,
     MigrateOperations,
+    LearnOperations,
 ):
     accounts: Accounts
     db: Database
@@ -118,6 +121,7 @@ class Services(
     intents: "Intents | None" = None
     executor: "Executor | None" = None
     planner: "Planner | None" = None
+    learning: "Learning | None" = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)

@@ -310,6 +310,15 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 | `GET /home` | `settings.read` | The answers |
 | `PUT /home` | `settings.write` | `{"emitters": {"pump:hp1/cs1": "slab"}, "house": "average", "water": "well", "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`. Emitters: `radiators`, `fan_coils`, `floor_light` (underfloor heating in boards or grooves), `slab` (in a concrete slab), `radiators_and_floor_light`, `radiators_and_slab`, `unknown`; house: `poorly_insulated`, `average`, `well_insulated`, `low_energy`, `unknown`; water: `municipal`, `well`, `unknown`. A field left out takes its default. `check_emitters` lists the climate systems whose answer was plain floor heating, taken as a slab, to be checked; answering again clears it. |
 
+### What has been learned
+
+| Method and path | Right | Body → answer |
+|---|---|---|
+| `GET /learned` | `settings.read` | `{inputs, values}`. `inputs`: each value learning would use, `{instance, point, label, part, verdict, verdict_text, why, args, why_text, checked}`, where `verdict` is `usable`, `not_usable` or `not_yet`, `why` the reason as a message with `%(name)s` for each of `args`, and `why_text` it in the caller's language. `values`: each learned value, `{key, name, label, scope, part, kind, value, unit, shown, starting, pinned, used, state, why, why_text, n, since, updated, pinnable}`, where `kind` is `observed` (used as seen) or `model` (used once `state` is `proved`), `state` one of `starting`, `learning`, `proved`, `frozen`, `rejected`, and `used` what decisions use |
+| `POST /learned/inputs/check` | `settings.write` | Judge the inputs over the last week now → the `inputs` |
+| `PUT /learned/pin` | `settings.write` | `{"key": "tank.charge_s@pump:hp1/dhw", "value": 2700}`: use this number, in the value's own unit, instead of what was learned; `"value": null` lifts the pin. Refused for a value that isn't one number |
+| `POST /learned/start-over` | `settings.write` | `{"key": "tank.charge_s@pump:hp1/dhw"}`: forget what was learned; a pin stays |
+
 ### Coming from NibePi
 
 | Method and path | Right | Body → answer |

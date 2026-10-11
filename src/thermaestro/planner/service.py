@@ -41,6 +41,7 @@ from ..core.series import Series
 from ..core.values import Key, Values
 from ..intents import Intents
 from ..intents.entry import RESPONSE_H
+from ..learn import Learned, Learnings, mark
 from ..store import Control, Database, Location, PriceLayer, Vat
 from . import rules
 from .model import (
@@ -80,6 +81,10 @@ periodic increase."""
 
 PLANNED = ("heating.offset", "block", "boost_once", "stop_temp", "max_power", "start_temp")
 """The levers the rules use, by name."""
+CHARGE = "tank.charge_s"
+"""How long a tank's charges take, as kept."""
+PERIODIC = "tank.periodic"
+"""When a tank's periodic increase was last seen, and the time before, as kept."""
 
 Prices = Callable[[datetime], Awaitable[list[Price]]]
 
@@ -128,9 +133,13 @@ class Planner:
         sensors: SensorHub | None = None,
         series: Series | None = None,
         prices: Prices | None = None,
+        learnings: Learnings | None = None,
         check_s: float = CHECK_S,
     ) -> None:
         self._db = db
+        self._learnings = learnings
+        """Where what the planner observes is kept, so a restart keeps it; in memory only
+        without."""
         self._values = values
         self._host = host
         self._executor = executor
@@ -215,7 +224,7 @@ class Planner:
         """Gather, decide, ask; the whole of one plan. `slot`: everything is planned, as at
         the start of a slot; else hot water only."""
         sit = replace(await self.gather(), slot=slot)
-        self._observe(sit)
+        await self._observe(sit)
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
             if floor is not None and floor.low is not None:
@@ -254,6 +263,7 @@ class Planner:
             ahead[scope] = (bound.low, bound.high) if bound is not None else (None, None)
         tanks = {}
         for scope in sorted(caps.tanks):
+            self._remembered(scope)
             instance, path = split(scope)
             tanks[scope] = Tank(
                 scope,
@@ -585,7 +595,7 @@ class Planner:
                 if top is not None and least is not None and top >= least:
                     await self._intents.report(intent.id, "met", f"the hot water is {top:.1f} °C")
 
-    def _observe(self, sit: Situation) -> None:
+    async def _observe(self, sit: Situation) -> None:
         """Learn from what the pump does: how long its charges take, and when it runs its
         periodic increase."""
         for scope, tank in sit.tanks.items():
@@ -598,8 +608,7 @@ class Planner:
                 self._charging_since[scope] = since
                 took = (sit.now - since).total_seconds()
                 if 600 <= took <= 4 * 3600:
-                    old = self.memory.charge_s.get(scope, took)
-                    self.memory.charge_s[scope] = round(0.7 * old + 0.3 * took)
+                    await self._charged(scope, took, since)
             top, stop = tank.top, tank.stop
             if top is not None and stop is not None and top >= stop + PERIODIC_ABOVE:
                 last = self.memory.periodic.get(scope)
@@ -607,6 +616,74 @@ class Planner:
                     if last is not None:
                         self.memory.periodic[f"{scope}#before"] = last
                     self.memory.periodic[scope] = sit.now
+                    await self._keep_periodic(scope)
+
+    async def _charged(self, scope: str, took: float, since: datetime) -> None:
+        """A charge ran for `took` seconds: blend it into how long the tank's charges take."""
+        found = self._learnings.get(CHARGE, scope) if self._learnings is not None else None
+        if found is None or not isinstance(found.value, int | float):
+            old = self.memory.charge_s.get(scope, took) if found is None else took
+            n, first = 0, since.timestamp()
+        else:
+            old, n, first = float(found.value), found.n, found.since or since.timestamp()
+        learned = round(0.7 * old + 0.3 * took)
+        self.memory.charge_s[scope] = learned
+        if self._learnings is None:
+            return
+        kept = await self._learnings.put(
+            Learned(
+                name=CHARGE,
+                scope=scope,
+                kind="observed",
+                value=float(learned),
+                unit="s",
+                state="learning",
+                why=mark("The mean of the charges seen, the newest weighing most."),
+                n=n + 1,
+                since=first,
+            )
+        )
+        used = kept.used
+        if isinstance(used, int | float):
+            self.memory.charge_s[scope] = float(used)
+
+    async def _keep_periodic(self, scope: str) -> None:
+        if self._learnings is None:
+            return
+        seen = {
+            k: self.memory.periodic[f"{scope}{suffix}"].timestamp()
+            for k, suffix in (("last", ""), ("before", "#before"))
+            if f"{scope}{suffix}" in self.memory.periodic
+        }
+        await self._learnings.put(
+            Learned(
+                name=PERIODIC,
+                scope=scope,
+                kind="observed",
+                value=seen,
+                state="learning",
+                why=mark("When the tank was last seen well above its stop temperature."),
+                n=len(seen),
+                since=min(seen.values()),
+            )
+        )
+
+    def _remembered(self, scope: str) -> None:
+        """What is kept of a tank, into the memory the rules read: the household may have
+        started it over or pinned it since."""
+        if self._learnings is None:
+            return
+        used = self._learnings.used(CHARGE, scope)
+        if isinstance(used, int | float):
+            self.memory.charge_s[scope] = float(used)
+        else:
+            self.memory.charge_s.pop(scope, None)
+        periodic = self._learnings.used(PERIODIC, scope)
+        for k, suffix in (("last", ""), ("before", "#before")):
+            if isinstance(periodic, dict) and k in periodic:
+                self.memory.periodic[f"{scope}{suffix}"] = datetime.fromtimestamp(periodic[k], UTC)
+            else:
+                self.memory.periodic.pop(f"{scope}{suffix}", None)
 
 
 def _same(a: Value | None, b: Value | None) -> bool:

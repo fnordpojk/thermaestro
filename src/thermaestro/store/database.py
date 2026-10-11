@@ -301,6 +301,24 @@ MIGRATIONS: tuple[str, ...] = (
         SELECT 1 FROM json_each(body, '$.emitters') WHERE value IN ('floor', 'radiators_and_floor')
     );
     """,
+    # 17: what has been learned, so a restart keeps it; and whether each input a learner
+    # would use behaved as its quantity would
+    """
+    CREATE TABLE IF NOT EXISTS learned (
+        key TEXT PRIMARY KEY,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        updated REAL NOT NULL
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS input_checks (
+        instance TEXT NOT NULL,
+        point TEXT NOT NULL,
+        verdict TEXT NOT NULL,
+        why TEXT NOT NULL,
+        args TEXT NOT NULL CHECK (json_valid(args)),
+        checked REAL NOT NULL,
+        PRIMARY KEY (instance, point)
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

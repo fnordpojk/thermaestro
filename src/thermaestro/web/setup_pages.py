@@ -29,6 +29,7 @@ TOPICS = {
     "prices": mark("Prices"),
     "weather": mark("Weather"),
     "control": mark("Control"),
+    "learned": mark("Learned"),
     "nibepi": mark("From NibePi"),
 }
 
@@ -268,6 +269,13 @@ async def _nibepi(request: Request, who: Caller) -> dict[str, Any]:
     return {"draft": kept.draft, "token": token, "kept": kept, **empty}
 
 
+async def _learned(request: Request, who: Caller) -> dict[str, Any]:
+    s = services(request)
+    if s.learning is None or not who.principal.allows("settings.read"):
+        return {"learned": None}
+    return {"learned": s.learned(who)}
+
+
 CONTEXTS = {
     "house": _house,
     "pump": _pump,
@@ -276,6 +284,7 @@ CONTEXTS = {
     "prices": _prices,
     "weather": _weather,
     "control": _control,
+    "learned": _learned,
     "nibepi": _nibepi,
 }
 
@@ -336,6 +345,45 @@ async def old_rooms(_: Logged) -> Response:
 @router.get("/diagnostics")
 async def old_diagnostics(_: Logged) -> Response:
     return back("/system/health")
+
+
+# --- learned -------------------------------------------------------------------------------
+
+
+@router.post("/setup/learned/check")
+@action("learned_inputs.check")
+async def check_inputs(request: Request, who: Logged) -> Response:
+    """Judge the inputs over the last week now."""
+    work = services(request).check_inputs(who)
+    return await attempt(request, who, work, "learned", "/setup/learned#inputs")
+
+
+@router.post("/setup/learned/start-over")
+@action("learned.start_over")
+async def start_over(request: Request, who: Logged) -> Response:
+    """Forget a learned value."""
+    key = (await request.form()).get("key")
+    if not isinstance(key, str):
+        return await show(request, who, "learned", 400, error=_message(AccountError("choose one")))
+    work = services(request).start_over(who, key)
+    return await attempt(request, who, work, "learned", "/setup/learned#values")
+
+
+@router.post("/setup/learned/pin")
+@action("learned.pin")
+async def pin_learned(request: Request, who: Logged) -> Response:
+    """Use a number instead of what was learned; an empty one lifts the pin."""
+    from .control_operations import form_number
+
+    form = await request.form()
+    key, value = form.get("key"), form.get("value")
+    number = form_number(value) if isinstance(value, str) and value.strip() else None
+    if not isinstance(key, str) or isinstance(number, str):
+        error = AccountError("give a number, or leave it empty to lift the pin")
+        return await show(request, who, "learned", 400, error=_message(error))
+    per = 60.0 if form.get("in") == "minutes" else 1.0  # a duration is typed in minutes
+    work = services(request).pin_learned(who, key, None if number is None else number * per)
+    return await attempt(request, who, work, "learned", "/setup/learned#values")
 
 
 # --- from NibePi ---------------------------------------------------------------------------

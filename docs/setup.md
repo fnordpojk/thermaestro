@@ -92,7 +92,7 @@ Everyone logs in, also on the home network. Changes under some rights (users, se
 
 ## The setup pages
 
-**Setup** in the menu has eight topics: House, Pump, External, Sensors, Prices, Weather, Control and From NibePi. Coming from NibePi, start with the last: it fills in much of the rest from NibePi's settings (see [Coming from NibePi](nibepi.md)). The topics can be done in any order, but some need others first:
+**Setup** in the menu has nine topics: House, Pump, External, Sensors, Prices, Weather, Control, Learned and From NibePi. Coming from NibePi, start with the last: it fills in much of the rest from NibePi's settings (see [Coming from NibePi](nibepi.md)). The topics can be done in any order, but some need others first:
 
 - weather forecasts need the location, under House;
 - sensors from Home Assistant need Home Assistant, under External;
@@ -216,6 +216,19 @@ Switching needs the password again. A setting the pump has its own feature for (
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
 
 The page shows the day's changes against the planner's budget (about 50 a day).
+
+### Learned
+
+What Thermaestro has learned, and what it learns from. Learning only watches: it never changes anything.
+
+**What it learns from** lists each value learning would use, and whether it can: a value a pump offers isn't always a measurement, since some answer 0, or the same value forever. Each one must first have behaved as its quantity would over the last week:
+
+- recorded for at least a day, with good values, and changing where its quantity changes;
+- in step with the values it goes with: the compressor runs only while there is a demand, the tank warms during hot-water charges, the supply is warmer while the compressor heats the house, and the house's power is higher while the compressor runs.
+
+Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Always 0 in the last week"), or **Not seen enough yet** (no hot-water charge in the week, the addition never running). One that isn't usable is left out. The check runs every hour, ten minutes after a start the first time, and **Check now** runs it at once.
+
+**What it has learned** lists each value, how many observations it rests on, and its state. A learned model is used only once it has shown it predicts better than a simple guess; until then the answer given at setup stands. A few figures are used as seen: how long the tank's charges take (used to choose the cheapest time for one), and when the pump's periodic hot-water increase was last seen. **Pin** sets a number to use instead (a duration in minutes), and learning goes on beside it; pinning an empty field lifts it. **Start over** forgets what was learned. Both are recorded in the audit log.
 
 ### From NibePi
 

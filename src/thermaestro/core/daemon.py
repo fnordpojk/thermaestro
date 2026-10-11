@@ -31,6 +31,7 @@ from .values import Values
 from .weather import Weather
 
 if TYPE_CHECKING:
+    from ..learn import Learning
     from ..planner import Planner
 
 log = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class Core:
     house: House
     intents: Intents
     planner: "Planner"
+    learning: "Learning"
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -103,10 +105,22 @@ async def run(
         executor = Executor(db, host, values, audit)
         house = House(db, host, values)
         intents = Intents(db, audit, capabilities=lambda: house.capabilities)
-        from ..planner import Planner  # the planner is built on the core's parts
+        from ..learn import Learning  # learning and the planner are built on the core's parts
+        from ..planner import Planner
 
+        learning = Learning(db, values, host, audit)
+        await learning.load()
         planner = Planner(
-            db, values, host, executor, intents, house, audit, sensors=sensors, series=series
+            db,
+            values,
+            host,
+            executor,
+            intents,
+            house,
+            audit,
+            sensors=sensors,
+            series=series,
+            learnings=learning.learnings,
         )
         core = Core(
             layout,
@@ -124,11 +138,13 @@ async def run(
             house,
             intents,
             planner,
+            learning,
         )
         # The planner stops first, so nothing asks for a change once levers are put back.
         discovery.asker = _mqtt_asker(db, intents)
         discovery.control = _control_state(db, intents)
         core.shutdown_hooks.append(planner.stop)
+        core.shutdown_hooks.append(learning.stop)
         core.shutdown_hooks.append(_restore(executor))
         await _serve(core, stop, flush_s, started)
     finally:
@@ -165,6 +181,7 @@ async def _serve(
     await core.host.start()
     await core.executor.start()
     core.planner.start()
+    core.learning.start()
     stop_web = None
     try:
         from ..web.server import start as start_web

@@ -1,0 +1,80 @@
+{% extends "setup-base.html" %}
+{% block topic %}
+<p>{{ _("Thermaestro learns how the house, the hot-water tank and the pump behave, only by watching: learning never changes anything. A learned value is used once it has shown it predicts better than a simple guess; until then the answer given at setup stands. A few figures, such as how long a charge takes, are used as seen.") }}</p>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+{% if learned is none %}
+<p class="notice">{{ _("Learning isn't running here.") }}</p>
+{% else %}
+
+<section id="inputs">
+<h2>{{ _("What it learns from") }}</h2>
+<p>{{ _("A value a pump offers isn't always a measurement: some answer 0, or the same value forever. Each one learning would use must first have behaved as it should over the last week; one that hasn't is left out. Checked every hour.") }}</p>
+{% if learned.inputs %}
+<table>
+  <thead><tr><th>{{ _("Part") }}</th><th>{{ _("Value") }}</th><th>{{ _("Verdict") }}</th><th>{{ _("Why") }}</th></tr></thead>
+  <tbody>
+  {% for i in learned.inputs %}
+  <tr>
+    <td>{{ i.part or "" }}</td>
+    <td>{{ i.label }}</td>
+    <td>{% if i.verdict == "usable" %}{{ i.verdict_text }}{% else %}<strong>{{ i.verdict_text }}</strong>{% endif %}</td>
+    <td><small>{{ i.why_text }}</small></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="hint">{{ _("Checked %(when)s.", when=(learned.inputs[0].checked | when)) }}</p>
+{% else %}
+<p>{{ _("Not checked yet: the first check comes ten minutes after a start.") }}</p>
+{% endif %}
+{% if can("settings.write") %}
+<form method="post" action="/setup/learned/check" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Check now") }}</button>
+</form>
+{% endif %}
+</section>
+
+<section id="values">
+<h2>{{ _("What it has learned") }}</h2>
+{% if learned["values"] %}
+<table>
+  <thead><tr><th>{{ _("Part") }}</th><th>{{ _("What") }}</th><th>{{ _("Learned") }}</th><th>{{ _("State") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for v in learned["values"] %}
+  <tr>
+    <td>{{ v.part }}</td>
+    <td>{{ v.label }}{% if v.why_text %}<br><small>{{ v.why_text }}</small>{% endif %}</td>
+    <td>{{ v.shown }}{% if v.n %} <small>({{ ngettext("from %(num)s observation", "from %(num)s observations", v.n) }})</small>{% endif %}
+      {% if v.pinned is not none %}<br><strong>{{ _("Pinned:") }}</strong> {{ (v.pinned / 60) | num(0) if v.unit == "s" else v.pinned | num }}{% if v.unit == "s" %} {{ _("min") }}{% endif %}{% endif %}</td>
+    <td>{{ v.state_text }}</td>
+    <td>
+      {% if can("settings.write") %}
+      <form method="post" action="/setup/learned/start-over" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="key" value="{{ v.key }}">
+        <button type="submit">{{ _("Start over") }}</button>
+      </form>
+      {% if v.pinnable %}
+      <form method="post" action="/setup/learned/pin" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="key" value="{{ v.key }}">
+        {% if v.unit == "s" %}<input type="hidden" name="in" value="minutes">{% endif %}
+        <label>{{ _("Use instead") }}{% if v.unit == "s" %} ({{ _("min") }}){% endif %}
+          <input name="value" inputmode="decimal" size="6" value="{% if v.pinned is not none %}{{ (v.pinned / 60) | num(0) if v.unit == 's' else v.pinned }}{% endif %}"></label>
+        <button type="submit">{{ _("Pin") }}</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="hint">{{ _("A pinned number is used instead of what was learned, and learning goes on beside it; leave the field empty and pin to lift it. Starting over forgets what was learned.") }}</p>
+{% else %}
+<p>{{ _("Nothing yet.") }}</p>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

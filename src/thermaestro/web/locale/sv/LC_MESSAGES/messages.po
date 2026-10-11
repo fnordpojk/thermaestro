@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 03:34+0200\n"
+"POT-Creation-Date: 2026-10-11 14:38+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -161,6 +161,14 @@ msgstr "Ett beslut sparas när det skuggan skulle ha haft ändras; det gäller t
 msgid "A fireplace is on"
 msgstr "En brasa brinner"
 
+msgid ""
+"A pinned number is used instead of what was learned, and learning goes on beside it; "
+"leave the field empty and pin to lift it. Starting over forgets what was learned."
+msgstr ""
+"Ett fäst tal används i stället för det inlärda, och inlärningen fortsätter bredvid; "
+"lämna fältet tomt och fäst för att ta bort det. Att börja om glömmer det som lärts "
+"in."
+
 msgid "A private well"
 msgstr "Egen brunn"
 
@@ -207,6 +215,16 @@ msgid ""
 msgstr ""
 "En token låter ett skript eller kommandoraden använda API:et. Den har bara de "
 "rättigheter du ger den, aldrig fler än dina egna."
+
+msgid ""
+"A value a pump offers isn't always a measurement: some answer 0, or the same value "
+"forever. Each one learning would use must first have behaved as it should over the "
+"last week; one that hasn't is left out. Checked every hour."
+msgstr ""
+"Ett värde som en pump erbjuder är inte alltid en mätning: vissa svarar 0, eller samma"
+" värde för alltid. Varje värde som inlärningen skulle använda måste först ha betett "
+"sig som det ska under den senaste veckan; ett som inte har det lämnas utanför. "
+"Kontrolleras varje timme."
 
 msgid ""
 "A weather entity's hourly forecast, to stand in while the chosen provider has none. "
@@ -286,6 +304,13 @@ msgstr "Även varje sensors egna värden"
 
 msgid "Always"
 msgstr "Alltid"
+
+#, python-format
+msgid "Always %(value)s in the last week."
+msgstr "Alltid %(value)s under den senaste veckan."
+
+msgid "Always 0 in the last week: an answer of 0 says nothing."
+msgstr "Alltid 0 under den senaste veckan: ett svar på 0 säger ingenting."
 
 msgid "Amount per kWh"
 msgstr "Belopp per kWh"
@@ -388,6 +413,9 @@ msgstr "Blev"
 msgid "Before NibePi"
 msgstr "Före NibePi"
 
+msgid "Behaved as it should in the last week."
+msgstr "Betedde sig som det ska under den senaste veckan."
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -472,8 +500,15 @@ msgstr "Laddningstemperatur"
 msgid "Chart"
 msgstr "Diagram"
 
+msgid "Check now"
+msgstr "Kontrollera nu"
+
 msgid "Check this: underfloor heating is now two kinds, and this was taken as a slab."
 msgstr "Kontrollera: golvvärme är nu två slag, och detta togs som golvvärme i betongplatta."
+
+#, python-format
+msgid "Checked %(when)s."
+msgstr "Kontrollerat %(when)s."
 
 #, python-format
 msgid "Checked against %(series)s: the same in all %(n)s quarters."
@@ -840,6 +875,9 @@ msgstr ""
 msgid "From, °C"
 msgstr "Från, °C"
 
+msgid "Frozen"
+msgstr "Fryst"
+
 msgid "Get it from Open-Meteo's archive"
 msgstr "Hämta det från Open-Meteos arkiv"
 
@@ -968,6 +1006,9 @@ msgstr "Huset"
 msgid "How each has done at this house"
 msgstr "Hur var och en har klarat sig vid det här huset"
 
+msgid "How long a hot-water charge takes"
+msgstr "Hur lång tid en varmvattenladdning tar"
+
 msgid "How much it matters"
 msgstr "Hur viktigt det är"
 
@@ -1068,6 +1109,15 @@ msgstr "Lager"
 
 msgid "Layers"
 msgstr "Lager"
+
+msgid "Learned"
+msgstr "Inlärt"
+
+msgid "Learning"
+msgstr "Lär sig"
+
+msgid "Learning isn't running here."
+msgstr "Inlärningen körs inte här."
 
 msgid "Left as NibePi last wrote it."
 msgstr "Lämnad som NibePi senast skrev den."
@@ -1215,6 +1265,9 @@ msgstr "Namn"
 msgid "Needs attention"
 msgstr "Behöver åtgärdas"
 
+msgid "Never 0 in the last week: never seen off."
+msgstr "Aldrig 0 under den senaste veckan: aldrig sedd avstängd."
+
 msgid "Never below, °C"
 msgstr "Aldrig under, °C"
 
@@ -1342,6 +1395,13 @@ msgstr "Inga beslut i skugga under den här perioden."
 msgid "No forecast yet: choose a main provider under Setup."
 msgstr "Ingen prognos än: välj en huvudleverantör under Inställningar."
 
+#, python-format
+msgid "No good value in the last week, only: %(qualities)s."
+msgstr "Inget bra värde under den senaste veckan, bara: %(qualities)s."
+
+msgid "No hot-water charge seen in the last week."
+msgstr "Ingen varmvattenladdning sedd under den senaste veckan."
+
 msgid "No layers yet."
 msgstr "Inga lager än."
 
@@ -1395,6 +1455,9 @@ msgstr "Inget angivet: effekten räknas hela tiden."
 msgid "None yet."
 msgstr "Inga än."
 
+msgid "Not checked yet: the first check comes ten minutes after a start."
+msgstr "Inte kontrollerat än: den första kontrollen kommer tio minuter efter en start."
+
 msgid "Not done"
 msgstr "Inte gjort"
 
@@ -1408,6 +1471,9 @@ msgstr "Inte under dyra timmar"
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pumpen."
 
+msgid "Not learned yet"
+msgstr "Inte inlärt än"
+
 msgid "Not made:"
 msgstr "Inte gjort:"
 
@@ -1417,6 +1483,12 @@ msgstr "Erbjuds inte: %(why)s."
 
 msgid "Not said"
 msgstr "Inte angivet"
+
+msgid "Not seen enough yet"
+msgstr "Inte sett tillräckligt än"
+
+msgid "Not usable on this pump"
+msgstr "Inte användbar på den här pumpen"
 
 msgid "Note"
 msgstr "Anteckning"
@@ -1436,6 +1508,9 @@ msgstr "Inget under den här perioden."
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
 
+msgid "Nothing recorded in the last week."
+msgstr "Inget registrerat under den senaste veckan."
+
 msgid ""
 "Nothing to compare yet. Forecasts are kept from now on, and compared as their hours "
 "come."
@@ -1448,6 +1523,9 @@ msgstr "Inget att göra av den här filen."
 
 msgid "Nothing was picked."
 msgstr "Inget valdes."
+
+msgid "Nothing yet."
+msgstr "Inget än."
 
 msgid "Nothing yet: a provider shows here once it has sent its first forecast."
 msgstr "Inget än: en leverantör visas här när den har skickat sin första prognos."
@@ -1488,6 +1566,14 @@ msgstr "En extra laddning, nu."
 
 msgid "One hot-water charge, now."
 msgstr "En varmvattenladdning, nu."
+
+#, python-format
+msgid "Only %(kelvin)s K warmer while the compressor heats than while it stands."
+msgstr "Bara %(kelvin)s K varmare när kompressorn värmer än när den står still."
+
+#, python-format
+msgid "Only %(kw)s kW more while the compressor runs than while it stands."
+msgstr "Bara %(kw)s kW mer när kompressorn går än när den står still."
 
 msgid ""
 "Only sensors placed outdoors are offered. For one already added, open its Change "
@@ -1565,6 +1651,9 @@ msgstr "PM10"
 msgid "PM2.5"
 msgstr "PM2,5"
 
+msgid "Part"
+msgstr "Del"
+
 msgid "Password"
 msgstr "Lösenord"
 
@@ -1577,8 +1666,14 @@ msgstr "Period"
 msgid "Personal access token"
 msgstr "Personlig åtkomsttoken"
 
+msgid "Pin"
+msgstr "Fäst"
+
 msgid "Pinned to the overview"
 msgstr "Fäst på översikten"
+
+msgid "Pinned:"
+msgstr "Fäst:"
 
 msgid "Plan"
 msgstr "Plan"
@@ -1640,6 +1735,9 @@ msgstr "Priser"
 
 msgid "Protocol"
 msgstr "Protokoll"
+
+msgid "Proved"
+msgstr "Bevisad"
 
 msgid "Provider"
 msgstr "Leverantör"
@@ -1720,11 +1818,18 @@ msgstr "Läs dem igen"
 msgid "Reading the pump: %(done)s of %(total)s."
 msgstr "Läser pumpen: %(done)s av %(total)s."
 
+#, python-format
+msgid "Recorded for %(span)s; a day is needed."
+msgstr "Registrerat i %(span)s; ett dygn behövs."
+
 msgid "Refused."
 msgstr "Nekat."
 
 msgid "Region"
 msgstr "Region"
+
+msgid "Rejected"
+msgstr "Avvisad"
 
 msgid "Remove"
 msgstr "Ta bort"
@@ -1767,6 +1872,14 @@ msgstr "Rum inte över sitt intervall"
 
 msgid "Rooms not below their band"
 msgstr "Rum inte under sitt intervall"
+
+#, python-format
+msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
+msgstr "Steg i %(warmed)s av %(charges)s varmvattenladdningar."
+
+#, python-format
+msgid "Running while the demand said idle, for %(share)s %% of its running time."
+msgstr "Gick medan behovet sade vila, under %(share)s %% av sin gångtid."
 
 msgid "S-series"
 msgstr "S-serien"
@@ -1935,8 +2048,14 @@ msgstr "Inaktuell efter (minuter)"
 msgid "Stale:"
 msgstr "Inaktuella:"
 
+msgid "Start over"
+msgstr "Börja om"
+
 msgid "Start temperature"
 msgstr "Starttemperatur"
+
+msgid "Started over."
+msgstr "Började om."
 
 #, python-format
 msgid "Starts %(when)s"
@@ -2011,6 +2130,9 @@ msgstr "S-seriepumpens modell"
 msgid "The addition"
 msgstr "Tillsatsen"
 
+msgid "The addition wasn't seen running in the last week."
+msgstr "Tillsatsen sågs inte gå under den senaste veckan."
+
 msgid "The addition, the pool, a power limit, quiet hours"
 msgstr "Tillsatsen, poolen, en effektgräns, tysta timmar"
 
@@ -2020,6 +2142,18 @@ msgid ""
 msgstr ""
 "Årsmedeltemperaturen och hur långt den varmaste månadens medel ligger från den "
 "kallastes. Thermaestro uppskattar kallvattnets temperatur utifrån dem."
+
+msgid "The compressor wasn't seen both running and standing in the last week."
+msgstr "Kompressorn sågs inte både gå och stå still under den senaste veckan."
+
+msgid "The compressor wasn't seen heating the house in the last week."
+msgstr "Kompressorn sågs inte värma huset under den senaste veckan."
+
+msgid "The compressor wasn't seen running in the last week."
+msgstr "Kompressorn sågs inte gå under den senaste veckan."
+
+msgid "The compressor wasn't seen standing in the last week."
+msgstr "Kompressorn sågs inte stå still under den senaste veckan."
 
 msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone,"
@@ -2082,8 +2216,14 @@ msgstr "Det senaste dygnet"
 msgid "The location's climate"
 msgstr "Platsens klimat"
 
+msgid "The mean of the charges seen, the newest weighing most."
+msgstr "Medelvärdet av de laddningar som setts, där den senaste väger mest."
+
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
+
+msgid "The periodic hot-water increase, last seen"
+msgstr "Den periodiska varmvattenhöjningen, senast sedd"
 
 msgid "The plan"
 msgstr "Planen"
@@ -2154,6 +2294,18 @@ msgstr "Thermaestro ändrar ingenting på pumpen."
 
 msgid "Thermaestro gateway (with a key)"
 msgstr "Thermaestros gateway (med nyckel)"
+
+msgid ""
+"Thermaestro learns how the house, the hot-water tank and the pump behave, only by "
+"watching: learning never changes anything. A learned value is used once it has shown "
+"it predicts better than a simple guess; until then the answer given at setup stands. "
+"A few figures, such as how long a charge takes, are used as seen."
+msgstr ""
+"Thermaestro lär sig hur huset, varmvattenberedaren och pumpen beter sig, bara genom "
+"att iaktta: inlärningen ändrar aldrig något. Ett inlärt värde används när det har "
+"visat att det förutsäger bättre än en enkel gissning; fram till dess gäller svaret "
+"från installationen. Några siffror, som hur lång tid en laddning tar, används som de "
+"setts."
 
 msgid "Thermaestro puts it back to"
 msgstr "Thermaestro återställer den till"
@@ -2268,6 +2420,12 @@ msgstr "Enhet"
 msgid "Until"
 msgstr "Till"
 
+msgid "Usable"
+msgstr "Användbar"
+
+msgid "Use instead"
+msgstr "Använd i stället"
+
 msgid "User"
 msgstr "Användare"
 
@@ -2297,6 +2455,9 @@ msgstr "Värde"
 
 msgid "Ventilation"
 msgstr "Ventilation"
+
+msgid "Verdict"
+msgstr "Bedömning"
 
 msgid "View"
 msgstr "Visning"
@@ -2357,6 +2518,12 @@ msgstr "Vad som värmer %(system)s"
 msgid "What it belongs to"
 msgstr "Det som det hör till"
 
+msgid "What it has learned"
+msgstr "Vad det har lärt sig"
+
+msgid "What it learns from"
+msgstr "Vad det lär sig av"
+
 msgid "What it would make"
 msgstr "Vad det skulle bli"
 
@@ -2390,6 +2557,9 @@ msgstr "När inte allt kan uppfyllas ger dessa vika sist till först"
 
 msgid "When power counts"
 msgstr "När effekten räknas"
+
+msgid "When the tank was last seen well above its stop temperature."
+msgstr "När beredaren senast sågs väl över sin stopptemperatur."
 
 msgid "Where"
 msgstr "Var"
@@ -2773,6 +2943,12 @@ msgid "found to be false"
 msgstr "befunnet felaktigt"
 
 #, python-format
+msgid "from %(num)s observation"
+msgid_plural "from %(num)s observations"
+msgstr[0] "från %(num)s observation"
+msgstr[1] "från %(num)s observationer"
+
+#, python-format
 msgid "from %(series)s"
 msgstr "från %(series)s"
 
@@ -2883,6 +3059,9 @@ msgstr "medel"
 
 msgid "met"
 msgstr "uppfyllt"
+
+msgid "min"
+msgstr "min"
 
 msgid "missed"
 msgstr "missat"
