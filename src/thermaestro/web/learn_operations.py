@@ -9,14 +9,17 @@ from .. import clock, durations
 from ..auth import AccountError
 from ..core.executor import split
 from ..learn import Learned, NotLearned, mark
+from ..learn.cop import carnot
 from ..learn.hotwater import DEMAND
 from ..learn.offers import DISMISSED_S, Offer, offers
 from ..learn.tank import Demand
+from ..nibe.profile import BRINE_HEAT
 from . import i18n
 
 if TYPE_CHECKING:
     from ..core.audit import AuditLog
     from ..core.values import Values
+    from ..core.weather import Weather
     from ..intents import Intents
     from ..learn import Check, Learning
     from .operations import Caller
@@ -33,8 +36,13 @@ NAMES = {
     "pump.response": mark("How the supply follows the weather and the offset"),
     "compressor.draw": mark("What the compressor draws while it runs"),
     "compressor.starts": mark("How often the compressor starts"),
+    "cop.heating": mark("How much heat a kWh gives heating (COP)"),
+    "cop.dhw": mark("How much heat a kWh gives making hot water (COP)"),
+    "brine.w_k": mark("What the brine carries per degree of its drop"),
+    "forecast.bias": mark("How far the temperature forecast runs off, on average"),
+    "forecast.spread": mark("How far the temperature forecast misses, nine times in ten"),
 }
-PINNABLE = frozenset({"tank.loss", "house.tau_h", "house.response_h"})
+PINNABLE = frozenset({"tank.loss", "house.tau_h", "house.response_h", "brine.w_k"})
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
 HOURS_SHOWN = mark("%(hours)s hours")
@@ -45,6 +53,13 @@ DRAW_SHOWN = {
     "pool": mark("%(kw)s kW heating the pool"),
 }
 STARTS_SHOWN = mark("%(starts)s starts a day")
+COP_SHOWN = mark("COP %(cop)s at %(source)s/%(supply)s °C, %(share)s of the ideal")
+COP_DOCUMENTED = mark("COP %(cop)s at %(source)s/%(supply)s °C, as documented")
+BRINE_SHOWN = mark("%(w_k)s W per kelvin: about %(flow)s l/s of brine")
+LEAD_SHOWN = mark("%(hours)s h ahead: %(off)s K")
+COP_AT = {"cop.heating": (0.0, 35.0), "cop.dhw": (0.0, 50.0)}
+"""Where a COP is shown: brine at 0 °C, making 35 °C water for heating, 50 °C for hot
+water."""
 """What each learned value is, in words."""
 VERDICTS = {
     "usable": mark("Usable"),
@@ -73,6 +88,7 @@ class LearnOperations:
         intents: Intents | None
         values: Values
         audit: AuditLog
+        weather: Weather | None
 
         def label(self, instance: str, path: str) -> str: ...
 
@@ -230,14 +246,22 @@ class LearnOperations:
             "checked": datetime.fromtimestamp(c.checked, UTC).isoformat(),
         }
 
-    def _value(self, caller: "Caller", x: Learned) -> dict[str, Any]:
+    def _part(self, caller: "Caller", x: Learned) -> str:
+        """What a learned value is of: a device's part, or a weather provider."""
+        if x.name.startswith("forecast."):
+            source = x.scope.rpartition(":")[0]
+            found = self.weather.sources().get(source) if self.weather is not None else None
+            return found.label if found is not None else source
         instance, path = split(x.scope)
+        return self.node_label(caller, instance, path) if path else x.scope
+
+    def _value(self, caller: "Caller", x: Learned) -> dict[str, Any]:
         out: dict[str, Any] = {
             "key": x.key,
             "name": x.name,
             "label": i18n._(NAMES.get(x.name, x.name)),
             "scope": x.scope,
-            "part": self.node_label(caller, instance, path) if path else x.scope,
+            "part": self._part(caller, x),
             "kind": x.kind,
             "value": x.value,
             "unit": x.unit,
@@ -286,6 +310,14 @@ def _iso(t: float | None) -> str | None:
 
 def _shown(x: Learned) -> str:
     value = x.value
+    if value is None and x.name in COP_AT and x.starting is not None:
+        source, supply = COP_AT[x.name]
+        return i18n._(
+            COP_DOCUMENTED,
+            cop=i18n.number(x.starting * carnot(supply, source), 1),
+            source=i18n.number(source, 0),
+            supply=i18n.number(supply, 0),
+        )
     if value is None:
         return i18n.NOTHING
     if x.name == "tank.demand" and isinstance(value, dict):
@@ -307,6 +339,28 @@ def _shown(x: Learned) -> str:
             for purpose, shown in DRAW_SHOWN.items()
             if purpose in value
         )
+    if x.name in COP_AT and isinstance(value, int | float):
+        source, supply = COP_AT[x.name]
+        return i18n._(
+            COP_SHOWN,
+            cop=i18n.number(value * carnot(supply, source), 1),
+            source=i18n.number(source, 0),
+            supply=i18n.number(supply, 0),
+            share=i18n.number(value, 2),
+        )
+    if x.name in ("forecast.bias", "forecast.spread") and isinstance(value, dict):
+        signed = x.name == "forecast.bias"
+        return ", ".join(
+            i18n._(
+                LEAD_SHOWN,
+                off=("+" if signed and off > 0 else "") + i18n.number(off, 1),
+                hours=lead,
+            )
+            for lead, off in sorted(value.items(), key=lambda kv: float(kv[0]))
+        )
+    if x.name == "brine.w_k" and isinstance(value, int | float):
+        flow = value / (BRINE_HEAT["ethanol28"] * 1000)
+        return i18n._(BRINE_SHOWN, w_k=i18n.number(value, 0), flow=i18n.number(flow, 2))
     if x.name == "compressor.starts" and isinstance(value, int | float):
         return i18n._(STARTS_SHOWN, starts=i18n.number(value, 1))
     if x.unit == "h" and isinstance(value, int | float):

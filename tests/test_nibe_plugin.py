@@ -155,6 +155,25 @@ async def test_it_identifies_the_pump(plugin: NibePlugin) -> None:
         "hp1/addition",
     }
     assert "hp1/cs2" not in {n.path for n in described.nodes}
+    nodes = {n.path: n for n in described.nodes}
+    tank, compressor = nodes["hp1/dhw"].rating, nodes["hp1/compressor.ep14"].rating
+    assert tank is not None
+    assert tank.liters == 178.0  # an F1245-6 CU: a copper-lined water heater
+    assert compressor is not None
+    assert [(p.supply_c, p.cop) for p in compressor.heating] == [(35, 4.47), (45, 3.51)]
+    assert compressor.cop_dhw == 2.8
+
+
+def test_the_documented_figures_by_product() -> None:
+    _, compressor = profile.ratings("F1245-10 PC")
+    assert compressor is not None
+    assert compressor.heating[0].cop == 4.60  # the PC model's own figure
+    assert compressor.cop_dhw == 2.8
+    assert profile.ratings("F1245-10 E")[1].cop_dhw == 2.4  # type: ignore[union-attr]
+    stainless, _ = profile.ratings("F1245-8 R")
+    assert stainless is not None
+    assert stainless.liters == 176.0
+    assert profile.ratings("VVM 320 E") == (None, None)  # not known: setup asks
 
 
 async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) -> None:

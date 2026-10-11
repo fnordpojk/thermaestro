@@ -71,6 +71,8 @@ async def _house(request: Request, who: Caller) -> dict[str, Any]:
             continue  # the page doesn't wait for a Home Assistant that isn't answering
     return {
         "home": await s.home_settings(who),
+        "rated": await s.rated_settings(who),
+        "parts": s.rated_parts(who),
         "areas": {id: names for id, names in areas.items() if names},
         "location": await s.location(who),
         "zones": time_zones(),

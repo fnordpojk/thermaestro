@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 20:07+0200\n"
+"POT-Creation-Date: 2026-10-11 20:51+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -14,6 +14,10 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(cop)s making hot water"
+msgstr "%(cop)s bei der Warmwasserbereitung"
 
 #, python-format
 msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned at most."
@@ -32,6 +36,10 @@ msgstr "%(fall)s °C pro Stunde bei 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s ist aus"
+
+#, python-format
+msgid "%(hours)s h ahead: %(off)s K"
+msgstr "%(hours)s h voraus: %(off)s K"
 
 #, python-format
 msgid "%(hours)s hours"
@@ -138,6 +146,10 @@ msgid "%(part)s: warmer, please"
 msgstr "%(part)s: wärmer, bitte"
 
 #, python-format
+msgid "%(seen)s of %(least)s charges or hours seen to learn from."
+msgstr "%(seen)s von %(least)s Ladungen oder Stunden gesehen, um daraus zu lernen."
+
+#, python-format
 msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
 
@@ -154,8 +166,20 @@ msgid "%(steps)s steps of the house's power seen at the compressor's starts and 
 msgstr "%(steps)s Sprünge der Hausleistung beim Starten und Stoppen des Verdichters gesehen."
 
 #, python-format
+msgid "%(tank)s holds %(liters)s liters."
+msgstr "%(tank)s fasst %(liters)s Liter."
+
+#, python-format
+msgid "%(tank)s, its volume in liters"
+msgstr "%(tank)s, sein Volumen in Litern"
+
+#, python-format
 msgid "%(total)s °C of the tank a week"
 msgstr "%(total)s °C des Speichers pro Woche"
+
+#, python-format
+msgid "%(w_k)s W per kelvin: about %(flow)s l/s of brine"
+msgstr "%(w_k)s W je Kelvin: etwa %(flow)s l/s Sole"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -536,6 +560,21 @@ msgstr "Browser"
 
 msgid "By"
 msgstr "Von"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C"
+msgstr "COP %(cop)s bei %(source)s/%(supply)s °C"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, %(share)s of the ideal"
+msgstr "COP %(cop)s bei %(source)s/%(supply)s °C, %(share)s des Idealen"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, as documented"
+msgstr "COP %(cop)s bei %(source)s/%(supply)s °C, laut Dokumentation"
+
+msgid "COP heating"
+msgstr "COP beim Heizen"
 
 msgid "CO₂"
 msgstr "CO₂"
@@ -977,6 +1016,10 @@ msgstr ""
 msgid "From"
 msgstr "Von"
 
+#, python-format
+msgid "From %(basis)s"
+msgstr "Aus %(basis)s"
+
 msgid "From Home Assistant"
 msgstr "Aus Home Assistant"
 
@@ -993,6 +1036,9 @@ msgid ""
 msgstr ""
 "Aus NibePis %(line)s. Entferne das Häkchen bei allem, was du nicht willst; das "
 "Angekreuzte wird so angelegt, wie die Einrichtung es anlegen würde."
+
+msgid "From the documentation"
+msgstr "Aus der Dokumentation"
 
 msgid "From, °C"
 msgstr "Von, °C"
@@ -1150,6 +1196,12 @@ msgstr "Haus"
 msgid "How each has done at this house"
 msgstr "Wie gut jeder an diesem Haus war"
 
+msgid "How far the temperature forecast misses, nine times in ten"
+msgstr "Wie weit die Temperaturvorhersage danebenliegt, neun von zehn Malen"
+
+msgid "How far the temperature forecast runs off, on average"
+msgstr "Wie weit die Temperaturvorhersage im Mittel abweicht"
+
 msgid "How fast the house loses its heat (its time constant)"
 msgstr "Wie schnell das Haus seine Wärme verliert (seine Zeitkonstante)"
 
@@ -1158,6 +1210,12 @@ msgstr "Wie lange eine Warmwasserladung dauert"
 
 msgid "How long the heating takes to show in the rooms"
 msgstr "Wie lange es dauert, bis die Heizung in den Räumen ankommt"
+
+msgid "How much heat a kWh gives heating (COP)"
+msgstr "Wie viel Wärme eine kWh beim Heizen gibt (COP)"
+
+msgid "How much heat a kWh gives making hot water (COP)"
+msgstr "Wie viel Wärme eine kWh bei der Warmwasserbereitung gibt (COP)"
 
 msgid "How much it matters"
 msgstr "Wie wichtig es ist"
@@ -1277,6 +1335,15 @@ msgstr "Schichten"
 
 msgid "Learned"
 msgstr "Gelernt"
+
+msgid "Learned once the brine's heat per kelvin has proved itself."
+msgstr "Wird gelernt, sobald sich die Wärme der Sole je Kelvin bewährt hat."
+
+msgid "Learned once the compressor's draw has proved itself."
+msgstr "Wird gelernt, sobald sich die Leistungsaufnahme des Verdichters bewährt hat."
+
+msgid "Learned once the tank's volume is known: enter it under House."
+msgstr "Wird gelernt, sobald das Volumen des Speichers bekannt ist: unter Haus eingeben."
 
 msgid "Learning"
 msgstr "Lernt"
@@ -1546,6 +1613,10 @@ msgstr "NibePis eigene Verschiebung:"
 msgid "NibePi's vv_ai_profile.json"
 msgstr "NibePis vv_ai_profile.json"
 
+#, python-format
+msgid "Nine times in ten over the last %(days)s days, the bias taken off."
+msgstr "Neun von zehn Malen in den letzten %(days)s Tagen, die mittlere Abweichung abgezogen."
+
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
 
@@ -1613,6 +1684,9 @@ msgid ""
 msgstr ""
 "Noch kein Anbieter. Mehrere können nebeneinander laufen, um sie vor der Wahl an "
 "diesem Haus zu vergleichen."
+
+msgid "No pump has described a hot-water tank or a compressor yet."
+msgstr "Noch keine Wärmepumpe hat einen Warmwasserspeicher oder einen Verdichter beschrieben."
 
 msgid "No pump yet."
 msgstr "Noch keine Pumpe."
@@ -2794,6 +2868,17 @@ msgstr "Was jeder Anbieter liefert"
 msgid "What happened"
 msgstr "Was geschah"
 
+msgid ""
+"What heat costs is reckoned from the hot-water tank's volume and the compressor's "
+"COP. A pump's plugin gives them for the models it knows; otherwise enter them from "
+"the pump's documentation. Without them, the COP is only what the pump is seen to do, "
+"once that has proved itself."
+msgstr ""
+"Was Wärme kostet, wird aus dem Volumen des Warmwasserspeichers und dem COP des "
+"Verdichters berechnet. Das Plugin einer Wärmepumpe gibt sie für die Modelle an, die "
+"es kennt; sonst tragen Sie sie aus der Dokumentation der Wärmepumpe ein. Ohne sie ist"
+" der COP nur das, was die Wärmepumpe nachweislich tut, sobald es sich bewährt hat."
+
 #, python-format
 msgid "What heats %(system)s"
 msgstr "Was %(system)s heizt"
@@ -2822,6 +2907,9 @@ msgstr ""
 
 msgid "What shadow would have done"
 msgstr "Was der Schatten getan hätte"
+
+msgid "What the brine carries per degree of its drop"
+msgstr "Was die Sole je Grad Abkühlung trägt"
 
 msgid "What the compressor draws while it runs"
 msgstr "Was der Verdichter im Betrieb aufnimmt"
@@ -3051,6 +3139,9 @@ msgstr "bei einer Pumpe der S-Serie zu wählen"
 
 msgid "an outdoor temperature"
 msgstr "eine Außentemperatur"
+
+msgid "and the supply at, °C"
+msgstr "und der Vorlauf bei, °C"
 
 msgid "announced"
 msgstr "angekündigt"
@@ -3662,6 +3753,9 @@ msgstr ""
 msgid "the base price"
 msgstr "den Grundpreis"
 
+msgid "the brine in, or the outdoor air"
+msgstr "die Sole im Eintritt, oder die Außenluft"
+
 msgid "the climate system's supply temperature"
 msgstr "die Vorlauftemperatur des Heizkreises"
 
@@ -3811,6 +3905,9 @@ msgstr "ob an verschiedenen Tagen"
 msgid "with a power limit only"
 msgstr "nur mit einer Leistungsgrenze"
 
+msgid "with the source at, °C"
+msgstr "mit der Quelle bei, °C"
+
 msgid "withdrawn"
 msgstr "zurückgezogen"
 
@@ -3832,4 +3929,14 @@ msgstr "Ihr Token"
 
 msgid "°C an hour at 50 °C"
 msgstr "°C pro Stunde bei 50 °C"
+
+#~ msgid ""
+#~ "What heat costs is reckoned from the "
+#~ "hot-water tank's volume and the compressor's "
+#~ "COP. A pump's plugin gives them for the"
+#~ " models it knows; otherwise enter them from"
+#~ " the pump's documentation. Until then the "
+#~ "COP is taken as half of what physics "
+#~ "allows."
+#~ msgstr ""
 

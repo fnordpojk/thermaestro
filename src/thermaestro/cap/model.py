@@ -172,6 +172,30 @@ class Promises(Model):
     """Whether the route can restore settings by itself if the core goes silent."""
 
 
+class RatedPoint(Model):
+    """A heat pump's heating at one standard condition, as its maker states it (EN 14511):
+    the source's temperature (the brine in, or the outdoor air) and the supply's."""
+
+    source_c: float
+    supply_c: float
+    heat_kw: Annotated[float, Field(gt=0)] | None = None
+    elec_kw: Annotated[float, Field(gt=0)] | None = None
+    cop: Annotated[float, Field(gt=0)]
+
+
+class Rating(Model):
+    """What the maker documents about a part, and where (protocol 0.4)."""
+
+    liters: Annotated[float, Field(gt=0)] | None = None
+    """A tank's volume."""
+    heating: tuple[RatedPoint, ...] = ()
+    """A compressor's heating at standard conditions."""
+    cop_dhw: Annotated[float, Field(gt=0)] | None = None
+    """A compressor's COP making hot water, over a standard tapping profile (EN 16147)."""
+    basis: str
+    """Where it is documented."""
+
+
 class Node(Model):
     path: Path
     kind: NodeKind
@@ -180,6 +204,8 @@ class Node(Model):
     identity: Identity | None = None
     transport: Promises | None = None
     constraints: tuple[SharedConstraint, ...] = ()
+    rating: Rating | None = None
+    """What the maker documents about it (protocol 0.4)."""
 
 
 # --- Points -------------------------------------------------------------------------------

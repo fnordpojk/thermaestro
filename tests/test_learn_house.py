@@ -20,6 +20,7 @@ from thermaestro.core.weather import Forecast, Span
 from thermaestro.intents import Capabilities
 from thermaestro.learn import Learned, Learnings, pump
 from thermaestro.learn import house as h
+from thermaestro.learn.forecast import BIAS
 from thermaestro.learn.heating import MODEL, PUMP, RESPONSE, TAU, Heating
 from thermaestro.planner import Planner
 from thermaestro.planner.rules import _response_h
@@ -238,6 +239,12 @@ async def test_the_planner_leads_only_a_proved_curve_without_a_room_sensor(
         steps, ahead, hours = found["dev:hp1/cs1"]
         assert (steps, ahead) == (3, -8.0)
         assert hours >= 2
+        # A forecast that runs a degree warm, once that is proved, is taken a degree down.
+        warm = {"1": 1.0, "6": 1.0, "24": 1.0, "48": 1.0}
+        await learnings.put(
+            Learned(name=BIAS, scope="met:temperature", kind="model", value=warm, state="proved")
+        )
+        assert (await planner._leads(caps, now, 0.0))["dev:hp1/cs1"][1] == -9.0
 
 
 def test_the_response_used_is_learned_once_proved() -> None:

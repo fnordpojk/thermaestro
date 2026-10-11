@@ -6,6 +6,7 @@ A `Family` holds one family's profile: the bus family's is here (`BUS`), the S-s
 has them and how to decode them. A point whose register the model lacks isn't described.
 """
 
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -20,6 +21,8 @@ from ..cap.model import (
     Persistence,
     Quality,
     Range,
+    RatedPoint,
+    Rating,
     Source,
     Verify,
     Wear,
@@ -404,6 +407,43 @@ BRINE_HEAT = {
 """What a liter of brine carries per kelvin, kJ/(L·K), at about 0 °C: CoolProp 8.0's
 incompressible-fluid fits (MEA, MPG, MEG) to Melinder's property tables. The mixes
 differ by a few percent, much less than an entered flow's uncertainty."""
+
+
+F1245 = "Nibe F1245 installer manual 831421-1 (technical data); F1245PC: IHB EN 2004-1"
+RATED: dict[str, tuple[tuple[tuple[float, float, float, float, float], ...], float]] = {
+    "F1245-6": (((0, 35, 5.69, 1.27, 4.47), (0, 45, 5.33, 1.52, 3.51)), 2.8),
+    "F1245-8": (((0, 35, 7.93, 1.70, 4.67), (0, 45, 7.50, 2.03, 3.69)), 2.8),
+    "F1245-10": (((0, 35, 10.03, 2.28, 4.4), (0, 45, 9.55, 2.63, 3.63)), 2.4),
+    "F1245PC-6": (((0, 35, 5.69, 1.27, 4.47), (0, 45, 5.33, 1.52, 3.51)), 2.8),
+    "F1245PC-8": (((0, 35, 7.93, 1.70, 4.67), (0, 45, 7.50, 2.03, 3.69)), 2.8),
+    "F1245PC-10": (((0, 35, 10.09, 2.19, 4.60), (0, 45, 9.55, 2.63, 3.63)), 2.8),
+}
+"""By product: the heating at brine 0 °C and supply 35 and 45 °C (EN 14511), each as
+(brine, supply, heat kW, electricity kW, COP), and the COP making hot water (EN 16147,
+tapping profile XL)."""
+TANK_LITERS = {"copper": 178.0, "enamel": 178.0, "stainless": 176.0}
+"""The F1245's built-in water heater, by its lining."""
+
+
+def ratings(product: str) -> tuple[Rating | None, Rating | None]:
+    """The built-in tank's and the compressor's documented figures, for the products whose
+    figures are known: `F1245-6 CU`, `F1245-10 PC`."""
+    squeezed = re.sub(r"\s+", "", product).upper()
+    found = re.match(r"^F1245(PC)?-(\d+)(PC)?(.*)$", squeezed)
+    if found is None:
+        return None, None
+    pc = bool(found.group(1) or found.group(3))
+    name = f"F1245{'PC' if pc else ''}-{found.group(2)}"
+    lining = "stainless" if found.group(4).startswith("R") else "copper"
+    tank = Rating(liters=TANK_LITERS[lining], basis=F1245)
+    rated = RATED.get(name)
+    if rated is None:
+        return tank, None
+    points, dhw = rated
+    heating = tuple(
+        RatedPoint(source_c=s, supply_c=w, heat_kw=h, elec_kw=e, cop=c) for s, w, h, e, c in points
+    )
+    return tank, Rating(heating=heating, cop_dhw=dhw, basis=F1245)
 
 
 @dataclass(frozen=True, slots=True)

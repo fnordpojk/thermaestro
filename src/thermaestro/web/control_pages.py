@@ -90,6 +90,41 @@ async def set_home(request: Request, who: Logged) -> Response:
     )
 
 
+@router.post("/settings/rated")
+@action("rated.write")
+async def set_rated(request: Request, who: Logged) -> Response:
+    """What the household read in its devices' documentation: a tank's volume as
+    `liters:<its node>`, a compressor's COP as `cop:`, `source:` and `supply:<its node>`.
+    An empty field leaves it out."""
+    from .setup_pages import attempt
+
+    form = await request.form()
+    liters: dict[str, object] = {}
+    cop: dict[str, object] = {}
+    for key, value in form.items():
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if key.startswith("liters:"):
+            liters[key.removeprefix("liters:")] = _decimal(value)
+        elif key.startswith("cop:"):
+            ref = key.removeprefix("cop:")
+            point: dict[str, object] = {"cop": _decimal(value)}
+            for field, name in (("source_c", "source"), ("supply_c", "supply")):
+                given = form.get(f"{name}:{ref}")
+                if isinstance(given, str) and given.strip():
+                    point[field] = _decimal(given)
+            cop[ref] = point
+    work = services(request).set_rated(who, {"liters": liters, "cop": cop})
+    return await attempt(request, who, work, "house", "/setup/house#rated")
+
+
+def _decimal(text: str) -> float:
+    try:
+        return float(text.strip().replace(",", "."))
+    except ValueError:
+        raise AccountError(f"{text!r} is not a number") from None
+
+
 # --- what the household wants -------------------------------------------------------------
 
 PATTERN_ROWS = 4

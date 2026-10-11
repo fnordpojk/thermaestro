@@ -58,6 +58,40 @@
 </form>
 </section>
 
+<section id="rated">
+<h2>{{ _("From the documentation") }}</h2>
+<p>{{ _("What heat costs is reckoned from the hot-water tank's volume and the compressor's COP. A pump's plugin gives them for the models it knows; otherwise enter them from the pump's documentation. Without them, the COP is only what the pump is seen to do, once that has proved itself.") }}</p>
+{% set asked = namespace(any=false) %}
+<form method="post" action="/settings/rated" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for part in parts %}
+  {% if part.kind == "dhw_tank" %}
+    {% if part.rating and part.rating.liters %}
+    <p>{{ _("%(tank)s holds %(liters)s liters.", tank=part.label, liters=part.rating.liters | num(0)) }} <small>{{ _("From %(basis)s", basis=part.rating.basis) }}</small></p>
+    {% else %}{% set asked.any = true %}
+    <label>{{ _("%(tank)s, its volume in liters", tank=part.label) }}
+      <input name="liters:{{ part.ref }}" inputmode="decimal" value="{{ rated.liters.get(part.ref, '') }}"></label>
+    {% endif %}
+  {% else %}
+    {% if part.rating and part.rating.heating %}
+    <p>{{ part.label }}: {% for p in part.rating.heating %}{{ _("COP %(cop)s at %(source)s/%(supply)s °C", cop=p.cop | num(2), source=p.source_c | num(0), supply=p.supply_c | num(0)) }}{% if not loop.last %}, {% endif %}{% endfor %}{% if part.rating.cop_dhw %}; {{ _("%(cop)s making hot water", cop=part.rating.cop_dhw | num(1)) }}{% endif %}. <small>{{ _("From %(basis)s", basis=part.rating.basis) }}</small></p>
+    {% else %}{% set asked.any = true %}{% set c = rated.cop.get(part.ref) %}
+    <fieldset><legend>{{ part.label }}</legend>
+      <label>{{ _("COP heating") }} <input name="cop:{{ part.ref }}" inputmode="decimal" value="{{ c.cop if c else '' }}"></label>
+      <label>{{ _("with the source at, °C") }} <small>{{ _("the brine in, or the outdoor air") }}</small>
+        <input name="source:{{ part.ref }}" inputmode="decimal" value="{{ c.source_c if c else 0 }}"></label>
+      <label>{{ _("and the supply at, °C") }}
+        <input name="supply:{{ part.ref }}" inputmode="decimal" value="{{ c.supply_c if c else 35 }}"></label>
+    </fieldset>
+    {% endif %}
+  {% endif %}
+  {% else %}
+  <p class="notice">{{ _("No pump has described a hot-water tank or a compressor yet.") }}</p>
+  {% endfor %}
+  {% if can("settings.write") and asked.any %}<button type="submit">{{ _("Save") }}</button>{% endif %}
+</form>
+</section>
+
 <section id="climate">
 <h2>{{ _("The location's climate") }}</h2>
 <p>{{ _("The annual mean temperature and how far the warmest month's mean is from the coldest's. Thermaestro estimates the cold water's temperature from them.") }}</p>

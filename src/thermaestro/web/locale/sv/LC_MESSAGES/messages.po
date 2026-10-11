@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 20:07+0200\n"
+"POT-Creation-Date: 2026-10-11 20:51+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -14,6 +14,10 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(cop)s making hot water"
+msgstr "%(cop)s vid varmvattenberedning"
 
 #, python-format
 msgid "%(device)s: %(used)s changes in the last day, of about %(budget)s planned at most."
@@ -32,6 +36,10 @@ msgstr "%(fall)s °C i timmen vid 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s är avstängd"
+
+#, python-format
+msgid "%(hours)s h ahead: %(off)s K"
+msgstr "%(hours)s h framåt: %(off)s K"
 
 #, python-format
 msgid "%(hours)s hours"
@@ -138,6 +146,10 @@ msgid "%(part)s: warmer, please"
 msgstr "%(part)s: varmare, tack"
 
 #, python-format
+msgid "%(seen)s of %(least)s charges or hours seen to learn from."
+msgstr "%(seen)s av %(least)s laddningar eller timmar sedda att lära av."
+
+#, python-format
 msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
 
@@ -154,8 +166,20 @@ msgid "%(steps)s steps of the house's power seen at the compressor's starts and 
 msgstr "%(steps)s steg i husets effekt sedda när kompressorn startat och stannat."
 
 #, python-format
+msgid "%(tank)s holds %(liters)s liters."
+msgstr "%(tank)s rymmer %(liters)s liter."
+
+#, python-format
+msgid "%(tank)s, its volume in liters"
+msgstr "%(tank)s, dess volym i liter"
+
+#, python-format
 msgid "%(total)s °C of the tank a week"
 msgstr "%(total)s °C av beredaren i veckan"
+
+#, python-format
+msgid "%(w_k)s W per kelvin: about %(flow)s l/s of brine"
+msgstr "%(w_k)s W per kelvin: ungefär %(flow)s l/s köldbärare"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
@@ -529,6 +553,21 @@ msgstr "Webbläsare"
 
 msgid "By"
 msgstr "Av"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C"
+msgstr "COP %(cop)s vid %(source)s/%(supply)s °C"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, %(share)s of the ideal"
+msgstr "COP %(cop)s vid %(source)s/%(supply)s °C, %(share)s av det ideala"
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, as documented"
+msgstr "COP %(cop)s vid %(source)s/%(supply)s °C, enligt dokumentationen"
+
+msgid "COP heating"
+msgstr "COP vid uppvärmning"
 
 msgid "CO₂"
 msgstr "CO₂"
@@ -959,6 +998,10 @@ msgstr ""
 msgid "From"
 msgstr "Från"
 
+#, python-format
+msgid "From %(basis)s"
+msgstr "Ur %(basis)s"
+
 msgid "From Home Assistant"
 msgstr "Från Home Assistant"
 
@@ -975,6 +1018,9 @@ msgid ""
 msgstr ""
 "Från NibePis %(line)s. Kryssa ur det du inte vill ha; det ikryssade görs som "
 "inställningarna skulle göra det."
+
+msgid "From the documentation"
+msgstr "Ur dokumentationen"
 
 msgid "From, °C"
 msgstr "Från, °C"
@@ -1130,6 +1176,12 @@ msgstr "Huset"
 msgid "How each has done at this house"
 msgstr "Hur var och en har klarat sig vid det här huset"
 
+msgid "How far the temperature forecast misses, nine times in ten"
+msgstr "Hur långt temperaturprognosen missar, nio gånger av tio"
+
+msgid "How far the temperature forecast runs off, on average"
+msgstr "Hur långt temperaturprognosen drar iväg, i medel"
+
 msgid "How fast the house loses its heat (its time constant)"
 msgstr "Hur fort huset förlorar sin värme (dess tidskonstant)"
 
@@ -1138,6 +1190,12 @@ msgstr "Hur lång tid en varmvattenladdning tar"
 
 msgid "How long the heating takes to show in the rooms"
 msgstr "Hur lång tid det tar innan värmen märks i rummen"
+
+msgid "How much heat a kWh gives heating (COP)"
+msgstr "Hur mycket värme en kWh ger vid uppvärmning (COP)"
+
+msgid "How much heat a kWh gives making hot water (COP)"
+msgstr "Hur mycket värme en kWh ger vid varmvattenberedning (COP)"
 
 msgid "How much it matters"
 msgstr "Hur viktigt det är"
@@ -1257,6 +1315,15 @@ msgstr "Lager"
 
 msgid "Learned"
 msgstr "Inlärt"
+
+msgid "Learned once the brine's heat per kelvin has proved itself."
+msgstr "Lärs in när köldbärarens värme per kelvin har visat sig stämma."
+
+msgid "Learned once the compressor's draw has proved itself."
+msgstr "Lärs in när kompressorns effekt har visat sig stämma."
+
+msgid "Learned once the tank's volume is known: enter it under House."
+msgstr "Lärs in när beredarens volym är känd: ange den under Huset."
 
 msgid "Learning"
 msgstr "Lär sig"
@@ -1520,6 +1587,10 @@ msgstr "NibePis egen förskjutning:"
 msgid "NibePi's vv_ai_profile.json"
 msgstr "NibePis vv_ai_profile.json"
 
+#, python-format
+msgid "Nine times in ten over the last %(days)s days, the bias taken off."
+msgstr "Nio gånger av tio under de senaste %(days)s dygnen, med snedvridningen borttagen."
+
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
 
@@ -1585,6 +1656,9 @@ msgid ""
 msgstr ""
 "Ingen leverantör än. Flera kan köras sida vid sida, för att jämföra dem vid det här "
 "huset innan du väljer."
+
+msgid "No pump has described a hot-water tank or a compressor yet."
+msgstr "Ingen värmepump har beskrivit en varmvattenberedare eller en kompressor än."
 
 msgid "No pump yet."
 msgstr "Ingen pump än."
@@ -2747,6 +2821,17 @@ msgstr "Vad varje leverantör ger"
 msgid "What happened"
 msgstr "Vad som hände"
 
+msgid ""
+"What heat costs is reckoned from the hot-water tank's volume and the compressor's "
+"COP. A pump's plugin gives them for the models it knows; otherwise enter them from "
+"the pump's documentation. Without them, the COP is only what the pump is seen to do, "
+"once that has proved itself."
+msgstr ""
+"Vad värmen kostar räknas fram ur varmvattenberedarens volym och kompressorns COP. En "
+"värmepumps tillägg anger dem för de modeller det känner till; annars anger du dem ur "
+"värmepumpens dokumentation. Utan dem är COP bara det som värmepumpen ses göra, när "
+"det har visat sig stämma."
+
 #, python-format
 msgid "What heats %(system)s"
 msgstr "Vad som värmer %(system)s"
@@ -2774,6 +2859,9 @@ msgstr ""
 
 msgid "What shadow would have done"
 msgstr "Vad skuggan skulle ha gjort"
+
+msgid "What the brine carries per degree of its drop"
+msgstr "Vad köldbäraren bär per grads avkylning"
 
 msgid "What the compressor draws while it runs"
 msgstr "Vad kompressorn drar medan den går"
@@ -2992,6 +3080,9 @@ msgstr "måste väljas för en pump i S-serien"
 
 msgid "an outdoor temperature"
 msgstr "en utetemperatur"
+
+msgid "and the supply at, °C"
+msgstr "och framledningen vid, °C"
 
 msgid "announced"
 msgstr "aviserad"
@@ -3599,6 +3690,9 @@ msgstr ""
 msgid "the base price"
 msgstr "grundpriset"
 
+msgid "the brine in, or the outdoor air"
+msgstr "köldbäraren in, eller uteluften"
+
 msgid "the climate system's supply temperature"
 msgstr "klimatsystemets framledningstemperatur"
 
@@ -3748,6 +3842,9 @@ msgstr "om på olika dagar"
 msgid "with a power limit only"
 msgstr "bara med en effektgräns"
 
+msgid "with the source at, °C"
+msgstr "med källan vid, °C"
+
 msgid "withdrawn"
 msgstr "återkallad"
 
@@ -3769,4 +3866,14 @@ msgstr "din token"
 
 msgid "°C an hour at 50 °C"
 msgstr "°C i timmen vid 50 °C"
+
+#~ msgid ""
+#~ "What heat costs is reckoned from the "
+#~ "hot-water tank's volume and the compressor's "
+#~ "COP. A pump's plugin gives them for the"
+#~ " models it knows; otherwise enter them from"
+#~ " the pump's documentation. Until then the "
+#~ "COP is taken as half of what physics "
+#~ "allows."
+#~ msgstr ""
 

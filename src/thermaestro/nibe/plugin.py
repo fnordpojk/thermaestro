@@ -1197,9 +1197,17 @@ class NibePlugin:
                 ),
             )
         ]
+        product = self._product.result() if self._product.done() else ""
+        tank, compressor = profile.ratings(product)
+        rated = {"dhw_tank": tank, "compressor": compressor}
         for path, kind in layout.nodes.items():
             nodes.append(
-                Node(path=f"{unit}/{path}", kind=kind, presence=self._presence(path, kind))
+                Node(
+                    path=f"{unit}/{path}",
+                    kind=kind,
+                    presence=self._presence(path, kind),
+                    rating=rated.get(kind),
+                )
             )
         points = [self._point(d) for d in layout.points.values()]
         points += [

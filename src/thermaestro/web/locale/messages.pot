@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 20:07+0200\n"
+"POT-Creation-Date: 2026-10-11 20:51+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(cop)s making hot water"
+msgstr ""
 
 #, python-format
 msgid ""
@@ -33,6 +37,10 @@ msgstr ""
 
 #, python-format
 msgid "%(feature)s is off"
+msgstr ""
+
+#, python-format
+msgid "%(hours)s h ahead: %(off)s K"
 msgstr ""
 
 #, python-format
@@ -140,6 +148,10 @@ msgid "%(part)s: warmer, please"
 msgstr ""
 
 #, python-format
+msgid "%(seen)s of %(least)s charges or hours seen to learn from."
+msgstr ""
+
+#, python-format
 msgid "%(start)s–%(end)s"
 msgstr ""
 
@@ -158,7 +170,19 @@ msgid ""
 msgstr ""
 
 #, python-format
+msgid "%(tank)s holds %(liters)s liters."
+msgstr ""
+
+#, python-format
+msgid "%(tank)s, its volume in liters"
+msgstr ""
+
+#, python-format
 msgid "%(total)s °C of the tank a week"
+msgstr ""
+
+#, python-format
+msgid "%(w_k)s W per kelvin: about %(flow)s l/s of brine"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -501,6 +525,21 @@ msgid "Browser"
 msgstr ""
 
 msgid "By"
+msgstr ""
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C"
+msgstr ""
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, %(share)s of the ideal"
+msgstr ""
+
+#, python-format
+msgid "COP %(cop)s at %(source)s/%(supply)s °C, as documented"
+msgstr ""
+
+msgid "COP heating"
 msgstr ""
 
 msgid "CO₂"
@@ -910,6 +949,10 @@ msgstr ""
 msgid "From"
 msgstr ""
 
+#, python-format
+msgid "From %(basis)s"
+msgstr ""
+
 msgid "From Home Assistant"
 msgstr ""
 
@@ -923,6 +966,9 @@ msgstr ""
 msgid ""
 "From NibePi's %(line)s. Untick anything you don't want; the ticked parts "
 "are made as setup would make them."
+msgstr ""
+
+msgid "From the documentation"
 msgstr ""
 
 msgid "From, °C"
@@ -1076,6 +1122,12 @@ msgstr ""
 msgid "How each has done at this house"
 msgstr ""
 
+msgid "How far the temperature forecast misses, nine times in ten"
+msgstr ""
+
+msgid "How far the temperature forecast runs off, on average"
+msgstr ""
+
 msgid "How fast the house loses its heat (its time constant)"
 msgstr ""
 
@@ -1083,6 +1135,12 @@ msgid "How long a hot-water charge takes"
 msgstr ""
 
 msgid "How long the heating takes to show in the rooms"
+msgstr ""
+
+msgid "How much heat a kWh gives heating (COP)"
+msgstr ""
+
+msgid "How much heat a kWh gives making hot water (COP)"
 msgstr ""
 
 msgid "How much it matters"
@@ -1194,6 +1252,15 @@ msgid "Layers"
 msgstr ""
 
 msgid "Learned"
+msgstr ""
+
+msgid "Learned once the brine's heat per kelvin has proved itself."
+msgstr ""
+
+msgid "Learned once the compressor's draw has proved itself."
+msgstr ""
+
+msgid "Learned once the tank's volume is known: enter it under House."
 msgstr ""
 
 msgid "Learning"
@@ -1442,6 +1509,10 @@ msgstr ""
 msgid "NibePi's vv_ai_profile.json"
 msgstr ""
 
+#, python-format
+msgid "Nine times in ten over the last %(days)s days, the bias taken off."
+msgstr ""
+
 msgid "No administrator exists yet."
 msgstr ""
 
@@ -1496,6 +1567,9 @@ msgstr ""
 msgid ""
 "No provider yet. Several can run side by side, to compare them at this "
 "house before choosing."
+msgstr ""
+
+msgid "No pump has described a hot-water tank or a compressor yet."
 msgstr ""
 
 msgid "No pump yet."
@@ -2602,6 +2676,13 @@ msgstr ""
 msgid "What happened"
 msgstr ""
 
+msgid ""
+"What heat costs is reckoned from the hot-water tank's volume and the "
+"compressor's COP. A pump's plugin gives them for the models it knows; "
+"otherwise enter them from the pump's documentation. Without them, the COP"
+" is only what the pump is seen to do, once that has proved itself."
+msgstr ""
+
 #, python-format
 msgid "What heats %(system)s"
 msgstr ""
@@ -2625,6 +2706,9 @@ msgid ""
 msgstr ""
 
 msgid "What shadow would have done"
+msgstr ""
+
+msgid "What the brine carries per degree of its drop"
 msgstr ""
 
 msgid "What the compressor draws while it runs"
@@ -2834,6 +2918,9 @@ msgid "an S-series pump's must be chosen"
 msgstr ""
 
 msgid "an outdoor temperature"
+msgstr ""
+
+msgid "and the supply at, °C"
 msgstr ""
 
 msgid "announced"
@@ -3440,6 +3527,9 @@ msgstr ""
 msgid "the base price"
 msgstr ""
 
+msgid "the brine in, or the outdoor air"
+msgstr ""
+
 msgid "the climate system's supply temperature"
 msgstr ""
 
@@ -3587,6 +3677,9 @@ msgid "whether on different days"
 msgstr ""
 
 msgid "with a power limit only"
+msgstr ""
+
+msgid "with the source at, °C"
 msgstr ""
 
 msgid "withdrawn"

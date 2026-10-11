@@ -124,6 +124,11 @@ class Plant:
     lux_until: float | None = None
     run_s: float = 0.0
     """How long the compressor has run since it started."""
+    cop: float = 0.0
+    """The compressor's COP in the last step, while it made heat; for tests."""
+    brine_drop: float = 0.0
+    """How much colder the brine leaves than it comes: the heat taken from the ground,
+    the compressor's heat less its electricity, over the brine's flow."""
     house_kw: float = 0.0
     pump_kw: float = 0.0
     heat: dict[str, float] = field(default_factory=dict)
@@ -272,6 +277,8 @@ class Plant:
             if demand == "dhw":
                 heat_w *= min(1.0, max(0.0, (63 - condensing) / 8))
             cop = carnot_cop(condensing, brine_in - 3)
+        self.brine_drop = heat_w * (1 - 1 / cop) / s.brine_w_k if heat_w else 0.0
+        self.cop = cop if heat_w else 0.0
         elec_w = (heat_w / cop if heat_w else 0.0) + self.addition_kw * 1000
         if self.compressor_on:
             elec_w += 80.0  # circulation pumps
@@ -437,7 +444,7 @@ class Plant:
             r[40042] = s16(self.pool)
         brine_in = self.scenario.weather.ground_c - 2.0 * min(1.0, self.run_s / 3600)
         r[40015] = s16(brine_in)
-        r[40016] = s16(brine_in - 3 if self.compressor_on else brine_in)
+        r[40016] = s16(brine_in - self.brine_drop if self.compressor_on else brine_in)
         r[43086] = {"idle": 10, "dhw": 20, "heating": 30, "pool": 40}[self.demand]
         since = self.t - self.compressor_since
         if self.compressor_on:

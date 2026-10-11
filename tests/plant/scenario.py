@@ -99,6 +99,8 @@ class Scenario:
     load: Load = field(default_factory=lambda: Load(0.35, 2.0))
     heat_kw: float = 6.0
     """The compressor's heat at 0 °C brine and 35 °C supply (an F1245-6)."""
+    brine_w_k: float = 1200.0
+    """The brine's flow as heat per kelvin: 0.3 l/s of 28 % ethanol."""
     registers: dict[int, int] = field(default_factory=dict)
     """Settings that differ from the plant's defaults, as raw register words."""
 
@@ -130,6 +132,7 @@ class Scenario:
             pool=Pool(**data["pool"]) if data["pool"] else None,
             load=Load(**data["load"]),
             heat_kw=data["heat_kw"],
+            brine_w_k=data.get("brine_w_k", 1200.0),
             registers={int(k): v for k, v in data["registers"].items()},
         )
 

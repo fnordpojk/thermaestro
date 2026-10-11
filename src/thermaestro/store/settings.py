@@ -620,6 +620,29 @@ class Home(Setting):
     due, or stop at the deadline."""
 
 
+class RatedCop(BaseModel):
+    """A compressor's COP heating, at the condition its documentation states it for."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    cop: Annotated[float, Field(gt=1, le=10)]
+    source_c: Annotated[float, Field(ge=-30, le=30)] = 0.0
+    """The source's temperature: the brine in (0 °C in the usual figure), or the outdoor air."""
+    supply_c: Annotated[float, Field(ge=20, le=70)] = 35.0
+
+
+class Rated(Setting):
+    """What the household read in its devices' documentation, where their plugin doesn't
+    give it. One per installation."""
+
+    kind = "rated"
+
+    liters: dict[PointRef, Annotated[float, Field(gt=0, le=5000)]] = Field(default_factory=dict)
+    """Per hot-water tank's node (`pump:hp1/dhw`): its volume."""
+    cop: dict[PointRef, RatedCop] = Field(default_factory=dict)
+    """Per compressor's node (`pump:hp1/compressor.ep14`): its COP heating."""
+
+
 LeverMode = Literal["off", "shadow", "control"]
 
 
@@ -688,6 +711,7 @@ SETTINGS: dict[str, type[Setting]] = {
         Climate,
         Control,
         Home,
+        Rated,
         NibePiReview,
         PluginState,
     )

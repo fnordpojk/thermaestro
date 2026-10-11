@@ -307,6 +307,8 @@ The requests, each with what it takes besides `kind` (times are ISO 8601 with an
 
 | Method and path | Right | Body → answer |
 |---|---|---|
+| `GET /rated` | `settings.read` | What the household entered from its devices' documentation |
+| `PUT /rated` | `settings.write` | `{"liters": {"pump:hp1/dhw": 178}, "cop": {"pump:hp1/compressor.ep14": {"cop": 4.47, "source_c": 0, "supply_c": 35}}}`: a tank's volume, and a compressor's COP heating at the brine (or outdoor air) and supply temperatures its documentation states it for (0 and 35 °C by default), where the pump's plugin doesn't give them. It replaces what was there. |
 | `GET /home` | `settings.read` | The answers |
 | `PUT /home` | `settings.write` | `{"emitters": {"pump:hp1/cs1": "slab"}, "house": "average", "water": "well", "holidays": "SE", "holidays_as": 6, "past_deadline": "keep_heating"}`. Emitters: `radiators`, `fan_coils`, `floor_light` (underfloor heating in boards or grooves), `slab` (in a concrete slab), `radiators_and_floor_light`, `radiators_and_slab`, `unknown`; house: `poorly_insulated`, `average`, `well_insulated`, `low_energy`, `unknown`; water: `municipal`, `well`, `unknown`. A field left out takes its default. `check_emitters` lists the climate systems whose answer was plain floor heating, taken as a slab, to be checked; answering again clears it. |
 

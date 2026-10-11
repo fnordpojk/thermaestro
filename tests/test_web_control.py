@@ -18,12 +18,12 @@ from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of, form
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.cap import Message, Send
 from thermaestro.cap.messages import Describe, Described, Write
-from thermaestro.cap.model import Envelope, Identity
+from thermaestro.cap.model import Envelope, Identity, Node, Presence, RatedPoint, Rating
 from thermaestro.core import AuditLog, Values
 from thermaestro.intents import Capabilities, Intents, Level, kinds
 from thermaestro.intents.resolve import RANKS
 from thermaestro.nibe.maps import load
-from thermaestro.store import Control, Home, NibePiReview, SecretStore
+from thermaestro.store import Control, Home, NibePiReview, Rated, SecretStore
 from thermaestro.web import Services, create_app
 
 CS = "dev:hp1"
@@ -151,6 +151,57 @@ async def test_setup_answers_about_the_house(tmp_path: Path) -> None:
         assert put.status_code == 200, put.text
         assert (await client.get("/api/v1/home")).json()["emitters"] == {CS: "slab"}
         bad = await client.put("/api/v1/home", json={"water": "lake"}, headers=headers)
+        assert bad.status_code == 400
+
+
+class Documented(LeverDevice):
+    """A pump with a hot-water tank and a compressor; its plugin documents only the
+    compressor."""
+
+    async def handle(self, request: Message, send: Send) -> None:
+        async def more(message: Message) -> None:
+            if isinstance(message, Described):
+                nodes = (
+                    Node(path="hp1/dhw", kind="dhw_tank", presence=Presence(how="configured")),
+                    Node(
+                        path="hp1/compressor",
+                        kind="compressor",
+                        presence=Presence(how="configured"),
+                        rating=Rating(
+                            heating=(RatedPoint(source_c=0, supply_c=35, cop=4.5),),
+                            basis="its manual",
+                        ),
+                    ),
+                )
+                message = message.model_copy(update={"nodes": message.nodes + nodes})
+            await send(message)
+
+        await super().handle(request, more if isinstance(request, Describe) else send)
+
+
+async def test_what_the_documentation_says(tmp_path: Path) -> None:
+    async with site(tmp_path, device=Documented()) as (r, _, client):
+        headers = await login(client, "admin")
+        page = (await client.get("/setup/house")).text
+        assert 'name="liters:dev:hp1/dhw"' in page  # its plugin gives no volume: asked
+        assert 'name="cop:dev:hp1/compressor"' not in page  # documented: shown
+        assert "From its manual" in page
+        done = await form(
+            client, "/setup/house", "/settings/rated", **{"liters:dev:hp1/dhw": "178"}
+        )
+        assert done.status_code == 303, done.text
+        rated = await r.db.get(Rated)
+        assert rated is not None
+        assert rated.liters == {"dev:hp1/dhw": 178.0}
+        body = {"cop": {"dev:hp1/compressor": {"cop": 4.2, "source_c": 0, "supply_c": 35}}}
+        put = await client.put("/api/v1/rated", json=body, headers=headers)
+        assert put.status_code == 200, put.text
+        got = (await client.get("/api/v1/rated")).json()
+        assert got["cop"]["dev:hp1/compressor"]["cop"] == 4.2
+        assert got["liters"] == {}  # a PUT replaces what was there
+        bad = await client.put(
+            "/api/v1/rated", json={"cop": {"dev:hp1/compressor": {"cop": 0.5}}}, headers=headers
+        )
         assert bad.status_code == 400
 
 

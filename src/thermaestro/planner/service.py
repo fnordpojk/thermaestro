@@ -45,6 +45,7 @@ from ..intents import Capabilities, Intents
 from ..intents.entry import RESPONSE_H
 from ..learn import Learned, Learnings, mark
 from ..learn.energy import charge_kw
+from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import expected, house
 from ..learn.pump import Response, lead
@@ -373,6 +374,7 @@ class Planner:
             ahead = value_at(found.spans, then, True)
             if ahead is None:
                 continue
+            ahead -= correction(self._learnings, found.source, hours)
             response = Response(curve.get("c0", 0.0), curve.get("c1", 0.0), curve.get("c2", 1.0), 0)
             if response.c2 <= 0:
                 continue

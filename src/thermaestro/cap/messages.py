@@ -25,11 +25,12 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.3"
+VERSION = "0.4"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
 `SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
-one of the device's own settings, which a plugin offers with the `write` feature. Older
-peers still talk to newer ones."""
+one of the device's own settings, which a plugin offers with the `write` feature. 0.4
+added a node's `rating`, what its maker documents about it. Older peers still talk to
+newer ones."""
 FEATURES = ("subscribe", "forecast", "write")
 """What this side of the protocol understands."""
 

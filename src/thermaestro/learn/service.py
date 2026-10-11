@@ -16,7 +16,9 @@ from ..core.host import PluginHost
 from ..core.sensors import SITE
 from ..core.values import Key, Values
 from ..store import Database, Transaction
+from .efficiency import Efficiency
 from .energy import Energy
+from .forecast import Forecasts
 from .heating import RESPONSE, Heating
 from .hotwater import HotWater
 from .inputs import (
@@ -88,6 +90,8 @@ class Learning:
             self.usable,
             GridLimits(db, values).house_power,
         )
+        self.efficiency = Efficiency(db, values, host, self.learnings, self.usable)
+        self.forecasts = Forecasts(db, self.learnings)
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
 
@@ -126,11 +130,13 @@ class Learning:
 
     async def learn(self) -> None:
         """What the inputs allow: the tanks', the houses' and the compressors' days not
-        yet read."""
+        yet read, the COP from them, and how far the forecasts miss."""
         async with self._lock:
             await self.hot_water.run()
             await self.heating.run()
             await self.energy.run()
+            await self.efficiency.run()
+            await self.forecasts.run()
 
     def responses(self, systems: frozenset[str]) -> dict[str, float]:
         """How long each climate system's heat takes to show, where learned and proved

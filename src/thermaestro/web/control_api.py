@@ -128,6 +128,21 @@ async def set_home(body: dict[str, Any], request: Request, who: Logged) -> dict[
     return (await services(request).set_home(who, body)).model_dump(mode="json")
 
 
+@router.get("/rated")
+@action("rated.read")
+async def rated(request: Request, who: Logged) -> dict[str, Any]:
+    return (await services(request).rated_settings(who)).model_dump(mode="json")
+
+
+@router.put("/rated")
+@action("rated.write")
+async def set_rated(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """`{"liters": {"pump:hp1/dhw": 178}, "cop": {"pump:hp1/compressor.ep14": {"cop": 4.47,
+    "source_c": 0, "supply_c": 35}}}`: what the household read in its devices'
+    documentation, where their plugin doesn't give it."""
+    return (await services(request).set_rated(who, body)).model_dump(mode="json")
+
+
 # --- levers -------------------------------------------------------------------------------
 
 

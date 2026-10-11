@@ -19,7 +19,7 @@ from ..intents import Forbidden as IntentForbidden
 from ..intents import Intent, Level
 from ..intents import NotFound as IntentNotFound
 from ..intents.requests import Request, build, request_of
-from ..store import Control, Home
+from ..store import Control, Home, Rated
 
 if TYPE_CHECKING:
     from ..core.audit import AuditLog
@@ -294,6 +294,44 @@ class ControlOperations:
             details={"kind": "home", **home.model_dump(mode="json")},
         )
         return home
+
+    async def rated_settings(self, caller: "Caller") -> Rated:
+        caller.principal.require("settings.read")
+        return await self.db.get(Rated) or Rated()
+
+    async def set_rated(self, caller: "Caller", body: dict[str, Any]) -> Rated:
+        """What the household read in its devices' documentation: each tank's volume and
+        each compressor's COP, where their plugin doesn't give them."""
+        self._require(caller, "settings.write")
+        from .operations import _validated
+
+        rated = _validated(Rated, body, "the documented figures")
+        await self.db.put(rated)
+        await self.audit.record(
+            caller.principal.name,
+            "setting.change",
+            source=caller.source,
+            details={"kind": "rated", **rated.model_dump(mode="json")},
+        )
+        return rated
+
+    def rated_parts(self, caller: "Caller") -> list[dict[str, Any]]:
+        """Each hot-water tank and compressor, with what its plugin documents about it."""
+        caller.principal.require("settings.read")
+        out = []
+        for instance_id, instance in sorted((self.host.instances if self.host else {}).items()):
+            described = instance.described
+            for node in described.nodes if described else ():
+                if node.kind in ("dhw_tank", "compressor"):
+                    out.append(
+                        {
+                            "ref": f"{instance_id}:{node.path}",
+                            "kind": node.kind,
+                            "label": self.node_label(caller, instance_id, node.path),
+                            "rating": node.rating,
+                        }
+                    )
+        return out
 
     # --- levers ----------------------------------------------------------------------------
 
