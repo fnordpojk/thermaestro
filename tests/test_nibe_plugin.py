@@ -235,20 +235,40 @@ async def test_pool_heating(plugin: NibePlugin, stocked: SimPump) -> None:
     assert value(plugin, "cs1/supply.temp")[1:] == ("transitional", profile.SETTLING)
 
 
-async def test_a_heat_meter_that_doesnt_count(
-    plugin: NibePlugin, stocked: SimPump, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A meter that stays the same through its purpose's production doesn't count on this
-    pump: its value is shown as unknown, with why, until it moves."""
-    monkeypatch.setattr(profile, "METER_IDLE_S", 1.0)
+async def test_a_heat_meter_is_calculated(plugin: NibePlugin) -> None:
+    """The pump calculates its heat meters from a flow meter: they say so."""
     meter = "heat.produced{purpose=dhw,by=total}"
     await until(lambda: value(plugin, meter)[1] == "good")
-    stocked.registers[43086] = 20  # hot water, with the compressor running
-    await until(lambda: value(plugin, meter)[1] == "unknown")
-    assert (value(plugin, meter)[2] or "").startswith("hasn't changed in ")
-    assert (value(plugin, meter)[2] or "").endswith(" of dhw production")
-    stocked.registers32[42437] += 10  # it counts after all
-    await until(lambda: value(plugin, meter)[1] == "good")
+    assert plugin.envelope(f"hp1/{meter}").source == "calculated"
+    assert plugin.envelope("hp1/outdoor.temp").source == "measured"
+
+
+async def test_a_heat_meter_that_doesnt_count_is_left_out(
+    stocked: SimPump, gateway: Gateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A meter that stays the same through its purpose's production has no flow meter
+    behind it: it is removed from the description and not read again."""
+    monkeypatch.setattr(profile, "METER_IDLE_S", 1.0)
+    meter = "hp1/heat.produced{purpose=dhw,by=total}"
+    events: list[object] = []
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.5,
+    )
+
+    def removed() -> set[str]:
+        return {r for e in events if isinstance(e, Described) for r in e.removed}
+
+    async with running_plugin(p, events):
+        await until(lambda: value(p, meter[4:])[1] == "good")
+        await asyncio.sleep(1.5)  # heating: the hot-water meter has nothing to count
+        assert meter not in removed()
+        stocked.registers[43086] = 20  # hot water, with the compressor running
+        await until(lambda: meter in removed())
+        assert meter not in {pt.path for pt in p.describe().points}
+        assert 42437 in p.absent
 
 
 async def test_the_brines_delta_t_and_its_warning(stocked: SimPump, gateway: Gateway) -> None:
@@ -335,12 +355,15 @@ class KeptState:
 async def test_a_meters_count_outlives_a_restart(
     stocked: SimPump, gateway: Gateway, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The count is kept, and holds after a restart if the meter still reads the same;
-    a meter that moved meanwhile starts over."""
+    """The count is kept, and holds after a restart if the meter still reads the same, so
+    it is left out again at once; a meter that moved meanwhile starts over."""
     monkeypatch.setattr(profile, "METER_IDLE_S", 1.0)
     monkeypatch.setattr("thermaestro.nibe.plugin.METER_SAVE_S", 0.1)
     kept = KeptState()
     meter = "heat.produced{purpose=dhw,by=total}"
+
+    def described(p: NibePlugin) -> bool:
+        return f"hp1/{meter}" in {pt.path for pt in p.describe().points}
 
     def made() -> NibePlugin:
         return NibePlugin(
@@ -353,16 +376,17 @@ async def test_a_meters_count_outlives_a_restart(
 
     stocked.registers[43086] = 20  # hot water, with the compressor running
     async with running_plugin(made()) as p:
-        await until(lambda: value(p, meter)[1] == "unknown")
+        await until(lambda: not described(p))
         await until(lambda: kept.data.get("meters", {}).get("42437", {}).get("idle", 0) >= 1.0)
     stocked.registers[43086] = 10  # idle: no production after the restart
     async with running_plugin(made()) as p:
-        await until(lambda: value(p, meter)[2] != "not read yet")
-        assert value(p, meter)[1] == "unknown"  # the count held
+        await until(lambda: not described(p))  # the count held
     stocked.registers32[42437] += 10  # it moved while Thermaestro was down
     async with running_plugin(made()) as p:
         await until(lambda: value(p, meter)[2] != "not read yet")
         assert value(p, meter)[1] == "good"
+        await asyncio.sleep(0.5)
+        assert described(p)
 
 
 async def test_it_conforms_and_writes_nothing(stocked: SimPump, gateway: Gateway) -> None:

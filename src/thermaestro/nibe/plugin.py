@@ -635,14 +635,20 @@ class NibePlugin:
             await asyncio.sleep(max(0.0, self._poll_round - (clock.monotonic() - started)))
 
     async def _drop_if_absent(self, register: int, send: Send) -> None:
-        """A point whose register the pump refuses (an S-series pump without the accessory)
-        or that gives no value (a 32-bit heat meter this pump doesn't keep) is removed from
-        the description and not read again, with what is worked out from it. The pump is
-        described before this is known, so start-up never waits on these reads; a point
+        """A point whose register the pump refuses (an S-series pump without the accessory),
+        that gives no value (a 32-bit heat meter this pump doesn't keep), or a heat meter
+        that hasn't counted through its production (no flow meter behind it) is removed
+        from the description and not read again, with what is worked out from it. The pump
+        is described before this is known, so start-up never waits on these reads; a point
         that later starts giving values is found at the next start."""
         model, layout = self._pump()
+        idle = self._meter_idle.get(register, 0.0)
         if register in self._refused:
             why = "the pump hasn't got it"
+        elif register in self.family.meters and idle >= profile.METER_IDLE_S:
+            span = durations.text(idle // 60 * 60)
+            purpose = self.family.meters[register]
+            why = f"hasn't changed in {span} of {purpose} production: no heat meter counts it"
         else:
             definition = model.register(register)
             sample = self._samples.get(register)

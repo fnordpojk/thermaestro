@@ -12,13 +12,12 @@ unavailable until they have been tried on a real pump.
 
 from collections.abc import Iterable, Mapping
 
-from .. import durations
 from ..cap.model import Lever, Verify
 from .maps import ModelMap
 from .profile import (
     BRINE_STOPPED,
     DIVERTED,
-    METER_IDLE_S,
+    METER_VALIDITY,
     POOLED,
     RETURN_VALIDITY,
     SUPPLY_STOPPED,
@@ -82,9 +81,8 @@ UNIT_POINTS = (
             path,
             register,
             rules=(counting(register, METERS[register]),),
-            validity=(
-                f"unknown when it hasn't changed in {durations.text(METER_IDLE_S)} of production",
-            ),
+            validity=(METER_VALIDITY,),
+            source="calculated",
         )
         for path, register in (
             ("heat.produced{purpose=dhw,by=total}", 31575),

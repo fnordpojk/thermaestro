@@ -83,11 +83,14 @@ METERS = {
     42441: "cooling",
     42443: "pool",
 }
-"""The heat meters, and what they count: production for this demand."""
+"""The heat meters, and what they count: production for this demand. The pump calculates
+them from a flow meter, built in on some models or an accessory; without one they don't
+count."""
 METER_IDLE_S = 1800.0
-"""A meter that hasn't moved in this much production doesn't count on this pump: some
-answer with a value that never changes (an F1245's hot-water total, over several
-hot-water runs)."""
+"""A meter that hasn't moved in this much production has no flow meter behind it, and is
+left out: some answer with a value that never changes (an F1245's hot-water total, over
+several hot-water runs)."""
+METER_VALIDITY = f"left out when it hasn't changed in {durations.text(METER_IDLE_S)} of production"
 
 
 Rule = Callable[[Snapshot], tuple[Quality, str] | None]
@@ -309,9 +312,8 @@ UNIT_POINTS = (
             path,
             register,
             rules=(counting(register, METERS[register]),),
-            validity=(
-                f"unknown when it hasn't changed in {durations.text(METER_IDLE_S)} of production",
-            ),
+            validity=(METER_VALIDITY,),
+            source="calculated",
         )
         for path, register in (
             ("heat.produced{purpose=dhw,by=total}", 42437),

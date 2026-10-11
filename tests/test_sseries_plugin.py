@@ -176,6 +176,7 @@ async def test_values_and_their_quality(plugin: NibePlugin) -> None:
     assert value(plugin, "compressor.ep14/speed") == (45.2, "good", None)
     assert value(plugin, "cs1/room.temp") == (None, "not_connected", "the pump reports no sensor")
     assert value(plugin, "heat.produced{purpose=dhw,by=compressor}") == (1234.5, "good", None)
+    assert plugin.envelope("hp1/heat.produced{purpose=dhw,by=compressor}").source == "calculated"
     assert value(plugin, "brine/brine.delta_t") == (3.0, "good", None)
     assert value(plugin, "cs1/x.nibe.40030") == (-4, "good", None)
     assert plugin.envelope("hp1/compressor.ep14/speed").unit == "Hz"
