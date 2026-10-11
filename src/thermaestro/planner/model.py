@@ -135,6 +135,8 @@ class Situation:
     heating: bool = True
     """Whether the pump's heating stop has heating on."""
     house_kw: float | None = None
+    charge_kw: float | None = None
+    """What a hot-water charge draws, where learned and proved; else the rules' guess."""
     grid_limit: GridLimit | None = None
     """By a subscribed power, or a power charge in its window."""
     demand: str | None = None

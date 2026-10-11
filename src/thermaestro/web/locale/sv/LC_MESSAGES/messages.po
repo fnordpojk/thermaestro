@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 17:48+0200\n"
+"POT-Creation-Date: 2026-10-11 20:07+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -44,6 +44,18 @@ msgstr "%(hours)s timmar med värmedrift av %(least)s."
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
 msgstr "%(hours)s användbara timmar av %(least)s."
+
+#, python-format
+msgid "%(kw)s kW heating"
+msgstr "%(kw)s kW vid uppvärmning"
+
+#, python-format
+msgid "%(kw)s kW heating the pool"
+msgstr "%(kw)s kW vid poolvärmning"
+
+#, python-format
+msgid "%(kw)s kW making hot water"
+msgstr "%(kw)s kW vid varmvattenberedning"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -130,8 +142,16 @@ msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
 
 #, python-format
+msgid "%(starts)s starts a day"
+msgstr "%(starts)s starter per dygn"
+
+#, python-format
 msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
 msgstr "%(step)s °C framledning per förskjutningssteg, %(slope)s °C per grad kallare"
+
+#, python-format
+msgid "%(steps)s steps of the house's power seen at the compressor's starts and stops."
+msgstr "%(steps)s steg i husets effekt sedda när kompressorn startat och stannat."
 
 #, python-format
 msgid "%(total)s °C of the tank a week"
@@ -1121,6 +1141,9 @@ msgstr "Hur lång tid det tar innan värmen märks i rummen"
 
 msgid "How much it matters"
 msgstr "Hur viktigt det är"
+
+msgid "How often the compressor starts"
+msgstr "Hur ofta kompressorn startar"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Hur rummen följer värmen och vädret"
@@ -2404,6 +2427,10 @@ msgstr "Platsens klimat"
 msgid "The mean of the charges seen, the newest weighing most."
 msgstr "Medelvärdet av de laddningar som setts, där den senaste väger mest."
 
+#, python-format
+msgid "The mean over the last %(days)s days."
+msgstr "Medelvärdet över de senaste %(days)s dygnen."
+
 msgid "The next 48 hours"
 msgstr "De närmaste 48 timmarna"
 
@@ -2748,6 +2775,9 @@ msgstr ""
 msgid "What shadow would have done"
 msgstr "Vad skuggan skulle ha gjort"
 
+msgid "What the compressor draws while it runs"
+msgstr "Vad kompressorn drar medan den går"
+
 msgid ""
 "What the household wants. Thermaestro plans for it, ranks what gives way when not "
 "everything can be met, and says so."
@@ -2920,6 +2950,9 @@ msgstr "ett användarnamn är 1 till 64 bokstäver, siffror eller . _ @ -"
 
 msgid "a wall display can't make changes that need a password"
 msgstr "en väggskärm kan inte göra ändringar som kräver lösenord"
+
+msgid "a whole-house power reading"
+msgstr "en mätning av hela husets effekt"
 
 msgid "a zoning controller"
 msgstr "en zonstyrning"
@@ -3568,6 +3601,9 @@ msgstr "grundpriset"
 
 msgid "the climate system's supply temperature"
 msgstr "klimatsystemets framledningstemperatur"
+
+msgid "the compressor's state"
+msgstr "kompressorns läge"
 
 msgid "the day it falls on"
 msgstr "dagen den infaller"

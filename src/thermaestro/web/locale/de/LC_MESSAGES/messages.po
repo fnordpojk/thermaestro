@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 17:48+0200\n"
+"POT-Creation-Date: 2026-10-11 20:07+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -44,6 +44,18 @@ msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
 msgstr "%(hours)s verwendbare Stunden von %(least)s."
+
+#, python-format
+msgid "%(kw)s kW heating"
+msgstr "%(kw)s kW beim Heizen"
+
+#, python-format
+msgid "%(kw)s kW heating the pool"
+msgstr "%(kw)s kW beim Beheizen des Pools"
+
+#, python-format
+msgid "%(kw)s kW making hot water"
+msgstr "%(kw)s kW bei der Warmwasserbereitung"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -130,8 +142,16 @@ msgid "%(start)s–%(end)s"
 msgstr "%(start)s–%(end)s"
 
 #, python-format
+msgid "%(starts)s starts a day"
+msgstr "%(starts)s Starts am Tag"
+
+#, python-format
 msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
 msgstr "%(step)s °C Vorlauf je Verschiebungsschritt, %(slope)s °C je Grad kälter"
+
+#, python-format
+msgid "%(steps)s steps of the house's power seen at the compressor's starts and stops."
+msgstr "%(steps)s Sprünge der Hausleistung beim Starten und Stoppen des Verdichters gesehen."
 
 #, python-format
 msgid "%(total)s °C of the tank a week"
@@ -1141,6 +1161,9 @@ msgstr "Wie lange es dauert, bis die Heizung in den Räumen ankommt"
 
 msgid "How much it matters"
 msgstr "Wie wichtig es ist"
+
+msgid "How often the compressor starts"
+msgstr "Wie oft der Verdichter startet"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Wie die Räume der Heizung und dem Wetter folgen"
@@ -2446,6 +2469,10 @@ msgstr "Das Klima des Standorts"
 msgid "The mean of the charges seen, the newest weighing most."
 msgstr "Der Mittelwert der gesehenen Ladungen, die neueste zählt am meisten."
 
+#, python-format
+msgid "The mean over the last %(days)s days."
+msgstr "Der Mittelwert der letzten %(days)s Tage."
+
 msgid "The next 48 hours"
 msgstr "Die nächsten 48 Stunden"
 
@@ -2796,6 +2823,9 @@ msgstr ""
 msgid "What shadow would have done"
 msgstr "Was der Schatten getan hätte"
 
+msgid "What the compressor draws while it runs"
+msgstr "Was der Verdichter im Betrieb aufnimmt"
+
 msgid ""
 "What the household wants. Thermaestro plans for it, ranks what gives way when not "
 "everything can be met, and says so."
@@ -2979,6 +3009,9 @@ msgstr "ein Benutzername besteht aus 1 bis 64 Buchstaben, Ziffern oder . _ @ -"
 
 msgid "a wall display can't make changes that need a password"
 msgstr "ein Wanddisplay kann keine Änderungen vornehmen, die ein Passwort erfordern"
+
+msgid "a whole-house power reading"
+msgstr "eine Messung der Leistung des ganzen Hauses"
 
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
@@ -3631,6 +3664,9 @@ msgstr "den Grundpreis"
 
 msgid "the climate system's supply temperature"
 msgstr "die Vorlauftemperatur des Heizkreises"
+
+msgid "the compressor's state"
+msgstr "der Zustand des Verdichters"
 
 msgid "the day it falls on"
 msgstr "den Tag, auf den er fällt"

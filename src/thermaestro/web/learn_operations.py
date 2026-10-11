@@ -31,12 +31,20 @@ NAMES = {
     "house.tau_h": mark("How fast the house loses its heat (its time constant)"),
     "house.response_h": mark("How long the heating takes to show in the rooms"),
     "pump.response": mark("How the supply follows the weather and the offset"),
+    "compressor.draw": mark("What the compressor draws while it runs"),
+    "compressor.starts": mark("How often the compressor starts"),
 }
 PINNABLE = frozenset({"tank.loss", "house.tau_h", "house.response_h"})
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
 HOURS_SHOWN = mark("%(hours)s hours")
 PUMP_SHOWN = mark("%(step)s °C of supply per offset step, %(slope)s °C per degree colder")
+DRAW_SHOWN = {
+    "heating": mark("%(kw)s kW heating"),
+    "dhw": mark("%(kw)s kW making hot water"),
+    "pool": mark("%(kw)s kW heating the pool"),
+}
+STARTS_SHOWN = mark("%(starts)s starts a day")
 """What each learned value is, in words."""
 VERDICTS = {
     "usable": mark("Usable"),
@@ -293,6 +301,14 @@ def _shown(x: Learned) -> str:
             step=i18n.number(value.get("c2", 0.0), 1),
             slope=i18n.number(-value.get("c1", 0.0), 2),
         )
+    if x.name == "compressor.draw" and isinstance(value, dict):
+        return ", ".join(
+            i18n._(shown, kw=i18n.number(value[purpose], 2))
+            for purpose, shown in DRAW_SHOWN.items()
+            if purpose in value
+        )
+    if x.name == "compressor.starts" and isinstance(value, int | float):
+        return i18n._(STARTS_SHOWN, starts=i18n.number(value, 1))
     if x.unit == "h" and isinstance(value, int | float):
         return i18n._(HOURS_SHOWN, hours=i18n.number(value, 0))
     if isinstance(value, dict):

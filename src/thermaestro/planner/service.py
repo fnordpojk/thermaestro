@@ -44,6 +44,7 @@ from ..core.weather import value_at
 from ..intents import Capabilities, Intents
 from ..intents.entry import RESPONSE_H
 from ..learn import Learned, Learnings, mark
+from ..learn.energy import charge_kw
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import expected, house
 from ..learn.pump import Response, lead
@@ -319,6 +320,7 @@ class Planner:
             levers=levers,
             heating=heating,
             house_kw=self._house_kw(),
+            charge_kw=charge_kw(self._learnings) if self._learnings else None,
             grid_limit=await self._grid.now(now, _zone(calendar.zone)),
             demand=demand if isinstance(demand, str) else None,
             pools=pools,

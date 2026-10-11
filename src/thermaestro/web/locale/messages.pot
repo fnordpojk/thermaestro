@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 17:48+0200\n"
+"POT-Creation-Date: 2026-10-11 20:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,6 +45,18 @@ msgstr ""
 
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
+msgstr ""
+
+#, python-format
+msgid "%(kw)s kW heating"
+msgstr ""
+
+#, python-format
+msgid "%(kw)s kW heating the pool"
+msgstr ""
+
+#, python-format
+msgid "%(kw)s kW making hot water"
 msgstr ""
 
 #, python-format
@@ -132,7 +144,17 @@ msgid "%(start)s–%(end)s"
 msgstr ""
 
 #, python-format
+msgid "%(starts)s starts a day"
+msgstr ""
+
+#, python-format
 msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(steps)s steps of the house's power seen at the compressor's starts and "
+"stops."
 msgstr ""
 
 #, python-format
@@ -1064,6 +1086,9 @@ msgid "How long the heating takes to show in the rooms"
 msgstr ""
 
 msgid "How much it matters"
+msgstr ""
+
+msgid "How often the compressor starts"
 msgstr ""
 
 msgid "How the rooms follow the heating and the weather"
@@ -2284,6 +2309,10 @@ msgstr ""
 msgid "The mean of the charges seen, the newest weighing most."
 msgstr ""
 
+#, python-format
+msgid "The mean over the last %(days)s days."
+msgstr ""
+
 msgid "The next 48 hours"
 msgstr ""
 
@@ -2598,6 +2627,9 @@ msgstr ""
 msgid "What shadow would have done"
 msgstr ""
 
+msgid "What the compressor draws while it runs"
+msgstr ""
+
 msgid ""
 "What the household wants. Thermaestro plans for it, ranks what gives way "
 "when not everything can be met, and says so."
@@ -2760,6 +2792,9 @@ msgid "a user name is 1 to 64 letters, digits or . _ @ -"
 msgstr ""
 
 msgid "a wall display can't make changes that need a password"
+msgstr ""
+
+msgid "a whole-house power reading"
 msgstr ""
 
 msgid "a zoning controller"
@@ -3406,6 +3441,9 @@ msgid "the base price"
 msgstr ""
 
 msgid "the climate system's supply temperature"
+msgstr ""
+
+msgid "the compressor's state"
 msgstr ""
 
 msgid "the day it falls on"

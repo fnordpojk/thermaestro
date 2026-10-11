@@ -278,6 +278,18 @@ def test_the_grid_companys_limit_holds_a_charge_back() -> None:
     assert all(d.op != "fire" for d in rules.plan(held))  # 4 kW and a charge's 2 is over 5
 
 
+def test_a_learned_draw_replaces_the_guess_under_a_limit() -> None:
+    by = kinds.hot_water_by(TANK, [(50.0, (), time(23, 0))], **who())  # type: ignore[arg-type]
+    series = prices()
+    start = rules.cheapest_start(series, NOW, NOW.replace(hour=23), rules.CHARGE_S)
+    assert start is not None
+    sit = replace(situation([by], top=45.0, price=series), now=start, house_kw=4.0)
+    held = replace(sit, grid_limit=GridLimit(5.0, "A grid company: the subscribed power"))
+    assert all(d.op != "fire" for d in rules.plan(held))  # 4 kW and the guess's 2 is over 5
+    small = replace(held, charge_kw=0.8)
+    assert any(d.op == "fire" for d in rules.plan(small))  # 4.8 kW isn't
+
+
 def test_a_late_deadline_charges_at_once() -> None:
     by = kinds.hot_water_by(TANK, [(50.0, (), time(12, 45))], **who())  # type: ignore[arg-type]
     found = rules.plan(situation([by], top=44.0))

@@ -447,7 +447,8 @@ def hot_water(sit: Situation) -> list[Decision]:
                 if start is None and sit.prices == []:
                     window = left <= 2 * charge_s  # no prices: in good time before it
                 must = need.strength == "must"
-                hindered = _quiet(sit) or _over_peak(sit, BOOST_KW)
+                draw = sit.charge_kw if sit.charge_kw is not None else BOOST_KW
+                hindered = _quiet(sit) or _over_peak(sit, draw)
                 if (late or window) and (must or not hindered):
                     boosting = need.rank
                     when = _local(sit, need.t)
