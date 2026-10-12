@@ -56,7 +56,7 @@ class DropReason(IntEnum):
     UNKNOWN_KEY = 3
     QUEUE_FULL = 4
     EXPIRED = 5
-    CANCELLED = 6
+    CANCELED = 6
     EVICTED = 7
     UNSUPPORTED_OPTION = 8
     SHUTDOWN = 9

@@ -148,7 +148,7 @@ class Engine:
             for entry in queue:
                 if entry.client == client and entry.request_id == request_id:
                     queue.remove(entry)
-                    self._drop_fate(client, request_id, p.DropReason.CANCELLED, now_us)
+                    self._drop_fate(client, request_id, p.DropReason.CANCELED, now_us)
                     return True
         return False
 

@@ -132,7 +132,7 @@ Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol re
 
 ### 7.2 Drop reasons (u16)
 
-1 `INVALID_FRAME` (not a valid `C0` frame), 2 `TOKEN_MISMATCH` (the frame's command isn't the token), 3 `UNKNOWN_KEY` (no queue for that address and token), 4 `QUEUE_FULL`, 5 `EXPIRED` (the ttl passed before the token came), 6 `CANCELLED`, 7 `EVICTED` (a plain request pushed it out; not sent since revision 2, where plain requests can't), 8 `UNSUPPORTED_OPTION`, 9 `SHUTDOWN`.
+1 `INVALID_FRAME` (not a valid `C0` frame), 2 `TOKEN_MISMATCH` (the frame's command isn't the token), 3 `UNKNOWN_KEY` (no queue for that address and token), 4 `QUEUE_FULL`, 5 `EXPIRED` (the ttl passed before the token came), 6 `CANCELED`, 7 `EVICTED` (a plain request pushed it out; not sent since revision 2, where plain requests can't), 8 `UNSUPPORTED_OPTION`, 9 `SHUTDOWN`.
 
 ### 7.3 ANSWER `status` (u8)
 
@@ -196,7 +196,7 @@ REQUEST ─► validate ─► DROPPED(INVALID_FRAME | TOKEN_MISMATCH | UNKNOWN_
              │
              ▼
           QUEUED ──(ttl passed when its token comes)──► DROPPED(EXPIRED)
-             │   ──(CANCEL)───────────────────────────► DROPPED(CANCELLED)
+             │   ──(CANCEL)───────────────────────────► DROPPED(CANCELED)
              ▼
            SENT (on the pump's token)
              │

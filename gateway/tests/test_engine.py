@@ -240,7 +240,7 @@ def test_cancel() -> None:
     assert e.cancel("a", 1, 10)
     assert not e.cancel("a", 1, 10)
     assert not e.cancel("b", 99, 10)
-    assert fates(e.take_outbox()) == [("a", 1, p.Stage.DROPPED, p.DropReason.CANCELLED)]
+    assert fates(e.take_outbox()) == [("a", 1, p.Stage.DROPPED, p.DropReason.CANCELED)]
     assert e.reply_for(nibe.MODBUS40, nibe.READ_TOKEN, 20) is None
 
 
