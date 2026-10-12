@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 13:15+0200\n"
+"POT-Creation-Date: 2026-10-12 16:22+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -36,6 +36,10 @@ msgstr "%(fall)s °C pro Stunde bei 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s ist aus"
+
+#, python-format
+msgid "%(hours)s h ahead, off by %(miss)s °C"
+msgstr "%(hours)s h voraus, um %(miss)s °C daneben"
 
 #, python-format
 msgid "%(hours)s h ahead: %(off)s K"
@@ -80,6 +84,10 @@ msgstr "%(kw)s kW je °C"
 #, python-format
 msgid "%(kwh)s kWh a day"
 msgstr "%(kwh)s kWh am Tag"
+
+#, python-format
+msgid "%(kwh)s kWh per °C"
+msgstr "%(kwh)s kWh je °C"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -550,6 +558,9 @@ msgstr ""
 "Hat sich wie vorgesehen verhalten, als es zuletzt gesehen wurde, %(seen)s; seitdem "
 "nicht gesehen."
 
+msgid "Beside the rules"
+msgstr "Neben den Regeln"
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -562,6 +573,13 @@ msgstr "Gebotszone"
 
 msgid "Boost now"
 msgstr "Jetzt zusätzlich aufheizen"
+
+msgid ""
+"Both planners decide every slot; what each asked in the last one. The one driving is "
+"marked."
+msgstr ""
+"Beide Planer entscheiden jede Viertelstunde; das hat jeder zuletzt verlangt. Der "
+"steuernde ist hervorgehoben."
 
 msgid "Brine"
 msgstr "Sole"
@@ -627,6 +645,14 @@ msgstr ""
 "zeigen sich nur hier. Jede Einstellung, die die Pumpe ändern lässt, wird gelesen, "
 "etwa eine Sekunde je Einstellung, und die von der Werkseinstellung abweichenden "
 "werden aufgeführt: auch die Wahl eines Installateurs oder deine eigene weicht ab."
+
+#, python-format
+msgid ""
+"Changes asked in the last %(days)s days: the rules %(rules)s, the optimizer "
+"%(optimizer)s."
+msgstr ""
+"Verlangte Änderungen der letzten %(days)s Tage: die Regeln %(rules)s, der Optimierer "
+"%(optimizer)s."
 
 msgid "Changes here need your password within the last 15 minutes; you'll be asked for it."
 msgstr ""
@@ -1206,6 +1232,10 @@ msgstr "Warmwasser, das bereit sein sollte"
 msgid "Hot water, the last week"
 msgstr "Warmwasser, die letzte Woche"
 
+#, python-format
+msgid "Hot water: %(name)s"
+msgstr "Warmwasser: %(name)s"
+
 msgid "Hot water: ready by a time, and its lowest temperature"
 msgstr "Warmwasser: bereit zu einer Zeit, und seine niedrigste Temperatur"
 
@@ -1260,6 +1290,9 @@ msgstr "Wie oft der Verdichter startet"
 
 msgid "How the heating water follows the weather and the offset"
 msgstr "Wie das Heizwasser dem Wetter und der Verschiebung folgt"
+
+msgid "How the optimizer's predictions of the rooms came out:"
+msgstr "Wie die Vorhersagen des Optimierers für die Räume eintrafen:"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Wie die Räume der Heizung und dem Wetter folgen"
@@ -1397,6 +1430,9 @@ msgstr "So belassen, wie NibePi sie zuletzt schrieb."
 
 msgid "Left at the last price level's values."
 msgstr "Auf den Werten der letzten Preisstufe belassen."
+
+msgid "Left to the rules, until what they rest on has been learned:"
+msgstr "Den Regeln überlassen, bis gelernt ist, worauf es beruht:"
 
 msgid "Left wherever NibePi's airflow control last stepped it."
 msgstr "Dort belassen, wohin NibePis Lüftungssteuerung sie zuletzt stellte."
@@ -1713,6 +1749,9 @@ msgstr ""
 "Beginn läuft über Mitternacht. Der erste zutreffende Preis gilt, sonst der "
 "Grundpreis."
 
+msgid "No plan yet."
+msgstr "Noch kein Plan."
+
 msgid "No plugin instances."
 msgstr "Keine Plugin-Instanzen."
 
@@ -1774,7 +1813,7 @@ msgstr "Noch nicht angepasst."
 msgid "Not given by the grid company: %(fields)s"
 msgstr "Vom Netzbetreiber nicht angegeben: %(fields)s"
 
-msgid "Not in dear hours"
+msgid "Not in expensive hours"
 msgstr "Nicht in teuren Stunden"
 
 msgid "Not known well enough to be changed unattended on this pump."
@@ -1971,6 +2010,9 @@ msgstr "Oder sagen Sie es: ein Bad um 19:30, weg bis Sonntag, etwas wärmer bis 
 msgid "Outcome"
 msgstr "Ergebnis"
 
+msgid "Outdoor"
+msgstr "Außen"
+
 msgid "Outdoor references"
 msgstr "Außenreferenzen"
 
@@ -2019,6 +2061,9 @@ msgstr "Festgelegt:"
 msgid "Plan"
 msgstr "Plan"
 
+msgid "Planner"
+msgstr "Planer"
+
 #, python-format
 msgid "Plugin %(name)s"
 msgstr "Plugin %(name)s"
@@ -2034,6 +2079,10 @@ msgstr "Zeigen Sie auf einen Wert, um den Grund zu sehen."
 
 msgid "Pool"
 msgstr "Pool"
+
+#, python-format
+msgid "Pool: %(name)s"
+msgstr "Pool: %(name)s"
 
 msgid "Poorly insulated"
 msgstr "Schlecht gedämmt"
@@ -2062,6 +2111,9 @@ msgstr "Leistung ins Netz"
 msgid "Precipitation"
 msgstr "Niederschlag"
 
+msgid "Price"
+msgstr "Preis"
+
 msgid "Price per kW and month"
 msgstr "Preis je kW und Monat"
 
@@ -2071,8 +2123,19 @@ msgstr "Preis je kWh"
 msgid "Price sources"
 msgstr "Preisquellen"
 
+msgid "Price, estimated"
+msgstr "Preis, geschätzt"
+
 msgid "Prices"
 msgstr "Preise"
+
+msgid ""
+"Prices not published yet are estimated from the same hours of the last four weeks, "
+"and drawn dashed. The plan firms up when they are published."
+msgstr ""
+"Noch nicht veröffentlichte Preise werden aus denselben Stunden der letzten vier "
+"Wochen geschätzt und gestrichelt gezeichnet. Der Plan wird fester, sobald sie "
+"veröffentlicht sind."
 
 msgid "Protocol"
 msgstr "Protokoll"
@@ -2214,6 +2277,10 @@ msgstr "Räume nicht über ihrem Band"
 
 msgid "Rooms not below their band"
 msgstr "Räume nicht unter ihrem Band"
+
+#, python-format
+msgid "Rooms: %(name)s"
+msgstr "Räume: %(name)s"
 
 #, python-format
 msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
@@ -2566,6 +2633,9 @@ msgstr ""
 msgid "The highest, how many"
 msgstr "Die höchsten, wie viele"
 
+msgid "The hot water's floor"
+msgstr "Die Untergrenze des Warmwassers"
+
 msgid "The house"
 msgstr "Das Haus"
 
@@ -2610,6 +2680,38 @@ msgstr "Die nächsten 48 Stunden"
 msgid "The offset hasn't moved enough to learn what a step does."
 msgstr "Die Verschiebung hat sich nicht genug bewegt, um zu lernen, was ein Schritt bewirkt."
 
+msgid "The optimizer"
+msgstr "Der Optimierer"
+
+#, python-format
+msgid "The optimizer didn't plan the last slot: %(why)s."
+msgstr "Der Optimierer hat die letzte Viertelstunde nicht geplant: %(why)s."
+
+msgid ""
+"The optimizer drives only what its learned models cover, and only the settings in "
+"control; the rules drive the rest, and everything when a plan fails. Thermaestro "
+"never switches planners by itself."
+msgstr ""
+"Der Optimierer steuert nur, was seine gelernten Modelle abdecken, und nur "
+"Einstellungen in Steuerung; die Regeln steuern den Rest, und alles, wenn ein Plan "
+"scheitert. Thermaestro wechselt nie von selbst den Planer."
+
+msgid "The optimizer hasn't planned a slot yet."
+msgstr "Der Optimierer hat noch keine Viertelstunde geplant."
+
+msgid "The optimizer planned the last slot, for:"
+msgstr "Der Optimierer hat die letzte Viertelstunde geplant, für:"
+
+#, python-format
+msgid ""
+"The optimizer plans the next two days every 15 minutes: how warm the rooms will be, "
+"when the tank is charged, and what the pump will use, against the prices. %(driving)s"
+" drives now."
+msgstr ""
+"Der Optimierer plant alle 15 Minuten die nächsten zwei Tage: wie warm die Räume "
+"werden, wann der Speicher geladen wird und was die Pumpe verbraucht, gegen die "
+"Preise. %(driving)s steuert jetzt."
+
 #, python-format
 msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
 msgstr "Die Außentemperatur hat sich kaum geändert: eine Spanne von %(spread)s °C."
@@ -2620,11 +2722,23 @@ msgstr "Die periodische Warmwassererhöhung, zuletzt gesehen"
 msgid "The plan"
 msgstr "Der Plan"
 
+msgid "The plan ahead"
+msgstr "Der Plan voraus"
+
+msgid "The plan could not be loaded."
+msgstr "Der Plan konnte nicht geladen werden."
+
+msgid "The plan keeps every goal."
+msgstr "Der Plan hält jedes Ziel ein."
+
 msgid "The pool"
 msgstr "Der Pool"
 
 msgid "The pool hasn't been heated enough to learn how fast it warms."
 msgstr "Der Pool wurde noch nicht genug beheizt, um zu lernen, wie schnell es warm wird."
+
+msgid "The pools' bands"
+msgstr "Die Bereiche der Pools"
 
 msgid "The power limit"
 msgstr "Die Leistungsgrenze"
@@ -2673,8 +2787,14 @@ msgstr "Die eigenen Funktionen der Pumpe, die dasselbe ändern und aus sein müs
 msgid "The pump's settings after NibePi"
 msgstr "Die Einstellungen der Pumpe nach NibePi"
 
+msgid "The pump, kW"
+msgstr "Die Pumpe, kW"
+
 msgid "The rooms have hardly moved: nothing to learn the house from yet."
 msgstr "Die Räume haben sich kaum verändert: noch nichts, woraus sich das Haus lernen ließe."
+
+msgid "The rules"
+msgstr "Die Regeln"
 
 msgid "The same again"
 msgstr "Noch einmal"
@@ -2825,6 +2945,18 @@ msgstr "Topic-Präfix"
 msgid "Total"
 msgstr "Gesamt"
 
+msgid ""
+"Two planners decide every 15 minutes: the rules, which look at the hours around now, "
+"and the optimizer, which plans the next two days at once from what Thermaestro has "
+"learned of the house, the tank and the pump. Both decide; the one chosen here drives,"
+" and the other's decisions are kept beside it on the Plan page, to compare."
+msgstr ""
+"Zwei Planer entscheiden alle 15 Minuten: die Regeln, die auf die Stunden um jetzt "
+"schauen, und der Optimierer, der die nächsten zwei Tage auf einmal plant, aus dem, "
+"was Thermaestro über das Haus, den Speicher und die Pumpe gelernt hat. Beide "
+"entscheiden; der hier gewählte steuert, und die Entscheidungen des anderen werden "
+"daneben auf der Seite Plan aufbewahrt, zum Vergleich."
+
 msgid "Underfloor heating in boards or grooves"
 msgstr "Fußbodenheizung in Platten oder Nuten"
 
@@ -2911,13 +3043,8 @@ msgstr "Gut gedämmt"
 msgid "What"
 msgstr "Was"
 
-msgid ""
-"What Thermaestro decides every 15 minutes, and why. It decides for now from what "
-"applies now; a plan that looks a day or two ahead comes with the house's model."
-msgstr ""
-"Was Thermaestro alle 15 Minuten entscheidet, und warum. Es entscheidet für jetzt aus "
-"dem, was jetzt gilt; ein Plan, der ein oder zwei Tage vorausschaut, kommt mit dem "
-"Modell des Hauses."
+msgid "What Thermaestro decides every 15 minutes, and why."
+msgstr "Was Thermaestro alle 15 Minuten entscheidet, und warum."
 
 msgid "What became of it"
 msgstr "Was daraus wurde"
@@ -2981,11 +3108,17 @@ msgstr ""
 "Was der Haushalt möchte. Thermaestro plant dafür, ordnet, was nachgibt, wenn nicht "
 "alles erfüllt werden kann, und sagt es."
 
+msgid "What the plan leaves short, in the order things give way:"
+msgstr "Was der Plan nicht erreicht, in der Reihenfolge, in der Dinge nachgeben:"
+
 msgid "What the pump uses a day, by its own meter"
 msgstr "Was die Wärmepumpe am Tag verbraucht, laut ihrem eigenen Zähler"
 
 msgid "What the radiators or floor give per degree of water over the room"
 msgstr "Was Heizkörper oder Fußboden je Grad Wasser über dem Raum abgeben"
+
+msgid "What the radiators or floor store per degree of their water"
+msgstr "Was Heizkörper oder Fußboden je Grad ihres Wassers speichern"
 
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
@@ -3015,7 +3148,7 @@ msgstr ""
 "Woher der Spotpreis und der Preis Ihres Stromanbieters kommen. Tokens werden in der "
 "Geheimnisdatei aufbewahrt."
 
-msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgid "Where the value wasn't valid, the last valid one is drawn on in gray."
 msgstr "Wo der Wert nicht gültig war, wird der letzte gültige in Grau weitergezeichnet."
 
 msgid "Where you're logged in"
@@ -3029,6 +3162,9 @@ msgstr ""
 "Welcher Außensensor für jede Größe gilt: Vorhersagen werden mit ihm verglichen, und "
 "das Hausmodell lernt von ihm. Ohne einen für die Temperatur wird der Außenfühler der "
 "Pumpe verwendet."
+
+msgid "Which planner drives"
+msgstr "Welcher Planer steuert"
 
 msgid "Which provider for what"
 msgstr "Welcher Anbieter wofür"
@@ -3068,7 +3204,7 @@ msgstr ""
 msgid "Without it, heat loss and the pump's efficiency can't be planned ahead."
 msgstr "Ohne sie lassen sich Wärmeverlust und Wirkungsgrad der Pumpe nicht vorausplanen."
 
-msgid "Without it, sun gains can't be planned ahead, only learned afterwards."
+msgid "Without it, sun gains can't be planned ahead, only learned afterward."
 msgstr "Ohne es lassen sich Sonnengewinne nicht vorausplanen, nur im Nachhinein lernen."
 
 msgid "Without it, sunlight can't be estimated where a provider gives none."
@@ -3271,6 +3407,9 @@ msgstr "weg bis Sonntag"
 #, python-format
 msgid "by %(time)s"
 msgstr "bis spätestens %(time)s"
+
+msgid "by the optimizer"
+msgstr "vom Optimierer"
 
 msgid "carried over"
 msgstr "übernommen"
@@ -3476,6 +3615,12 @@ msgstr "Warmwasser mindestens %(temp)s °C"
 msgid "hours"
 msgstr "Stunden"
 
+msgid "how it warms and cools hasn't proved itself"
+msgstr "wie er sich erwärmt und abkühlt, hat sich noch nicht bewährt"
+
+msgid "how its water follows the offset hasn't proved itself"
+msgstr "wie sein Wasser der Verschiebung folgt, hat sich noch nicht bewährt"
+
 msgid "how many peaks"
 msgstr "wie viele Spitzen"
 
@@ -3500,9 +3645,27 @@ msgstr "inkl. MwSt."
 msgid "included"
 msgstr "enthalten"
 
+msgid "it has no band"
+msgstr "er hat keinen Bereich"
+
+msgid "its COP or the compressor's draw isn't known"
+msgstr "sein COP oder die Leistungsaufnahme des Verdichters ist nicht bekannt"
+
 #, python-format
 msgid "its cheapest time to charge, if it needs one: from %(when)s"
 msgstr "die günstigste Zeit zum Laden, falls nötig: ab %(when)s"
+
+msgid "its house model hasn't proved itself"
+msgstr "sein Hausmodell hat sich noch nicht bewährt"
+
+msgid "its offset isn't a lever in use"
+msgstr "seine Verschiebung ist keine genutzte Einstellung"
+
+msgid "its standing loss and its week haven't proved themselves"
+msgstr "sein Bereitschaftsverlust und seine Woche haben sich noch nicht bewährt"
+
+msgid "its volume isn't known"
+msgstr "sein Volumen ist nicht bekannt"
 
 msgid "last heard"
 msgstr "zuletzt gehört"
@@ -3553,11 +3716,17 @@ msgstr "mm pro Stunde"
 msgid "must be ready"
 msgstr "muss bereit sein"
 
+msgid "neither its block nor its boost is a lever in use"
+msgstr "weder seine Sperre noch seine Extraladung ist eine genutzte Einstellung"
+
 msgid "no"
 msgstr "nein"
 
 msgid "no answer in time"
 msgstr "keine Antwort rechtzeitig"
+
+msgid "no room in it has a fresh temperature"
+msgstr "kein Raum darin hat eine aktuelle Temperatur"
 
 #, python-format
 msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
@@ -3579,6 +3748,9 @@ msgstr "kein Durchfluss"
 
 msgid "none"
 msgstr "keiner"
+
+msgid "none of its levers is in use"
+msgstr "keine seiner Einstellungen ist in Gebrauch"
 
 msgid "none yet"
 msgstr "noch keine"
@@ -3616,6 +3788,9 @@ msgstr "ungültig: der letzte gültige Wert"
 
 msgid "not_connected"
 msgstr "nicht angeschlossen"
+
+msgid "nothing it could plan yet: every goal is with the rules"
+msgstr "noch nichts, was er planen konnte: jedes Ziel liegt bei den Regeln"
 
 msgid "nothing of its own"
 msgstr "nichts Eigenes"
@@ -3768,6 +3943,10 @@ msgstr "gesetzt auf %(value)s"
 msgid "shadow: nothing was changed"
 msgstr "Schatten: nichts wurde geändert"
 
+#, python-format
+msgid "short by %(value)s %(unit)s"
+msgstr "um %(value)s %(unit)s verfehlt"
+
 msgid "should be ready"
 msgstr "sollte bereit sein"
 
@@ -3831,6 +4010,9 @@ msgstr "die Sole im Eintritt, oder die Außenluft"
 msgid "the climate system's supply temperature"
 msgstr "die Vorlauftemperatur des Heizkreises"
 
+msgid "the compressor's draw isn't known"
+msgstr "die Leistungsaufnahme des Verdichters ist nicht bekannt"
+
 msgid "the compressor's state"
 msgstr "der Zustand des Verdichters"
 
@@ -3882,6 +4064,9 @@ msgstr "die Pumpe hat abgelehnt"
 
 msgid "the pump's demand"
 msgstr "der Bedarf der Pumpe"
+
+msgid "the pump's heating stop has heating off"
+msgstr "die Heizgrenze der Pumpe hat die Heizung ausgeschaltet"
 
 msgid "the pump's own"
 msgstr "der der Pumpe"
@@ -3971,6 +4156,9 @@ msgstr "Wochenenden und Feiertage"
 msgid "what Thermaestro sets when it lets go; at first, what it found"
 msgstr "was Thermaestro einstellt, wenn es loslässt; zuerst der Wert, den es vorfand"
 
+msgid "what its emitters give hasn't proved itself"
+msgstr "was seine Heizkörper oder sein Fußboden abgeben, hat sich noch nicht bewährt"
+
 msgid "where it's from"
 msgstr "woher sie stammt"
 
@@ -4020,4 +4208,17 @@ msgstr "°C pro Stunde bei 50 °C"
 
 #~ msgid "a whole-house power reading"
 #~ msgstr "eine Messung der Leistung des ganzen Hauses"
+
+#~ msgid ""
+#~ "What Thermaestro decides every 15 minutes, and"
+#~ " why. It decides for now from what "
+#~ "applies now; a plan that looks a day "
+#~ "or two ahead comes with the house's "
+#~ "model."
+#~ msgstr ""
+#~ "Was Thermaestro alle 15 Minuten entscheidet, "
+#~ "und warum. Es entscheidet für jetzt aus "
+#~ "dem, was jetzt gilt; ein Plan, der ein"
+#~ " oder zwei Tage vorausschaut, kommt mit dem"
+#~ " Modell des Hauses."
 

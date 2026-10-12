@@ -2,14 +2,14 @@
 
 - **Heating with room sensors:** a PI loop on the curve offset per climate system, steering
   the room furthest below its target. The target sits mid-band; with a cost stance it
-  moves toward the band's top in cheap hours and its bottom in dear ones, as far as the
+  moves toward the band's top in cheap hours and its bottom in expensive ones, as far as the
   slider allows. A band that rises later is aimed for one response time early; one that
   falls is kept until it does. An old reading counts less, a stale one not at all.
-- **Heating without:** the offset raised in the cheapest hours and cut in the dearest, at
+- **Heating without:** the offset raised in the cheapest hours and cut in the most expensive, at
   most the household's bound, ranked so it nets out over the window.
 - **Hot water:** the floor first (a hold released, a charge started below it); a charge in
   the cheapest window before a deadline the tank won't make by itself, or at once when
-  late; the pump's own charges held off in dear hours while the tank is well above its
+  late; the pump's own charges held off in expensive hours while the tank is well above its
   floor and no deadline is near.
 - **The addition, the pool:** as the household's policy says.
 - Between slots, only hot water: the rest changes at most once a slot.
@@ -42,8 +42,8 @@ from .model import (
 
 WINDOW = timedelta(hours=12)
 """How far back and ahead prices are compared, at least."""
-DEAR, STILL_DEAR = -0.3, -0.1
-"""The price signal below which an hour is dear, and the one it must rise above again
+EXPENSIVE, STILL_EXPENSIVE = -0.3, -0.1
+"""The price signal below which an hour is expensive, and the one it must rise above again
 before a hold for price is released."""
 FLOOR_MARGIN = 2.0
 """How close to its floor the tank's top may come before every hold on it is released."""
@@ -115,7 +115,7 @@ def _window(prices: list[Price], now: datetime, half: timedelta) -> list[float]:
 
 def signal(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> float | None:
     """How cheap the price now is against the hours around it: 1 the cheapest, -1 the
-    dearest, 0 the median. None without enough prices."""
+    most expensive, 0 the median. None without enough prices."""
     current = price_at(prices, now)
     window = _window(prices, now, half)
     if current is None or len(window) < 8:
@@ -129,7 +129,7 @@ def signal(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> floa
 
 def rank_signal(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> float | None:
     """The price now by its rank among the hours around it, 1 the cheapest to -1 the
-    dearest: a shift by it nets out over the window."""
+    most expensive: a shift by it nets out over the window."""
     current = price_at(prices, now)
     window = _window(prices, now, half)
     if current is None or len(window) < 8:
@@ -325,7 +325,7 @@ def _steer(
         reason = f"cheap hours: warming {name} toward {target:.1f} °C, high in its band"
     elif lean < -0.25:
         rank = RANK_SLIDER
-        reason = f"dear hours: letting {name} drift to {target:.1f} °C, low in its band"
+        reason = f"expensive hours: letting {name} drift to {target:.1f} °C, low in its band"
     else:
         rank = RANK_SLIDER
         reason = f"keeping {name} near {target:.1f} °C"
@@ -362,9 +362,9 @@ def _shift(sit: Situation, system: str, lever: LeverState) -> list[Decision]:
     base = _number(lever.baseline, _number(lever.current))
     value = lever.fit(base + max(bound.low, min(bound.high, shift + lead)))
     if shift > 0:
-        reason = f"cheap hour: the heat raised {shift:+d} ahead of dearer ones"
+        reason = f"cheap hour: the heat raised {shift:+d} ahead of more expensive ones"
     elif shift < 0:
-        reason = f"dear hour: the heat lowered {shift:+d}, made up in cheaper ones"
+        reason = f"expensive hour: the heat lowered {shift:+d}, made up in cheaper ones"
     elif lead:
         reason = "heating ahead of the weather"
     else:
@@ -463,19 +463,23 @@ def hot_water(sit: Situation) -> list[Decision]:
             continue
         s = signal(sit.prices, sit.now)
         was = sit.memory.blocked.get(scope, False)
-        dear = sit.force.slider is not None and s is not None and s < (STILL_DEAR if was else DEAR)
+        expensive = (
+            sit.force.slider is not None
+            and s is not None
+            and s < (STILL_EXPENSIVE if was else EXPENSIVE)
+        )
         safe = top is not None and (least is None or top >= least + HOLD_MARGIN)
         near = need is not None and (need.t - sit.now).total_seconds() <= 2 * charge_s
         since = sit.memory.blocked_since.get(scope)
         long = since is not None and sit.now - since >= BLOCK_MOST
-        want = dear and safe and not near and boosting is None and not long
+        want = expensive and safe and not near and boosting is None and not long
         sit.memory.blocked[scope] = want
         if want and since is None:
             sit.memory.blocked_since[scope] = sit.now
-        elif not want and not dear:
+        elif not want and not expensive:
             sit.memory.blocked_since.pop(scope, None)  # a new hold may begin
         if want and not block.held:
-            reason = "dear hours: the hot water's charges held off"
+            reason = "expensive hours: the hot water's charges held off"
             out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
         elif not want and block.held:
             why = (
@@ -518,10 +522,10 @@ def addition(sit: Situation) -> list[Decision]:
             out += _restore(power, "the addition's power as the pump has it")
     if stop is not None:
         s = signal(sit.prices, sit.now)
-        dear = policy == "not_when_expensive" and s is not None and s < DEAR
+        expensive = policy == "not_when_expensive" and s is not None and s < EXPENSIVE
         peak = _over_peak(sit)
-        if (dear or peak) and not cold and stop.low is not None:
-            why = "dear hours" if dear else "the house is near its power limit"
+        if (expensive or peak) and not cold and stop.low is not None:
+            why = "expensive hours" if expensive else "the house is near its power limit"
             reason = f"{why}: the addition kept off"
             out.append(Decision(stop.ref, "set", {"value": stop.low}, RANK_SLIDER, reason))
         else:
@@ -567,7 +571,7 @@ def pools(sit: Situation) -> list[Decision]:
         if block is not None:
             want = s < -0.5 and temp is not None and temp >= low
             if want and not block.held:
-                reason = "the dearest hours: the pool's heating held off"
+                reason = "the most expensive hours: the pool's heating held off"
                 out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
             elif not want and block.held:
                 reason = "the pool may heat again"

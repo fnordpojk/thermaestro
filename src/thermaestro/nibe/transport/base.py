@@ -177,7 +177,7 @@ async def wait_any(
     timeout: float, future: asyncio.Future[Any] | None = None, event: asyncio.Event | None = None
 ) -> None:
     """Wait until `future` is done or `event` is set, or `timeout` passes. Neither is
-    cancelled."""
+    canceled."""
     waiters: set[asyncio.Future[Any]] = set()
     if future is not None:
         if future.done():

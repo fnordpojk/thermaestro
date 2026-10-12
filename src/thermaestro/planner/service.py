@@ -25,7 +25,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta, tzinfo
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from .. import clock
@@ -43,13 +43,14 @@ from ..core.values import Key, Values
 from ..core.weather import value_at
 from ..intents import Capabilities, Intents
 from ..intents.entry import RESPONSE_H
+from ..intents.resolve import Resolver
 from ..learn import Learned, Learnings, mark
 from ..learn.energy import charge_kw
 from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import expected, house
 from ..learn.pump import Response, lead
-from ..store import Control, Database, Location, PriceLayer, Vat
+from ..store import Control, Database, Location, PriceLayer, Transaction, Vat
 from . import rules
 from .model import (
     SLOT,
@@ -61,6 +62,7 @@ from .model import (
     Situation,
     Tank,
 )
+from .optimizer import Optimized, Optimizer
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -99,6 +101,10 @@ CHARGE = "tank.charge_s"
 """How long a tank's charges take, as kept."""
 PERIODIC = "tank.periodic"
 """When a tank's periodic increase was last seen, and the time before, as kept."""
+PLANNED_KEEP_S = 90 * 86_400.0
+"""How long both planners' decisions are kept."""
+PLANS_KEEP_S = 14 * 86_400.0
+"""How long the optimizer's plans are kept: two weeks of looking back at its predictions."""
 
 Prices = Callable[[datetime], Awaitable[list[Price]]]
 
@@ -189,6 +195,14 @@ class Planner:
         self._situation_levers: dict[str, LeverState] = {}
         self._recent: dict[str, deque[tuple[float, float]]] = {}
         self._grid = GridLimits(db, values)
+        self.optimizer = (
+            Optimizer(db, values, host, learnings, weather) if learnings is not None else None
+        )
+        """Plans beside the rules every slot; drives where the household chose it."""
+        self.optimized: Optimized | None = None
+        self.chosen = "rules"
+        """The planner the household chose to drive, as the last round read it."""
+        self._resolver: Resolver | None = None
         """Each room's temperatures of the last hour, by point."""
         self._aired: dict[str, float] = {}
         """Rooms seen aired, by point: when."""
@@ -247,7 +261,7 @@ class Planner:
                 self._floors[scope] = floor.low
                 near = tank.top is not None and tank.top <= floor.low + rules.FLOOR_MARGIN
                 self._near[scope] = near
-        decisions = rules.plan(sit)
+        decisions = await self._decide(sit, slot)
         self._situation_levers = sit.levers
         if slot:
             self.memory.last_round = sit.now
@@ -259,11 +273,110 @@ class Planner:
         self.plan = plan
         return plan
 
+    async def _decide(self, sit: Situation, slot: bool) -> list[Decision]:
+        """Both planners plan; the one the household chose drives. The optimizer drives
+        only the levers whose goals it could plan; the rules the rest, and everything when
+        a solve fails. At a slot's start, both planners' decisions are kept."""
+        ruled = rules.plan(sit)
+        if self.optimizer is None:
+            return ruled
+        control = await self._db.get(Control) or Control()
+        self.chosen = control.planner
+        hands_off = sit.force.hands_off_until is not None and sit.now < sit.force.hands_off_until
+        optimized: Optimized | None = None
+        theirs: list[Decision] = []
+        if slot:
+            if self._resolver is not None:
+                optimized = await self.optimizer.run(sit, self._resolver)
+                self.optimized = optimized
+                theirs = [] if hands_off else optimized.decisions
+        elif self.optimizer.last is not None and self.optimizer.last.ok and not hands_off:
+            optimized = self.optimizer.last
+            theirs = await self.optimizer.between(sit)
+        if sit.budget is not None and sit.budget[0] >= sit.budget[1]:
+            theirs = [d for d in theirs if d.rank <= rules.WEAR_RANK]
+        driving = control.planner == "optimizer" and optimized is not None and optimized.ok
+        chosen = ruled
+        if driving and optimized is not None:
+            chosen = [d for d in ruled if d.lever not in optimized.covered] + theirs
+            chosen.sort(key=lambda d: d.rank)
+            self._follow(sit, optimized.covered, theirs)
+        if slot:
+            await self._keep(sit, ruled, theirs, optimized, control.planner)
+        return chosen
+
+    def _follow(self, sit: Situation, covered: frozenset[str], theirs: list[Decision]) -> None:
+        """While the optimizer drives a climate system's offset, the rules' loop follows
+        where it leaves the offset, so that a slot the rules take over picks up from there
+        rather than from what the loop would have wound up to."""
+        asked = {d.lever: d.params.get("value") for d in theirs if d.op == "set"}
+        for system in sit.caps.systems:
+            ref = f"{system}/heating.offset"
+            lever = sit.levers.get(ref)
+            if ref not in covered or lever is None:
+                continue
+            value = asked.get(ref, lever.current)
+            base = rules._number(lever.baseline, rules._number(lever.current))
+            if isinstance(value, int | float):
+                self.memory.integral[system] = float(value) - base
+
+    async def _keep(
+        self,
+        sit: Situation,
+        ruled: list[Decision],
+        theirs: list[Decision],
+        optimized: Optimized | None,
+        chosen: str,
+    ) -> None:
+        """Both planners' decisions, with what the devices showed; and the optimizer's
+        plan, for the plan ahead and to check against what came."""
+        t = sit.now.timestamp()
+        ok = optimized is not None and optimized.ok
+        covered = optimized.covered if ok and optimized is not None else frozenset()
+        rows = []
+        for planner, decisions in (("rules", ruled), ("optimizer", theirs)):
+            for d in decisions:
+                if planner == "rules":
+                    driving = chosen == "rules" or not ok or d.lever not in covered
+                else:
+                    driving = chosen == "optimizer" and ok
+                rows.append(
+                    (
+                        t,
+                        planner,
+                        int(driving),
+                        d.lever,
+                        str(d.op),
+                        json.dumps(d.params),
+                        d.rank,
+                        d.reason,
+                        json.dumps(self._executor.found(d.lever)),
+                    )
+                )
+        body = plan_body(optimized, sit) if optimized is not None else None
+
+        def write(tx: Transaction) -> None:
+            tx.executemany(
+                "INSERT INTO planned (t, planner, driving, lever, op, params, rank, why, found)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+            if body is not None:
+                tx.execute(
+                    "INSERT OR REPLACE INTO plans (t, driving, body) VALUES (?, ?, ?)",
+                    (t, int(chosen == "optimizer" and ok), json.dumps(body)),
+                )
+            tx.execute("DELETE FROM planned WHERE t < ?", (t - PLANNED_KEEP_S,))
+            tx.execute("DELETE FROM plans WHERE t < ?", (t - PLANS_KEEP_S,))
+
+        await self._db.run(write)
+
     # --- what the rules need ---------------------------------------------------------------
 
     async def gather(self) -> Situation:
         now = clock.now()
         resolver = await self._intents.resolver()
+        self._resolver = resolver
         calendar = resolver.calendar
         caps = self._house.capabilities
         heating = self._heating()
@@ -774,3 +887,62 @@ def _same(a: Value | None, b: Value | None) -> bool:
 
 def _zone(found: tzinfo) -> ZoneInfo:
     return found if isinstance(found, ZoneInfo) else ZoneInfo("UTC")
+
+
+def plan_body(optimized: Optimized, sit: Situation) -> dict[str, Any]:
+    """The optimizer's plan, hour by hour, compact: kept for the plan ahead and to check its
+    predictions against what came."""
+    out: dict[str, Any] = {
+        "ok": optimized.ok,
+        "why": optimized.why,
+        "notes": optimized.notes,
+        "covered": sorted(optimized.covered),
+    }
+    problem, found = optimized.problem, optimized.plan
+    if problem is None or found is None or not found.ok:
+        return out
+    slots = problem.slots
+    hours = len(slots) // 4
+
+    def hourly(values: list[float], digits: int = 2) -> list[float]:
+        return [round(sum(values[4 * h : 4 * h + 4]) / 4, digits) for h in range(hours)]
+
+    def ends(values: list[float]) -> list[float]:
+        return [round(values[4 * h + 3], 2) for h in range(hours)]
+
+    prices = [s.price for s in slots]
+    out.update(
+        {
+            "t0": slots[0].t,
+            "cost": round(found.cost, 3),
+            "stages": found.stages,
+            "widened": found.widened,
+            "seconds": round(found.seconds, 3),
+            "price": [
+                None
+                if any(p is None for p in prices[4 * h : 4 * h + 4])
+                else round(sum(p or 0.0 for p in prices[4 * h : 4 * h + 4]) / 4, 4)
+                for h in range(hours)
+            ],
+            "estimated": [any(s.estimated for s in slots[4 * h : 4 * h + 4]) for h in range(hours)],
+            "outdoor": hourly([s.outdoor for s in slots], 1),
+            "kw": hourly(found.kw),
+            "systems": {
+                scope: {
+                    "offset": [round(v, 2) for v in sp.offset],
+                    "room": [round(v, 2) for v in sp.room],
+                    "heat": [round(v, 2) for v in sp.heat_kw],
+                }
+                for scope, sp in found.systems.items()
+            },
+            "tanks": {
+                scope: {"level": ends(tp.level), "charge": hourly(tp.share)}
+                for scope, tp in found.tanks.items()
+            },
+            "pools": {
+                scope: {"temp": ends(pp.temp), "heat": hourly(pp.share)}
+                for scope, pp in found.pools.items()
+            },
+        }
+    )
+    return out

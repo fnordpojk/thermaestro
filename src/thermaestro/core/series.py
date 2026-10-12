@@ -140,7 +140,7 @@ class Series:
                 current.info = info
 
     async def follow(self, instance: str, link: Link, infos: Iterable[SeriesInfo]) -> None:
-        """Fetch each series, then keep it current, until cancelled or the link closes."""
+        """Fetch each series, then keep it current, until canceled or the link closes."""
         infos = list(infos)
         self.describe(instance, infos)
         if not infos:

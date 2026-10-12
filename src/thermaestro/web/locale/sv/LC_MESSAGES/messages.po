@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 13:15+0200\n"
+"POT-Creation-Date: 2026-10-12 16:22+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -36,6 +36,10 @@ msgstr "%(fall)s °C i timmen vid 50 °C"
 #, python-format
 msgid "%(feature)s is off"
 msgstr "%(feature)s är avstängd"
+
+#, python-format
+msgid "%(hours)s h ahead, off by %(miss)s °C"
+msgstr "%(hours)s h framåt, fel med %(miss)s °C"
 
 #, python-format
 msgid "%(hours)s h ahead: %(off)s K"
@@ -80,6 +84,10 @@ msgstr "%(kw)s kW per °C"
 #, python-format
 msgid "%(kwh)s kWh a day"
 msgstr "%(kwh)s kWh per dygn"
+
+#, python-format
+msgid "%(kwh)s kWh per °C"
+msgstr "%(kwh)s kWh per °C"
 
 #, python-format
 msgid "%(lever)s: mode"
@@ -541,6 +549,9 @@ msgstr "Betedde sig som det ska under den senaste veckan."
 msgid "Behaved as it should when last seen, %(seen)s; not seen since."
 msgstr "Betedde sig som det ska när det senast sågs, %(seen)s; inte sett sedan dess."
 
+msgid "Beside the rules"
+msgstr "Bredvid reglerna"
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once there are a "
 "day's worth."
@@ -553,6 +564,13 @@ msgstr "Elområde"
 
 msgid "Boost now"
 msgstr "Extra varmvatten nu"
+
+msgid ""
+"Both planners decide every slot; what each asked in the last one. The one driving is "
+"marked."
+msgstr ""
+"Båda planerarna bestämmer varje kvart; det här bad var och en om senast. Den som styr"
+" är markerad."
 
 msgid "Brine"
 msgstr "Köldbärare"
@@ -618,6 +636,14 @@ msgstr ""
 "bara här. Varje inställning pumpen låter ändras läses, ungefär en sekund var, och de "
 "som skiljer sig från fabriksinställningen listas: en installatörs eller ditt eget val"
 " skiljer sig också."
+
+#, python-format
+msgid ""
+"Changes asked in the last %(days)s days: the rules %(rules)s, the optimizer "
+"%(optimizer)s."
+msgstr ""
+"Ändringar begärda de senaste %(days)s dagarna: reglerna %(rules)s, optimeraren "
+"%(optimizer)s."
 
 msgid "Changes here need your password within the last 15 minutes; you'll be asked for it."
 msgstr ""
@@ -1184,6 +1210,10 @@ msgstr "Varmvatten som bör vara klart"
 msgid "Hot water, the last week"
 msgstr "Varmvatten, den senaste veckan"
 
+#, python-format
+msgid "Hot water: %(name)s"
+msgstr "Varmvatten: %(name)s"
+
 msgid "Hot water: ready by a time, and its lowest temperature"
 msgstr "Varmvatten: klart till en tid, och dess lägsta temperatur"
 
@@ -1238,6 +1268,9 @@ msgstr "Hur ofta kompressorn startar"
 
 msgid "How the heating water follows the weather and the offset"
 msgstr "Hur värmevattnet följer vädret och förskjutningen"
+
+msgid "How the optimizer's predictions of the rooms came out:"
+msgstr "Hur optimerarens förutsägelser för rummen slog in:"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Hur rummen följer värmen och vädret"
@@ -1375,6 +1408,9 @@ msgstr "Lämnad som NibePi senast skrev den."
 
 msgid "Left at the last price level's values."
 msgstr "Lämnade på den senaste prisnivåns värden."
+
+msgid "Left to the rules, until what they rest on has been learned:"
+msgstr "Lämnat åt reglerna tills det de vilar på har lärts in:"
 
 msgid "Left wherever NibePi's airflow control last stepped it."
 msgstr "Lämnad där NibePis luftflödesstyrning senast ställde den."
@@ -1683,6 +1719,9 @@ msgstr ""
 "Inga månader ikryssade: varje månad. Inga tider: hela dygnet; ett slut före starten "
 "går över midnatt. Det första priset som gäller används, annars grundpriset."
 
+msgid "No plan yet."
+msgstr "Ingen plan ännu."
+
 msgid "No plugin instances."
 msgstr "Inga tilläggsinstanser."
 
@@ -1742,7 +1781,7 @@ msgstr "Inte anpassad än."
 msgid "Not given by the grid company: %(fields)s"
 msgstr "Inte angivet av elnätsföretaget: %(fields)s"
 
-msgid "Not in dear hours"
+msgid "Not in expensive hours"
 msgstr "Inte under dyra timmar"
 
 msgid "Not known well enough to be changed unattended on this pump."
@@ -1930,6 +1969,9 @@ msgstr "Eller säg det: ett bad kl 19.30, borta till söndag, lite varmare till 
 msgid "Outcome"
 msgstr "Utfall"
 
+msgid "Outdoor"
+msgstr "Ute"
+
 msgid "Outdoor references"
 msgstr "Utomhusreferenser"
 
@@ -1978,6 +2020,9 @@ msgstr "Fäst:"
 msgid "Plan"
 msgstr "Plan"
 
+msgid "Planner"
+msgstr "Planerare"
+
 #, python-format
 msgid "Plugin %(name)s"
 msgstr "Tillägg %(name)s"
@@ -1993,6 +2038,10 @@ msgstr "Peka på ett värde för att se varför."
 
 msgid "Pool"
 msgstr "Pool"
+
+#, python-format
+msgid "Pool: %(name)s"
+msgstr "Pool: %(name)s"
 
 msgid "Poorly insulated"
 msgstr "Dåligt isolerat"
@@ -2021,6 +2070,9 @@ msgstr "Effekt till nätet"
 msgid "Precipitation"
 msgstr "Nederbörd"
 
+msgid "Price"
+msgstr "Pris"
+
 msgid "Price per kW and month"
 msgstr "Pris per kW och månad"
 
@@ -2030,8 +2082,18 @@ msgstr "Pris per kWh"
 msgid "Price sources"
 msgstr "Priskällor"
 
+msgid "Price, estimated"
+msgstr "Pris, uppskattat"
+
 msgid "Prices"
 msgstr "Priser"
+
+msgid ""
+"Prices not published yet are estimated from the same hours of the last four weeks, "
+"and drawn dashed. The plan firms up when they are published."
+msgstr ""
+"Priser som inte publicerats ännu uppskattas från samma timmar de senaste fyra "
+"veckorna och ritas streckade. Planen blir säkrare när de publiceras."
 
 msgid "Protocol"
 msgstr "Protokoll"
@@ -2172,6 +2234,10 @@ msgstr "Rum inte över sitt intervall"
 
 msgid "Rooms not below their band"
 msgstr "Rum inte under sitt intervall"
+
+#, python-format
+msgid "Rooms: %(name)s"
+msgstr "Rum: %(name)s"
 
 #, python-format
 msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
@@ -2520,6 +2586,9 @@ msgstr ""
 msgid "The highest, how many"
 msgstr "De högsta, hur många"
 
+msgid "The hot water's floor"
+msgstr "Varmvattnets lägsta nivå"
+
 msgid "The house"
 msgstr "Huset"
 
@@ -2564,6 +2633,37 @@ msgstr "De närmaste 48 timmarna"
 msgid "The offset hasn't moved enough to learn what a step does."
 msgstr "Förskjutningen har inte ändrats tillräckligt för att lära vad ett steg gör."
 
+msgid "The optimizer"
+msgstr "Optimeraren"
+
+#, python-format
+msgid "The optimizer didn't plan the last slot: %(why)s."
+msgstr "Optimeraren planerade inte den senaste kvarten: %(why)s."
+
+msgid ""
+"The optimizer drives only what its learned models cover, and only the settings in "
+"control; the rules drive the rest, and everything when a plan fails. Thermaestro "
+"never switches planners by itself."
+msgstr ""
+"Optimeraren styr bara det dess inlärda modeller täcker, och bara inställningar i "
+"styrning; reglerna styr resten, och allt när en plan misslyckas. Thermaestro byter "
+"aldrig planerare av sig själv."
+
+msgid "The optimizer hasn't planned a slot yet."
+msgstr "Optimeraren har inte planerat någon kvart ännu."
+
+msgid "The optimizer planned the last slot, for:"
+msgstr "Optimeraren planerade den senaste kvarten, för:"
+
+#, python-format
+msgid ""
+"The optimizer plans the next two days every 15 minutes: how warm the rooms will be, "
+"when the tank is charged, and what the pump will use, against the prices. %(driving)s"
+" drives now."
+msgstr ""
+"Optimeraren planerar de kommande två dygnen var 15:e minut: hur varma rummen blir, "
+"när tanken laddas och vad pumpen förbrukar, mot priserna. %(driving)s styr nu."
+
 #, python-format
 msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
 msgstr "Utetemperaturen har knappt ändrats: en spridning på %(spread)s °C."
@@ -2574,11 +2674,23 @@ msgstr "Den periodiska varmvattenhöjningen, senast sedd"
 msgid "The plan"
 msgstr "Planen"
 
+msgid "The plan ahead"
+msgstr "Planen framåt"
+
+msgid "The plan could not be loaded."
+msgstr "Planen kunde inte läsas in."
+
+msgid "The plan keeps every goal."
+msgstr "Planen håller varje mål."
+
 msgid "The pool"
 msgstr "Poolen"
 
 msgid "The pool hasn't been heated enough to learn how fast it warms."
 msgstr "Poolen har inte värmts tillräckligt för att lära hur fort den värms."
+
+msgid "The pools' bands"
+msgstr "Poolernas intervall"
 
 msgid "The power limit"
 msgstr "Effektgränsen"
@@ -2626,8 +2738,14 @@ msgstr "Pumpens egna funktioner som ändrar samma sak, och måste vara avstängd
 msgid "The pump's settings after NibePi"
 msgstr "Pumpens inställningar efter NibePi"
 
+msgid "The pump, kW"
+msgstr "Pumpen, kW"
+
 msgid "The rooms have hardly moved: nothing to learn the house from yet."
 msgstr "Rummen har knappt rört sig: inget att lära sig huset av än."
+
+msgid "The rules"
+msgstr "Reglerna"
 
 msgid "The same again"
 msgstr "Samma igen"
@@ -2777,6 +2895,17 @@ msgstr "Prefix för ämnen"
 msgid "Total"
 msgstr "Totalt"
 
+msgid ""
+"Two planners decide every 15 minutes: the rules, which look at the hours around now, "
+"and the optimizer, which plans the next two days at once from what Thermaestro has "
+"learned of the house, the tank and the pump. Both decide; the one chosen here drives,"
+" and the other's decisions are kept beside it on the Plan page, to compare."
+msgstr ""
+"Två planerare bestämmer var 15:e minut: reglerna, som ser till timmarna runt nu, och "
+"optimeraren, som planerar de kommande två dygnen på en gång utifrån vad Thermaestro "
+"har lärt sig om huset, tanken och pumpen. Båda bestämmer; den som väljs här styr, och"
+" den andras beslut sparas bredvid på sidan Plan, att jämföra."
+
 msgid "Underfloor heating in boards or grooves"
 msgstr "Golvvärme i spårade skivor"
 
@@ -2861,12 +2990,8 @@ msgstr "Välisolerat"
 msgid "What"
 msgstr "Vad"
 
-msgid ""
-"What Thermaestro decides every 15 minutes, and why. It decides for now from what "
-"applies now; a plan that looks a day or two ahead comes with the house's model."
-msgstr ""
-"Vad Thermaestro beslutar var 15:e minut, och varför. Den beslutar för nu utifrån vad "
-"som gäller nu; en plan som ser ett eller två dygn framåt kommer med husets modell."
+msgid "What Thermaestro decides every 15 minutes, and why."
+msgstr "Vad Thermaestro bestämmer var 15:e minut, och varför."
 
 msgid "What became of it"
 msgstr "Vad det blev"
@@ -2929,11 +3054,17 @@ msgstr ""
 "Vad hushållet vill. Thermaestro planerar för det, rangordnar vad som ger vika när "
 "inte allt kan uppfyllas, och säger det."
 
+msgid "What the plan leaves short, in the order things give way:"
+msgstr "Vad planen inte når, i den ordning saker får ge vika:"
+
 msgid "What the pump uses a day, by its own meter"
 msgstr "Vad värmepumpen förbrukar per dygn, enligt sin egen mätare"
 
 msgid "What the radiators or floor give per degree of water over the room"
 msgstr "Vad radiatorerna eller golvet ger per grad vatten över rummet"
+
+msgid "What the radiators or floor store per degree of their water"
+msgstr "Vad radiatorerna eller golvet lagrar per grad av sitt vatten"
 
 msgid "What the rights allow"
 msgstr "Vad rättigheterna tillåter"
@@ -2961,7 +3092,7 @@ msgid ""
 "secrets file."
 msgstr "Varifrån spotpriset och din elhandlares pris kommer. Token sparas i hemlighetsfilen."
 
-msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgid "Where the value wasn't valid, the last valid one is drawn on in gray."
 msgstr "Där värdet inte var giltigt ritas det senaste giltiga vidare i grått."
 
 msgid "Where you're logged in"
@@ -2974,6 +3105,9 @@ msgid ""
 msgstr ""
 "Vilken utomhusgivare som gäller för varje storhet: prognoser jämförs med den, och "
 "husmodellen lär sig av den. Utan en för temperatur används pumpens egen utegivare."
+
+msgid "Which planner drives"
+msgstr "Vilken planerare som styr"
 
 msgid "Which provider for what"
 msgstr "Vilken leverantör för vad"
@@ -3013,7 +3147,7 @@ msgstr ""
 msgid "Without it, heat loss and the pump's efficiency can't be planned ahead."
 msgstr "Utan den kan värmeförlusten och pumpens verkningsgrad inte planeras i förväg."
 
-msgid "Without it, sun gains can't be planned ahead, only learned afterwards."
+msgid "Without it, sun gains can't be planned ahead, only learned afterward."
 msgstr "Utan det kan solvärmen inte planeras i förväg, bara läras i efterhand."
 
 msgid "Without it, sunlight can't be estimated where a provider gives none."
@@ -3208,6 +3342,9 @@ msgstr "borta till söndag"
 #, python-format
 msgid "by %(time)s"
 msgstr "senast %(time)s"
+
+msgid "by the optimizer"
+msgstr "av optimeraren"
 
 msgid "carried over"
 msgstr "överfört"
@@ -3413,6 +3550,12 @@ msgstr "varmvatten minst %(temp)s °C"
 msgid "hours"
 msgstr "timmar"
 
+msgid "how it warms and cools hasn't proved itself"
+msgstr "hur den värms och svalnar har inte visat sig stämma"
+
+msgid "how its water follows the offset hasn't proved itself"
+msgstr "hur dess vatten följer förskjutningen har inte visat sig stämma"
+
 msgid "how many peaks"
 msgstr "hur många toppar"
 
@@ -3437,9 +3580,27 @@ msgstr "inkl. moms"
 msgid "included"
 msgstr "ingår"
 
+msgid "it has no band"
+msgstr "den har inget intervall"
+
+msgid "its COP or the compressor's draw isn't known"
+msgstr "dess COP eller kompressorns effekt är inte känd"
+
 #, python-format
 msgid "its cheapest time to charge, if it needs one: from %(when)s"
 msgstr "billigaste tiden att ladda, om det behövs: från %(when)s"
+
+msgid "its house model hasn't proved itself"
+msgstr "dess husmodell har inte visat sig stämma"
+
+msgid "its offset isn't a lever in use"
+msgstr "dess förskjutning är ingen inställning i bruk"
+
+msgid "its standing loss and its week haven't proved themselves"
+msgstr "dess stilleståndsförlust och dess vecka har inte visat sig stämma"
+
+msgid "its volume isn't known"
+msgstr "dess volym är inte känd"
 
 msgid "last heard"
 msgstr "senast hörd"
@@ -3488,11 +3649,17 @@ msgstr "mm per timme"
 msgid "must be ready"
 msgstr "måste vara klart"
 
+msgid "neither its block nor its boost is a lever in use"
+msgstr "varken dess spärr eller dess extra laddning är en inställning i bruk"
+
 msgid "no"
 msgstr "nej"
 
 msgid "no answer in time"
 msgstr "inget svar i tid"
+
+msgid "no room in it has a fresh temperature"
+msgstr "inget rum i det har en färsk temperatur"
 
 #, python-format
 msgid "no room sensor: the heat shifted by price at most %(steps)s steps"
@@ -3512,6 +3679,9 @@ msgstr "inget flöde"
 
 msgid "none"
 msgstr "ingen"
+
+msgid "none of its levers is in use"
+msgstr "ingen av dess inställningar är i bruk"
 
 msgid "none yet"
 msgstr "inga än"
@@ -3549,6 +3719,9 @@ msgstr "ogiltigt: det senaste giltiga värdet"
 
 msgid "not_connected"
 msgstr "inte ansluten"
+
+msgid "nothing it could plan yet: every goal is with the rules"
+msgstr "inget den kunde planera ännu: varje mål ligger hos reglerna"
 
 msgid "nothing of its own"
 msgstr "inget eget"
@@ -3701,6 +3874,10 @@ msgstr "satt till %(value)s"
 msgid "shadow: nothing was changed"
 msgstr "skugga: inget ändrades"
 
+#, python-format
+msgid "short by %(value)s %(unit)s"
+msgstr "kort med %(value)s %(unit)s"
+
 msgid "should be ready"
 msgstr "bör vara klart"
 
@@ -3764,6 +3941,9 @@ msgstr "köldbäraren in, eller uteluften"
 msgid "the climate system's supply temperature"
 msgstr "klimatsystemets framledningstemperatur"
 
+msgid "the compressor's draw isn't known"
+msgstr "kompressorns effekt är inte känd"
+
 msgid "the compressor's state"
 msgstr "kompressorns läge"
 
@@ -3815,6 +3995,9 @@ msgstr "pumpen vägrade"
 
 msgid "the pump's demand"
 msgstr "pumpens behov"
+
+msgid "the pump's heating stop has heating off"
+msgstr "pumpens värmestopp har stängt av värmen"
 
 msgid "the pump's own"
 msgstr "pumpens egen"
@@ -3904,6 +4087,9 @@ msgstr "helger och helgdagar"
 msgid "what Thermaestro sets when it lets go; at first, what it found"
 msgstr "det Thermaestro ställer in när det släpper inställningen; först det värde det hittade"
 
+msgid "what its emitters give hasn't proved itself"
+msgstr "vad dess radiatorer eller golv ger har inte visat sig stämma"
+
 msgid "where it's from"
 msgstr "var den kommer ifrån"
 
@@ -3953,4 +4139,17 @@ msgstr "°C i timmen vid 50 °C"
 
 #~ msgid "a whole-house power reading"
 #~ msgstr "en mätning av hela husets effekt"
+
+#~ msgid ""
+#~ "What Thermaestro decides every 15 minutes, and"
+#~ " why. It decides for now from what "
+#~ "applies now; a plan that looks a day "
+#~ "or two ahead comes with the house's "
+#~ "model."
+#~ msgstr ""
+#~ "Vad Thermaestro beslutar var 15:e minut, och"
+#~ " varför. Den beslutar för nu utifrån vad"
+#~ " som gäller nu; en plan som ser ett"
+#~ " eller två dygn framåt kommer med husets"
+#~ " modell."
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-12 13:15+0200\n"
+"POT-Creation-Date: 2026-10-12 16:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,6 +37,10 @@ msgstr ""
 
 #, python-format
 msgid "%(feature)s is off"
+msgstr ""
+
+#, python-format
+msgid "%(hours)s h ahead, off by %(miss)s °C"
 msgstr ""
 
 #, python-format
@@ -81,6 +85,10 @@ msgstr ""
 
 #, python-format
 msgid "%(kwh)s kWh a day"
+msgstr ""
+
+#, python-format
+msgid "%(kwh)s kWh per °C"
 msgstr ""
 
 #, python-format
@@ -518,6 +526,9 @@ msgstr ""
 msgid "Behaved as it should when last seen, %(seen)s; not seen since."
 msgstr ""
 
+msgid "Beside the rules"
+msgstr ""
+
 msgid ""
 "Bias / mean error in kelvin, with the number of comparisons. Shown once "
 "there are a day's worth."
@@ -527,6 +538,11 @@ msgid "Bidding zone"
 msgstr ""
 
 msgid "Boost now"
+msgstr ""
+
+msgid ""
+"Both planners decide every slot; what each asked in the last one. The one"
+" driving is marked."
 msgstr ""
 
 msgid "Brine"
@@ -588,6 +604,12 @@ msgid ""
 " show up only here. Every setting the pump lets be changed is read, about"
 " a second each, and those that differ from the factory default are "
 "listed: an installer's or your own choice differs too."
+msgstr ""
+
+#, python-format
+msgid ""
+"Changes asked in the last %(days)s days: the rules %(rules)s, the "
+"optimizer %(optimizer)s."
 msgstr ""
 
 msgid ""
@@ -1134,6 +1156,10 @@ msgstr ""
 msgid "Hot water, the last week"
 msgstr ""
 
+#, python-format
+msgid "Hot water: %(name)s"
+msgstr ""
+
 msgid "Hot water: ready by a time, and its lowest temperature"
 msgstr ""
 
@@ -1185,6 +1211,9 @@ msgid "How often the compressor starts"
 msgstr ""
 
 msgid "How the heating water follows the weather and the offset"
+msgstr ""
+
+msgid "How the optimizer's predictions of the rooms came out:"
 msgstr ""
 
 msgid "How the rooms follow the heating and the weather"
@@ -1314,6 +1343,9 @@ msgid "Left as NibePi last wrote it."
 msgstr ""
 
 msgid "Left at the last price level's values."
+msgstr ""
+
+msgid "Left to the rules, until what they rest on has been learned:"
 msgstr ""
 
 msgid "Left wherever NibePi's airflow control last stepped it."
@@ -1599,6 +1631,9 @@ msgid ""
 " runs past midnight. The first price that holds applies, else the base."
 msgstr ""
 
+msgid "No plan yet."
+msgstr ""
+
 msgid "No plugin instances."
 msgstr ""
 
@@ -1658,7 +1693,7 @@ msgstr ""
 msgid "Not given by the grid company: %(fields)s"
 msgstr ""
 
-msgid "Not in dear hours"
+msgid "Not in expensive hours"
 msgstr ""
 
 msgid "Not known well enough to be changed unattended on this pump."
@@ -1839,6 +1874,9 @@ msgstr ""
 msgid "Outcome"
 msgstr ""
 
+msgid "Outdoor"
+msgstr ""
+
 msgid "Outdoor references"
 msgstr ""
 
@@ -1887,6 +1925,9 @@ msgstr ""
 msgid "Plan"
 msgstr ""
 
+msgid "Planner"
+msgstr ""
+
 #, python-format
 msgid "Plugin %(name)s"
 msgstr ""
@@ -1901,6 +1942,10 @@ msgid "Point at a value to see why."
 msgstr ""
 
 msgid "Pool"
+msgstr ""
+
+#, python-format
+msgid "Pool: %(name)s"
 msgstr ""
 
 msgid "Poorly insulated"
@@ -1930,6 +1975,9 @@ msgstr ""
 msgid "Precipitation"
 msgstr ""
 
+msgid "Price"
+msgstr ""
+
 msgid "Price per kW and month"
 msgstr ""
 
@@ -1939,7 +1987,15 @@ msgstr ""
 msgid "Price sources"
 msgstr ""
 
+msgid "Price, estimated"
+msgstr ""
+
 msgid "Prices"
+msgstr ""
+
+msgid ""
+"Prices not published yet are estimated from the same hours of the last "
+"four weeks, and drawn dashed. The plan firms up when they are published."
 msgstr ""
 
 msgid "Protocol"
@@ -2078,6 +2134,10 @@ msgid "Rooms not above their band"
 msgstr ""
 
 msgid "Rooms not below their band"
+msgstr ""
+
+#, python-format
+msgid "Rooms: %(name)s"
 msgstr ""
 
 #, python-format
@@ -2408,6 +2468,9 @@ msgstr ""
 msgid "The highest, how many"
 msgstr ""
 
+msgid "The hot water's floor"
+msgstr ""
+
 msgid "The house"
 msgstr ""
 
@@ -2448,6 +2511,32 @@ msgstr ""
 msgid "The offset hasn't moved enough to learn what a step does."
 msgstr ""
 
+msgid "The optimizer"
+msgstr ""
+
+#, python-format
+msgid "The optimizer didn't plan the last slot: %(why)s."
+msgstr ""
+
+msgid ""
+"The optimizer drives only what its learned models cover, and only the "
+"settings in control; the rules drive the rest, and everything when a plan"
+" fails. Thermaestro never switches planners by itself."
+msgstr ""
+
+msgid "The optimizer hasn't planned a slot yet."
+msgstr ""
+
+msgid "The optimizer planned the last slot, for:"
+msgstr ""
+
+#, python-format
+msgid ""
+"The optimizer plans the next two days every 15 minutes: how warm the "
+"rooms will be, when the tank is charged, and what the pump will use, "
+"against the prices. %(driving)s drives now."
+msgstr ""
+
 #, python-format
 msgid "The outdoor temperature has hardly changed: a spread of %(spread)s °C."
 msgstr ""
@@ -2458,10 +2547,22 @@ msgstr ""
 msgid "The plan"
 msgstr ""
 
+msgid "The plan ahead"
+msgstr ""
+
+msgid "The plan could not be loaded."
+msgstr ""
+
+msgid "The plan keeps every goal."
+msgstr ""
+
 msgid "The pool"
 msgstr ""
 
 msgid "The pool hasn't been heated enough to learn how fast it warms."
+msgstr ""
+
+msgid "The pools' bands"
 msgstr ""
 
 msgid "The power limit"
@@ -2503,7 +2604,13 @@ msgstr ""
 msgid "The pump's settings after NibePi"
 msgstr ""
 
+msgid "The pump, kW"
+msgstr ""
+
 msgid "The rooms have hardly moved: nothing to learn the house from yet."
+msgstr ""
+
+msgid "The rules"
 msgstr ""
 
 msgid "The same again"
@@ -2635,6 +2742,14 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
+msgid ""
+"Two planners decide every 15 minutes: the rules, which look at the hours "
+"around now, and the optimizer, which plans the next two days at once from"
+" what Thermaestro has learned of the house, the tank and the pump. Both "
+"decide; the one chosen here drives, and the other's decisions are kept "
+"beside it on the Plan page, to compare."
+msgstr ""
+
 msgid "Underfloor heating in boards or grooves"
 msgstr ""
 
@@ -2719,10 +2834,7 @@ msgstr ""
 msgid "What"
 msgstr ""
 
-msgid ""
-"What Thermaestro decides every 15 minutes, and why. It decides for now "
-"from what applies now; a plan that looks a day or two ahead comes with "
-"the house's model."
+msgid "What Thermaestro decides every 15 minutes, and why."
 msgstr ""
 
 msgid "What became of it"
@@ -2777,10 +2889,16 @@ msgid ""
 "when not everything can be met, and says so."
 msgstr ""
 
+msgid "What the plan leaves short, in the order things give way:"
+msgstr ""
+
 msgid "What the pump uses a day, by its own meter"
 msgstr ""
 
 msgid "What the radiators or floor give per degree of water over the room"
+msgstr ""
+
+msgid "What the radiators or floor store per degree of their water"
 msgstr ""
 
 msgid "What the rights allow"
@@ -2809,7 +2927,7 @@ msgid ""
 "kept in the secrets file."
 msgstr ""
 
-msgid "Where the value wasn't valid, the last valid one is drawn on in grey."
+msgid "Where the value wasn't valid, the last valid one is drawn on in gray."
 msgstr ""
 
 msgid "Where you're logged in"
@@ -2819,6 +2937,9 @@ msgid ""
 "Which outdoor sensor counts for each quantity: forecasts are checked "
 "against it, and the house model learns from it. Without one for "
 "temperature, the pump's own outdoor sensor is used."
+msgstr ""
+
+msgid "Which planner drives"
 msgstr ""
 
 msgid "Which provider for what"
@@ -2855,7 +2976,7 @@ msgstr ""
 msgid "Without it, heat loss and the pump's efficiency can't be planned ahead."
 msgstr ""
 
-msgid "Without it, sun gains can't be planned ahead, only learned afterwards."
+msgid "Without it, sun gains can't be planned ahead, only learned afterward."
 msgstr ""
 
 msgid "Without it, sunlight can't be estimated where a provider gives none."
@@ -3048,6 +3169,9 @@ msgstr ""
 
 #, python-format
 msgid "by %(time)s"
+msgstr ""
+
+msgid "by the optimizer"
 msgstr ""
 
 msgid "carried over"
@@ -3254,6 +3378,12 @@ msgstr ""
 msgid "hours"
 msgstr ""
 
+msgid "how it warms and cools hasn't proved itself"
+msgstr ""
+
+msgid "how its water follows the offset hasn't proved itself"
+msgstr ""
+
 msgid "how many peaks"
 msgstr ""
 
@@ -3278,8 +3408,26 @@ msgstr ""
 msgid "included"
 msgstr ""
 
+msgid "it has no band"
+msgstr ""
+
+msgid "its COP or the compressor's draw isn't known"
+msgstr ""
+
 #, python-format
 msgid "its cheapest time to charge, if it needs one: from %(when)s"
+msgstr ""
+
+msgid "its house model hasn't proved itself"
+msgstr ""
+
+msgid "its offset isn't a lever in use"
+msgstr ""
+
+msgid "its standing loss and its week haven't proved themselves"
+msgstr ""
+
+msgid "its volume isn't known"
 msgstr ""
 
 msgid "last heard"
@@ -3331,10 +3479,16 @@ msgstr ""
 msgid "must be ready"
 msgstr ""
 
+msgid "neither its block nor its boost is a lever in use"
+msgstr ""
+
 msgid "no"
 msgstr ""
 
 msgid "no answer in time"
+msgstr ""
+
+msgid "no room in it has a fresh temperature"
 msgstr ""
 
 #, python-format
@@ -3354,6 +3508,9 @@ msgid "no_flow"
 msgstr ""
 
 msgid "none"
+msgstr ""
+
+msgid "none of its levers is in use"
 msgstr ""
 
 msgid "none yet"
@@ -3391,6 +3548,9 @@ msgid "not valid: the last valid value"
 msgstr ""
 
 msgid "not_connected"
+msgstr ""
+
+msgid "nothing it could plan yet: every goal is with the rules"
 msgstr ""
 
 msgid "nothing of its own"
@@ -3544,6 +3704,10 @@ msgstr ""
 msgid "shadow: nothing was changed"
 msgstr ""
 
+#, python-format
+msgid "short by %(value)s %(unit)s"
+msgstr ""
+
 msgid "should be ready"
 msgstr ""
 
@@ -3603,6 +3767,9 @@ msgstr ""
 msgid "the climate system's supply temperature"
 msgstr ""
 
+msgid "the compressor's draw isn't known"
+msgstr ""
+
 msgid "the compressor's state"
 msgstr ""
 
@@ -3653,6 +3820,9 @@ msgid "the pump refused it"
 msgstr ""
 
 msgid "the pump's demand"
+msgstr ""
+
+msgid "the pump's heating stop has heating off"
 msgstr ""
 
 msgid "the pump's own"
@@ -3741,6 +3911,9 @@ msgid "weekends and holidays"
 msgstr ""
 
 msgid "what Thermaestro sets when it lets go; at first, what it found"
+msgstr ""
+
+msgid "what its emitters give hasn't proved itself"
 msgstr ""
 
 msgid "where it's from"

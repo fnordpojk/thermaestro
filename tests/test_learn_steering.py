@@ -10,7 +10,8 @@ from typing import Any, cast
 
 import pytest
 from plant import begin, draw
-from plant.model import FLOW_W_K
+from plant.hourly import Recorded, shifted
+from plant.optimizing import emitter_pairs
 
 from thermaestro.core import AuditLog, Values
 from thermaestro.learn import Learned, Learnings, pump
@@ -18,7 +19,7 @@ from thermaestro.learn import emitters as e
 from thermaestro.learn import house as h
 from thermaestro.learn import pool as p
 from thermaestro.learn.efficiency import HEATING
-from thermaestro.learn.emitters import EMITTERS, Emitters
+from thermaestro.learn.emitters import EMITTERS, STORED, Emitters
 from thermaestro.learn.pool import POOL, Pools
 from thermaestro.store import Database
 
@@ -31,42 +32,8 @@ def heated(seed: int = 4, days: int = 10) -> tuple[Any, list[h.Hour], list[float
     shifting would; and the heat the pump gave each hour, which nothing on a real pump
     measures."""
     scenario = draw(seed, start=START, emitter="radiators", mean_c=0)
-    plant = begin(scenario)
-    rng = random.Random(seed)
-    weather = plant._weather
-    assert weather is not None
-    hours, heat = [], []
-    offset = 0
-    for hour in range(days * 24):
-        if hour % 4 == 0:
-            offset = rng.randint(-3, 3)
-            plant.registers[47011] = offset & 0xFFFF
-        t0, given = plant.t, plant.heat["heating"]
-        sums = [0.0] * 5
-        for _ in range(60):
-            plant.run(60)
-            zone = plant.zones[0]
-            sums[0] += zone.air
-            sums[1] += plant.outdoor
-            sums[2] += zone.emitter
-            sums[3] += zone.emitter + zone.heat_w / (2 * FLOW_W_K)
-            sums[4] += plant.compressor_on and plant.demand == "heating"
-        hours.append(
-            h.Hour(
-                t0,
-                sums[0] / 60,
-                sums[1] / 60,
-                sums[2] / 60,
-                weather.sun(t0),
-                weather.wind(t0),
-                None,
-                sums[3] / 60,
-                offset,
-                sums[4] / 60,
-            )
-        )
-        heat.append(plant.heat["heating"] - given)
-    return scenario, hours, heat
+    recorded = shifted(begin(scenario), days, seed)
+    return scenario, recorded.hours, recorded.heat_kw
 
 
 def test_the_water_follows_the_offset_and_proves_itself() -> None:
@@ -75,7 +42,7 @@ def test_the_water_follows_the_offset_and_proves_itself() -> None:
     assert found is not None, why
     assert verdict is not None
     assert verdict.proved, verdict
-    assert found.w2 > 0.5  # a step warms the water
+    assert found.step > 0.5  # a step warms the water
     assert found.w1 < 0  # colder outside, warmer water
     # While the compressor heats, the supply runs warmer than the water by half the spread.
     assert 0.5 < found.lift < 5
@@ -93,17 +60,28 @@ def test_the_water_needs_the_offset_to_have_moved() -> None:
 
 def test_the_emitters_output_is_found_again() -> None:
     scenario, hours, heat = heated()
-    pairs = [
-        e.Pair(x.t, (x.water or 0) - (x.room or 0), q)
-        for x, q in zip(hours, heat, strict=True)
-        if x.heating and x.heating > 0.15
-    ]
-    k, verdict = e.judge(pairs, hours[-e.TEST_HOURS].t)
-    assert k is not None
+    seen = Recorded(hours, heat, [])
+    found, verdict = e.judge(emitter_pairs(seen), hours[-e.TEST_HOURS].t)
+    assert found is not None
     assert verdict is not None
     assert verdict.proved, verdict
-    # The plant's radiators give their conductance times how far they are over the air.
-    assert k == pytest.approx(scenario.houses[0].ua_emitter_w_k / 1000, rel=0.25)
+    k, c = found
+    # The plant's radiators give their conductance times how far they are over the air,
+    # and store little.
+    house = scenario.houses[0]
+    assert k == pytest.approx(house.ua_emitter_w_k / 1000, rel=0.25)
+    assert c < 1.0
+
+
+def test_a_slab_stores_heat() -> None:
+    scenario = draw(3, start=START, emitter="floor", mean_c=0)
+    seen = shifted(begin(scenario), 10, 3)
+    found = e.fit(emitter_pairs(seen))
+    assert found is not None
+    k, c = found
+    house = scenario.houses[0]
+    assert k == pytest.approx(house.ua_emitter_w_k / 1000, rel=0.35)
+    assert c == pytest.approx(house.c_emitter_j_k / 3.6e6, rel=0.35)
 
 
 def test_too_few_hours_give_no_output() -> None:
@@ -125,7 +103,9 @@ async def test_the_emitters_are_learned_from_the_kept_hours(tmp_path: Path) -> N
     for i in range(10 * 24):
         t = t0 + i * 3600
         warmer = rng.uniform(5, 15)
-        house_hours.append({"t": t, "room": 21.0, "water": 21.0 + warmer, "skip": None})
+        house_hours.append(
+            {"t": t, "room": 21.0, "water": 21.0 + warmer, "skip": None, "heating": 0.5}
+        )
         # 0.4 kW/K: the heat is the metered electricity times a COP of half the ideal.
         supply, source = 21 + warmer + 2, 4.0
         ideal = (supply + 273.15) / (supply - source)
@@ -155,6 +135,9 @@ async def test_the_emitters_are_learned_from_the_kept_hours(tmp_path: Path) -> N
         assert found is not None
         assert found.state == "proved"
         assert found.value == pytest.approx(0.4, rel=0.01)
+        stored = learnings.get(STORED, "dev:hp1/cs1")
+        assert stored is not None
+        assert stored.value == pytest.approx(0.0, abs=0.01)  # nothing stored in this house
 
         async def two() -> list[Any]:
             return [_ns(scope=f"dev:hp1/cs{i}", rooms=["r1"]) for i in (1, 2)]
@@ -177,7 +160,7 @@ POOL_POINTS = {
 
 @cache
 def pooled(seed: int = 5, days: int = 14) -> tuple[Any, list[Any], float]:
-    """A mild fortnight with a pool: a reading a minute."""
+    """Two mild weeks with a pool: a reading a minute."""
     scenario = draw(seed, start=START, pool=True, mean_c=12)
     plant = begin(scenario)
     samples: list[Any] = []

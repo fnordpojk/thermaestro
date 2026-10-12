@@ -382,7 +382,7 @@ class Weather:
         await self._db.run(delete)
 
     async def run(self, every_s: float = 300.0, prune_s: float = 3600.0) -> None:
-        """Keep forecasts and measurements, and prune, until cancelled."""
+        """Keep forecasts and measurements, and prune, until canceled."""
         last_prune = 0.0
         while True:
             await asyncio.sleep(every_s)

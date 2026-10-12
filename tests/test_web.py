@@ -621,7 +621,7 @@ async def test_status_shows_values_with_their_quality(site: Site) -> None:
     assert "<h2>Fake FP-1</h2>" in page
     assert re.search(r"<h3>Climate system 1</h3>.*Supply temperature", page, re.S)
     assert 'title="hp1/cs1/supply.temp"' in page  # the path, for whoever needs it
-    assert "quality-grey" in page
+    assert "quality-gray" in page
     assert "quality-green" in page
     [pump] = status
     supply = next(p for p in pump["points"] if p["path"] == "hp1/cs1/supply.temp")

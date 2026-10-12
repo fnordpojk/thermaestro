@@ -260,12 +260,18 @@ async def _control(request: Request, who: Caller) -> dict[str, Any]:
         for id, p in plugins.items()
         if p.plugin == "nibe" and p.settings.get("protocol", "nibegw") == "nibegw"
     ]
+    choice = await s.planner_choice(who) if who.principal.allows("settings.read") else None
+    if choice is not None and choice["optimizer"].get("notes"):
+        choice["optimizer"]["notes"] = [
+            (s.node_label(who, *split(scope)), why) for scope, why in choice["optimizer"]["notes"]
+        ]
     return {
         "levers": rows,
         "budgets": budgets,
         "notices": s.plan(who)["notices"] if who.principal.allows("plan.read") else [],
         "open_ports": open_ports,
         "modes": labels.MODES,
+        "planner": choice,
     }
 
 

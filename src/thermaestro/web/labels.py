@@ -185,7 +185,7 @@ WITHOUT = {
         " be predicted."
     ),
     "irradiance.global": mark(
-        "Without it, sun gains can't be planned ahead, only learned afterwards."
+        "Without it, sun gains can't be planned ahead, only learned afterward."
     ),
     "irradiance.direct_normal": mark(
         "Without it, sunlight on windows facing a direction is estimated from global sunlight."
@@ -281,6 +281,26 @@ LEVERS = {
 }
 """The settings Thermaestro could change, by their standard name."""
 MODES = {"off": mark("Off"), "shadow": mark("Shadow"), "control": mark("Control")}
+PLANNERS = {"rules": mark("The rules"), "optimizer": mark("The optimizer")}
+STAGES = {
+    "floors": mark("The hot water's floor"),
+    "comfort_low": mark("Rooms not below their band"),
+    "must_deadlines": mark("Hot water that must be ready"),
+    "should_deadlines": mark("Hot water that should be ready"),
+    "comfort_high": mark("Rooms not above their band"),
+    "power_peak": mark("The power limit"),
+    "pools": mark("The pools' bands"),
+}
+"""What each stage of the optimizer's plan keeps, in the order it gives way."""
+STAGE_UNITS = {
+    "floors": "°C·h",
+    "comfort_low": "°C·h",
+    "must_deadlines": "°C",
+    "should_deadlines": "°C",
+    "comfort_high": "°C·h",
+    "power_peak": "kWh",
+    "pools": "°C·h",
+}
 EMITTERS = {
     "unknown": mark("Not said"),
     "radiators": mark("Radiators"),
@@ -382,7 +402,7 @@ RANKS = {
 POLICIES = {
     "pump": mark("As the pump does it"),
     "when_needed": mark("Only when the compressor can't keep up"),
-    "not_when_expensive": mark("Not in dear hours"),
+    "not_when_expensive": mark("Not in expensive hours"),
     "limit": mark("Within a power limit"),
 }
 STATES = {
@@ -429,15 +449,15 @@ QUALITY_COLORS = {
     "transitional": "yellow",
     "assumed": "yellow",
     "out_of_range": "red",
-    "not_connected": "grey",
-    "no_flow": "grey",
-    "unknown": "grey",
+    "not_connected": "gray",
+    "no_flow": "gray",
+    "unknown": "gray",
 }
 """Green: use it. Yellow: a value, but not to be leaned on. Red: a value no device should
-report. Grey: nothing usable."""
+report. Gray: nothing usable."""
 
 MARKED = (mark("uncertain"), mark("implausible"), mark("no usable value"))
 
 
 def quality_color(quality: str) -> str:
-    return QUALITY_COLORS.get(quality, "grey")
+    return QUALITY_COLORS.get(quality, "gray")

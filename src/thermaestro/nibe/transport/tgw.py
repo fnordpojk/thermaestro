@@ -7,7 +7,7 @@ times come from the gateway's clock and are mapped onto local time (spec §9).
 - One of this client's requests at a time waits in each of the gateway's queues: each
   has one entry for protocol requests, beside the plain clients' (spec §8).
 - A request carries a ttl to its caller's deadline, so a write the caller gave up on
-  never reaches the pump. At the deadline a queued request is cancelled as well.
+  never reaches the pump. At the deadline a queued request is canceled as well.
 - A session ends with a gateway restart (a new boot_id, or `no_session`), or when no
   HEALTH has come for a lease. Then the client says HELLO again until it is back.
 - With a pre-shared key, every message is signed (spec §11), HELLO with the key itself. The
@@ -472,7 +472,7 @@ class TgwClient:
             if request.stage is None:
                 return outcome(WriteResult.UNKNOWN, "the gateway never reported on it", None)
             if request.stage is p.Stage.QUEUED:
-                why = "still queued at the deadline; cancelling wasn't confirmed"
+                why = "still queued at the deadline; canceling wasn't confirmed"
                 return outcome(WriteResult.UNKNOWN, why, None)
         # It reached the pump: the gateway's answer comes, or its answer timeout does.
         answer_s = (self.settings.answer_timeout_ms / 1000 or GATEWAY_ANSWER_TIMEOUT_S) + 1.0

@@ -177,7 +177,7 @@ class ModbusTransport:
 
 
 def _still_cancelled() -> None:
-    """pymodbus answers a cancelled request with its own exception; a task being cancelled
+    """pymodbus answers a canceled request with its own exception; a task being canceled
     gets its cancellation back, so it stops instead of reading on."""
     task = asyncio.current_task()
     if task is not None and task.cancelling():

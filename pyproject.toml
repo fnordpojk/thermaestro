@@ -105,7 +105,7 @@ select = [
 # with its own wait, which a timeout around the whole call can't express.
 "src/thermaestro/cap/client.py" = ["ASYNC109"]
 # A request's timeout becomes its ttl at the gateway and a cancel when it runs out, so
-# a write given up on never reaches the pump; cancelling the call from outside can't.
+# a write given up on never reaches the pump; canceling the call from outside can't.
 "src/thermaestro/nibe/transport/*" = ["ASYNC109"]
 # The probe's read-only transport keeps the transport interface's signature, and waits
 # for the plugin's values the way the tests do, with a deadline.

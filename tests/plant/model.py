@@ -131,6 +131,8 @@ class Plant:
     the compressor's heat less its electricity, over the brine's flow."""
     house_kw: float = 0.0
     pump_kw: float = 0.0
+    pump_kwh: float = 0.0
+    """What the pump has used so far."""
     heat: dict[str, float] = field(default_factory=dict)
     """Heat delivered so far, kWh, by purpose."""
     _weather: "WeatherSeries | None" = None
@@ -307,6 +309,7 @@ class Plant:
         else:
             self.dm = 0.0
         self.pump_kw = elec_w / 1000
+        self.pump_kwh += elec_w * dt / 3.6e6
         self.house_kw = self.pump_kw + self._household_kw()
         self.t += dt
         self._show()

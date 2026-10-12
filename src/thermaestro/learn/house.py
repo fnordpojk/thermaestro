@@ -218,18 +218,18 @@ def minimize(
         scores = [scores[i] for i in order]
         if abs(scores[-1] - scores[0]) < 1e-7:
             break
-        centre = [sum(p[j] for p in simplex[:-1]) / n for j in range(n)]
+        center = [sum(p[j] for p in simplex[:-1]) / n for j in range(n)]
         worst = simplex[-1]
-        reflected = [c + (c - w) for c, w in zip(centre, worst, strict=True)]
+        reflected = [c + (c - w) for c, w in zip(center, worst, strict=True)]
         r = cost(reflected)
         if r < scores[0]:
-            expanded = [c + 2 * (c - w) for c, w in zip(centre, worst, strict=True)]
+            expanded = [c + 2 * (c - w) for c, w in zip(center, worst, strict=True)]
             e = cost(expanded)
             simplex[-1], scores[-1] = (expanded, e) if e < r else (reflected, r)
         elif r < scores[-2]:
             simplex[-1], scores[-1] = reflected, r
         else:
-            contracted = [c + 0.5 * (w - c) for c, w in zip(centre, worst, strict=True)]
+            contracted = [c + 0.5 * (w - c) for c, w in zip(center, worst, strict=True)]
             c_score = cost(contracted)
             if c_score < scores[-1]:
                 simplex[-1], scores[-1] = contracted, c_score

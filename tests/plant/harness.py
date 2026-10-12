@@ -340,6 +340,7 @@ class Sim:
                 dm=round(p.dm),
                 house_kw=round(p.house_kw, 3),
                 addition_kw=p.addition_kw,
+                pump_kwh=round(p.pump_kwh, 4),
             )
         self.trace.append(row)
 

@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from thermaestro.auth.permissions import ALL
 from thermaestro.core import AuditLog
@@ -14,6 +15,7 @@ from thermaestro.core.executor import COUNTED
 from thermaestro.core.house import House
 from thermaestro.core.sensors import SensorHub
 from thermaestro.intents import Intent, Intents, Level
+from thermaestro.learn import Learnings
 from thermaestro.planner import Planner, Price
 from thermaestro.store import Location, Room, Sensor
 
@@ -42,6 +44,8 @@ async def planning(
     prices: list[Price],
     *,
     rooms: bool = True,
+    learnings: Learnings | None = None,
+    weather: Any = None,
 ) -> AsyncIterator[Planned]:
     """The planner around a started sim, ticking every minute while the context lasts."""
     await sim.db.put(Location(latitude=57.7, longitude=12.0, timezone="UTC"))
@@ -80,7 +84,17 @@ async def planning(
         return prices
 
     planner = Planner(
-        sim.db, sim.values, sim.host, sim.executor, service, house, audit, sensors=hub, prices=given
+        sim.db,
+        sim.values,
+        sim.host,
+        sim.executor,
+        service,
+        house,
+        audit,
+        sensors=hub,
+        prices=given,
+        learnings=learnings,
+        weather=weather,
     )
 
     async def check() -> None:

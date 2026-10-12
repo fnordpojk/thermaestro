@@ -38,6 +38,7 @@ NAMES = {
     "house.emitter_kw_k": mark(
         "What the radiators or floor give per degree of water over the room"
     ),
+    "house.emitter_kwh_k": mark("What the radiators or floor store per degree of their water"),
     "pool.model": mark("How fast the pool warms and cools"),
     "compressor.draw": mark("What the compressor draws while it runs"),
     "compressor.starts": mark("How often the compressor starts"),
@@ -57,6 +58,7 @@ HOURS_SHOWN = mark("%(hours)s hours")
 PUMP_SHOWN = mark("%(step)s °C of supply per offset step, %(slope)s °C per degree colder")
 WATER_SHOWN = mark("%(step)s °C of water per offset step, %(slope)s °C per degree colder")
 EMITTERS_SHOWN = mark("%(kw)s kW per °C")
+STORED_SHOWN = mark("%(kwh)s kWh per °C")
 POOL_SHOWN = mark("%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over outdoors")
 DRAW_SHOWN = {
     "heating": mark("%(kw)s kW heating"),
@@ -353,6 +355,8 @@ def _shown(x: Learned) -> str:
         )
     if x.name == "house.emitter_kw_k" and isinstance(value, int | float):
         return i18n._(EMITTERS_SHOWN, kw=i18n.number(value, 2))
+    if x.name == "house.emitter_kwh_k" and isinstance(value, int | float):
+        return i18n._(STORED_SHOWN, kwh=i18n.number(value, 1))
     if x.name == "pool.model" and isinstance(value, dict):
         return i18n._(
             POOL_SHOWN,

@@ -675,6 +675,10 @@ class Control(Setting):
     caught in a loop."""
     min_hold_s: Annotated[float, Field(ge=0, le=86_400)] = 900.0
     """The shortest time between two changes of a setting: one price slot."""
+    planner: Literal["rules", "optimizer"] = "rules"
+    """Which planner drives: both plan every slot, and the other's decisions are recorded
+    beside. The optimizer drives only the goals whose models have proved themselves; the
+    rules the rest, and everything when a solve fails."""
 
 
 class NibePiReview(Setting):

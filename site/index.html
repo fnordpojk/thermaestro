@@ -117,7 +117,7 @@
   <div class="wrap">
     <p class="kicker">Functions</p>
     <h2>What it does</h2>
-    <p class="intro">The planner works by rules today: every 15 minutes it decides what each setting should be now, from what the household wants, the rooms, the hot-water tank and the prices around now, and says why. Every change of a setting counts as a small cost. Later an optimizer looks one to two days ahead, weighing the heat each climate system needs, the weather, the heat stored in the house and the tank, and the heat pump's efficiency at each hour. <span class="tag l">later</span></p>
+    <p class="intro">Two planners decide every 15 minutes what each setting should be, and say why. The rules look at what the household wants, the rooms, the hot-water tank and the prices around now. The optimizer looks two days ahead, weighing the heat each climate system needs, the weather, the heat stored in the house and the tank, and the heat pump's efficiency at each hour. Both plan side by side; the one the household chooses drives, the optimizer only where what it has learned has proved itself. Every change of a setting counts as a small cost.</p>
 
     <div class="group">
       <h3>Intents</h3>
@@ -140,7 +140,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M3 7 V4 M5 7 V2.5 M7 7 V5"/></svg></div>
-          <p><strong>A ranking decides what gives way</strong>, most important first: protective minimum temperatures, the lower edge of each comfort range, hot water marked <i>must</i>, then <i>should</i>, the upper edge of each comfort range, the power peak. One slider sets what is left: saving money against staying close to the target, shown as real limits ("price may move the target up to 0.75 °C either way") rather than a number from 1 to 10. Where a goal will fall short, a report saying by how much ("the bath will be ready 40 minutes late") comes with the optimizer. <span class="tag l">later</span></p>
+          <p><strong>A ranking decides what gives way</strong>, most important first: protective minimum temperatures, the lower edge of each comfort range, hot water marked <i>must</i>, then <i>should</i>, the upper edge of each comfort range, the power peak. One slider sets what is left: saving money against staying close to the target, shown as real limits ("price may move the target up to 0.75 °C either way") rather than a number from 1 to 10. The optimizer solves the ranking stage by stage and shows what each stage leaves short, in degree-hours or degrees. Reports in time and degrees ("the bath will be ready 40 minutes late") come later. <span class="tag l">later</span></p>
         </div>
       </div>
     </div>
@@ -176,7 +176,7 @@
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 8 V4.5 L5 2 L8 4.5 V8 Z"/><path d="M3.5 7 H6.5 V5.5 H3.5 Z"/></svg></div>
-          <p><strong>A reasonably insulated house is storage.</strong> Within each comfort range, price moves a room's target toward its warm edge in cheap hours and its cool edge in dear ones, as far as the household's slider allows. How fast each climate system's house loses its heat, and how long its heating takes to show, are learned from its rooms, its water and the weather. Heating ahead only where the price difference pays for the extra heat lost comes with the optimizer. <span class="tag l">later</span></p>
+          <p><strong>A reasonably insulated house is storage.</strong> Within each comfort range, price moves a room's target toward its warm edge in cheap hours and its cool edge in expensive ones, as far as the household's slider allows. How fast each climate system's house loses its heat, how long its heating takes to show, and what its radiators or floor give and store, are learned from its rooms, its water and the weather. The optimizer heats ahead only where the price difference pays for the extra heat lost, a slab in the floor included.</p>
         </div>
         <div class="feat">
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 7 H8 M2 5 Q4 3 6 5 T8 5"/></svg></div>
@@ -186,7 +186,7 @@
           <div class="ico"><svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3"/><path d="M5 2 V1 M5 9 V8 M2 5 H1 M9 5 H8"/></svg></div>
           <div>
             <p><strong>The real world.</strong> Open windows, a lit fireplace, quiet hours and public holidays are part of the plan, and the pump's own heating stop is followed. The sun is part of the learned house, and what a kWh of electricity gives in heat is learned from hot-water charges and the brine; the compressor's starts are counted.</p>
-            <p>What a start costs, the ground cooling over the winter, defrosting, and a safety margin on goals marked <i>must</i> sized from how far the forecasts have missed come with the optimizer; cooling is still to be designed. <span class="tag l">later</span></p>
+            <p>The optimizer keeps the compressor's starts to the pace the pump kept on its own, takes the forecasts' learned bias off the outdoor temperature, and reckons each hour's COP from the brine as it comes in. The ground cooling over a winter, defrosting, and a margin on goals marked <i>must</i> sized from how far the forecasts have missed come later; cooling is still to be designed. <span class="tag l">later</span></p>
           </div>
         </div>
       </div>
@@ -292,7 +292,7 @@
             <caption>Planner</caption>
             <tbody>
               <tr><th scope="row">Time step</th><td>15 minutes</td></tr>
-              <tr><th scope="row">Method</th><td>Rules, decided for now from the prices 12 hours either side; linear programming (HiGHS) over 24–48 hours, goals solved in order of rank <span class="tag l">later</span></td></tr>
+              <tr><th scope="row">Method</th><td>Rules, decided for now from the prices 12 hours either side; and beside them linear programming (HiGHS) over 48 hours, goals solved in order of rank</td></tr>
               <tr><th scope="row">How goals are treated</th><td>They can give way, in the household's order; only device limits and protections are absolute</td></tr>
               <tr><th scope="row">Setting changes</th><td>About 50 per device and day planned; a hard stop at 200 per setting and day; both configurable</td></tr>
             </tbody>
@@ -340,7 +340,7 @@
         <h3>Being built</h3>
         <ul>
           <li>A week or more in shadow beside NibePi on the test pump, its decisions compared with what NibePi did.</li>
-          <li>Learning, only by watching: the hot-water tank, the house, the pump's curve and what electricity gives in heat are learned, and recorded weeks are replayed to check them; next, an optimizer that plans a day or two ahead beside the rules.</li>
+          <li>Learning, only by watching: the hot-water tank, the house, the pump's curve and what electricity gives in heat are learned, and recorded weeks are replayed to check them. The optimizer plans two days ahead beside the rules; next, recorded weeks replayed with both planners.</li>
         </ul>
       </div>
       <div>

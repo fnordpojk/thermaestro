@@ -337,6 +337,28 @@ MIGRATIONS: tuple[str, ...] = (
         updated REAL NOT NULL
     ) STRICT;
     """,
+    # 20: what each planner decided in a round, the one driving and the one beside it; and
+    # the optimizer's plans, to show ahead and to check against what came
+    """
+    CREATE TABLE IF NOT EXISTS planned (
+        id INTEGER PRIMARY KEY,
+        t REAL NOT NULL,
+        planner TEXT NOT NULL,
+        driving INTEGER NOT NULL,
+        lever TEXT NOT NULL,
+        op TEXT NOT NULL,
+        params TEXT NOT NULL CHECK (json_valid(params)),
+        rank INTEGER NOT NULL,
+        why TEXT NOT NULL,
+        found TEXT CHECK (found IS NULL OR json_valid(found))
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS planned_by_time ON planned (t);
+    CREATE TABLE IF NOT EXISTS plans (
+        t REAL PRIMARY KEY,
+        driving INTEGER NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body))
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

@@ -16,7 +16,7 @@ SYSTEMS = [(CS1, "Climate system 1"), (CS2, "Upstairs")]
 LEVELS = {
     "home": Level(id="home", name="Home", scope="house", low=20.5, high=22.0),
     "frost": Level(id="frost", name="Away", scope="house", low=15.0, high=17.0),
-    "cosy": Level(id="cosy", name="Cosy", scope=CS1, low=21.5, high=23.0),
+    "cozy": Level(id="cozy", name="Cozy", scope=CS1, low=21.5, high=23.0),
 }
 
 
@@ -121,7 +121,7 @@ def test_away_without_a_time_or_levels() -> None:
 def test_guests_get_the_warmest_level() -> None:
     kind, request, missing = read("Gäste bis morgen 18 Uhr")
     assert (kind, request["until"]) == ("guests", at(11, 18))
-    assert request["levels"] == {CS1: "cosy", CS2: "home"}
+    assert request["levels"] == {CS1: "cozy", CS2: "home"}
     assert missing == ()
 
 

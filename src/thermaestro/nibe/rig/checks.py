@@ -258,7 +258,7 @@ async def boost(bench: Bench, o: Options) -> None:
             passed=True,
         )
     flag = await bench.fresh(f"dhw/x.nibe.{profile.BOOST}")
-    bench.step(f"{profile.BOOST} reads {flag} afterwards", "seen")
+    bench.step(f"{profile.BOOST} reads {flag} afterward", "seen")
     await bench.judge(f"One extra charge: the top from {top} to {after} °C.")
 
 

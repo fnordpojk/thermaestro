@@ -193,7 +193,7 @@ class Values:
     async def run(
         self, *, flush_s: float, prune_s: float, raw_days: int, aggregate_days: int
     ) -> None:
-        """Flush every `flush_s`, prune every `prune_s`, until cancelled; flush once more
+        """Flush every `flush_s`, prune every `prune_s`, until canceled; flush once more
         on the way out."""
         last_prune = 0.0
         try:

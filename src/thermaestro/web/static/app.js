@@ -121,8 +121,8 @@ function historyChart(chart) {
       message(chart.dataset.empty);
       return;
     }
-    // Where a value wasn't valid, the last valid one is drawn on, in grey: the line goes
-    // on, and shows it wasn't measured. The grey line starts at the last valid point.
+    // Where a value wasn't valid, the last valid one is drawn on, in gray: the line goes
+    // on, and shows it wasn't measured. The gray line starts at the last valid point.
     const times = samples.map((s) => s.t);
     const values = [];
     const held = [];
@@ -1452,11 +1452,123 @@ async function shadowChart(chart) {
     chart.append(ticks);
   }
 }
+// The optimizer's plan ahead, hour by hour: the price on its own scale (dashed where it is
+// estimated), the rooms each climate system is planned to keep, the tanks' and pools'
+// levels and the outdoor temperature in °C, and what the pump will use.
+async function planChart(chart) {
+  if (typeof uPlot === "undefined") {
+    return;
+  }
+  const texts = JSON.parse(chart.dataset.texts || "{}");
+  const names = JSON.parse(chart.dataset.names || "{}");
+  const f = pageFormats(chart);
+  let data;
+  try {
+    const response = await fetch(chart.dataset.source, { credentials: "same-origin" });
+    if (!response.ok) {
+      throw new Error(String(response.status));
+    }
+    data = await response.json();
+  } catch (e) {
+    chart.textContent = texts.failed;
+    return;
+  }
+  if (!data.t0 || !Array.isArray(data.price) || !data.price.length) {
+    chart.textContent = texts.empty;
+    return;
+  }
+  const hours = data.price.length;
+  const times = Array.from({ length: hours }, (_, h) => data.t0 + 3600 * h);
+  const named = (template, scope) => template.replace("%(name)s", names[scope] || scope);
+  const estimated = data.estimated || [];
+  // Each price stands for its hour; where estimates begin, both lines meet.
+  const known = data.price.map((p, h) => (estimated[h] ? null : p));
+  const guessed = data.price.map((p, h) => (estimated[h] || estimated[h + 1] ? p : null));
+  const palette = ["--accent", "--fg", "--muted"].map((n) => cssColor(n, "#b5462a"));
+  const others = ["#2a7ab5", "#3a9a5b", "#8a5bb5", "#b58a2a", "#5bb5b0"];
+  const degree = (u, v) => (v === null || v === undefined ? "–" : `${f.number(v, 1)} °C`);
+  const series = [
+    { value: (u, v) => (v === null ? "–" : f.time(v)) },
+    {
+      label: texts.price,
+      scale: "price",
+      stroke: palette[0],
+      width: 2,
+      paths: uPlot.paths.stepped({ align: 1 }),
+      value: (u, v) => f.number(v, 2),
+    },
+    {
+      label: texts.estimated,
+      scale: "price",
+      stroke: palette[0],
+      width: 2,
+      dash: [6, 4],
+      paths: uPlot.paths.stepped({ align: 1 }),
+      value: (u, v) => f.number(v, 2),
+    },
+    { label: texts.outdoor, scale: "C", stroke: palette[2], width: 1, value: degree },
+  ];
+  const columns = [times, known, guessed, data.outdoor || times.map(() => null)];
+  let next = 0;
+  const add = (label, values) => {
+    series.push({ label, scale: "C", stroke: others[next++ % others.length], width: 2, value: degree });
+    columns.push(values);
+  };
+  for (const [scope, planned] of Object.entries(data.systems || {})) {
+    add(named(texts.rooms, scope), planned.room);
+  }
+  for (const [scope, planned] of Object.entries(data.tanks || {})) {
+    add(named(texts.tank, scope), planned.level);
+  }
+  for (const [scope, planned] of Object.entries(data.pools || {})) {
+    add(named(texts.pool, scope), planned.temp);
+  }
+  series.push({
+    label: texts.kw,
+    scale: "kW",
+    stroke: palette[1],
+    width: 1,
+    fill: "rgba(128, 128, 128, 0.12)",
+    paths: uPlot.paths.stepped({ align: 1 }),
+    value: (u, v) => f.number(v, 1),
+  });
+  columns.push(data.kw || times.map(() => null));
+  const axis = {
+    stroke: cssColor("--fg", "#1d1f21"),
+    grid: { stroke: cssColor("--line", "#d9dcde"), width: 1 },
+    ticks: { stroke: cssColor("--line", "#d9dcde"), width: 1 },
+  };
+  chart.textContent = "";
+  const box = document.createElement("div");
+  chart.append(box);
+  chart.plot = new uPlot(
+    {
+      width: chart.clientWidth || 800,
+      height: 300,
+      series,
+      scales: { kW: { range: (u, lo, hi) => [0, Math.max(1, hi * 3)] } },
+      axes: [
+        { values: (u, values) => values.map((v) => f.time(v)), space: 70, ...axis },
+        { scale: "C", values: (u, values) => values.map((v) => f.number(v, 0)), ...axis },
+        { scale: "price", side: 1, values: (u, values) => values.map((v) => f.number(v, 2)), ...axis, grid: { show: false } },
+        { scale: "kW", show: false },
+      ],
+    },
+    columns,
+    box,
+  );
+}
+
 // One listener for every such chart, those a refresh brings too.
 window.addEventListener("resize", () => {
   for (const chart of document.querySelectorAll(".shadow-chart")) {
     if (chart.plot) {
       chart.plot.setSize({ width: chart.clientWidth, height: 260 });
+    }
+  }
+  for (const chart of document.querySelectorAll(".plan-chart")) {
+    if (chart.plot) {
+      chart.plot.setSize({ width: chart.clientWidth, height: 300 });
     }
   }
 });
@@ -1472,6 +1584,9 @@ function charts(root) {
   }
   for (const box of root.querySelectorAll(".shadow-chart")) {
     shadowChart(box);
+  }
+  for (const box of root.querySelectorAll(".plan-chart")) {
+    planChart(box);
   }
 }
 charts(document);

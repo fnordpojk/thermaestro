@@ -205,6 +205,30 @@ async def accept_drift(ref: str, request: Request, who: Logged) -> dict[str, str
     return {"status": "ok"}
 
 
+# --- which planner drives -----------------------------------------------------------------
+
+
+class Chosen(BaseModel):
+    planner: str
+
+
+@router.get("/control/planner")
+@action("planner.read")
+async def planner_choice(request: Request, who: Logged) -> dict[str, Any]:
+    """Which planner drives (`rules` or `optimizer`), and how the optimizer is doing: whether
+    it planned the last slot, the levers it covers, what it left to the rules and why."""
+    return await services(request).planner_choice(who)
+
+
+@router.put("/control/planner")
+@action("planner.choose")
+async def set_planner(body: Chosen, request: Request, who: Logged) -> dict[str, str]:
+    """`{"planner": "optimizer"}`: which planner drives. The optimizer drives only the goals
+    whose models have proved themselves; the rules the rest."""
+    await services(request).set_planner(who, body.planner)
+    return {"status": "ok"}
+
+
 # --- the plan -----------------------------------------------------------------------------
 
 
@@ -214,6 +238,22 @@ async def plan(request: Request, who: Logged) -> dict[str, Any]:
     """The planner's last round, each decision with its reason and outcome; and in shadow,
     what it would have done."""
     return services(request).plan(who)
+
+
+@router.get("/plan/ahead")
+@action("plan_ahead.read")
+async def plan_ahead(request: Request, who: Logged) -> dict[str, Any]:
+    """The optimizer's last plan, hour by hour over the next two days."""
+    return await services(request).plan_ahead(who)
+
+
+@router.get("/plan/beside")
+@action("plan_beside.read")
+async def plan_beside(request: Request, who: Logged, days: int = 7) -> dict[str, Any]:
+    """The rules and the optimizer side by side: what each asked in the last slot, how
+    many changes each asked in the last `days` (at most 30), and how the optimizer's
+    predictions of the rooms came out."""
+    return await services(request).plan_beside(who, days)
 
 
 @router.get("/plan/changes")

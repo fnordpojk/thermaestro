@@ -6,6 +6,7 @@ control would."""
 
 import itertools
 import json
+import warnings
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -14,13 +15,16 @@ import pytest
 from plant import Plant, Scenario, draw
 from plant.harness import PLANT, Frame, Sim, running
 from plant.market import day_ahead
+from plant.optimizing import PlantWeather, teach
 from plant.planning import CS, TANK, intended, planning
 from plant.scenario import Emitter
 from plant.vloop import simulate
 
 from thermaestro import clock
+from thermaestro.core import AuditLog
 from thermaestro.intents import RANKS, Intent, Level, kinds
-from thermaestro.store import LeverMode, Plugin
+from thermaestro.learn import Learnings
+from thermaestro.store import Control, LeverMode, Plugin
 
 LEVERS: dict[str, LeverMode] = {
     "cs1/heating.offset": "control",
@@ -33,6 +37,15 @@ DAY_S = 86_400.0
 OFFSET = "pump:hp1/cs1/heating.offset"
 
 Intended = list[tuple[float, str, str, str]]
+BOTH = [
+    pytest.param(False, id="rules"),
+    pytest.param(True, id="optimizer", marks=pytest.mark.nightly),
+]
+"""A contract with either planner driving: the optimizer's runs nightly, for time."""
+PLANNED: dict[Path, list[tuple[str, int]]] = {}
+"""Per run, by its path: which planner made each decision kept, and whether it drove."""
+OUTCOMES: dict[Path, list[str]] = {}
+"""Per run's sim path: each slot's optimizer outcome, and what it left to the rules."""
 
 
 def run[T](s: Scenario, body: Callable[[], Awaitable[T]]) -> T:
@@ -67,8 +80,11 @@ def simulated(
     record: bool = False,
     replay: list[Frame] | None = None,
     during: Callable[[Sim], Awaitable[None]] | None = None,
+    optimizer: bool = False,
 ) -> tuple[Sim, Intended]:
-    """Run the planner on the plant for `days`; the sim, and the planner's intended writes."""
+    """Run the planner on the plant for `days`; the sim, and the planner's intended writes.
+    `optimizer`: what the learners would have made of the house is known, and the optimizer
+    drives."""
 
     path.mkdir(parents=True, exist_ok=True)
 
@@ -77,10 +93,21 @@ def simulated(
         async with running(sim):
             series = day_ahead(s.seed, s.start_time, days, spike=spike, negative=negative)
             intents = household(slider=slider, rooms=rooms)
-            async with planning(sim, intents, LEVELS, series, rooms=rooms):
+            learnings, weather = None, None
+            if optimizer:
+                learnings = Learnings(sim.db, AuditLog(path / "learn-audit"))
+                await learnings.load()
+                await teach(learnings, s)
+                control = await sim.db.get(Control) or Control()
+                await sim.db.put(control.model_copy(update={"planner": "optimizer"}))
+                weather = PlantWeather(s)
+            async with planning(
+                sim, intents, LEVELS, series, rooms=rooms, learnings=learnings, weather=weather
+            ):
                 if during is not None:
                     await during(sim)
                 await sim.run(days - (clock.time() - s.start_time.timestamp()) / DAY_S)
+            PLANNED[path] = await driven(sim)
             return sim, await intended(sim)
 
     return run(s, body)
@@ -138,9 +165,10 @@ def test_comfort_the_floor_and_the_budget_hold(tmp_path: Path) -> None:
     assert max(per_day(writes, s.start_time)) <= 50  # the soft budget
 
 
-def test_extreme_prices_buy_neither_cold_nor_heat(tmp_path: Path) -> None:
+@pytest.mark.parametrize("optimizer", BOTH)
+def test_extreme_prices_buy_neither_cold_nor_heat(tmp_path: Path, optimizer: bool) -> None:
     s = draw(4, emitter="radiators")
-    sim, _ = simulated(tmp_path, s, 2.0, slider=1.0, spike=25.0, negative=True)
+    sim, _ = simulated(tmp_path, s, 2.0, slider=1.0, spike=25.0, negative=True, optimizer=optimizer)
     temps = indoor(sim, s.start_time, 1.0)
     assert min(temps) >= 19.5
     assert max(temps) <= 23.0
@@ -169,13 +197,15 @@ def test_without_a_room_sensor_the_shift_nets_out(tmp_path: Path) -> None:
     assert abs(total / DAY_S - base) <= 0.5
 
 
-def test_the_heating_stop_leaves_heating_to_the_pump(tmp_path: Path) -> None:
+@pytest.mark.parametrize("optimizer", BOTH)
+def test_the_heating_stop_leaves_heating_to_the_pump(tmp_path: Path, optimizer: bool) -> None:
     s = draw(6, emitter="radiators", mean_c=25.0)
-    _, writes = simulated(tmp_path, s, 1.5)
+    _, writes = simulated(tmp_path, s, 1.5, optimizer=optimizer)
     assert offsets(writes) == []
 
 
-def test_a_lost_room_sensor_puts_the_offset_back(tmp_path: Path) -> None:
+@pytest.mark.parametrize("optimizer", BOTH)
+def test_a_lost_room_sensor_puts_the_offset_back(tmp_path: Path, optimizer: bool) -> None:
     s = draw(7, emitter="radiators")
     stopped: list[float] = []
 
@@ -185,7 +215,9 @@ def test_a_lost_room_sensor_puts_the_offset_back(tmp_path: Path) -> None:
         await sim.host.apply(PLANT)
         stopped.append(clock.time())
 
-    sim, writes = simulated(tmp_path, s, 1.5, slider=1.0, spike=3.0, during=silence)
+    sim, writes = simulated(
+        tmp_path, s, 1.5, slider=1.0, spike=3.0, during=silence, optimizer=optimizer
+    )
     claim = sim.executor.claims[OFFSET]
     assert not claim.changed  # back as found
     later = [w for w in writes if w[0] > stopped[0] + 2 * 3600 and w[1] == OFFSET]
@@ -214,17 +246,25 @@ def test_a_value_not_kept_is_not_asked_for_again_at_once(tmp_path: Path) -> None
 # --- shadow decides as control would ------------------------------------------------------
 
 
-def shadow_equals_control(path: Path, s: Scenario, days: float) -> None:
+def shadow_equals_control(path: Path, s: Scenario, days: float, *, optimizer: bool = False) -> None:
     controls: dict[str, LeverMode] = dict.fromkeys(LEVERS, "control")
     shadows: dict[str, LeverMode] = dict.fromkeys(LEVERS, "shadow")
-    done, wanted = simulated(path / "control", s, days, levers=controls, record=True)
+    done, wanted = simulated(
+        path / "control", s, days, levers=controls, record=True, optimizer=optimizer
+    )
     copied, shadowed = simulated(
         path / "shadow",
         s,
         days,
         levers=shadows,
         replay=done.frames,
+        optimizer=optimizer,
     )
+    # A round at the very moment a run ends may or may not finish before it is stopped:
+    # the optimizer's solve runs in a thread. Compared up to then.
+    end = s.start_time.timestamp() + days * DAY_S
+    wanted = [w for w in wanted if w[0] < end]
+    shadowed = [w for w in shadowed if w[0] < end]
     assert len(wanted) >= 4 * days
     assert shadowed == wanted
     assert copied.bus.writes == []
@@ -232,6 +272,40 @@ def shadow_equals_control(path: Path, s: Scenario, days: float) -> None:
 
 def test_shadow_decides_as_the_planner_in_control(tmp_path: Path) -> None:
     shadow_equals_control(tmp_path, draw(1, emitter="radiators"), days=1.0)
+
+
+# --- with the optimizer driving -------------------------------------------------------------
+
+
+async def driven(sim: Sim) -> list[tuple[str, int]]:
+    rows = await sim.db.run(lambda t: t.execute("SELECT planner, driving FROM planned").fetchall())
+    plans = await sim.db.run(lambda t: t.execute("SELECT body FROM plans").fetchall())
+    for (body,) in plans:
+        found = json.loads(body)
+        why = found.get("why") or ""
+        notes = "; ".join(f"{scope}: {note}" for scope, note in found.get("notes", []))
+        OUTCOMES.setdefault(sim.path, []).append(f"{found.get('ok')} {why} {notes}".strip())
+    return [(planner, driving) for planner, driving in rows]
+
+
+def test_the_optimizer_keeps_comfort_the_floor_and_the_budget(tmp_path: Path) -> None:
+    s = draw(3, emitter="radiators")
+    sim, writes = simulated(tmp_path, s, 2.0, optimizer=True)
+    temps = indoor(sim, s.start_time, 1.0)
+    inside = sum(20.0 <= t <= 22.5 for t in temps) / len(temps)
+    assert inside >= 0.9, (min(temps), max(temps))
+    assert floor_holds(sim, s.start_time)
+    assert offsets(writes)  # it steered
+    from collections import Counter
+
+    assert max(per_day(writes, s.start_time)) <= 50, Counter((w[1], w[2]) for w in writes)
+    # The optimizer drove, slot by slot, and the rules' decisions were kept beside.
+    assert ("optimizer", 1) in PLANNED[tmp_path]
+    assert ("rules", 0) in PLANNED[tmp_path]
+
+
+def test_shadow_decides_as_the_optimizer_in_control(tmp_path: Path) -> None:
+    shadow_equals_control(tmp_path, draw(1, emitter="radiators"), days=1.0, optimizer=True)
 
 
 @pytest.mark.nightly
@@ -246,3 +320,53 @@ def test_the_planner_over_days(tmp_path: Path, seed: int) -> None:
     assert floor_holds(sim, s.start_time)
     assert max(per_day(writes, s.start_time)) <= 50
     shadow_equals_control(tmp_path / "pair", s, days=2.0)
+
+
+# --- the optimizer against the rules ---------------------------------------------------------
+
+
+class Gap(UserWarning):
+    """Where the optimizer doesn't yet do better than the rules: reported, not failed."""
+
+
+def scored(sim: Sim, s: Scenario, after_days: float) -> tuple[float, float]:
+    """From `after_days` on: what the pump's electricity cost, and the rooms' degree-hours
+    outside their band, as a person feels them (the hourly mean)."""
+    prices = {p.start.timestamp(): p.value for p in day_ahead(s.seed, s.start_time, 4.0)}
+    since = s.start_time.timestamp() + after_days * DAY_S
+    rows = [row for row in sim.trace if row["t"] >= since]
+    cost = 0.0
+    for row, after in itertools.pairwise(rows):
+        slot = row["t"] // 900 * 900
+        cost += (after["pump_kwh"] - row["pump_kwh"]) * prices.get(slot, 0.0)
+    level = LEVELS[0]
+    assert level.low is not None
+    assert level.high is not None
+    outside = sum(
+        (max(0.0, level.low - t) + max(0.0, t - level.high)) * 0.25
+        for t in indoor(sim, s.start_time, after_days)
+    )
+    return cost, outside
+
+
+@pytest.mark.nightly
+@pytest.mark.filterwarnings("default::UserWarning")
+@pytest.mark.parametrize("seed", range(2, 8))
+def test_the_optimizer_against_the_rules(tmp_path: Path, seed: int) -> None:
+    """On the same house, weather and prices, over the last two of three days: where the
+    optimizer doesn't cost less than the rules at comfort as good, the gap is reported; a
+    loss far beyond what it has shown fails, so a regression shows."""
+    emitter: Emitter = "floor" if seed % 2 else "radiators"
+    s = draw(seed, emitter=emitter, start=datetime(2026, 1, 10 + seed, tzinfo=UTC))
+    ruled, _ = simulated(tmp_path / "rules", s, 3.0)
+    optimized, _ = simulated(tmp_path / "optimizer", s, 3.0, optimizer=True)
+    rules_cost, rules_outside = scored(ruled, s, 1.0)
+    cost, outside = scored(optimized, s, 1.0)
+    gap = (
+        f"seed {seed}, {emitter}: the rules {rules_cost:.2f} at {rules_outside:.2f} °C·h"
+        f" outside the band, the optimizer {cost:.2f} at {outside:.2f} °C·h"
+    )
+    if cost > rules_cost or outside > rules_outside + 0.1:
+        warnings.warn(Gap(f"the optimizer behind the rules: {gap}"), stacklevel=1)
+    assert outside <= rules_outside + 5.0, gap
+    assert cost <= rules_cost * 1.15, gap

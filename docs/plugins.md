@@ -210,7 +210,7 @@ It is run with `serve(endpoint, plugin)`, which:
 - cancels a subscription's task on `unsubscribe`;
 - runs `events` for as long as the connection lasts, for what the plugin sends unasked.
 
-A subscription's `handle` runs for as long as the subscription lasts, sending updates, and is cancelled when it ends.
+A subscription's `handle` runs for as long as the subscription lasts, sending updates, and is canceled when it ends.
 
 ### What the core does with a plugin
 

@@ -17,7 +17,7 @@ def day_ahead(
     negative: bool = False,
 ) -> list[Price]:
     """Prices from a day before `start` to a day after `days`, per 15 minutes: cheap
-    nights, a morning and a dearer evening peak. `spike` multiplies the evening peak;
+    nights, a morning and a more expensive evening peak. `spike` multiplies the evening peak;
     `negative` takes the nights below zero."""
     rng = random.Random(seed)
     first = start - timedelta(days=1)

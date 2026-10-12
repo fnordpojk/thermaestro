@@ -285,6 +285,8 @@ async def test_the_plan_before_the_planner_runs(tmp_path: Path) -> None:
     async with site(tmp_path) as (_, _, client):
         await login(client, "admin")
         assert (await client.get("/api/v1/plan")).json() == {
+            "planner": "rules",
+            "optimizer": {"running": False},
             "ahead": [],
             "house_kw": None,
             "limit_kw": None,
@@ -294,6 +296,72 @@ async def test_the_plan_before_the_planner_runs(tmp_path: Path) -> None:
             "decisions": [],
             "notices": [],
         }
+
+
+async def test_choosing_which_planner_drives(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        headers = await login(client, "admin")
+        assert (await client.get("/api/v1/control/planner")).json() == {
+            "planner": "rules",
+            "optimizer": {"running": False},
+        }
+        done = await client.put(
+            "/api/v1/control/planner", json={"planner": "optimizer"}, headers=headers
+        )
+        assert done.status_code == 200, done.text
+        assert (await r.db.get(Control) or Control()).planner == "optimizer"
+        bad = await client.put("/api/v1/control/planner", json={"planner": "dice"}, headers=headers)
+        assert (bad.status_code, bad.json()["error"]) == (400, "a planner is rules or optimizer")
+        page = (await client.get("/setup/control")).text
+        assert 'action="/settings/planner"' in page
+        back = await form(client, "/setup/control", "/settings/planner", planner="rules")
+        assert back.status_code == 303
+        assert (await r.db.get(Control) or Control()).planner == "rules"
+        assert (await client.get("/api/v1/plan/ahead")).json() == {"at": None}
+        beside = (await client.get("/api/v1/plan/beside")).json()
+        assert (beside["asked"], beside["changes"], beside["came_out"]) == ({}, {}, {})
+        await form(client, "/", "/logout")
+        household = await login(client, "kid")
+        refused = await client.put(
+            "/api/v1/control/planner", json={"planner": "optimizer"}, headers=household
+        )
+        assert refused.status_code == 403
+        assert 'action="/settings/planner"' not in (await client.get("/setup/control")).text
+
+
+async def test_the_plan_ahead_and_the_planners_side_by_side(tmp_path: Path) -> None:
+    async with site(tmp_path) as (r, _, client):
+        await login(client, "admin")
+        t = datetime(2026, 1, 12, 10, tzinfo=UTC).timestamp()
+        body = {"ok": True, "t0": t, "price": [0.5, None], "estimated": [False, True]}
+
+        def keep(tx: Any) -> None:
+            tx.execute(
+                "INSERT INTO plans (t, driving, body) VALUES (?, 0, ?)", (t, json.dumps(body))
+            )
+            for planner, driving, value in (("rules", 1, 1), ("optimizer", 0, 2)):
+                tx.execute(
+                    "INSERT INTO planned (t, planner, driving, lever, op, params, rank, why)"
+                    " VALUES (?, ?, ?, ?, 'set', ?, 7, ?)",
+                    (t, planner, driving, OFFSET, json.dumps({"value": value}), f"{planner} says"),
+                )
+
+        await r.db.run(keep)
+        ahead = (await client.get("/api/v1/plan/ahead")).json()
+        assert (ahead["t0"], ahead["price"], ahead["driving"]) == (t, [0.5, None], False)
+        beside = (await client.get("/api/v1/plan/beside?days=3000")).json()
+        assert beside["days"] == 30  # at most a month back
+        assert beside["asked"][OFFSET]["rules"] == {
+            "op": "set",
+            "params": {"value": 1},
+            "rank": 7,
+            "why": "rules says",
+            "driving": True,
+        }
+        assert beside["asked"][OFFSET]["optimizer"]["params"] == {"value": 2}
+        page = (await client.get("/plan")).text
+        assert "Beside the rules" in page
+        assert "optimizer says" in page
 
 
 # --- the pages ----------------------------------------------------------------------------

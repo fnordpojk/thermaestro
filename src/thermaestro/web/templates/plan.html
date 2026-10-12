@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Plan") }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/uPlot.min.css">
+<script src="/static/vendor/uPlot.iife.min.js" defer></script>
+{% endblock %}
 {% block refresh %}1{% endblock %}
 {% block main %}
 {% set names = {"house": _("The whole house")} %}
@@ -7,7 +11,7 @@
 {% macro asked(op, params) %}{% if op == "set" %}{{ _("set to %(value)s", value=params.value) }}{% elif op == "engage" %}{{ _("hold") }}{% elif op == "release" %}{{ _("let go") }}{% elif op == "fire" %}{{ _("start") }}{% elif op == "restore" %}{{ _("put back as found") }}{% elif op == "write" %}{{ _("written by hand: %(value)s", value=params.value) }}{% else %}{{ op }}{% endif %}{% endmacro %}
 {% macro serves(rank) %}{% if rank == 1 %}{{ _("the hot water's floor") }}{% elif rank == 7 %}{{ _("price") }}{% elif plan.ranking and plan.ranking[rank - 2] in ranks %}{{ _(ranks[plan.ranking[rank - 2]]) }}{% endif %}{% endmacro %}
 <h1>{{ _("Plan") }}</h1>
-<p>{{ _("What Thermaestro decides every 15 minutes, and why. It decides for now from what applies now; a plan that looks a day or two ahead comes with the house's model.") }} <a href="/intents">{{ _("Intents") }}</a> · <a href="/shadow">{{ _("Shadow vs the pump") }}</a></p>
+<p>{{ _("What Thermaestro decides every 15 minutes, and why.") }} <a href="/intents">{{ _("Intents") }}</a> · <a href="/shadow">{{ _("Shadow vs the pump") }}</a></p>
 {% if plan.at %}<p class="hint">{{ _("Last decided %(when)s.", when=plan.at | when) }}</p>{% endif %}
 
 <section id="now">
@@ -20,7 +24,7 @@
       <td>{{ lv.lever | lever }}</td>
       <td>{{ _(labels.MODES[lv.mode]) if lv.mode in labels.MODES else "" }}</td>
       <td>{% if d %}{{ asked(d.op, d.params) }}{% else %}–{% endif %}</td>
-      <td>{% if d %}{{ d.reason }}{% if serves(d.rank) | trim %} <small>({{ serves(d.rank) | trim }})</small>{% endif %}{% elif lv.mode == "off" %}{{ _("off: the pump's own") }}{% else %}–{% endif %}</td>
+      <td>{% if d %}{{ d.reason }}{% if serves(d.rank) | trim %} <small>({{ serves(d.rank) | trim }})</small>{% endif %}{% if d.planner == "optimizer" %} <small>{{ _("by the optimizer") }}</small>{% endif %}{% elif lv.mode == "off" %}{{ _("off: the pump's own") }}{% else %}–{% endif %}</td>
       <td>{% if d %}{{ labels.choice(labels.OUTCOMES, d.outcome) }}{% if d.detail %} <small>{{ d.detail }}</small>{% endif %}{% endif %}</td>
     </tr>
   {% else %}
@@ -29,6 +33,61 @@
   </tbody>
 </table>
 </section>
+
+{% set o = plan.optimizer %}
+{% if o and o.running %}
+<section id="ahead">
+<h2>{{ _("The plan ahead") }}</h2>
+<p>{{ _("The optimizer plans the next two days every 15 minutes: how warm the rooms will be, when the tank is charged, and what the pump will use, against the prices. %(driving)s drives now.", driving=labels.choice(labels.PLANNERS, plan.planner)) }}</p>
+{% if o.ok %}
+<div class="plan-chart" data-source="/api/v1/plan/ahead"
+     data-decimal="{{ decimal }}" data-locale="{{ formats.tag }}" data-zone="{{ zone }}" data-clock="{{ formats.clock or '' }}"
+     data-names='{{ names | tojson }}'
+     data-texts='{{ {"price": _("Price"), "estimated": _("Price, estimated"), "outdoor": _("Outdoor"), "rooms": _("Rooms: %(name)s"), "tank": _("Hot water: %(name)s"), "pool": _("Pool: %(name)s"), "kw": _("The pump, kW"), "empty": _("No plan yet."), "failed": _("The plan could not be loaded.")} | tojson }}'>{{ _("Loading…") }}</div>
+<p class="hint">{{ _("Prices not published yet are estimated from the same hours of the last four weeks, and drawn dashed. The plan firms up when they are published.") }}</p>
+{% set short = o.stages.items() | selectattr(1, "gt", 0.01) | list %}
+{% if short %}
+<p>{{ _("What the plan leaves short, in the order things give way:") }}</p>
+<ul>{% for stage, value in short %}<li>{{ labels.choice(labels.STAGES, stage) }}: {{ _("short by %(value)s %(unit)s", value=value | num(1), unit=labels.STAGE_UNITS.get(stage, "")) }}</li>{% endfor %}</ul>
+{% else %}
+<p>{{ _("The plan keeps every goal.") }}</p>
+{% endif %}
+{% elif o.ok is none %}
+<p class="hint">{{ _("The optimizer hasn't planned a slot yet.") }}</p>
+{% else %}
+<p class="hint">{{ _("The optimizer didn't plan the last slot: %(why)s.", why=_(o.why)) }}</p>
+{% endif %}
+</section>
+{% endif %}
+
+{% if beside and beside.asked %}
+<section id="beside">
+<h2>{{ _("Beside the rules") }}</h2>
+<p>{{ _("Both planners decide every slot; what each asked in the last one. The one driving is marked.") }}</p>
+<table>
+  <thead><tr><th>{{ _("Setting") }}</th><th>{{ _("The rules") }}</th><th>{{ _("The optimizer") }}</th></tr></thead>
+  <tbody>
+  {% for ref, by in beside.asked.items() %}
+    <tr>
+      <td>{{ ref | lever }}</td>
+      {% for who in ("rules", "optimizer") %}{% set a = by.get(who) %}
+      <td>{% if a %}{% if a.driving %}<strong>{{ asked(a.op, a.params) }}</strong>{% else %}{{ asked(a.op, a.params) }}{% endif %} <small>{{ a.why }}</small>{% else %}–{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p>{{ _("Changes asked in the last %(days)s days: the rules %(rules)s, the optimizer %(optimizer)s.", days=beside.days, rules=beside.changes.get("rules", 0), optimizer=beside.changes.get("optimizer", 0)) }}</p>
+{% if beside.came_out %}
+<p>{{ _("How the optimizer's predictions of the rooms came out:") }}</p>
+<ul>
+{% for system, leads in beside.came_out.items() %}
+  <li>{{ names.get(system, system) }}: {% for lead, m in leads.items() %}{{ _("%(hours)s h ahead, off by %(miss)s °C", hours=lead, miss=m.miss | num(2)) }}{% if not loop.last %}; {% endif %}{% endfor %}</li>
+{% endfor %}
+</ul>
+{% endif %}
+</section>
+{% endif %}
 
 {% if plan.ahead %}
 <section id="hot-water">

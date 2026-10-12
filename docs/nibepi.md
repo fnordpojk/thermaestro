@@ -4,7 +4,7 @@ Thermaestro can take over from NibePi on the same pump and gateway. This is the 
 
 ## 1. Copy NibePi's settings
 
-NibePi keeps its settings in `/etc/nibepi/config.json`; in Docker, wherever its volume maps `/etc/nibepi`. Copy it to the computer you use Thermaestro's web pages from. It holds the MQTT password and the price token in plain text, so delete the copy afterwards.
+NibePi keeps its settings in `/etc/nibepi/config.json`; in Docker, wherever its volume maps `/etc/nibepi`. Copy it to the computer you use Thermaestro's web pages from. It holds the MQTT password and the price token in plain text, so delete the copy afterward.
 
 NibePi 1.0 kept its settings in another shape, which Thermaestro doesn't read: set Thermaestro up by hand instead.
 

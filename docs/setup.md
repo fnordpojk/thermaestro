@@ -6,7 +6,7 @@ This walks through a new installation: installing it, the first start, and the s
 
 Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT.
 
-It doesn't change anything on the pump unless told to. The planner runs and decides what each setting should be, but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). What the household wants goes on the **Intents** page.
+It doesn't change anything on the pump unless told to. Two planners run and decide what each setting should be, the rules and [the optimizer](optimizer.md), but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). What the household wants goes on the **Intents** page.
 
 If you want to help with a model Thermaestro doesn't know yet, [the read-only probe](probe.md) makes a report to send with an issue.
 
@@ -219,6 +219,8 @@ On a plain NibeGW gateway, the page also says that the gateway's write port lets
 
 The page shows the day's changes against the planner's budget (about 50 a day).
 
+**Which planner drives:** the rules, or [the optimizer](optimizer.md), which plans the next two days at once from what Thermaestro has learned. Both decide every slot; the one chosen drives, and the other's decisions are kept beside it on the Plan page. The optimizer drives only the goals whose learned models have proved themselves, and the rules the rest; the page lists what it covers and why the rest is left to the rules. Switching needs the password again, and Thermaestro never switches by itself.
+
 ### Learned
 
 What Thermaestro has learned, and what it learns from. Learning only watches: it never changes anything.
@@ -248,7 +250,7 @@ It is judged by following the rooms six hours ahead on its last two days, agains
 
 **The pump's curve**, per climate system, is learned from the same days, with or without a room sensor: from the hours the compressor heated the house for at least half the hour, how its supply temperature follows the outdoor temperature and the heating offset, that is, how many degrees one step of the offset adds. It needs the offset to have stood at two values or more for 12 hours each, as moving heat by price does, and is judged on its last four days against the curve alone. Once proved, a climate system without a room sensor whose heating takes two hours or more to show (radiators, or anything slower, by the answer under House) heats ahead of the weather: the offset is set now to what the curve would need for the outdoor temperature forecast that many hours ahead, by at most three steps, added to the price shift and kept within the household's bound for that system. It is never raised during quiet hours or over a power limit.
 
-**The heating water**, the mean of the supply and the return, is fitted the same way over every hour the pump may heat, running or not: how it follows the outdoor temperature and the offset, and how much warmer the supply runs than it while the compressor heats. The house model is driven by this water, so the optimizer steers the rooms through it. It is judged on its last four days against the curve alone.
+**The heating water**, the mean of the supply and the return, is fitted the same way over every hour the pump may heat, running or not: how it follows the outdoor temperature and the offset, how much of it carries over from one hour to the next (a slab holds its water for hours), and how much warmer the supply runs than it while the compressor heats. The house model is driven by this water, so the optimizer steers the rooms through it. It is judged by following the water six hours ahead on the last four days, against the same fit without the offset.
 
 **The compressor's electricity**, per pump, is learned from the house's power reading once a day is over. When the compressor starts, the house's power rises by what it draws, its circulation pumps with it; when it stops, it falls by as much. Each step is the mean over five minutes after the start or stop less the five minutes before, the minute and a half right at it left out; a start or stop with another one, or the addition, within six and a half minutes isn't read. The draw is the median of the last four weeks' steps, for heating, making hot water and heating the pool apart, each once seen ten times, so the household's own load coming and going doesn't count. It is judged on the last two days' steps against the 2 kW the planner otherwise reckons a hot-water charge draws; once proved, the planner uses it instead, to keep a charge it starts under a power limit. How often the compressor starts is shown too, as the mean of the last seven days. Where the pump has its own meter on its supply (under Sensors), the draw is read from that instead, once there are enough stretches: the energy it counted over each stretch the compressor ran on one purpose (heating, hot water, the pool), from ten minutes on, its first two minutes left out, less what the pump draws standing still. Between two of the meter's readings it is taken to rise evenly. With no household load in it, and switches from heating to hot water counted too, it needs far fewer days; it also shows what the pump uses a day, and how much of it while the addition ran. Both need the compressor's state, the pump's demand and a power reading (the pump's own meter, or the whole house's) to have passed their checks.
 
@@ -260,7 +262,7 @@ It is judged by following the rooms six hours ahead on its last two days, agains
 
 Each is judged on every charge or hour from the ones before it only, against the documented figure (or, with none, the median seen). As the tank's heat is reckoned from two sensors, the COP read from it can come out a little low. The COP is kept for the optimizer; the brine can be pinned in W per kelvin.
 
-**What the radiators or floor give**, per climate system with a room sensor, in kW per degree of water over the room: what heating the house costs. Nothing measures the heat, but in the hours the compressor heated it can be worked out, from its electricity (as metered, else the draw times how long it ran) and its COP there. It is learned only where the pump heats one climate system, since the heat can't be split between two, and judged on its last four days against the mean heat of the hours before. It can be pinned.
+**What the radiators or floor give**, per climate system with a room sensor, in kW per degree of water over the room, and **what they store**, in kWh per degree of their own water: what heating the house costs. A slab in the floor stores many kWh per degree, and heats the rooms with them as it cools; radiators store little. Nothing measures the heat, but in the hours the compressor heated it can be worked out, from its electricity (as metered, else the draw times how long it ran) and its COP there; in the hours it didn't heat at all, it is none. They are learned only where the pump heats one climate system, since the heat can't be split between two, and judged on the last four days against the mean heat of the hours before. The output can be pinned.
 
 **A pool** is learned from its temperature, the outdoor temperature and the hours the compressor ran on it, once a day is over: how many degrees an hour of the compressor's heat gives it, and how much of its lead over the outdoor temperature it loses an hour. It is judged on its last four days against the pool staying as it was.
 
@@ -295,7 +297,13 @@ Asking answers at once: until when it applies, what it sets aside, and what the 
 
 ## What Thermaestro decides: the Plan page
 
-**Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), and what became of it. Below are the hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit (the household's, or the grid company's where lower, with why), what shadow would have done, and every change asked in the last day. The planner decides for now from what applies now, every 15 minutes; a plan that looks a day or two ahead comes with the house's model.
+**Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), whether the optimizer decided it, and what became of it. Then:
+
+- **The plan ahead:** the optimizer's plan for the next two days as a chart (the price, dashed where it is estimated; the rooms each climate system is planned to keep; the tank; the outdoor temperature; what the pump will use), and what the plan leaves short, in the order things give way.
+- **Beside the rules:** what each planner asked in the last slot, the one driving in bold; how many changes each asked for in the last week; and how the optimizer's predictions of the rooms came out one, three and six hours ahead.
+- The hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit (the household's, or the grid company's where lower, with why), what shadow would have done, and every change asked in the last day.
+
+Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it plans.
 
 ## Users and groups
 

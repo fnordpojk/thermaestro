@@ -169,3 +169,5 @@ class Decision:
     rank: int = RANK_SLIDER
     """What it serves: 1 a protection floor, then the ranking's place (2 to 6), 7 price."""
     reason: str = ""
+    planner: str = "rules"
+    """Which planner made it: the rules or the optimizer."""

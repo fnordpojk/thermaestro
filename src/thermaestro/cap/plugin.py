@@ -38,12 +38,12 @@ class Plugin(Protocol):
     async def handle(self, request: Message, send: Send) -> None:
         """Answer one request. Each runs as its own task, so a slow answer holds up
         nothing else. A subscription's runs for as long as it lasts, sending updates,
-        and is cancelled when it ends."""
+        and is canceled when it ends."""
         ...
 
     async def events(self, send: Send) -> None:
         """Runs while connected, for what the plugin sends unasked: health, device
-        events, changed descriptions. Cancelled when the connection closes."""
+        events, changed descriptions. Canceled when the connection closes."""
         ...
 
 

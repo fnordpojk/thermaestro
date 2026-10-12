@@ -40,7 +40,7 @@ class Outward(Protocol):
     def receive(self, topic: str, payload: bytes, retained: bool) -> None: ...
 
     async def session(self, client: aiomqtt.Client, wanted: Wanted) -> None:
-        """Publish until cancelled, or sweep and return."""
+        """Publish until canceled, or sweep and return."""
         ...
 
 

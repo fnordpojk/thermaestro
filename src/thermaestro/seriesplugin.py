@@ -97,7 +97,7 @@ class Held:
         return max(i.end for i in held.values()) if held else None
 
     async def follow(self, request: SeriesSubscribe, send: Send) -> None:
-        """Send what is held, then each new interval or revision, until cancelled."""
+        """Send what is held, then each new interval or revision, until canceled."""
         sent: dict[datetime, int] = {}
         while True:
             changed = self._changed

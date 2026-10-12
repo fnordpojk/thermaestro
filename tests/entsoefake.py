@@ -87,7 +87,7 @@ def document(eic: str, periods: list[Period]) -> str:
     )
 
 
-def acknowledgement(code: str, text: str) -> str:
+def acknowledgment(code: str, text: str) -> str:
     return (
         f'<?xml version="1.0" encoding="utf-8"?><Acknowledgement_MarketDocument xmlns="{ACK}">'
         "<mRID>1</mRID><createdDateTime>2026-10-07T10:00:00Z</createdDateTime>"
@@ -108,13 +108,13 @@ class FakeEntsoE:
         query = dict(request.query)
         self.asked.append(query)
         if query.get("securityToken") != TOKEN:
-            body = acknowledgement("999", "Authentication failed.")
+            body = acknowledgment("999", "Authentication failed.")
             return web.Response(status=401, text=body, content_type="text/xml")
         start = datetime.strptime(query["periodStart"], "%Y%m%d%H%M").replace(tzinfo=UTC)
         end = datetime.strptime(query["periodEnd"], "%Y%m%d%H%M").replace(tzinfo=UTC)
         found = [p for p in self.periods if p.start < end and p.end > start]
         if not found:
-            body = acknowledgement("999", "No matching data found for Data item ENERGY_PRICES")
+            body = acknowledgment("999", "No matching data found for Data item ENERGY_PRICES")
             return web.Response(text=body, content_type="text/xml")
         return web.Response(text=document(self.eic, found), content_type="text/xml")
 

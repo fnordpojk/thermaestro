@@ -3,8 +3,9 @@ house), what Thermaestro may change (each lever off, in shadow or in control), a
 the planner decided and why. The operations behind the pages and the API.
 
 Asking for an intent needs the right its kind needs; ending someone else's needs
-`intent.any.end`. Switching a lever, confirming its competing features off, or keeping a
-change made elsewhere needs `levers.control`, with the password entered again.
+`intent.any.end`. Switching a lever, confirming its competing features off, keeping a
+change made elsewhere, or choosing which planner drives needs `levers.control`, with the
+password entered again.
 """
 
 import json
@@ -33,6 +34,9 @@ if TYPE_CHECKING:
     from .operations import Caller
 
 MODES = ("off", "shadow", "control")
+PLANNERS = ("rules", "optimizer")
+LEADS = (1, 3, 6)
+"""Hours ahead the optimizer's predictions of the rooms are checked at."""
 SHADOW_DAYS = 30
 """How far back shadow's decisions are shown beside the pump."""
 STARTED_S = 15 * 60
@@ -443,6 +447,171 @@ class ControlOperations:
         )
         return {"outcome": result.outcome, "detail": result.detail}
 
+    # --- which planner drives --------------------------------------------------------------
+
+    def _optimizer_state(self) -> dict[str, Any]:
+        """What the optimizer made of the last slot: whether it planned, what it covers,
+        what it left to the rules and why."""
+        planner = self.planner
+        found = planner.optimized if planner is not None else None
+        if planner is None or planner.optimizer is None:
+            return {"running": False}
+        if found is None:
+            return {"running": True, "ok": None}
+        plan = found.plan
+        return {
+            "running": True,
+            "ok": found.ok,
+            "why": found.why,
+            "covered": sorted(found.covered),
+            "notes": found.notes,
+            "stages": plan.stages if plan is not None and plan.ok else {},
+            "widened": plan.widened if plan is not None else [],
+            "cost": plan.cost if plan is not None and plan.ok else None,
+            "seconds": plan.seconds if plan is not None else None,
+        }
+
+    async def planner_choice(self, caller: "Caller") -> dict[str, Any]:
+        """Which planner drives, and how the optimizer is doing."""
+        caller.principal.require("settings.read")
+        control = await self.db.get(Control) or Control()
+        return {"planner": control.planner, "optimizer": self._optimizer_state()}
+
+    async def set_planner(self, caller: "Caller", planner: str) -> None:
+        """Let the rules or the optimizer drive. The optimizer drives only the goals whose
+        models have proved themselves; the rules the rest."""
+        self._require(caller, "levers.control", step_up=True)
+        if planner not in PLANNERS:
+            raise AccountError(f"a planner is {' or '.join(PLANNERS)}")
+        control = await self.db.get(Control) or Control()
+        if control.planner == planner:
+            return
+        await self.db.put(control.model_copy(update={"planner": planner}))
+        await self.audit.record(
+            caller.principal.name,
+            "planner.choose",
+            details={"from": control.planner, "to": planner},
+        )
+
+    async def plan_ahead(self, caller: "Caller") -> dict[str, Any]:
+        """The optimizer's last plan, hour by hour over the next two days: the price (and
+        whether it is estimated), the outdoor temperature, each climate system's offset,
+        rooms and heat, each tank's level and charging, each pool's, and the pump's kW."""
+        caller.principal.require("plan.read")
+
+        def read(t: Any) -> tuple[Any, ...] | None:
+            row: tuple[Any, ...] | None = t.execute(
+                "SELECT t, driving, body FROM plans ORDER BY t DESC LIMIT 1"
+            ).fetchone()
+            return row
+
+        row = await self.db.run(read)
+        if row is None:
+            return {"at": None}
+        t, driving, body = row
+        return {
+            "at": datetime.fromtimestamp(t, UTC).isoformat(),
+            "driving": bool(driving),
+            **json.loads(body),
+        }
+
+    async def plan_beside(self, caller: "Caller", days: int = 7) -> dict[str, Any]:
+        """The two planners side by side: what each asked in the last slot planned, how many
+        changes each asked in the last `days` (at most 30), and how the optimizer's
+        predictions of the rooms came out, one, three and six hours ahead."""
+        from ..core import Key
+        from ..core.sensors import SITE
+
+        caller.principal.require("plan.read")
+        days = max(1, min(days, SHADOW_DAYS))
+        since = clock.time() - days * 86_400
+
+        def read(t: Any) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]], list[Any]]:
+            last = t.execute("SELECT MAX(t) FROM planned").fetchone()[0]
+            latest = (
+                list(
+                    t.execute(
+                        "SELECT planner, driving, lever, op, params, rank, why FROM planned"
+                        " WHERE t = ? ORDER BY planner, rank",
+                        (last,),
+                    )
+                )
+                if last is not None
+                else []
+            )
+            counts = list(
+                t.execute(
+                    "SELECT planner, op, COUNT(*) FROM planned WHERE t >= ? GROUP BY planner, op",
+                    (since,),
+                )
+            )
+            plans = list(t.execute("SELECT t, body FROM plans WHERE t >= ? ORDER BY t", (since,)))
+            return latest, counts, plans
+
+        latest, counts, plans = await self.db.run(read)
+        asked: dict[str, dict[str, Any]] = {}
+        for planner, driving, lever, op, params, rank, why in latest:
+            asked.setdefault(lever, {})[planner] = {
+                "op": op,
+                "params": json.loads(params),
+                "rank": rank,
+                "why": why,
+                "driving": bool(driving),
+            }
+        tally: dict[str, int] = {}
+        for planner, op, n in counts:
+            if op != "restore":
+                tally[planner] = tally.get(planner, 0) + n
+        # How the rooms came out against what each plan predicted for them.
+        rooms_of: dict[str, list[str]] = {}
+        if self.sensors is not None:
+            for id, room in self.sensors.rooms.items():
+                if room.climate_system:
+                    rooms_of.setdefault(room.climate_system, []).append(id)
+        measured: dict[str, dict[float, float]] = {}
+        misses: dict[str, dict[int, list[float]]] = {}
+        for _, body in plans:
+            found = json.loads(body)
+            t0 = found.get("t0")
+            for system, planned in (found.get("systems") or {}).items():
+                if system not in measured:
+                    measured[system] = await self._hourly_rooms(
+                        [Key(SITE, f"room.{r}/temperature") for r in rooms_of.get(system, [])],
+                        since,
+                    )
+                for lead in LEADS:
+                    if t0 is None or lead > len(planned["room"]):
+                        continue
+                    hour = t0 + 3600 * (lead - 1)
+                    came = measured[system].get(hour // 3600 * 3600)
+                    if came is not None:
+                        miss = abs(planned["room"][lead - 1] - came)
+                        misses.setdefault(system, {}).setdefault(lead, []).append(miss)
+        return {
+            "days": days,
+            "asked": asked,
+            "changes": tally,
+            "came_out": {
+                system: {
+                    str(lead): {"miss": round(sum(m) / len(m), 2), "n": len(m)}
+                    for lead, m in sorted(by_lead.items())
+                }
+                for system, by_lead in misses.items()
+            },
+        }
+
+    async def _hourly_rooms(self, keys: list[Any], since: float) -> dict[float, float]:
+        """The rooms' mean temperature in each whole hour since `since`."""
+        sums: dict[float, list[float]] = {}
+        for key in keys:
+            per: dict[float, list[float]] = {}
+            for s in await self.values.history(key, since, clock.time()):
+                if s.quality == "good" and isinstance(s.value, int | float):
+                    per.setdefault(s.t // 3600 * 3600, []).append(float(s.value))
+            for hour, values in per.items():
+                sums.setdefault(hour, []).append(sum(values) / len(values))
+        return {hour: sum(v) / len(v) for hour, v in sums.items()}
+
     # --- the plan --------------------------------------------------------------------------
 
     async def recent_acts(self, caller: "Caller", hours: float = 24.0) -> list[dict[str, Any]]:
@@ -591,6 +760,16 @@ class ControlOperations:
         now = [ref for ref, mode in control.levers.items() if mode == "shadow"]
         return sorted(set(recorded) | set(now))
 
+    def _driving(self) -> str:
+        """Which planner drove the last round: the optimizer, where chosen and it planned."""
+        planner = self.planner
+        last = planner.plan if planner is not None else None
+        if last is not None and any(a.decision.planner == "optimizer" for a in last.asked):
+            return "optimizer"
+        found = planner.optimized if planner is not None else None
+        chosen = planner.chosen if planner is not None else "rules"
+        return "optimizer" if chosen == "optimizer" and found is not None and found.ok else "rules"
+
     def plan(self, caller: "Caller") -> dict[str, Any]:
         """The planner's last round: each decision with its reason and what became of it;
         in shadow, what it would have done; the hot-water deadlines ahead with the window
@@ -620,6 +799,8 @@ class ControlOperations:
         limit = power_limit(sit) if sit is not None else None
         grid = sit.grid_limit if sit is not None else None
         return {
+            "planner": self._driving(),
+            "optimizer": self._optimizer_state(),
             "ahead": ahead,
             "house_kw": sit.house_kw if sit is not None else None,
             "limit_kw": limit,
@@ -635,6 +816,7 @@ class ControlOperations:
                     "reason": a.decision.reason,
                     "outcome": a.outcome,
                     "detail": a.detail,
+                    "planner": a.decision.planner,
                 }
                 for a in (last.asked if last else [])
             ],

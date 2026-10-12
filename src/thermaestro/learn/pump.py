@@ -11,11 +11,14 @@ the offset adds. It needs the offset to have moved: at least two values, each he
 `HELD_LEAST` hours. It is judged on the last four days against the curve alone (the same
 fit without the offset).
 
-The water the house model is driven by (the mean of supply and return) is fitted the same
-way over every hour the pump may heat, for the optimizer to steer the house through.
+The water the house model is driven by (the mean of supply and return) is fitted too, over
+every hour the pump may heat, with how much of it carries over from one hour to the next:
+a slab holds its water for hours. It is judged by following the water six hours ahead
+against the same fit without the offset.
 """
 
-from collections.abc import Sequence
+import itertools
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from .house import Hour
@@ -118,9 +121,15 @@ def judge(
 
 @dataclass(frozen=True, slots=True)
 class Water:
-    """The water in the climate system, the mean of its supply and return over the hour,
-    by the outdoor temperature and the offset: what the house model is driven by. Unlike
-    the supply, it is fitted over every hour the pump may heat, running or not."""
+    """The water in the climate system, the mean of its supply and return over the hour:
+    what the house model is driven by. From one hour to the next it keeps a share `a` of
+    where it was and moves the rest by the outdoor temperature and the offset,
+
+        water = a · water before + w0 + w1 · outdoor + w2 · offset
+
+    Radiators hold little of it (`a` near 0); a slab in the floor holds most, so the
+    offset shows in its water only over hours. Fitted over every hour the pump may heat,
+    running or not, unlike the supply."""
 
     w0: float
     w1: float
@@ -129,25 +138,82 @@ class Water:
     """How much warmer the supply runs than the water while the compressor heats: the
     COP is reckoned at the supply."""
     rows: int
+    low: float = -10.0
+    high: float = 10.0
+    """The offsets it was fitted over: beyond them it is a guess."""
+    a: float = 0.0
+
+    def next(self, before: float, outdoor: float, offset: float) -> float:
+        """The water an hour on."""
+        return self.a * before + self.w0 + self.w1 * outdoor + self.w2 * offset
 
     def water(self, outdoor: float, offset: float) -> float:
-        return self.w0 + self.w1 * outdoor + self.w2 * offset
+        """Where the water settles, held at these."""
+        return (self.w0 + self.w1 * outdoor + self.w2 * offset) / (1 - self.a)
+
+    @property
+    def step(self) -> float:
+        """What one step of the offset adds to the water, once settled."""
+        return self.w2 / (1 - self.a)
 
     def as_value(self) -> dict[str, float]:
         return {
             "w0": round(self.w0, 4),
             "w1": round(self.w1, 4),
             "w2": round(self.w2, 4),
+            "a": round(self.a, 4),
             "lift": round(self.lift, 3),
+            "low": self.low,
+            "high": self.high,
         }
 
+    @classmethod
+    def from_value(cls, value: dict[str, float]) -> "Water":
+        return cls(
+            float(value["w0"]),
+            float(value["w1"]),
+            float(value["w2"]),
+            float(value["lift"]),
+            0,
+            float(value.get("low", -10.0)),
+            float(value.get("high", 10.0)),
+            float(value.get("a", 0.0)),
+        )
 
-def _water_rows(hours: Sequence[Hour]) -> list[tuple[float, float, float]]:
-    return [
-        (h.outdoor, h.offset, h.water)
-        for h in hours
-        if not h.skip and h.outdoor is not None and h.offset is not None and h.water is not None
-    ]
+
+WATER_AHEAD = 6
+"""Hours the water is followed ahead, to judge it."""
+HOLDS_MOST = 0.99
+"""Water that keeps more than this an hour isn't told apart from water that never moves."""
+
+
+def _water_rows(hours: Sequence[Hour]) -> list[tuple[float, float, float, float]]:
+    """Hour pairs: the outdoor temperature, the offset and the water before, and the water."""
+    out = []
+    for before, h in itertools.pairwise(hours):
+        if h.t - before.t != 3600 or h.skip or before.water is None:
+            continue
+        if h.outdoor is None or h.offset is None or h.water is None:
+            continue
+        out.append((h.outdoor, h.offset, before.water, h.water))
+    return out
+
+
+def _fit_rows(
+    rows: Sequence[tuple[float, float, float, float]], offset: bool
+) -> tuple[float, float, float, float] | None:
+    """w0, w1, w2 and a by least squares; without the offset, w2 is 0."""
+    if offset:
+        found = _solve([([1.0, o, f, b], w) for o, f, b, w in rows])
+        if found is not None and 0.0 <= found[3] <= HOLDS_MOST:
+            return found[0], found[1], found[2], found[3]
+        instant = _solve([([1.0, o, f], w) for o, f, _, w in rows])
+        return None if instant is None else (instant[0], instant[1], instant[2], 0.0)
+    found = _solve([([1.0, o, b], w) for o, _, b, w in rows])
+    if found is not None and 0.0 <= found[2] <= HOLDS_MOST:
+        return found[0], found[1], 0.0, found[2]
+    instant = _solve([([1.0, o], w) for o, _, _, w in rows])
+    return None if instant is None else (instant[0], instant[1], 0.0, 0.0)
 
 
 def fit_water(
@@ -157,13 +223,14 @@ def fit_water(
     if len(rows) < LEAST:
         return None, FEW, {"hours": len(rows), "least": LEAST}
     held: dict[float, int] = {}
-    for _, offset, _ in rows:
+    for _, offset, _, _ in rows:
         held[round(offset)] = held.get(round(offset), 0) + 1
     if sum(1 for n in held.values() if n >= HELD_LEAST) < 2:
         return None, STILL, {}
-    found = _solve([([1.0, o, f], w) for o, f, w in rows])
+    found = _fit_rows(rows, offset=True)
     if found is None or found[2] <= 0:
         return None, STILL, {}
+    w0, w1, w2, a = found
     lifts = [
         h.supply - h.water
         for h in hours
@@ -174,24 +241,52 @@ def fit_water(
         and h.water is not None
     ]
     lift = sum(lifts) / len(lifts) if lifts else 0.0
-    return Water(found[0], found[1], found[2], lift, len(rows)), None, {}
+    offsets = [round(f) for _, f, _, _ in rows]
+    return Water(w0, w1, w2, lift, len(rows), min(offsets), max(offsets), a), None, {}
+
+
+def _ahead(
+    hours: Sequence[Hour], k: int, step: Callable[[float, float, float], float]
+) -> float | None:
+    """The water `WATER_AHEAD` hours after `k`, from the water at `k` and what was measured."""
+    water = hours[k].water
+    if water is None:
+        return None
+    for i in range(k + 1, k + WATER_AHEAD + 1):
+        h = hours[i] if i < len(hours) else None
+        if h is None or h.t - hours[i - 1].t != 3600 or h.skip:
+            return None
+        if h.outdoor is None or h.offset is None:
+            return None
+        water = step(water, h.outdoor, h.offset)
+    return water
 
 
 def judge_water(
     hours: Sequence[Hour], test_from: float
 ) -> tuple[Water | None, Verdict | None, str | None, dict[str, float | int | str]]:
-    """As `judge`, for the water."""
+    """Fit on the hours before `test_from`; from each hour after, follow the water six hours
+    ahead with what was measured, against the same fit without the offset. Then fit on all."""
     train = [h for h in hours if h.t < test_from]
-    test = _water_rows([h for h in hours if h.t >= test_from])
     trained, why, args = fit_water(train)
     verdict = None
     if trained is not None:
-        curve = _solve([([1.0, o], w) for o, _, w in _water_rows(train)])
-        if curve is not None:
-            predicted = [trained.water(o, f) for o, f, _ in test]
-            baseline = [curve[0] + curve[1] * o for o, _, _ in test]
-            actual = [w for _, _, w in test]
-            verdict = held_out(predicted, baseline, actual)
+        plain = _fit_rows(_water_rows(train), offset=False)
+        if plain is not None:
+            c0, c1, _, ca = plain
+
+            def baseline(before: float, outdoor: float, offset: float) -> float:
+                return ca * before + c0 + c1 * outdoor
+
+            predicted, base, actual = [], [], []
+            for k, h in enumerate(hours):
+                if h.t < test_from or k + WATER_AHEAD >= len(hours):
+                    continue
+                then = hours[k + WATER_AHEAD].water
+                predicted.append(_ahead(hours, k, trained.next))
+                base.append(_ahead(hours, k, baseline))
+                actual.append(then)
+            verdict = held_out(predicted, base, actual)
     whole, why_all, args_all = fit_water(hours)
     if whole is None:
         return None, verdict, why_all or why, args_all or args

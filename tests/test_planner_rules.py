@@ -57,8 +57,8 @@ def floor(temp: float = 40.0) -> Intent:
 
 
 def prices(cheap_now: bool | None = None) -> list[Price]:
-    """A day of prices around now: dear mornings and evenings, cheap nights and early
-    afternoons; now itself (noon) cheap, dear or ordinary as asked."""
+    """A day of prices around now: expensive mornings and evenings, cheap nights and early
+    afternoons; now itself (noon) cheap, expensive or ordinary as asked."""
     out = []
     t = NOW - timedelta(hours=12)
     while t < NOW + timedelta(hours=24):
@@ -157,17 +157,19 @@ def test_a_cold_room_gets_more_heat_first() -> None:
 def test_cheap_hours_aim_high_in_the_band_and_dear_ones_low() -> None:
     wide = band("wide")
     cheap = offset(rules.plan(situation([wide, stance()], temp=21.5, price=prices(cheap_now=True))))
-    dear = offset(rules.plan(situation([wide, stance()], temp=21.5, price=prices(cheap_now=False))))
-    assert value(cheap) > value(dear)
-    assert cheap.rank == dear.rank == RANK_SLIDER
+    expensive = offset(
+        rules.plan(situation([wide, stance()], temp=21.5, price=prices(cheap_now=False)))
+    )
+    assert value(cheap) > value(expensive)
+    assert cheap.rank == expensive.rank == RANK_SLIDER
     assert "cheap hours" in cheap.reason
-    assert "dear hours" in dear.reason
+    assert "expensive hours" in expensive.reason
 
 
 def test_without_a_cost_stance_price_moves_nothing() -> None:
     cheap = offset(rules.plan(situation([band()], price=prices(cheap_now=True))))
-    dear = offset(rules.plan(situation([band()], price=prices(cheap_now=False))))
-    assert cheap.params == dear.params
+    expensive = offset(rules.plan(situation([band()], price=prices(cheap_now=False))))
+    assert cheap.params == expensive.params
 
 
 def test_an_old_reading_counts_less() -> None:
@@ -314,12 +316,12 @@ def test_the_periodic_increase_makes_a_charge_needless() -> None:
 
 
 def test_dear_hours_hold_the_charges_off_while_the_tank_is_well_above_its_floor() -> None:
-    dear = prices(cheap_now=False)
-    held = rules.plan(situation([floor(40.0), stance()], top=48.0, price=dear))
+    expensive = prices(cheap_now=False)
+    held = rules.plan(situation([floor(40.0), stance()], top=48.0, price=expensive))
     assert [(d.lever, d.op) for d in held] == [(BLOCK, "engage")]
-    low = rules.plan(situation([floor(40.0), stance()], top=42.5, price=dear))
+    low = rules.plan(situation([floor(40.0), stance()], top=42.5, price=expensive))
     assert all(d.lever != BLOCK for d in low)
-    no_stance = rules.plan(situation([floor(40.0)], top=48.0, price=dear))
+    no_stance = rules.plan(situation([floor(40.0)], top=48.0, price=expensive))
     assert all(d.lever != BLOCK for d in no_stance)
 
 
@@ -346,8 +348,8 @@ def test_hands_off_asks_for_nothing() -> None:
 
 
 def test_a_spent_budget_leaves_only_the_top_ranks() -> None:
-    dear = prices(cheap_now=False)
-    spent = rules.plan(situation([band(), floor(40.0), stance()], price=dear, budget=(50, 50)))
+    expensive = prices(cheap_now=False)
+    spent = rules.plan(situation([band(), floor(40.0), stance()], price=expensive, budget=(50, 50)))
     assert spent == []
     cold = rules.plan(situation([band(), floor(40.0)], temp=19.0, budget=(50, 50)))
     assert [d.lever for d in cold] == [OFFSET]
@@ -360,11 +362,11 @@ def test_the_addition_by_policy() -> None:
         stop: LeverState(stop, "setting", -25, 40, 1, current=5, baseline=5),
         power: LeverState(power, "setting", 0, 45, 0.5, current=6, baseline=6),
     }
-    dear = prices(cheap_now=False)
-    not_dear = kinds.addition_policy("not_when_expensive", **who())  # type: ignore[arg-type]
-    found = rules.plan(situation([not_dear], levers=levers, price=dear))
+    expensive = prices(cheap_now=False)
+    not_expensive = kinds.addition_policy("not_when_expensive", **who())  # type: ignore[arg-type]
+    found = rules.plan(situation([not_expensive], levers=levers, price=expensive))
     assert [(d.lever, d.params) for d in found] == [(stop, {"value": -25})]
-    cold = rules.plan(situation([not_dear, band()], temp=19.0, levers=levers, price=dear))
+    cold = rules.plan(situation([not_expensive, band()], temp=19.0, levers=levers, price=expensive))
     assert all(d.lever != stop for d in cold)
     limit = kinds.addition_policy("limit", kw=3.0, **who())  # type: ignore[arg-type]
     found = rules.plan(situation([limit], levers=levers))
@@ -395,7 +397,7 @@ def test_a_pool_by_price() -> None:
         sit = replace(sit, force=resolver.in_force(NOW), pools={pool: 27.0})
         return {d.lever: (d.op, d.params.get("value")) for d in rules.plan(sit)}
 
-    cheap, dear = at(True), at(False)
+    cheap, expensive = at(True), at(False)
     assert cheap[start] == ("set", 28.5)  # warmed toward the top
-    assert dear[start] == ("set", 26.0)
-    assert dear[block] == ("engage", None)
+    assert expensive[start] == ("set", 26.0)
+    assert expensive[block] == ("engage", None)

@@ -524,6 +524,11 @@ class Executor:
             return Result("timeout", "no fresh value came back")
         return Result("not_kept", f"accepted, but it reads {seen}")
 
+    def found(self, ref: str) -> dict[str, dict[str, Any]]:
+        """What the device shows now at the points a lever is checked by and rests on."""
+        lever = self.lever(ref)
+        return self._found(ref, lever) if lever is not None else {}
+
     def _found(self, ref: str, lever: Lever) -> dict[str, dict[str, Any]]:
         """What the device shows now where a change of the lever can be compared: the point
         it is checked by, and the ones it writes, each with its unit."""

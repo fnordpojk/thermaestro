@@ -59,6 +59,14 @@ async def set_baseline(request: Request, who: Logged, ref: str, value: Text) -> 
     return await attempt(request, who, services(request).set_baseline(who, ref, value), "control")
 
 
+@router.post("/settings/planner")
+@action("planner.choose")
+async def set_planner(request: Request, who: Logged, planner: Text) -> Response:
+    from .setup_pages import attempt
+
+    return await attempt(request, who, services(request).set_planner(who, planner), "control")
+
+
 @router.post("/settings/home")
 @action("home.write")
 async def set_home(request: Request, who: Logged) -> Response:
@@ -265,6 +273,7 @@ async def _intents_page(
 
 @router.get("/plan")
 async def plan_page(request: Request, who: Logged) -> Response:
+    from . import i18n
     from .labels import RANKS
 
     s = services(request)
@@ -283,6 +292,10 @@ async def plan_page(request: Request, who: Logged) -> Response:
         changes=await s.recent_acts(who),
         scopes=s.intent_scopes(who),
         ranks=RANKS,
+        beside=await s.plan_beside(who),
+        decimal=i18n.decimal_symbol(),
+        zone=i18n.zone_name(),
+        formats=i18n.formats.get(),
     )
 
 

@@ -7,7 +7,7 @@
     <td><code>{{ o.role }}</code></td>
     <td>{{ o.covers | join(", ") }}</td>
     <td>{{ o.unit }}</td>
-    <td class="value quality-{{ 'green' if o.freshness == 'fresh' else 'grey' if o.freshness == 'empty' else 'yellow' }}" title="{{ o.why or '' }}">{{ o.known_until | when }}</td>
+    <td class="value quality-{{ 'green' if o.freshness == 'fresh' else 'gray' if o.freshness == 'empty' else 'yellow' }}" title="{{ o.why or '' }}">{{ o.known_until | when }}</td>
   </tr>
   {% endfor %}
   </tbody>
