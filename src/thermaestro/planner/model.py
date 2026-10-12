@@ -23,6 +23,8 @@ RANK_SLIDER = 7
 class Price:
     start: datetime
     value: float
+    estimated: bool = False
+    """Not published yet: from the same quarter of recent weeks. The rules don't use it."""
 
 
 @dataclass(frozen=True)

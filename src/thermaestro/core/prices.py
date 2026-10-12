@@ -26,12 +26,17 @@ comes from the spot layer, from any source and with its fallbacks. On a day the 
 has no prices, the last it added applies, from up to a week back: a supplier's adders
 seldom change.
 
+Ahead of what is published (a day-ahead market publishes about noon for the next day), a
+planner looking two days ahead gets an estimate, marked as one: each missing series layer
+at the median of its prices in the same quarter of the week over the last four weeks.
+
 The stack is checked against every other price series offered that covers some of its
 layers exactly: a supplier's price with VAT (Tibber's total) checks the spot price plus
 the supplier's adders plus VAT on both; another source's spot price checks the spot
 price. A slot differs when the two are more than 1 % apart.
 """
 
+import statistics
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
@@ -73,6 +78,8 @@ class Slot:
     parts: list[Part]
     missing: list[str] = field(default_factory=list)
     """Layers with no value for this slot."""
+    estimated: bool = False
+    """Its total holds an estimate where a price isn't published yet (`estimate`)."""
 
 
 @dataclass
@@ -416,6 +423,61 @@ async def _checks(
         if c.compared:
             out.append(c)
     return out
+
+
+ESTIMATE_WEEKS = 4
+"""How many weeks back a price not published yet is estimated from."""
+
+
+async def estimate(
+    layers: Mapping[str, PriceLayer], vat: Vat | None, series: Series, stack: Stack
+) -> Stack:
+    """The stack with what isn't published yet estimated: a series layer with no price in a
+    slot gets the median of its prices in the same slot of the week over the last four
+    weeks, VAT added as it would be. The slots are marked as estimated. A total the
+    stack refused, or a layer that isn't a series of its own, isn't estimated."""
+    if stack.problems or not stack.slots:
+        return stack
+    week = timedelta(days=7)
+    first = (stack.slots[0].start - ESTIMATE_WEEKS * week).timestamp()
+    last = (stack.slots[-1].end - week).timestamp()
+    held: dict[str, list[list[Interval]]] = {}
+    split = splits(layers, series)
+    for id, layer in layers.items():
+        if layer.source != "series" or id in split:
+            continue
+        refs = [_ref(layer.plugin or "", layer.series or ""), *layer.fallbacks]
+        held[id] = [await series.get(_key(ref), first, last) for ref in refs]
+    out = []
+    for slot in stack.slots:
+        if not slot.missing or any(id not in held for id in slot.missing):
+            out.append(slot)
+            continue
+        parts = []
+        for part in slot.parts:
+            if part.layer not in slot.missing:
+                parts.append(part)
+                continue
+            seen = []
+            for k in range(1, ESTIMATE_WEEKS + 1):
+                for intervals in held[part.layer]:
+                    found = _at(intervals, slot.start - k * week)
+                    if found is not None:
+                        seen.append(found)
+                        break
+            if not seen:
+                parts.append(part)
+                continue
+            raw = statistics.median(seen)
+            layer = layers[part.layer]
+            added = raw * vat.rate if vat is not None and _charged(vat, part.layer, layer) else 0.0
+            parts.append(Part(part.layer, part.role, raw + added, added))
+        if any(p.value is None for p in parts):
+            out.append(slot)
+            continue
+        total = sum(p.value or 0.0 for p in parts)
+        out.append(Slot(slot.start, slot.end, total, parts, [], estimated=True))
+    return Stack(stack.unit, out, stack.problems, stack.warnings, stack.checks)
 
 
 def _at(intervals: list[Interval], moment: datetime) -> float | None:

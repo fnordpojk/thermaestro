@@ -24,6 +24,7 @@ The rules keep their loop state in `Situation.memory`; otherwise they only read.
 import math
 import statistics
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 from ..intents.entry import RESPONSE_H
@@ -83,9 +84,12 @@ heat from the rooms for a while, and a long hold makes it longer."""
 
 
 def plan(sit: Situation) -> list[Decision]:
-    """Everything the planner asks for now, most important first."""
+    """Everything the planner asks for now, most important first. Prices not published
+    yet aren't used: the rules weigh only what is known."""
     if sit.force.hands_off_until is not None and sit.now < sit.force.hands_off_until:
         return []
+    if any(p.estimated for p in sit.prices):
+        sit = replace(sit, prices=[p for p in sit.prices if not p.estimated])
     if sit.slot:
         decisions = [*heating(sit), *hot_water(sit), *addition(sit), *pools(sit)]
     else:

@@ -36,7 +36,7 @@ from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost
 from ..core.house import House
-from ..core.prices import assemble
+from ..core.prices import assemble, estimate
 from ..core.sensors import DEFAULT_FRESHNESS_S, SITE, SensorHub
 from ..core.series import Series
 from ..core.values import Key, Values
@@ -559,7 +559,8 @@ class Planner:
         return prices
 
     async def _stack(self, now: datetime) -> list[Price]:
-        """The price stack from yesterday to tomorrow, slot by slot, where it has totals."""
+        """The price stack from yesterday to the day after tomorrow, slot by slot, where it
+        has totals; what isn't published yet estimated, and marked so."""
         if self._series is None:
             return []
         location = await self._db.get(Location)
@@ -571,9 +572,14 @@ class Planner:
         today: date = now.astimezone(zone).date()
         out = []
         rules, holiday = await household(self._db, zone)
-        for day in (today - timedelta(days=1), today, today + timedelta(days=1)):
+        for days in range(-1, 3):
+            day = today + timedelta(days=days)
             stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
-            out += [Price(s.start, s.total) for s in stack.slots if s.total is not None]
+            if days >= 0:
+                stack = await estimate(layers, vat, self._series, stack)
+            out += [
+                Price(s.start, s.total, s.estimated) for s in stack.slots if s.total is not None
+            ]
         return out
 
     # --- asking and following up -----------------------------------------------------------

@@ -17,7 +17,7 @@ from thermaestro.cap.messages import (
     SeriesUpdate,
 )
 from thermaestro.cap.model import Interval, Knowledge, Publication, SeriesInfo
-from thermaestro.core.prices import assemble, slots
+from thermaestro.core.prices import assemble, estimate, slots
 from thermaestro.core.series import Key, Series
 from thermaestro.store import Database, PriceLayer, Vat
 
@@ -464,3 +464,38 @@ async def test_a_stack_that_disagrees_with_tibber_says_so(db: Database) -> None:
         "tibber:home/price.total differs from the stack's spot + supplier in 96 of 96 quarters,"
         " by up to 0.0250 SEK/kWh"
     ) in stack.warnings
+
+
+async def test_prices_not_published_yet_are_estimated_from_recent_weeks(db: Database) -> None:
+    series = Series(db)
+    series.describe("tibber", [SPOT])
+    ahead = date(2026, 10, 8)
+    # The same day of the week, one to four weeks back: the estimate is their median.
+    for weeks, value in ((1, 0.5), (2, 0.9), (3, 0.6), (4, 0.7)):
+        day = ahead - timedelta(days=7 * weeks)
+        await series.put(
+            "tibber", quarters(SPOT.id, local(day.year, day.month, day.day), 96, value)
+        )
+    layers = {
+        "spot": PriceLayer(
+            role="energy.spot",
+            source="series",
+            plugin="tibber",
+            series=SPOT.id,
+            unit="SEK/kWh",
+            vat="excl",
+        ),
+        "tax": PriceLayer(role="tax.energy", source="fixed", value=0.4, unit="SEK/kWh", vat="incl"),
+    }
+    vat = Vat(rate=0.25, applies_to=("spot",))
+    stack = await assemble(layers, vat, series, ahead, STOCKHOLM)
+    assert all(s.total is None and s.missing == ["spot"] for s in stack.slots)
+    found = await estimate(layers, vat, series, stack)
+    assert all(s.estimated for s in found.slots)
+    assert found.slots[0].total == pytest.approx(0.65 * 1.25 + 0.4)
+    # What is published isn't touched; with nothing to go by, nothing is made up.
+    published = await assemble(layers, vat, series, ahead - timedelta(days=7), STOCKHOLM)
+    assert (await estimate(layers, vat, series, published)).slots == published.slots
+    empty = await assemble(layers, vat, series, ahead + timedelta(days=60), STOCKHOLM)
+    assert empty.slots
+    assert all(s.total is None for s in (await estimate(layers, vat, series, empty)).slots)

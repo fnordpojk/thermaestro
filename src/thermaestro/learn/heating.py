@@ -49,6 +49,7 @@ MODEL = "house.model"
 TAU = "house.tau_h"
 RESPONSE = "house.response_h"
 PUMP = "pump.response"
+WATER = "pump.water"
 DAYS = 28
 """The days of hours fitted over."""
 RAW_S = 13 * 86_400.0
@@ -420,7 +421,8 @@ class Heating:
             )
 
     async def _pump(self, scope: str, hours: list[house.Hour], now: float) -> None:
-        """How the supply follows the outdoor temperature and the offset."""
+        """How the supply follows the outdoor temperature and the offset, and the water."""
+        await self._water(scope, hours, now)
         found, verdict, why, args = pump.judge(hours, now - pump.TEST_HOURS * 3600)
         before = self._learnings.get(PUMP, scope)
         if found is None:
@@ -434,6 +436,31 @@ class Heating:
         await self._learnings.put(
             Learned(
                 name=PUMP,
+                scope=scope,
+                kind="model",
+                value=found.as_value(),
+                state=state,
+                why=verdict.why if verdict is not None else TESTING,
+                args=dict(verdict.args) if verdict is not None else {},
+                n=found.rows,
+                since=before.since if before and before.since else hours[0].t,
+            )
+        )
+
+    async def _water(self, scope: str, hours: list[house.Hour], now: float) -> None:
+        found, verdict, why, args = pump.judge_water(hours, now - pump.TEST_HOURS * 3600)
+        before = self._learnings.get(WATER, scope)
+        if found is None:
+            if before is not None and before.value is not None:
+                return
+            await self._learnings.put(
+                Learned(name=WATER, scope=scope, kind="model", state="learning", why=why, args=args)
+            )
+            return
+        state: State = "proved" if verdict is not None and verdict.proved else "learning"
+        await self._learnings.put(
+            Learned(
+                name=WATER,
                 scope=scope,
                 kind="model",
                 value=found.as_value(),

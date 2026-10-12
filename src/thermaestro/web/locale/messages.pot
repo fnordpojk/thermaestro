@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 22:42+0200\n"
+"POT-Creation-Date: 2026-10-12 13:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,7 +48,15 @@ msgid "%(hours)s hours"
 msgstr ""
 
 #, python-format
+msgid "%(hours)s hours of %(least)s to learn the pool from."
+msgstr ""
+
+#, python-format
 msgid "%(hours)s hours of heating of %(least)s."
+msgstr ""
+
+#, python-format
+msgid "%(hours)s hours of heating with the heat known, of %(least)s."
 msgstr ""
 
 #, python-format
@@ -65,6 +73,10 @@ msgstr ""
 
 #, python-format
 msgid "%(kw)s kW making hot water"
+msgstr ""
+
+#, python-format
+msgid "%(kw)s kW per °C"
 msgstr ""
 
 #, python-format
@@ -168,6 +180,10 @@ msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
 msgstr ""
 
 #, python-format
+msgid "%(step)s °C of water per offset step, %(slope)s °C per degree colder"
+msgstr ""
+
+#, python-format
 msgid ""
 "%(steps)s steps of the house's power seen at the compressor's starts and "
 "stops."
@@ -187,6 +203,12 @@ msgstr ""
 
 #, python-format
 msgid "%(w_k)s W per kelvin: about %(flow)s l/s of brine"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over "
+"outdoors"
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -1141,6 +1163,9 @@ msgstr ""
 msgid "How fast the house loses its heat (its time constant)"
 msgstr ""
 
+msgid "How fast the pool warms and cools"
+msgstr ""
+
 msgid "How long a hot-water charge takes"
 msgstr ""
 
@@ -1157,6 +1182,9 @@ msgid "How much it matters"
 msgstr ""
 
 msgid "How often the compressor starts"
+msgstr ""
+
+msgid "How the heating water follows the weather and the offset"
 msgstr ""
 
 msgid "How the rooms follow the heating and the weather"
@@ -1265,6 +1293,9 @@ msgid "Learned"
 msgstr ""
 
 msgid "Learned once the brine's heat per kelvin has proved itself."
+msgstr ""
+
+msgid "Learned once the compressor's draw and COP are known."
 msgstr ""
 
 msgid "Learned once the compressor's draw has proved itself."
@@ -1638,6 +1669,11 @@ msgstr ""
 
 #, python-format
 msgid "Not learned: %(what)s isn't usable on this pump yet."
+msgstr ""
+
+msgid ""
+"Not learned: the pump heats several climate systems, and its heat can't "
+"be split."
 msgstr ""
 
 msgid "Not made:"
@@ -2425,6 +2461,9 @@ msgstr ""
 msgid "The pool"
 msgstr ""
 
+msgid "The pool hasn't been heated enough to learn how fast it warms."
+msgstr ""
+
 msgid "The power limit"
 msgstr ""
 
@@ -2739,6 +2778,9 @@ msgid ""
 msgstr ""
 
 msgid "What the pump uses a day, by its own meter"
+msgstr ""
+
+msgid "What the radiators or floor give per degree of water over the room"
 msgstr ""
 
 msgid "What the rights allow"
@@ -3564,6 +3606,9 @@ msgstr ""
 msgid "the compressor's state"
 msgstr ""
 
+msgid "the compressor's state or the demand"
+msgstr ""
+
 msgid "the day it falls on"
 msgstr ""
 
@@ -3593,6 +3638,9 @@ msgid "the main provider"
 msgstr ""
 
 msgid "the password you entered isn't right"
+msgstr ""
+
+msgid "the pool's temperature"
 msgstr ""
 
 msgid "the power"

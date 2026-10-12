@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 22:42+0200\n"
+"POT-Creation-Date: 2026-10-12 13:15+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -46,8 +46,16 @@ msgid "%(hours)s hours"
 msgstr "%(hours)s Stunden"
 
 #, python-format
+msgid "%(hours)s hours of %(least)s to learn the pool from."
+msgstr "%(hours)s von %(least)s Stunden, um den Pool zu lernen."
+
+#, python-format
 msgid "%(hours)s hours of heating of %(least)s."
 msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
+
+#, python-format
+msgid "%(hours)s hours of heating with the heat known, of %(least)s."
+msgstr "%(hours)s Heizstunden mit bekannter Wärme, von %(least)s."
 
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
@@ -64,6 +72,10 @@ msgstr "%(kw)s kW beim Beheizen des Pools"
 #, python-format
 msgid "%(kw)s kW making hot water"
 msgstr "%(kw)s kW bei der Warmwasserbereitung"
+
+#, python-format
+msgid "%(kw)s kW per °C"
+msgstr "%(kw)s kW je °C"
 
 #, python-format
 msgid "%(kwh)s kWh a day"
@@ -166,6 +178,10 @@ msgid "%(step)s °C of supply per offset step, %(slope)s °C per degree colder"
 msgstr "%(step)s °C Vorlauf je Verschiebungsschritt, %(slope)s °C je Grad kälter"
 
 #, python-format
+msgid "%(step)s °C of water per offset step, %(slope)s °C per degree colder"
+msgstr "%(step)s °C Wasser je Verschiebungsschritt, %(slope)s °C je Grad kälter"
+
+#, python-format
 msgid "%(steps)s steps of the house's power seen at the compressor's starts and stops."
 msgstr "%(steps)s Sprünge der Hausleistung beim Starten und Stoppen des Verdichters gesehen."
 
@@ -184,6 +200,12 @@ msgstr "%(total)s °C des Speichers pro Woche"
 #, python-format
 msgid "%(w_k)s W per kelvin: about %(flow)s l/s of brine"
 msgstr "%(w_k)s W je Kelvin: etwa %(flow)s l/s Sole"
+
+#, python-format
+msgid "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over outdoors"
+msgstr ""
+"%(warm)s °C pro Stunde beim Heizen; %(cool)s °C pro Stunde Verlust bei 20 °C über "
+"außen"
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -1215,6 +1237,9 @@ msgstr "Wie weit die Temperaturvorhersage im Mittel abweicht"
 msgid "How fast the house loses its heat (its time constant)"
 msgstr "Wie schnell das Haus seine Wärme verliert (seine Zeitkonstante)"
 
+msgid "How fast the pool warms and cools"
+msgstr "Wie schnell sich der Pool erwärmt und abkühlt"
+
 msgid "How long a hot-water charge takes"
 msgstr "Wie lange eine Warmwasserladung dauert"
 
@@ -1232,6 +1257,9 @@ msgstr "Wie wichtig es ist"
 
 msgid "How often the compressor starts"
 msgstr "Wie oft der Verdichter startet"
+
+msgid "How the heating water follows the weather and the offset"
+msgstr "Wie das Heizwasser dem Wetter und der Verschiebung folgt"
 
 msgid "How the rooms follow the heating and the weather"
 msgstr "Wie die Räume der Heizung und dem Wetter folgen"
@@ -1348,6 +1376,9 @@ msgstr "Gelernt"
 
 msgid "Learned once the brine's heat per kelvin has proved itself."
 msgstr "Wird gelernt, sobald sich die Wärme der Sole je Kelvin bewährt hat."
+
+msgid "Learned once the compressor's draw and COP are known."
+msgstr "Wird gelernt, sobald Leistungsaufnahme und COP des Verdichters bekannt sind."
 
 msgid "Learned once the compressor's draw has proved itself."
 msgstr "Wird gelernt, sobald sich die Leistungsaufnahme des Verdichters bewährt hat."
@@ -1755,6 +1786,11 @@ msgstr "Noch nicht gelernt"
 #, python-format
 msgid "Not learned: %(what)s isn't usable on this pump yet."
 msgstr "Nicht gelernt: %(what)s ist auf dieser Pumpe noch nicht verwendbar."
+
+msgid "Not learned: the pump heats several climate systems, and its heat can't be split."
+msgstr ""
+"Nicht gelernt: Die Pumpe heizt mehrere Heizkreise, und ihre Wärme lässt sich nicht "
+"aufteilen."
 
 msgid "Not made:"
 msgstr "Nicht angelegt:"
@@ -2587,6 +2623,9 @@ msgstr "Der Plan"
 msgid "The pool"
 msgstr "Der Pool"
 
+msgid "The pool hasn't been heated enough to learn how fast it warms."
+msgstr "Der Pool wurde noch nicht genug beheizt, um zu lernen, wie schnell es warm wird."
+
 msgid "The power limit"
 msgstr "Die Leistungsgrenze"
 
@@ -2944,6 +2983,9 @@ msgstr ""
 
 msgid "What the pump uses a day, by its own meter"
 msgstr "Was die Wärmepumpe am Tag verbraucht, laut ihrem eigenen Zähler"
+
+msgid "What the radiators or floor give per degree of water over the room"
+msgstr "Was Heizkörper oder Fußboden je Grad Wasser über dem Raum abgeben"
 
 msgid "What the rights allow"
 msgstr "Was die Rechte erlauben"
@@ -3792,6 +3834,9 @@ msgstr "die Vorlauftemperatur des Heizkreises"
 msgid "the compressor's state"
 msgstr "der Zustand des Verdichters"
 
+msgid "the compressor's state or the demand"
+msgstr "der Zustand des Verdichters oder der Bedarf"
+
 msgid "the day it falls on"
 msgstr "den Tag, auf den er fällt"
 
@@ -3822,6 +3867,9 @@ msgstr "der Hauptanbieter"
 
 msgid "the password you entered isn't right"
 msgstr "das eingegebene Passwort ist nicht richtig"
+
+msgid "the pool's temperature"
+msgstr "die Pooltemperatur"
 
 msgid "the power"
 msgstr "die Leistung"

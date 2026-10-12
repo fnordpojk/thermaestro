@@ -34,6 +34,11 @@ NAMES = {
     "house.tau_h": mark("How fast the house loses its heat (its time constant)"),
     "house.response_h": mark("How long the heating takes to show in the rooms"),
     "pump.response": mark("How the supply follows the weather and the offset"),
+    "pump.water": mark("How the heating water follows the weather and the offset"),
+    "house.emitter_kw_k": mark(
+        "What the radiators or floor give per degree of water over the room"
+    ),
+    "pool.model": mark("How fast the pool warms and cools"),
     "compressor.draw": mark("What the compressor draws while it runs"),
     "compressor.starts": mark("How often the compressor starts"),
     "pump.energy": mark("What the pump uses a day, by its own meter"),
@@ -43,11 +48,16 @@ NAMES = {
     "forecast.bias": mark("How far the temperature forecast runs off, on average"),
     "forecast.spread": mark("How far the temperature forecast misses, nine times in ten"),
 }
-PINNABLE = frozenset({"tank.loss", "house.tau_h", "house.response_h", "brine.w_k"})
+PINNABLE = frozenset(
+    {"tank.loss", "house.tau_h", "house.response_h", "brine.w_k", "house.emitter_kw_k"}
+)
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
 HOURS_SHOWN = mark("%(hours)s hours")
 PUMP_SHOWN = mark("%(step)s °C of supply per offset step, %(slope)s °C per degree colder")
+WATER_SHOWN = mark("%(step)s °C of water per offset step, %(slope)s °C per degree colder")
+EMITTERS_SHOWN = mark("%(kw)s kW per °C")
+POOL_SHOWN = mark("%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over outdoors")
 DRAW_SHOWN = {
     "heating": mark("%(kw)s kW heating"),
     "dhw": mark("%(kw)s kW making hot water"),
@@ -334,6 +344,20 @@ def _shown(x: Learned) -> str:
             PUMP_SHOWN,
             step=i18n.number(value.get("c2", 0.0), 1),
             slope=i18n.number(-value.get("c1", 0.0), 2),
+        )
+    if x.name == "pump.water" and isinstance(value, dict):
+        return i18n._(
+            WATER_SHOWN,
+            step=i18n.number(value.get("w2", 0.0), 1),
+            slope=i18n.number(-value.get("w1", 0.0), 2),
+        )
+    if x.name == "house.emitter_kw_k" and isinstance(value, int | float):
+        return i18n._(EMITTERS_SHOWN, kw=i18n.number(value, 2))
+    if x.name == "pool.model" and isinstance(value, dict):
+        return i18n._(
+            POOL_SHOWN,
+            warm=i18n.number(value.get("a", 0.0), 2),
+            cool=i18n.number(value.get("b", 0.0) * 20, 2),
         )
     if x.name == "compressor.draw" and isinstance(value, dict):
         return ", ".join(

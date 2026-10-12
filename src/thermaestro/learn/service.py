@@ -17,6 +17,7 @@ from ..core.sensors import SITE
 from ..core.values import Key, Values
 from ..store import Database, Transaction
 from .efficiency import Efficiency
+from .emitters import Emitters
 from .energy import Energy
 from .forecast import Forecasts
 from .heating import RESPONSE, Heating
@@ -38,6 +39,7 @@ from .inputs import (
 )
 from .meters import pump_meters
 from .model import mark
+from .pool import Pools
 from .store import Learnings
 
 if TYPE_CHECKING:
@@ -63,6 +65,7 @@ EXPECT: dict[tuple[str, str], Expect] = {
     ("addition", "power"): Expect(moves=False, relation=runs_and_stops),
     ("brine_circuit", "brine.in.temp"): Expect(),
     ("brine_circuit", "brine.out.temp"): Expect(),
+    ("pool", "temp"): Expect(),
 }
 """The inputs the learners will use, by the kind of part they are on and their name, and
 what each must have shown."""
@@ -94,6 +97,8 @@ class Learning:
         )
         self.efficiency = Efficiency(db, values, host, self.learnings, self.usable)
         self.forecasts = Forecasts(db, self.learnings)
+        self.emitters = Emitters(db, host, self.learnings, self.heating.systems)
+        self.pools = Pools(db, values, host, self.learnings, self.usable)
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
 
@@ -131,13 +136,16 @@ class Learning:
             await asyncio.sleep(CHECK_S)
 
     async def learn(self) -> None:
-        """What the inputs allow: the tanks', the houses' and the compressors' days not
-        yet read, the COP from them, and how far the forecasts miss."""
+        """What the inputs allow: the tanks', the houses', the compressors' and the pools'
+        days not yet read, the COP and the emitters' output from them, and how far the
+        forecasts miss."""
         async with self._lock:
             await self.hot_water.run()
             await self.heating.run()
             await self.energy.run()
             await self.efficiency.run()
+            await self.emitters.run()
+            await self.pools.run()
             await self.forecasts.run()
 
     def responses(self, systems: frozenset[str]) -> dict[str, float]:
