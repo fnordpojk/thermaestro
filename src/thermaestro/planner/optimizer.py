@@ -8,22 +8,26 @@ A goal is planned here only where what it rests on is learned and proved (or pin
 - a pool: how fast it warms and cools.
 
 The rules plan whatever isn't covered. The weather is the forecast, its learned bias
-taken off; the source the brine as it comes in now (or the forecast outdoor temperature,
-for a pump without brine); the power limit the one in force now, for the whole horizon.
+taken off; the source the brine as it came in over the last hour (or the forecast outdoor
+temperature, for a pump without brine); the power limit the one in force now, and the
+household's own load that of the last hour, for the whole horizon. What was measured is
+read only up to the last minute surely written, so that shadow plans as control does.
 """
 
 import asyncio
 import logging
 import math
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from ..cap.model import Rating
 from ..core.executor import COUNTED, split
+from ..core.gridrules import GridLimits
 from ..core.host import PluginHost
-from ..core.values import Key, Values
+from ..core.values import Key, Sample, Values
 from ..intents.resolve import Resolver
 from ..learn import Learnings
 from ..learn.efficiency import DHW, HEATING
@@ -93,6 +97,15 @@ NO_DRAW = mark("the compressor's draw isn't known")
 HEATING_OFF = mark("the pump's heating stop has heating off")
 EMITTERS_UNPROVED = mark("what its emitters give hasn't proved itself")
 NOTHING = mark("nothing it could plan yet: every goal is with the rules")
+
+
+def _numeric(s: Sample) -> float | None:
+    return s.value
+
+
+def _running(s: Sample) -> float | None:
+    """A compressor's state as the share of the time it ran."""
+    return None if s.text is None else float(s.text == "running")
 
 
 @dataclass
@@ -276,10 +289,9 @@ class Optimizer:
     async def _slots(self, sit: Situation, starts: list[float]) -> list[Slot]:
         prices = {p.start.timestamp(): p for p in sit.prices}
         weather = await self._forecasts(sit, starts)
-        brine = self._brine(sit)
+        brine = await self._brine(sit)
         limit = rules.power_limit(sit)
-        pump_kw = self._pump_kw_now(sit)
-        other = max(0.0, sit.house_kw - pump_kw) if sit.house_kw is not None else 0.0
+        other = await self._other_kw(sit)
         published = [p for p in sit.prices if not p.estimated]
         out = []
         for j, t in enumerate(starts):
@@ -349,30 +361,36 @@ class Optimizer:
             out.append((temp if temp is not None else fallback, sun or 0.0, wind or 0.0))
         return out
 
-    def _brine(self, sit: Situation) -> float | None:
+    async def _brine(self, sit: Situation) -> float | None:
+        """The brine as it came in over the last hour."""
         for unit in self._units().values():
             if unit["brine"] is not None:
-                found = self._number(self._values.latest.get(unit["brine"]))
+                found = await self._hour_mean(unit["brine"], sit.now.timestamp())
                 if found is not None:
                     return found
         return None
 
-    def _pump_kw_now(self, sit: Situation) -> float:
-        """What the pump draws now, about: the compressor's learned draw for what it serves,
-        and the addition's power."""
-        kw = 0.0
+    async def _other_kw(self, sit: Situation) -> float:
+        """The household's own load over the last hour: the house's, less the pump's (the
+        compressor's learned draw for the share of the hour it ran, and the addition's
+        power). Without the house's power, none."""
+        found = GridLimits(self._db, self._values).house_power()
+        if found is None:
+            return 0.0
+        now = sit.now.timestamp()
+        house = await self._hour_mean(found[0], now)
+        if house is None:
+            return 0.0
+        pump = 0.0
         for unit, info in self._units().items():
-            state = self._values.latest.get(info["compressor"]) if info["compressor"] else None
-            running = state is not None and state.quality == "good" and state.value == "running"
-            if running:
-                draws = self._learnings.used(DRAW, unit)
-                purpose = {"dhw": "dhw", "pool": "pool"}.get(sit.demand or "", "heating")
-                if isinstance(draws, dict):
-                    kw += float(draws.get(purpose, draws.get("heating", 0.0)))
+            if info["compressor"] is not None:
+                ran = await self._hour_mean(info["compressor"], now, _running)
+                draw = self._draw(unit, "heating", info.get("rating"))
+                pump += (ran or 0.0) * (draw or 0.0)
             instance, path = split(unit)
-            added = self._number(self._values.latest.get(Key(instance, f"{path}/addition/power")))
-            kw += added or 0.0
-        return kw
+            added = await self._hour_mean(Key(instance, f"{path}/addition/power"), now)
+            pump += added or 0.0
+        return max(0.0, house * found[1] - pump)
 
     def _draw(self, unit: str, purpose: str, rating: Rating | None) -> float | None:
         draws = self._learnings.used(DRAW, unit)
@@ -423,7 +441,7 @@ class Optimizer:
         # The house was learned on hourly means: it starts from the rooms' last hour too,
         # not from the air as it swings with each run of the compressor.
         temps = {
-            r.scope: await self._hour_mean(r.scope, sit.now.timestamp(), r.temp) for r in rooms
+            r.scope: await self._room_mean(r.scope, sit.now.timestamp(), r.temp) for r in rooms
         }
         mean = statistics.mean(temps.values())
         drift = self._came_out(system, sit.now.timestamp(), mean)
@@ -476,28 +494,54 @@ class Optimizer:
             "",
         )
 
-    async def _hour_mean(self, scope: str, now: float, fallback: float | None) -> float:
-        """A room's mean temperature over the last hour, each reading held until the next."""
+    async def _room_mean(self, scope: str, now: float, fallback: float | None) -> float:
+        """A room's mean temperature over the last hour."""
         from ..core.sensors import SITE
 
         key = Key(SITE, f"room.{scope.removeprefix('room:')}/temperature")
+        found = await self._hour_mean(key, now)
+        if found is not None:
+            return found
+        return fallback if fallback is not None else 20.0
+
+    async def _hour_mean(
+        self, key: Key, now: float, of: Callable[[Sample], float | None] = _numeric
+    ) -> float | None:
+        """A point's mean over the last hour; None where it has none. Read only up to what
+        is surely written: whether this minute's reading came in before the round must not
+        change the plan, or shadow wouldn't decide as control does."""
         now = settled(now)
+        return await self._mean(key, now - 3600, now, of)
+
+    async def _last(self, key: Key, now: float) -> float | None:
+        """A point's value as it stood at the last minute surely written; where it hasn't
+        moved for hours, as it is."""
+        now = settled(now)
+        samples = await self._values.history(key, now - 2 * 3600, now)
+        found = [s for s in samples if s.value is not None]
+        if found:
+            return found[-1].value if found[-1].quality == "good" else None
+        return self._number(self._values.latest.get(key))
+
+    async def _mean(
+        self, key: Key, start: float, end: float, of: Callable[[Sample], float | None] = _numeric
+    ) -> float | None:
+        """A point's mean from `start` to `end`, each reading held until the next: what is
+        kept is its changes, and a mean of those would weigh a reading by how often the
+        point moved, not by how long it held."""
         samples = [
-            (s.t, float(s.value))
-            for s in await self._values.history(key, now - 2 * 3600, now)
-            if s.quality == "good" and isinstance(s.value, int | float)
+            (s.t, value)
+            for s in await self._values.history(key, start - 3600, end)
+            if s.quality == "good" and (value := of(s)) is not None
         ]
-        start = now - 3600
         total = held = 0.0
         for i, (t, value) in enumerate(samples):
-            until = samples[i + 1][0] if i + 1 < len(samples) else now
-            span = min(until, now) - max(t, start)
+            until = samples[i + 1][0] if i + 1 < len(samples) else end
+            span = min(until, end) - max(t, start)
             if span > 0:
                 total += value * span
                 held += span
-        if held > 0:
-            return total / held
-        return fallback if fallback is not None else 20.0
+        return total / held if held > 0 else None
 
     def _came_out(self, system: str, now: float, room: float) -> float:
         """How the rooms came out against what the plan an hour ago expected for now: a
@@ -521,10 +565,9 @@ class Optimizer:
             t0, t1 = now - 3600 * h, now - 3600 * (h - 1)
             means = []
             for name in ("supply.temp", "return.temp"):
-                samples = await self._values.history(Key(instance, f"{path}/{name}"), t0, t1)
-                good = [s.value for s in samples if s.quality == "good" and s.value is not None]
-                if good:
-                    means.append(statistics.mean(good))
+                found = await self._mean(Key(instance, f"{path}/{name}"), t0, t1)
+                if found is not None:
+                    means.append(found)
             if means:
                 out.append(sum(means) / len(means))
         return tuple(out)
@@ -550,8 +593,11 @@ class Optimizer:
         if not isinstance(share, int | float) or draw is None:
             return None, NO_COP
         instance, path = split(scope)
-        low = self._number(self._values.latest.get(Key(instance, f"{path}/temp.charge")))
-        level = (tank.top + low) / 2 if low is not None else tank.top
+        now = sit.now.timestamp()
+        found = await self._last(Key(instance, f"{path}/temp.top"), now)
+        top = found if found is not None else tank.top
+        low = await self._last(Key(instance, f"{path}/temp.charge"), now)
+        level = (top + low) / 2 if low is not None else top
         hour0 = sit.now.timestamp() // 3600 * 3600
         draws = []
         for t in starts:

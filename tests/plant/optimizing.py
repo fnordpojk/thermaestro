@@ -1,7 +1,7 @@
 """What the learners would have made of a house, for the optimizer to plan with: fitted on
 ten days of the same house recorded beforehand, and kept as proved.
 
-The house, its water and its emitters are fitted as the learners fit them; the draws and
+The house, its water and its emitters are fitted and judged as the learners do; the draws and
 the COP are measured in the recording; the tank's standing loss and its week are what the
 tank learner finds within its tolerance, taken from the scenario."""
 
@@ -59,11 +59,16 @@ def _fit(scenario: Scenario) -> dict[tuple[str, str], object]:
         (DHW, UNIT): round(statistics.median(seen.dhw_share), 4),
         (DRAW, UNIT): {"dhw": round(statistics.median(seen.dhw_kw), 3)},
     }
-    fit, _, _ = house.fit(seen.hours)
-    water, _, _ = pump.fit_water(seen.hours)
+    # Each judged as a pump judges it: fitted on the hours before its last few, tested on
+    # them. Only what proves itself is taught.
+    end = seen.hours[-1].t + 3600
+    fit, house_verdict, _, _ = house.judge(seen.hours, end - house.TEST_HOURS * 3600)
+    water, water_verdict, _, _ = pump.judge_water(seen.hours, end - pump.TEST_HOURS * 3600)
     pairs = emitter_pairs(seen)
-    found = emitters.fit(pairs)
-    if fit is not None and water is not None and found is not None and seen.drawn_kw:
+    found, emitters_verdict = emitters.judge(pairs, end - emitters.TEST_HOURS * 3600)
+    verdicts = (house_verdict, water_verdict, emitters_verdict)
+    proved = all(v is not None and v.proved for v in verdicts)
+    if proved and fit is not None and water is not None and found is not None and seen.drawn_kw:
         k, c = found
         out |= {
             (MODEL, SYSTEM): fit.as_value(),

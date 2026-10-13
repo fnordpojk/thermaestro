@@ -13,15 +13,17 @@ fit without the offset).
 
 The water the house model is driven by (the mean of supply and return) is fitted too, over
 every hour the pump may heat, with how much of it carries over from one hour to the next:
-a slab holds its water for hours. It is judged by following the water six hours ahead
-against the same fit without the offset.
+a slab holds its water for hours. It is fitted on following the water six hours ahead, as
+the optimizer follows it: a slab's water barely moves in an hour, and fitted an hour ahead
+it can come out as holding nearly all of it with an offset step worth twice the curve's.
+It is judged the same way against the same fit without the offset.
 """
 
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .house import Hour
+from .house import Hour, minimize
 from .model import mark
 from .validate import Verdict, held_out
 
@@ -185,6 +187,8 @@ WATER_AHEAD = 6
 """Hours the water is followed ahead, to judge it."""
 HOLDS_MOST = 0.99
 """Water that keeps more than this an hour isn't told apart from water that never moves."""
+FOLLOW_STEPS = 1500
+"""The search's steps, fitting the water six hours ahead."""
 
 
 def _water_rows(hours: Sequence[Hour]) -> list[tuple[float, float, float, float]]:
@@ -216,6 +220,36 @@ def _fit_rows(
     return None if instant is None else (instant[0], instant[1], 0.0, 0.0)
 
 
+def _followed(
+    hours: Sequence[Hour], start: tuple[float, float, float, float], offset: bool
+) -> tuple[float, float, float, float]:
+    """From the fit an hour ahead, the fit that follows the water best `WATER_AHEAD` hours
+    ahead, by its squared misses; without the offset, w2 stays 0."""
+    starts = range(0, len(hours) - WATER_AHEAD, 2)
+
+    def cost(x: list[float]) -> float:
+        w0, w1, a = x[0], x[1], x[-1]
+        w2 = x[2] if offset else 0.0
+        if not 0.0 <= a <= HOLDS_MOST or (offset and w2 <= 0):
+            return 1e9
+        misses = []
+        for k in starts:
+            found = _ahead(hours, k, lambda b, o, f: a * b + w0 + w1 * o + w2 * f)
+            then = hours[k + WATER_AHEAD].water
+            if found is not None and then is not None:
+                misses.append((found - then) ** 2)
+        return sum(misses) / len(misses) if misses else 1e9
+
+    w0, w1, w2, a = start
+    first = [w0, w1, w2, a] if offset else [w0, w1, a]
+    if cost(first) >= 1e9:
+        return start
+    x = minimize(cost, first, steps=FOLLOW_STEPS)
+    if cost(x) >= cost(first):
+        return start
+    return (x[0], x[1], x[2], x[3]) if offset else (x[0], x[1], 0.0, x[2])
+
+
 def fit_water(
     hours: Sequence[Hour],
 ) -> tuple[Water | None, str | None, dict[str, float | int | str]]:
@@ -230,7 +264,7 @@ def fit_water(
     found = _fit_rows(rows, offset=True)
     if found is None or found[2] <= 0:
         return None, STILL, {}
-    w0, w1, w2, a = found
+    w0, w1, w2, a = _followed(hours, found, offset=True)
     lifts = [
         h.supply - h.water
         for h in hours
@@ -273,7 +307,7 @@ def judge_water(
     if trained is not None:
         plain = _fit_rows(_water_rows(train), offset=False)
         if plain is not None:
-            c0, c1, _, ca = plain
+            c0, c1, _, ca = _followed(train, plain, offset=False)
 
             def baseline(before: float, outdoor: float, offset: float) -> float:
                 return ca * before + c0 + c1 * outdoor

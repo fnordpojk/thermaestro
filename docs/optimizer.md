@@ -25,7 +25,7 @@ The horizon is 48 hours in 15-minute slots. Where tomorrow's prices aren't publi
 
 The plan stays where its models know the house: the offset no further than a step past what it was learned on, raised at most a step an hour, and never far ahead of where the water can follow (beyond that, the pump's degree minutes run deep and its addition starts; the plan counts that heat at a COP of 1). Each room is planned inside its band by a margin of twice the house model's own error six hours ahead, from 0.25 to 0.75 °C.
 
-Each plan starts from the rooms' mean over the last hour, as the house model was learned, not from the air as it swings with each run of the compressor. And it carries a drift: a share of how far the rooms came out from what the plan an hour before expected for them, so a model a little off is corrected by what it sees.
+Each plan starts from the rooms' mean over the last hour, as the house model was learned, not from the air as it swings with each run of the compressor. And it carries a drift: a share of how far the rooms came out from what the plan an hour before expected for them, so a model a little off is corrected by what it sees. The brine and the household's own load (the house's power less the pump's) are the last hour's means too, and the tank's temperatures as they stood a minute ago: everything measured is read only up to the last minute surely written, so a reading that came in a moment before the round or a moment after doesn't change the plan, and shadow plans as control would.
 
 ## What gives way
 

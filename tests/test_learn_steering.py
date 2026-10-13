@@ -11,6 +11,7 @@ from typing import Any, cast
 import pytest
 from plant import begin, draw
 from plant.hourly import Recorded, shifted
+from plant.model import curve_for, supply_target
 from plant.optimizing import emitter_pairs
 
 from thermaestro.core import AuditLog, Values
@@ -46,6 +47,21 @@ def test_the_water_follows_the_offset_and_proves_itself() -> None:
     assert found.w1 < 0  # colder outside, warmer water
     # While the compressor heats, the supply runs warmer than the water by half the spread.
     assert 0.5 < found.lift < 5
+
+
+def test_a_slabs_water_moves_about_as_the_curve_does() -> None:
+    """A slab's water barely moves in an hour: fitted an hour ahead, this one came out
+    moving 2.3 times the curve's step per offset step and almost never settling, and the
+    optimizer, believing the floor could hardly be warmed ahead, didn't shift its heat."""
+    scenario = draw(7, emitter="floor", start=datetime(2026, 1, 17, tzinfo=UTC))
+    hours = shifted(begin(scenario), 10, 7).hours
+    found, verdict, why, _ = pump.judge_water(hours, hours[-pump.TEST_HOURS].t)
+    assert found is not None, why
+    assert verdict is not None
+    assert verdict.proved, verdict
+    curve = curve_for(scenario.houses[0])
+    step = supply_target(curve, 1, 0.0) - supply_target(curve, 0, 0.0)
+    assert 0.8 * step < found.step < 2 * step
 
 
 def test_the_water_needs_the_offset_to_have_moved() -> None:

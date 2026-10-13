@@ -181,6 +181,7 @@ class Sim:
     async def start(self) -> None:
         if not hasattr(self, "plant"):
             self.plant = begin(self.scenario) if self.replay is None else Replay(self.replay)
+            self._record()  # as it starts: a replay shows the first moment as it was too
             self.bus = SimBus(Caught(self))
             self.db = await Database.open(self.path / "sim.db")
             await self.db.put(
@@ -315,6 +316,9 @@ class Sim:
         if to <= self.plant.t + 1e-9:
             return
         self.plant.run(to - self.plant.t)
+        self._record()
+
+    def _record(self) -> None:
         if self.record and isinstance(self.plant, Plant):
             p = self.plant
             self.frames.append(

@@ -448,7 +448,9 @@ class Heating:
         )
 
     async def _water(self, scope: str, hours: list[house.Hour], now: float) -> None:
-        found, verdict, why, args = pump.judge_water(hours, now - pump.TEST_HOURS * 3600)
+        found, verdict, why, args = await asyncio.to_thread(
+            pump.judge_water, hours, now - pump.TEST_HOURS * 3600
+        )
         before = self._learnings.get(WATER, scope)
         if found is None:
             if before is not None and before.value is not None:
