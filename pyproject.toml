@@ -18,7 +18,7 @@ dependencies = [
     "thermaestro-gateway==0.0.0",
     # The web UI and API. FastAPI is still 0.x and changes often, so upgrades are
     # taken one minor version at a time.
-    "fastapi>=0.142.2,<0.143",
+    "fastapi>=0.143.0,<0.144",
     "uvicorn>=0.54.0",
     "jinja2>=3.1.6",
     "python-multipart>=0.0.32",
