@@ -41,7 +41,7 @@ async def test_reads_go_on_after_the_loop_stalls(client: PlainClient, pump: SimP
     a request at most, and the next is answered."""
     for _ in range(5):
         await client.read(47134, timeout=5)
-        time.sleep(0.3)  # the loop blocked: the gateway's reply misses the pump's window
+        time.sleep(0.3)  # noqa: ASYNC251 - block the loop: the reply misses the window
     r = await client.read(47134, timeout=5)
     assert (r.register, r.data) == (47134, word(30) + word(30))
 
