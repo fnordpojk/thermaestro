@@ -14,6 +14,20 @@ from thermaestro.core.values import Key, Values
 from thermaestro.store import Database, Mqtt, Room, SecretStore, Sensor
 
 
+class Closing(Broker):  # type: ignore[misc]
+    """amqtt's broker, which leaves a connection open where the client went before it was
+    set up (one cancelled while connecting, as at a test's end): closed once handled, or
+    it is collected open in a later test and fails it."""
+
+    async def stream_connected(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, listener_name: str
+    ) -> None:
+        try:
+            await super().stream_connected(reader, writer, listener_name)
+        finally:
+            writer.close()
+
+
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -28,7 +42,7 @@ async def broker() -> AsyncIterator[int]:
         "listeners": {"default": {"type": "tcp", "bind": f"127.0.0.1:{port}"}},
         "plugins": {"amqtt.plugins.authentication.AnonymousAuthPlugin": {"allow_anonymous": True}},
     }
-    server = Broker(config)
+    server = Closing(config)
     await server.start()
     try:
         yield port
