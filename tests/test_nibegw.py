@@ -1,5 +1,6 @@
 import asyncio
 import socket
+import time
 from collections.abc import AsyncIterator, Callable
 
 import pytest
@@ -33,6 +34,16 @@ async def test_a_read(client: PlainClient) -> None:
     assert r.t_taken < r.t_answered
     assert [s.stage for s in r.stages] == [Stage.SENT, Stage.PUMP_ACK]
     assert client.promises.fate is FateKind.BEST_EFFORT
+
+
+async def test_reads_go_on_after_the_loop_stalls(client: PlainClient, pump: SimPump) -> None:
+    """A reply that comes after the pump's window is ignored, as on the bus: a stall loses
+    a request at most, and the next is answered."""
+    for _ in range(5):
+        await client.read(47134, timeout=5)
+        time.sleep(0.3)  # the loop blocked: the gateway's reply misses the pump's window
+    r = await client.read(47134, timeout=5)
+    assert (r.register, r.data) == (47134, word(30) + word(30))
 
 
 async def test_a_write_is_accepted_and_reads_back(client: PlainClient, pump: SimPump) -> None:

@@ -63,6 +63,10 @@ class PtyEnd:
         except TimeoutError:
             return None
 
+    def drop(self) -> None:
+        """Forget what came and wasn't read: a reply too late for its window."""
+        self._received.clear()
+
     def close(self) -> None:
         asyncio.get_running_loop().remove_reader(self.master)
         os.close(self.master)
@@ -214,6 +218,9 @@ class SimPump:
             await self._data(telegram(nibe.MODBUS40, MODBUS_ADDRESS, b"\x01"))
 
     def _send(self, frame: bytes) -> None:
+        # What the gateway sent after the last window closed is ignored, as on the bus;
+        # kept, it would be taken for the answer to this frame, and every one after.
+        self.end.drop()
         if self._chance("crc"):
             frame = frame[:-1] + bytes((frame[-1] ^ 0x5A,))
         self.end.send(frame)
