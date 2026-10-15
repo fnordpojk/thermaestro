@@ -9,7 +9,11 @@ Nibe's own control, and it is not the planner's model of the house.
 
 What it does, in short:
 - each zone: indoor air, building mass and an emitter (radiators, or a slab that answers
-  over a day or more), with outdoor temperature, sun and wind;
+  over a day or more), with outdoor temperature, sun and wind. Most of the heat leaves
+  through the walls, from the mass, the rest with the air; part of the emitter's heat
+  reaches the mass as radiation; and the air follows the mass closely, so a room cools
+  as its walls do, not a degree in minutes. It starts as a house already lived in, the
+  mass and the emitter where the weather holds them;
 - the pump: the curve plus the offset gives the supply temperature it aims for; degree
   minutes add up the shortfall; the compressor starts at -60 and stops at 0; the addition
   starts deeper down, only below its stop temperature (47376) and within its power
@@ -95,11 +99,19 @@ class Zone:
     """What the emitter got from the pump in the last step."""
 
 
-def _walls(house: House, out: float) -> float:
-    """The mass as it settles under the air: cooler by what it loses through the walls,
-    less what the emitter radiates to it (about the same heat as the walls lose)."""
-    share = house.through_mass - house.radiant
-    return house.start_c - share * house.ua_w_k * (house.start_c - out) / house.ua_mass_w_k
+def _settled(house: House, out: float, wind: float, gains: float) -> tuple[float, float]:
+    """The mass and the emitter as they stand when the air has been held at its start for a
+    while in this weather: the house starts as one already lived in, not catching up."""
+    air = house.start_c
+    walls = house.through_mass * house.ua_w_k
+    leaves = (1 - house.through_mass) * house.ua_w_k + house.wind_w_k_per_m_s * wind
+    into_walls = walls * house.ua_mass_w_k / (house.ua_mass_w_k + walls)
+    effective = 1 - walls * house.radiant / (house.ua_mass_w_k + walls)
+    given = max(0.0, ((leaves + into_walls) * (air - out) - gains) / effective)
+    mass = (house.radiant * given + house.ua_mass_w_k * air + walls * out) / (
+        house.ua_mass_w_k + walls
+    )
+    return mass, air + given / house.ua_emitter_w_k
 
 
 @dataclass
@@ -148,7 +160,12 @@ class Plant:
         s = self.scenario
         self._weather = WeatherSeries(s)
         self.mean_out = self._weather.outdoor(self.t)
-        self.zones = [Zone(h.start_c, _walls(h, self.mean_out), h.start_c + 5) for h in s.houses]
+        sun, wind = self._weather.sun(self.t), self._weather.wind(self.t)
+        self.zones = []
+        for h in s.houses:
+            gains = h.solar_m2 * sun + h.internal_w
+            mass, emitter = _settled(h, self._weather.outdoor(self.t), wind, gains)
+            self.zones.append(Zone(h.start_c, mass, emitter))
         self.top = self.bottom = s.tank.start_c
         if s.pool is not None:
             self.pool = s.pool.start_c

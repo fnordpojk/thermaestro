@@ -22,8 +22,9 @@ from thermaestro.learn.tank import Series
 from thermaestro.store import Database
 
 DAYS = 14
-SEED = 9
-"""A plant whose compressor is small: it draws well under the planner's 2 kW guess."""
+SEED = 10
+"""A plant whose compressor is small, drawing under the planner's 2 kW guess, and whose
+charges often start it, so a hot-water draw is seen often enough to be learned."""
 STATE = Key("dev", "hp1/compressor.ep14/state")
 DEMAND = Key("dev", "hp1/demand")
 METER = Key(SITE, "meter/grid.import.power")
