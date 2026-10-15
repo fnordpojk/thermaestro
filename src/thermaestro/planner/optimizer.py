@@ -18,7 +18,7 @@ import asyncio
 import logging
 import math
 import statistics
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -101,6 +101,30 @@ NOTHING = mark("nothing it could plan yet: every goal is with the rules")
 
 def _numeric(s: Sample) -> float | None:
     return s.value
+
+
+def held_mean(
+    samples: Sequence[Sample],
+    start: float,
+    end: float,
+    of: Callable[[Sample], float | None] = _numeric,
+) -> float | None:
+    """The mean from `start` to `end`, each good reading held until the next reading: what
+    is kept is a point's changes, and a mean of those would weigh a reading by how often the
+    point moved, not by how long it held. A reading that isn't good ends the one before it,
+    as the supply's does while a charge takes the water: what the water was then isn't
+    known, and the heating's water before it doesn't stand for it."""
+    rows = [(s.t, of(s) if s.quality == "good" else None) for s in samples]
+    total = held = 0.0
+    for i, (t, value) in enumerate(rows):
+        if value is None:
+            continue
+        until = rows[i + 1][0] if i + 1 < len(rows) else end
+        span = min(until, end) - max(t, start)
+        if span > 0:
+            total += value * span
+            held += span
+    return total / held if held > 0 else None
 
 
 def _running(s: Sample) -> float | None:
@@ -526,22 +550,8 @@ class Optimizer:
     async def _mean(
         self, key: Key, start: float, end: float, of: Callable[[Sample], float | None] = _numeric
     ) -> float | None:
-        """A point's mean from `start` to `end`, each reading held until the next: what is
-        kept is its changes, and a mean of those would weigh a reading by how often the
-        point moved, not by how long it held."""
-        samples = [
-            (s.t, value)
-            for s in await self._values.history(key, start - 3600, end)
-            if s.quality == "good" and (value := of(s)) is not None
-        ]
-        total = held = 0.0
-        for i, (t, value) in enumerate(samples):
-            until = samples[i + 1][0] if i + 1 < len(samples) else end
-            span = min(until, end) - max(t, start)
-            if span > 0:
-                total += value * span
-                held += span
-        return total / held if held > 0 else None
+        """A point's mean from `start` to `end` (`held_mean`)."""
+        return held_mean(await self._values.history(key, start - 3600, end), start, end, of)
 
     def _came_out(self, system: str, now: float, room: float) -> float:
         """How the rooms came out against what the plan an hour ago expected for now: a
