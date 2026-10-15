@@ -20,12 +20,15 @@ class House:
     """One climate system's zone: indoor air, the building's mass, and the emitter."""
 
     ua_w_k: float
-    """Heat lost through the envelope per kelvin indoors over outdoors."""
+    """Heat lost per kelvin indoors over outdoors: through the walls, roof and windows, and
+    with the air that leaves."""
     c_air_j_k: float
     """Air and furniture."""
     c_mass_j_k: float
     """Walls and floors."""
     ua_mass_w_k: float
+    """How closely the air follows the walls, floors and furniture, by their surfaces: so
+    closely that a room's air doesn't fall a degree in minutes when its heating stops."""
     emitter: Emitter
     c_emitter_j_k: float
     """Radiators and their water, or a floor slab: a slab answers over a day or more."""
@@ -37,6 +40,11 @@ class House:
     internal_w: float
     """People and appliances."""
     start_c: float = 21.0
+    through_mass: float = 0.7
+    """The share of `ua_w_k` lost through the walls, roof and windows, from the mass; the
+    rest leaves with the air, as the wind's extra does."""
+    radiant: float = 0.3
+    """The share of the emitter's heat that reaches the walls and furniture as radiation."""
 
 
 @dataclass(frozen=True)
@@ -165,7 +173,7 @@ def draw(
                 ua_w_k=rng.uniform(120, 280),
                 c_air_j_k=rng.uniform(1.5e6, 3.5e6),
                 c_mass_j_k=rng.uniform(15e6, 50e6),
-                ua_mass_w_k=rng.uniform(600, 2000),
+                ua_mass_w_k=rng.uniform(2500, 5000),
                 emitter=kind,
                 c_emitter_j_k=rng.uniform(25e6, 60e6) if floor else rng.uniform(0.2e6, 0.6e6),
                 ua_emitter_w_k=rng.uniform(500, 900) if floor else rng.uniform(250, 450),
@@ -173,6 +181,7 @@ def draw(
                 wind_w_k_per_m_s=rng.uniform(2, 8),
                 internal_w=rng.uniform(200, 500),
                 start_c=rng.uniform(20.5, 21.5),
+                radiant=0.5 if floor else 0.3,
             )
         )
     draws = []

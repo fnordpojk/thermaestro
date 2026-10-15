@@ -95,6 +95,13 @@ class Zone:
     """What the emitter got from the pump in the last step."""
 
 
+def _walls(house: House, out: float) -> float:
+    """The mass as it settles under the air: cooler by what it loses through the walls,
+    less what the emitter radiates to it (about the same heat as the walls lose)."""
+    share = house.through_mass - house.radiant
+    return house.start_c - share * house.ua_w_k * (house.start_c - out) / house.ua_mass_w_k
+
+
 @dataclass
 class Plant:
     scenario: Scenario
@@ -141,7 +148,7 @@ class Plant:
         s = self.scenario
         self._weather = WeatherSeries(s)
         self.mean_out = self._weather.outdoor(self.t)
-        self.zones = [Zone(h.start_c, h.start_c, h.start_c + 5) for h in s.houses]
+        self.zones = [Zone(h.start_c, _walls(h, self.mean_out), h.start_c + 5) for h in s.houses]
         self.top = self.bottom = s.tank.start_c
         if s.pool is not None:
             self.pool = s.pool.start_c
@@ -331,13 +338,15 @@ class Plant:
         sun = self._weather.sun(self.t)
         wind = self._weather.wind(self.t)
         for zone, house in zip(self.zones, self.scenario.houses, strict=True):
-            to_air = house.ua_emitter_w_k * (zone.emitter - zone.air)
+            given = house.ua_emitter_w_k * (zone.emitter - zone.air)
             from_mass = house.ua_mass_w_k * (zone.mass - zone.air)
-            lost = (house.ua_w_k + house.wind_w_k_per_m_s * wind) * (zone.air - out)
+            walls = house.through_mass * house.ua_w_k * (zone.mass - out)
+            leaves = (1 - house.through_mass) * house.ua_w_k + house.wind_w_k_per_m_s * wind
             gains = house.solar_m2 * sun + house.internal_w
-            zone.air += (to_air + from_mass - lost + gains) * dt / house.c_air_j_k
-            zone.mass -= from_mass * dt / house.c_mass_j_k
-            zone.emitter += (zone.heat_w - to_air) * dt / house.c_emitter_j_k
+            to_air = (1 - house.radiant) * given + from_mass - leaves * (zone.air - out) + gains
+            zone.air += to_air * dt / house.c_air_j_k
+            zone.mass += (house.radiant * given - from_mass - walls) * dt / house.c_mass_j_k
+            zone.emitter += (zone.heat_w - given) * dt / house.c_emitter_j_k
 
     def _liters(self, top: bool) -> float:
         tank = self.scenario.tank
