@@ -220,6 +220,31 @@ def test_the_addition_follows_its_policy() -> None:
     assert max(never.systems["pump:hp1/cs1"].addition_kw) == pytest.approx(0.0, abs=1e-9)
 
 
+def test_the_pumps_own_addition_gives_what_the_compressor_cant() -> None:
+    """Not planned or steered: counted where the compressor falls short, at most half its
+    power, and not while the pump's mean outdoor temperature is at its stop or above."""
+    hours = 6
+    small = replace(system(hours, room=20.0), offset_high=10, draw_kw=0.6)
+    p = Problem(hourly([0.5] * hours, outdoor=-25.0), systems=(small,), slider=0.5)
+    without = plan(p)
+    own = plan(replace(p, addition=Addition(kw=6.0, own=True, stop_c=5.0, mean_c=-20.0)))
+    assert without.ok
+    assert own.ok
+    assert without.stages["comfort_low"] > 0.1  # the compressor alone can't keep it warm
+    assert own.stages["comfort_low"] < without.stages["comfort_low"]
+    used = own.systems["pump:hp1/cs1"].addition_kw
+    assert 0 < max(used) <= 3.0 + 1e-6
+    # Its kW are the house's: in what the plan draws, and paid at a COP of 1.
+    assert all(own.kw[4 * h] >= kw - 1e-6 for h, kw in enumerate(used))
+    # Off at its stop.
+    stopped = plan(replace(p, addition=Addition(kw=6.0, own=True, stop_c=-30.0, mean_c=-25.0)))
+    assert max(stopped.systems["pump:hp1/cs1"].addition_kw) == pytest.approx(0.0, abs=1e-9)
+    assert stopped.stages["comfort_low"] == pytest.approx(without.stages["comfort_low"], abs=2e-3)
+    mild = plan(replace(p, addition=Addition(kw=6.0, own=True, stop_c=-10.0, mean_c=8.0)))
+    # Every hour is colder than its stop, but the pump's mean of the day isn't yet.
+    assert max(mild.systems["pump:hp1/cs1"].addition_kw) == pytest.approx(0.0, abs=1e-9)
+
+
 def test_the_power_limit_gives_way_only_to_what_ranks_above_it() -> None:
     t = tank(level=45.0, deadlines=(Deadline(slot=3, at_least=50.0, rank=4),))
     limited = slots([0.5] * 16, power_limit=1.2, other_kw=1.0)

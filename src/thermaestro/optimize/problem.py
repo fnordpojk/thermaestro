@@ -130,6 +130,13 @@ class Addition:
     policy: str = "pump"
     """pump, when_needed, not_when_expensive or limit."""
     limit_kw: float | None = None
+    own: bool = False
+    """The pump's own, not planned or steered: it starts as the pump's degree minutes run
+    deep, when the compressor can't give the heat the water needs."""
+    stop_c: float | None = None
+    """The pump doesn't use it while its mean outdoor temperature is at this or above."""
+    mean_c: float | None = None
+    """The pump's mean outdoor temperature now, the one its stop is set against."""
 
 
 @dataclass(frozen=True)

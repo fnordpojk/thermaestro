@@ -666,12 +666,38 @@ class Optimizer:
             (lv for r, lv in sit.levers.items() if r.endswith("/addition/max_power")), None
         )
         if stop is None and power is None:
-            return None
+            return self._own_addition()
         bound = sit.force.bound("addition", "house")
         policy = str(bound.value) if bound is not None and bound.value is not None else "pump"
         kw = rules._number(power.current, power.high or ADDITION_KW) if power else ADDITION_KW
         limit = bound.high if bound is not None else None
         return Addition(kw, policy, limit)
+
+    def _own_addition(self) -> Addition | None:
+        """With neither of the addition's levers in use, the pump's own addition: its power
+        and its stop as the pump has them, read back through those levers, and the mean
+        outdoor temperature its stop is set against. None where the pump doesn't say."""
+        for instance_id, instance in sorted(self._host.instances.items()):
+            described = instance.described
+            if described is None:
+                continue
+            found: dict[str, float] = {}
+            unit = None
+            for lever in described.levers:
+                point = lever.verify.point
+                if lever.path.endswith(("/addition/max_power", "/addition/stop_temp")) and point:
+                    unit = lever.path.partition("/addition/")[0]
+                    value = self._number(self._values.latest.get(Key(instance_id, point)))
+                    if value is not None:
+                        found[lever.path.rpartition("/")[2]] = value
+            power = found.get("max_power")
+            if unit is None or power is None or power <= 0:
+                continue
+            mean = self._number(
+                self._values.latest.get(Key(instance_id, f"{unit}/outdoor.temp.mean"))
+            )
+            return Addition(power, own=True, stop_c=found.get("stop_temp"), mean_c=mean)
+        return None
 
     # --- what is seen now ------------------------------------------------------------------
 

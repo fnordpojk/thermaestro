@@ -11,7 +11,10 @@ temperature, the building's mass following the rooms. The water follows the offs
 learned curve (`learn.pump.Water`), keeping a share of where it was an hour before, and
 gives the house `K · (water - room)` kW, `K` the emitters' learned output; the compressor
 and the addition must give that heat. The offset rises at most a step an hour: faster,
-the pump's degree minutes run deep and its addition starts.
+the pump's degree minutes run deep and its addition starts. Where the addition is the
+pump's own, not planned, it gives what the compressor can't, as the pump's deep degree
+minutes start it then: below its stop, and at most half its power, as the pump steps it up
+only as they deepen.
 
 **What it costs:** the compressor's draw while it runs, its heat the draw times its COP at
 the slot's source and the water it makes (a share of the ideal, learned or documented);
@@ -63,6 +66,8 @@ RAMP = 1.0
 """The most a planned offset rises in an hour, in steps."""
 AHEAD_OF_WATER = 1.0
 """How far above its water a climate system may be asked to settle, °C."""
+OWN_SHARE = 0.5
+"""The share of the pump's own addition a plan counts on: its first steps."""
 
 
 @dataclass
@@ -92,6 +97,15 @@ def _hourly(values: Sequence[float]) -> list[float]:
 
 def _cop(share: float, made: float, source: float) -> float:
     return max(1.0, share * carnot(made, source))
+
+
+def _mean(now: float | None, outdoor: Sequence[float], h: int) -> float:
+    """The pump's mean outdoor temperature at the end of hour `h`, over a day: its mean now
+    for the hours before the plan's, the forecast after."""
+    hours = outdoor[max(0, h - 23) : h + 1]
+    if now is None or h >= 23:
+        return statistics.mean(hours)
+    return (now * (23 - h) + sum(hours)) / 24
 
 
 def _build(p: Problem, supply: dict[str, list[float]]) -> _Built:
@@ -198,6 +212,11 @@ def _build(p: Problem, supply: dict[str, list[float]]) -> _Built:
                     sl.expensive for sl in p.slots[4 * h : 4 * h + 4]
                 ):
                     most = 0.0
+                if p.addition.own:
+                    most *= OWN_SHARE
+                    stop = p.addition.stop_c
+                    if stop is not None and _mean(p.addition.mean_c, outdoor, h) >= stop:
+                        most = 0.0
                 adds.append(g.var(0.0, max(0.0, most), f"{s.scope} addition {h}"))
         built.add[s.scope] = adds
         heats: list[dict[int, float]] = []
