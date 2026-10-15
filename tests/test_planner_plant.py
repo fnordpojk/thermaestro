@@ -6,15 +6,18 @@ control would."""
 
 import itertools
 import json
+import math
 import warnings
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from pathlib import Path
 
 import pytest
 from plant import Plant, Scenario, draw
 from plant.harness import PLANT, Frame, Sim, running
-from plant.market import day_ahead
+from plant.market import day_ahead, known
 from plant.optimizing import PlantWeather, teach
 from plant.planning import CS, TANK, intended, planning
 from plant.scenario import Emitter
@@ -81,28 +84,47 @@ def simulated(
     replay: list[Frame] | None = None,
     during: Callable[[Sim], Awaitable[None]] | None = None,
     optimizer: bool = False,
+    hindsight: bool = False,
 ) -> tuple[Sim, Intended]:
     """Run the planner on the plant for `days`; the sim, and the planner's intended writes.
-    `optimizer`: what the learners would have made of the house is known, and the optimizer
-    drives."""
+    As in a house: each day's draws differ, and the prices are those published by then,
+    estimated beyond. `optimizer`: what the learners would have made of the house is known,
+    the forecast is off as a provider's is, and the optimizer drives. `hindsight`: the
+    optimizer, told the truth: the weather as it comes, every price, each day's draws."""
 
     path.mkdir(parents=True, exist_ok=True)
+    optimizer = optimizer or hindsight
+    s = replace(s, varied=True)
 
     async def body() -> tuple[Sim, Intended]:
         sim = Sim(s, path, levers or LEVERS, record=record, replay=replay)
         async with running(sim):
-            series = day_ahead(s.seed, s.start_time, days, spike=spike, negative=negative)
+            series = day_ahead(
+                s.seed, s.start_time, days, spike=spike, negative=negative, history_days=28
+            )
+            # Told the truth: every price from the day before, none of the weeks kept
+            # for estimates.
+            since = s.start_time - timedelta(days=1)
+            truth = [p for p in series if p.start >= since]
+            prices = truth if hindsight else partial(known, series)
             intents = household(slider=slider, rooms=rooms)
             learnings, weather = None, None
             if optimizer:
                 learnings = Learnings(sim.db, AuditLog(path / "learn-audit"))
                 await learnings.load()
-                await teach(learnings, s)
+                if hindsight:
+                    assert days <= 7, "a week of draws holds a day of each weekday"
+                    when = [
+                        (s.start_time + timedelta(days=i)).date() for i in range(math.ceil(days))
+                    ]
+                    await teach(learnings, s, when)
+                else:
+                    await teach(learnings, s)
                 control = await sim.db.get(Control) or Control()
                 await sim.db.put(control.model_copy(update={"planner": "optimizer"}))
-                weather = PlantWeather(s)
+                weather = PlantWeather(s, truth=hindsight)
             async with planning(
-                sim, intents, LEVELS, series, rooms=rooms, learnings=learnings, weather=weather
+                sim, intents, LEVELS, prices, rooms=rooms, learnings=learnings, weather=weather
             ):
                 if during is not None:
                     await during(sim)
@@ -329,6 +351,11 @@ class Gap(UserWarning):
     """Where the optimizer doesn't yet do better than the rules: reported, not failed."""
 
 
+class Hindsight(UserWarning):
+    """The optimizer told the truth beside it and the rules: what perfect information would
+    be worth, reported every night."""
+
+
 def scored(sim: Sim, s: Scenario, after_days: float) -> tuple[float, float]:
     """From `after_days` on: what the pump's electricity cost, and the rooms' degree-hours
     outside their band, as a person feels them (the hourly mean)."""
@@ -355,16 +382,23 @@ def scored(sim: Sim, s: Scenario, after_days: float) -> tuple[float, float]:
 def test_the_optimizer_against_the_rules(tmp_path: Path, seed: int) -> None:
     """On the same house, weather and prices, over the last two of three days: where the
     optimizer doesn't cost less than the rules at comfort as good, the gap is reported; a
-    loss far beyond what it has shown fails, so a regression shows."""
+    loss far beyond what it has shown fails, so a regression shows. Beside them, the
+    optimizer told the truth, as the hindsight optimum: its gap is reported every night."""
     emitter: Emitter = "floor" if seed % 2 else "radiators"
     s = draw(seed, emitter=emitter, start=datetime(2026, 1, 10 + seed, tzinfo=UTC))
     ruled, _ = simulated(tmp_path / "rules", s, 3.0)
     optimized, _ = simulated(tmp_path / "optimizer", s, 3.0, optimizer=True)
+    told, _ = simulated(tmp_path / "hindsight", s, 3.0, hindsight=True)
     rules_cost, rules_outside = scored(ruled, s, 1.0)
     cost, outside = scored(optimized, s, 1.0)
+    best_cost, best_outside = scored(told, s, 1.0)
     gap = (
         f"seed {seed}, {emitter}: the rules {rules_cost:.2f} at {rules_outside:.2f} °C·h"
         f" outside the band, the optimizer {cost:.2f} at {outside:.2f} °C·h"
+    )
+    warnings.warn(
+        Hindsight(f"{gap}, told the truth {best_cost:.2f} at {best_outside:.2f} °C·h"),
+        stacklevel=1,
     )
     if cost > rules_cost or outside > rules_outside + 0.1:
         warnings.warn(Gap(f"the optimizer behind the rules: {gap}"), stacklevel=1)

@@ -3,11 +3,18 @@ ten days of the same house recorded beforehand, and kept as proved.
 
 The house, its water and its emitters are fitted and judged as the learners do; the draws and
 the COP are measured in the recording; the tank's standing loss and its week are what the
-tank learner finds within its tolerance, taken from the scenario."""
+tank learner finds within its tolerance, taken from the scenario.
 
+The forecast is the plant's own weather, off as a provider's is: by an error that grows
+with how far ahead it looks. Told the truth (hindsight), it isn't, and the week of draws
+is each day's own."""
+
+import random
 import statistics
-from datetime import datetime, timedelta
+from collections.abc import Sequence
+from datetime import date, datetime, timedelta
 
+from thermaestro import clock
 from thermaestro.core.weather import Forecast, Span
 from thermaestro.learn import Learned, Learnings, emitters, house, pump
 from thermaestro.learn.efficiency import DHW, HEATING
@@ -19,7 +26,7 @@ from thermaestro.learn.tank import Demand
 
 from .hourly import Recorded, shifted
 from .model import WATER_J_KG_K, WeatherSeries, begin
-from .scenario import Scenario
+from .scenario import Draw, Scenario, draws_on
 
 UNIT = "pump:hp1"
 SYSTEM = "pump:hp1/cs1"
@@ -46,10 +53,7 @@ def _fit(scenario: Scenario) -> dict[tuple[str, str], object]:
     # The standing loss: the share of the tank's lead over its room lost an hour.
     loss = tank.loss_w_k * 3600 / (WATER_J_KG_K * tank.liters)
     week = Demand()
-    by_hour = [0.0] * 24
-    for d in scenario.draws:
-        # A draw takes its share of the tank down from about 48 °C to the cold water's.
-        by_hour[int(d.hour) % 24] += d.liters / tank.liters * (48.0 - tank.cold_c)
+    by_hour = _hourly(scenario, scenario.draws)
     for weekday in range(7):
         for _ in range(4):
             week.learn(weekday, by_hour)
@@ -98,31 +102,93 @@ def emitter_pairs(seen: Recorded) -> list[emitters.Pair]:
     return out
 
 
-async def teach(learnings: Learnings, scenario: Scenario) -> None:
-    for (name, scope), value in fitted(scenario).items():
+def _hourly(scenario: Scenario, draws: Sequence[Draw]) -> list[float]:
+    """What the draws take from the tank in each hour: a draw takes its share of the tank
+    down from about 48 °C to the cold water's."""
+    tank = scenario.tank
+    by_hour = [0.0] * 24
+    for d in draws:
+        by_hour[int(d.hour) % 24] += d.liters / tank.liters * (48.0 - tank.cold_c)
+    return by_hour
+
+
+async def teach(
+    learnings: Learnings, scenario: Scenario, days: Sequence[date] | None = None
+) -> None:
+    """What the learners would have made of the house. Given `days` (a week at most), the
+    week of draws is those days' own: what was drawn, known beforehand."""
+    found = dict(fitted(scenario))
+    if days is not None:
+        week = Demand.from_value(found[(DEMAND, TANK)])
+        for day in days:
+            w = day.weekday()
+            week.hours[w * 24 : w * 24 + 24] = _hourly(scenario, draws_on(scenario, day))
+        found[(DEMAND, TANK)] = week.to_value()
+    for (name, scope), value in found.items():
         await learnings.put(
             Learned(name=name, scope=scope, kind="model", value=value, state="proved")
         )
 
 
-class PlantWeather:
-    """The plant's own weather as the forecast: hour by hour, as a provider gives it."""
+ISSUE_S = 6 * 3600.0
+"""A forecast is issued every six hours."""
+SPREAD = {"temperature": (0.3, 2.0), "irradiance.global": (0.1, 0.5), "wind_speed": (0.5, 2.0)}
+"""How far off a forecast is, typically: at once and two days ahead; °C, the share of the
+sun, m/s."""
+PERSISTENCE = 0.9
+"""How much of an hour's error carries into the next: a forecast is off for hours at a time."""
 
-    def __init__(self, scenario: Scenario) -> None:
+
+class PlantWeather:
+    """The plant's own weather as the forecast, hour by hour as a provider gives it: off
+    by an error that grows with how far ahead the hour is from the forecast's issue, unless
+    `truth`."""
+
+    def __init__(self, scenario: Scenario, *, truth: bool = False) -> None:
         self._series = WeatherSeries(scenario)
+        self._seed = scenario.seed
+        self._truth = truth
+        self._errors: dict[tuple[str, float], list[float]] = {}
+
+    def _off(self, quantity: str, issued: float) -> list[float]:
+        """The forecast's errors from its issue on, an hour at a time, each of spread one."""
+        if (quantity, issued) not in self._errors:
+            rng = random.Random(f"{self._seed}/{quantity}/{issued}")
+            keep = PERSISTENCE
+            e = rng.gauss(0, 1)
+            out = []
+            for _ in range(72):
+                out.append(e)
+                e = keep * e + (1 - keep**2) ** 0.5 * rng.gauss(0, 1)
+            self._errors[(quantity, issued)] = out
+        return self._errors[(quantity, issued)]
 
     async def forecast(self, quantity: str, start: datetime, end: datetime) -> Forecast:
+        truth = {
+            "temperature": self._series.outdoor,
+            "irradiance.global": self._series.sun,
+            "wind_speed": self._series.wind,
+        }.get(quantity)
+        if truth is None:
+            return Forecast(quantity, "plant", spans=[])
+        issued = clock.time() // ISSUE_S * ISSUE_S
         spans = []
         t = start.replace(minute=0, second=0, microsecond=0)
         while t < end:
             at = t.timestamp()
-            value = {
-                "temperature": self._series.outdoor,
-                "irradiance.global": self._series.sun,
-                "wind_speed": self._series.wind,
-            }.get(quantity)
-            if value is None:
-                break
-            spans.append(Span(t, t + timedelta(hours=1), value(at)))
+            value = truth(at)
+            if not self._truth:
+                ahead = max(0.0, (at - issued) / 3600)
+                near, far = SPREAD[quantity]
+                off = (near + (far - near) * min(ahead, 48.0) / 48) * self._off(quantity, issued)[
+                    min(int(ahead), 71)
+                ]
+                if quantity == "temperature":
+                    value += off
+                elif quantity == "irradiance.global":
+                    value *= max(0.0, 1 + off)
+                else:
+                    value = max(0.0, value + off)
+            spans.append(Span(t, t + timedelta(hours=1), value))
             t += timedelta(hours=1)
         return Forecast(quantity, "plant", spans=spans)

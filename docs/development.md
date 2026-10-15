@@ -110,6 +110,8 @@ Tests marked `@pytest.mark.nightly` are long simulated runs over many scenarios,
 uv run pytest -m nightly --durations=20
 ```
 
+Among them, the optimizer against the rules on six seeded houses, and beside them the optimizer told the truth: the weather as it comes, every price, each day's draws. Each night's warnings give all three for each house. A gap to the rules is reported, and only a loss far beyond what the optimizer has shown fails. Told the truth, the optimizer isn't a floor for a single house: acting on a model that is a little off, better information can cost more there. Only the sum over many houses says what perfect information would be worth.
+
 ### What the tests run against
 
 Nothing in the tests reaches a real device or the internet. They use stand-ins:
@@ -125,7 +127,7 @@ Nothing in the tests reaches a real device or the internet. They use stand-ins:
 | `tests/tibberfake.py`, `tests/entsoefake.py`, `tests/spotfake.py` | The price sources, in their real formats with invented values. `spotfake.py` covers Energy-Charts, Beneficial Apps' Nordic price sites, OMIE, Octopus and the ECB's rates. |
 | `tests/weatherfake.py` | MET Norway, SMHI and Open-Meteo. |
 
-**The plant** (`tests/plant/`) is for behavior tests of the whole core. A `Scenario` is drawn from a seed (`draw(seed, emitter=...)`), with the house's parameters taken from plausible ranges, so the core is never tested against its own assumptions. A scenario is plain data and can be saved as JSON to keep a failing case. The model (`plant/model.py`) heats it roughly as an F1245 in auto mode does. Each house is its air, its walls and its emitter, with the air following the walls as a room's does, so a room doesn't lose a degree in minutes when its heating stops. Everything the pump shows or is told is a register word, so a write over the bus takes effect.
+**The plant** (`tests/plant/`) is for behavior tests of the whole core. A `Scenario` is drawn from a seed (`draw(seed, emitter=...)`), with the house's parameters taken from plausible ranges, so the core is never tested against its own assumptions. A scenario is plain data and can be saved as JSON to keep a failing case. The model (`plant/model.py`) heats it roughly as an F1245 in auto mode does. Each house is its air, its walls and its emitter, with the air following the walls as a room's does, so a room doesn't lose a degree in minutes when its heating stops. With a planner driving (`tests/test_planner_plant.py`), the house is run as a household lives in it: each day's hot-water draws differ a little, the next day's prices come out at 13:00 and are estimated beyond, and the optimizer's weather forecast is off by an error that grows with how far ahead it looks. Everything the pump shows or is told is a register word, so a write over the bus takes effect.
 
 - `plant/vloop.py` runs the test in simulated time: the event loop's clock jumps ahead whenever nothing is ready, so days pass in seconds. `simulate(main, start_time)` runs a coroutine that way.
 - `plant/bus.py` is the pump's bus in process, encoded and parsed by the same code as the gateway.

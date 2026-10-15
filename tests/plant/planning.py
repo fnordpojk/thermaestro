@@ -3,7 +3,7 @@ planner checking in every minute as the daemon runs it."""
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -41,7 +41,7 @@ async def planning(
     sim: Sim,
     intents: Sequence[Intent],
     levels: Sequence[Level],
-    prices: list[Price],
+    prices: list[Price] | Callable[[datetime], list[Price]],
     *,
     rooms: bool = True,
     learnings: Learnings | None = None,
@@ -81,7 +81,7 @@ async def planning(
         assert verdict.accepted, verdict.messages
 
     async def given(now: datetime) -> list[Price]:
-        return prices
+        return prices(now) if callable(prices) else prices
 
     planner = Planner(
         sim.db,

@@ -8,7 +8,7 @@ as JSON, so a failing case can be kept as a file.
 import json
 import random
 from dataclasses import asdict, dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -111,6 +111,9 @@ class Scenario:
     """The brine's flow as heat per kelvin: 0.3 l/s of 28 % ethanol."""
     registers: dict[int, int] = field(default_factory=dict)
     """Settings that differ from the plant's defaults, as raw register words."""
+    varied: bool = False
+    """Each day's draws moved by up to half an hour and scaled by 0.6 to 1.4, as a
+    household's are; otherwise every day's are the same."""
 
     @property
     def start_time(self) -> datetime:
@@ -142,6 +145,7 @@ class Scenario:
             heat_kw=data["heat_kw"],
             brine_w_k=data.get("brine_w_k", 1200.0),
             registers={int(k): v for k, v in data["registers"].items()},
+            varied=data.get("varied", False),
         )
 
     def save(self, path: Path) -> None:
@@ -150,6 +154,18 @@ class Scenario:
     @classmethod
     def read(cls, path: Path) -> "Scenario":
         return cls.from_json(path.read_text())
+
+
+def draws_on(scenario: Scenario, day: date) -> list[Draw]:
+    """The day's draws: the scenario's, moved and scaled where it varies them."""
+    if not scenario.varied:
+        return list(scenario.draws)
+    out = []
+    for i, d in enumerate(scenario.draws):
+        rng = random.Random(f"{scenario.seed}/{day.isoformat()}/{i}")
+        moved = d.hour + rng.uniform(-0.5, 0.5)
+        out.append(replace(d, hour=moved, liters=d.liters * rng.uniform(0.6, 1.4)))
+    return out
 
 
 def draw(

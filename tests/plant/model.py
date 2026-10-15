@@ -29,11 +29,11 @@ What it does, in short:
 import math
 import random
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from thermaestro.nibe import profile
 
-from .scenario import House, Scenario
+from .scenario import Draw, House, Scenario, draws_on
 
 STEP_S = 10.0
 NOT_CONNECTED = 0x8000
@@ -155,6 +155,8 @@ class Plant:
     heat: dict[str, float] = field(default_factory=dict)
     """Heat delivered so far, kWh, by purpose."""
     _weather: "WeatherSeries | None" = None
+    _today: tuple[date, list[Draw]] | None = None
+    """The day's draws, worked out once a day."""
 
     def __post_init__(self) -> None:
         s = self.scenario
@@ -392,8 +394,10 @@ class Plant:
     def _draw_l_s(self) -> float:
         when = datetime.fromtimestamp(self.t, self.scenario.start_time.tzinfo)
         hour = when.hour + when.minute / 60 + when.second / 3600
+        if self._today is None or self._today[0] != when.date():
+            self._today = (when.date(), draws_on(self.scenario, when.date()))
         flow = 0.0
-        for draw in self.scenario.draws:
+        for draw in self._today[1]:
             if draw.hour <= hour < draw.hour + draw.minutes / 60:
                 flow += draw.liters / (draw.minutes * 60)
         return flow
