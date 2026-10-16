@@ -21,6 +21,16 @@ from .. import clock
 from ..store import Database, Transaction
 
 Audience = Literal["technical", "household"]
+
+
+def mark(text: str) -> str:
+    """Marks a message for the web UI's catalog: shown translated, kept in English here."""
+    return text
+
+
+PUT_BACK = mark(
+    "The planner stopped answering: every setting Thermaestro changed was put back as found"
+)
 KEEP_S = 90 * 86_400.0
 """How long an event is kept after it cleared."""
 

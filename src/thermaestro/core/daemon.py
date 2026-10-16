@@ -20,6 +20,7 @@ from ..intents import Intents
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .discovery import Publisher
+from .events import Events
 from .executor import Executor
 from .host import PluginHost
 from .house import House
@@ -66,6 +67,7 @@ class Core:
     intents: Intents
     planner: "Planner"
     learning: "Learning"
+    events: Events | None = None
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
     """Run in order on the way out, before the plugins stop."""
 
@@ -103,6 +105,8 @@ async def run(
         weather = Weather(db, series, values, host)
         discovery = Publisher(db, values, host, sensors, series, mqtt)
         executor = Executor(db, host, values, audit)
+        events = Events(db)
+        executor.events = events
         house = House(db, host, values)
         intents = Intents(db, audit, capabilities=lambda: house.capabilities)
         from ..learn import Learning  # learning and the planner are built on the core's parts
@@ -123,6 +127,7 @@ async def run(
             series=series,
             learnings=learning.learnings,
             weather=weather,
+            events=events,
         )
         core = Core(
             layout,
@@ -141,6 +146,7 @@ async def run(
             intents,
             planner,
             learning,
+            events,
         )
         # The planner stops first, so nothing asks for a change once levers are put back.
         discovery.asker = _mqtt_asker(db, intents)

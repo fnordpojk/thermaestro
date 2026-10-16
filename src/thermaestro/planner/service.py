@@ -32,6 +32,7 @@ from .. import clock
 from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
+from ..core.events import Events
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost
@@ -63,6 +64,7 @@ from .model import (
     Tank,
 )
 from .optimizer import Optimized, Optimizer
+from .watch import Watch
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -155,9 +157,12 @@ class Planner:
         prices: Prices | None = None,
         learnings: Learnings | None = None,
         weather: "Weather | None" = None,
+        events: Events | None = None,
         check_s: float = CHECK_S,
     ) -> None:
         self._weather = weather
+        self.events = events
+        self._watch = Watch(events, executor, host) if events is not None else None
         self._db = db
         self._learnings = learnings
         """Where what the planner observes is kept, so a restart keeps it; in memory only
@@ -255,6 +260,8 @@ class Planner:
         the start of a slot; else hot water only."""
         sit = replace(await self.gather(), slot=slot)
         await self._observe(sit)
+        if self._watch is not None:
+            await self._watch.look(sit)
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
             if floor is not None and floor.low is not None:

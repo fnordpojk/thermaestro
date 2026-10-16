@@ -41,6 +41,7 @@ from ..cap.messages import Described, ForeignWrite, Op
 from ..cap.model import Envelope, Lever, Param, Value
 from ..store import Control, Database, LeverMode, Transaction
 from .audit import AuditLog
+from .events import PUT_BACK, Events, Raise
 from .host import PluginHost, State
 from .values import Key, Values
 
@@ -161,6 +162,8 @@ class Executor:
         self._verify_s = verify_s
         self._act_timeout_s = act_timeout_s
         self._watchdog_s = watchdog_s
+        self.events: Events | None = None
+        """Where a restore the watchdog made is told, once the core has its events."""
         self._poll_s = poll_s
         self.claims: dict[str, Claim] = {}
         self._locks: dict[str, asyncio.Lock] = {}
@@ -919,6 +922,9 @@ class Executor:
                 self._beat = None
                 log.error("the planner hasn't checked in: putting every lever back")
                 await self.restore("the planner stopped answering")
+                if self.events is not None:
+                    put_back = Raise("restore.watchdog", "house", PUT_BACK)
+                    await self.events.moment("restore.watchdog", put_back)
 
     async def _leases(self) -> None:
         """Renew leased levers while Thermaestro holds them. Only the core renews, so a
