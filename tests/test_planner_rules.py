@@ -154,7 +154,7 @@ def test_a_cold_room_gets_more_heat_first() -> None:
     assert "below its 20.5 °C" in d.reason
 
 
-def test_cheap_hours_aim_high_in_the_band_and_dear_ones_low() -> None:
+def test_cheap_hours_aim_high_in_the_band_and_expensive_ones_low() -> None:
     wide = band("wide")
     cheap = offset(rules.plan(situation([wide, stance()], temp=21.5, price=prices(cheap_now=True))))
     expensive = offset(
@@ -315,7 +315,7 @@ def test_the_periodic_increase_makes_a_charge_needless() -> None:
     assert all(d.op != "fire" for d in rules.plan(situation([by], top=44.0, memory=memory)))
 
 
-def test_dear_hours_hold_the_charges_off_while_the_tank_is_well_above_its_floor() -> None:
+def test_expensive_hours_hold_the_charges_off_while_the_tank_is_well_above_its_floor() -> None:
     expensive = prices(cheap_now=False)
     held = rules.plan(situation([floor(40.0), stance()], top=48.0, price=expensive))
     assert [(d.lever, d.op) for d in held] == [(BLOCK, "engage")]

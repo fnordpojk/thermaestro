@@ -150,7 +150,7 @@ def test_the_rooms_follow_the_house_model_stepped_on_its_own() -> None:
         assert planned.heat_kw[h] == pytest.approx(heat, abs=2e-3)
 
 
-def test_cheap_hours_store_heat_in_the_house_and_dear_ones_use_it() -> None:
+def test_cheap_hours_store_heat_in_the_house_and_expensive_ones_use_it() -> None:
     hours = 12
     p = Problem(hourly([0.2] * 6 + [2.0] * 6), systems=(system(hours),), slider=1.0)
     found = plan(p)
