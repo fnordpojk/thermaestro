@@ -359,6 +359,24 @@ MIGRATIONS: tuple[str, ...] = (
         body TEXT NOT NULL CHECK (json_valid(body))
     ) STRICT;
     """,
+    # 21: events, raised once and cleared once: what a person may want to know
+    """
+    CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY,
+        key TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        audience TEXT NOT NULL,
+        principal TEXT,
+        message TEXT NOT NULL,
+        args TEXT NOT NULL CHECK (json_valid(args)),
+        raised REAL NOT NULL,
+        changed REAL NOT NULL,
+        cleared REAL
+    ) STRICT;
+    CREATE UNIQUE INDEX IF NOT EXISTS events_open ON events (key) WHERE cleared IS NULL;
+    CREATE INDEX IF NOT EXISTS events_by_time ON events (raised);
+    """,
 )
 VERSION = len(MIGRATIONS)
 
