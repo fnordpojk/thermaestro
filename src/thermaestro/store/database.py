@@ -377,6 +377,14 @@ MIGRATIONS: tuple[str, ...] = (
     CREATE UNIQUE INDEX IF NOT EXISTS events_open ON events (key) WHERE cleared IS NULL;
     CREATE INDEX IF NOT EXISTS events_by_time ON events (raised);
     """,
+    # 22: the daily summaries, one for each day
+    """
+    CREATE TABLE IF NOT EXISTS summaries (
+        day TEXT PRIMARY KEY,
+        made REAL NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body))
+    ) STRICT, WITHOUT ROWID;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

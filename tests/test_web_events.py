@@ -19,6 +19,35 @@ from thermaestro.planner.watch import COMFORT_MISSED, FLOOR_BROKEN
 from thermaestro.store import Database, SecretStore
 from thermaestro.web import Services, create_app
 
+DAY = {
+    "day": "2026-10-16",
+    "ended": [
+        {
+            "kind": "bath",
+            "name": {"name_label": "Bath"},
+            "state": "missed",
+            "why": "The hot water was 46.0 °C at its latest, short of 50.0 °C",
+            "why_message": "The hot water was %(top)s °C at its latest, short of %(least)s °C",
+            "why_args": {"top": 46.0, "least": 50.0},
+        }
+    ],
+    "rooms": [{"name": "Living room", "minutes": 40}],
+    "floors": [],
+    "temporary": [{"kind": "guests", "name": {"name_label": "Guests"}, "kwh": 38.2, "cost": 61.4}],
+    "kwh": 52.0,
+    "cost": 80.25,
+    "currency": "SEK",
+    "writes": 12,
+    "starts": 7,
+}
+
+
+class Kept:
+    """The daily summaries a planner keeps: one."""
+
+    async def recent(self, days: int) -> list[dict[str, Any]]:
+        return [DAY]
+
 
 @asynccontextmanager
 async def site(tmp_path: Path) -> AsyncIterator[tuple[Events, httpx.AsyncClient]]:
@@ -34,7 +63,7 @@ async def site(tmp_path: Path) -> AsyncIterator[tuple[Events, httpx.AsyncClient]
             audit=audit,
             secrets=SecretStore(tmp_path / "secrets.json"),
             setup=SetupCode(tmp_path / "setup-code"),
-            planner=cast(Any, SimpleNamespace(events=events)),
+            planner=cast(Any, SimpleNamespace(events=events, summaries=Kept())),
         )
         await accounts.create_user("admin", ADMIN_PASSWORD, ["Administrators"], by="cli")
         await accounts.create_user("kid", ADMIN_PASSWORD, ["Household"], by="cli")
@@ -84,3 +113,20 @@ async def test_an_administrator_sees_the_house_too_in_their_language(tmp_path: P
         swedish = (await client.get("/events")).text
         assert "Varmvattnet föll under sin lägsta temperatur, 42,0 °C" in swedish
         assert "Living room har varit under sina 20,5 °C i mer än en halvtimme" in swedish
+
+
+async def test_the_day_before_summed_up(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, client):
+        await login(client, "kid")
+        [day] = (await client.get("/api/v1/summaries")).json()
+        assert "writes" not in day  # the house's workings, for those who may read settings
+        page = (await client.get("/events")).text
+        assert "The day before, 2026-10-16" in page
+        assert "The pump used 52.0 kWh, costing 80.25 SEK." in page
+        assert "Bath: missed (The hot water was 46.0 °C at its latest, short of 50.0 °C)" in page
+        assert "Guests: 38.2 kWh while it ran, 61.40 SEK" in page
+        assert "Living room was below its band for 40 minutes." in page
+        assert "settings written" not in page
+        client.cookies.clear()
+        await login(client, "admin")
+        assert "12 settings written, 7 compressor starts." in (await client.get("/events")).text

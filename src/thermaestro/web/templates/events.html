@@ -3,6 +3,25 @@
 {% block refresh %}1{% endblock %}
 {% block main %}
 <h1>{{ _("Events") }}</h1>
+{% if summary %}
+{% macro name(n) %}{{ _(n.name_label) }}{% if n.get("offset") %} ({{ n.offset }} °C){% endif %}{% endmacro %}
+<section class="summary">
+<h2>{{ _("The day before, %(day)s", day=summary.day) }}</h2>
+<ul>
+  {% if summary.kwh is not none %}<li>{% if summary.cost is not none %}{{ _("The pump used %(kwh)s kWh, costing %(cost)s %(currency)s.", kwh=summary.kwh | num, cost=summary.cost | num(2), currency=summary.currency or "") }}{% else %}{{ _("The pump used %(kwh)s kWh.", kwh=summary.kwh | num) }}{% endif %}</li>{% endif %}
+  {% for i in summary.ended %}
+  <li>{{ name(i.name) }}: {{ _(states[i.state]) if i.state in states else i.state }}{% if i.why_message %} ({{ said(i.why_message, i.why_args) }}){% elif i.why %} ({{ i.why }}){% endif %}</li>
+  {% endfor %}
+  {% for t in summary.temporary %}
+  <li>{% if t.cost is not none %}{{ _("%(name)s: %(kwh)s kWh while it ran, %(cost)s %(currency)s", name=name(t.name), kwh=t.kwh | num, cost=t.cost | num(2), currency=summary.currency or "") }}{% else %}{{ _("%(name)s: %(kwh)s kWh while it ran", name=name(t.name), kwh=t.kwh | num) }}{% endif %}</li>
+  {% endfor %}
+  {% for r in summary.rooms %}<li>{{ _("%(room)s was below its band for %(minutes)s minutes.", room=r.name, minutes=r.minutes) }}</li>{% endfor %}
+  {% for f in summary.floors %}<li>{{ _("The hot water was below its floor for %(minutes)s minutes.", minutes=f.minutes) }}</li>{% endfor %}
+  {% if not summary.ended and not summary.rooms and not summary.floors %}<li>{{ _("Everything was met.") }}</li>{% endif %}
+  {% if summary.writes is defined %}<li>{{ _("%(writes)s settings written, %(starts)s compressor starts.", writes=summary.writes, starts=summary.starts if summary.starts is not none else "?") }}</li>{% endif %}
+</ul>
+</section>
+{% endif %}
 <p class="hint">{{ _("What happened that you may want to know: each is raised once while it lasts, and cleared when it ends. The last %(days)s days.", days=days) }}</p>
 {% set open = events | selectattr("cleared", "none") | list %}
 <h2>{{ _("Now") }}</h2>

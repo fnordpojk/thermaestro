@@ -67,6 +67,7 @@ from .model import (
     Tank,
 )
 from .optimizer import TIME_LIMIT_S, Optimized, Optimizer
+from .summary import Pump, Summaries
 from .watch import MISSED_S, Watch
 
 if TYPE_CHECKING:
@@ -176,6 +177,9 @@ class Planner:
         self._watch = Watch(events, executor, host) if events is not None else None
         self._planning = asyncio.Lock()
         """One plan at a time: a slot's, or one for an answer."""
+        self.summaries = Summaries(
+            db, values, events, learnings, self._pump_units, lambda now: self._prices(now)
+        )
         self._db = db
         self._learnings = learnings
         """Where what the planner observes is kept, so a restart keeps it; in memory only
@@ -266,7 +270,18 @@ class Planner:
         else:
             await self._follow_up(now)
         self._executor.heartbeat()
+        if self.situation is not None:
+            try:
+                await self.summaries.due(now, self.situation.zone)
+            except Exception:
+                log.exception("the daily summary couldn't be made")
         return planned
+
+    def _pump_units(self) -> list[Pump]:
+        """The pump units the summary reads, with their compressor's state."""
+        if self.optimizer is None:
+            return []
+        return [Pump(unit, info["compressor"]) for unit, info in self.optimizer._units().items()]
 
     async def round(self, *, slot: bool = True) -> Plan:
         """Gather, decide, ask; the whole of one plan. `slot`: everything is planned, as at

@@ -746,6 +746,17 @@ class Services(
             if technical or e.audience == "household"
         ]
 
+    async def summaries(self, caller: Caller, days: int = 7) -> list[dict[str, Any]]:
+        """The daily summaries of the last `days`, newest first: the writes and the
+        compressor's starts only for those who may read the settings."""
+        caller.principal.require("plan.read")
+        if self.planner is None:
+            return []
+        found = await self.planner.summaries.recent(max(1, min(days, 90)))
+        if caller.principal.allows("settings.read"):
+            return found
+        return [{k: v for k, v in s.items() if k not in ("writes", "starts")} for s in found]
+
     async def audit_entries(self, caller: Caller, limit: int = 200) -> list[dict[str, Any]]:
         """The newest entries first."""
         caller.principal.require("audit.read")

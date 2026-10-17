@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-17 02:35+0200\n"
+"POT-Creation-Date: 2026-10-17 03:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -160,6 +160,14 @@ msgid "%(name)s needs you: %(why)s"
 msgstr ""
 
 #, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran"
+msgstr ""
+
+#, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran, %(cost)s %(currency)s"
+msgstr ""
+
+#, python-format
 msgid "%(name)s: %(text)s"
 msgstr ""
 
@@ -248,6 +256,10 @@ msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr ""
 
 #, python-format
+msgid "%(room)s was below its band for %(minutes)s minutes."
+msgstr ""
+
+#, python-format
 msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
 msgstr ""
 
@@ -307,6 +319,10 @@ msgstr ""
 msgid ""
 "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over "
 "outdoors"
+msgstr ""
+
+#, python-format
+msgid "%(writes)s settings written, %(starts)s compressor starts."
 msgstr ""
 
 msgid "* derived by Thermaestro from the provider's other values."
@@ -1031,6 +1047,9 @@ msgid "Every setting beside its default"
 msgstr ""
 
 msgid "Everyday"
+msgstr ""
+
+msgid "Everything was met."
 msgstr ""
 
 msgid "Exhaust air temperature"
@@ -2575,6 +2594,10 @@ msgstr ""
 msgid "The compressor wasn't seen standing in the last week."
 msgstr ""
 
+#, python-format
+msgid "The day before, %(day)s"
+msgstr ""
+
 msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source "
 "for the zone, and one to stand in on a day the first has no prices; every"
@@ -2626,6 +2649,10 @@ msgstr ""
 
 #, python-format
 msgid "The hot water was %(top)s °C at its latest, short of %(least)s °C"
+msgstr ""
+
+#, python-format
+msgid "The hot water was below its floor for %(minutes)s minutes."
 msgstr ""
 
 msgid "The hot water's floor"
@@ -2763,6 +2790,14 @@ msgstr ""
 msgid "The pump showed"
 msgstr ""
 
+#, python-format
+msgid "The pump used %(kwh)s kWh, costing %(cost)s %(currency)s."
+msgstr ""
+
+#, python-format
+msgid "The pump used %(kwh)s kWh."
+msgstr ""
+
 msgid "The pump's connection"
 msgstr ""
 
@@ -2796,6 +2831,10 @@ msgid "The rules"
 msgstr ""
 
 msgid "The same again"
+msgstr ""
+
+#, python-format
+msgid "The summary of %(day)s is ready"
 msgstr ""
 
 msgid "The tank's standing loss"

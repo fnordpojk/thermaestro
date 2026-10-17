@@ -320,7 +320,9 @@ Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it
 - a plugin, a device or a feed of prices or weather missing for over an hour, or asking for something;
 - a device's own warnings, such as the brine near the pump's alarm limit.
 
-The household sees its own: intents and rooms. Those who may read the settings (Administrators) see the house's workings too. Notifications for them come later, and will be sent only to those who turn them on.
+From 07:00 the top of the page sums up the day before, midnight to midnight in the house's time: what the pump used and what it cost; each intent that ended, with what came of it; each request for a while that ran, with what the pump used while it ran and what that cost; and the minutes each room was below its band and the hot water below its floor. The energy comes from the pump's own meter where it has one, else from its learned draw for the time the compressor ran, so it shows once that is learned. What a request used is what the pump used while it ran, not how much more than without it: that needs a reference, still to be built. Summaries are kept for 90 days; a day before Thermaestro ran isn't summed up.
+
+The household sees its own: intents and rooms. Those who may read the settings (Administrators) see the house's workings too, and in the summary how many changes Thermaestro asked for and how often the compressor started. Notifications for them come later, and will be sent only to those who turn them on.
 
 ## Users and groups
 

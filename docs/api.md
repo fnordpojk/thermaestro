@@ -274,6 +274,7 @@ Every change through the API is in the audit log, with who made it and from whic
 | Method and path | Right | Answer |
 |---|---|---|
 | `GET /events?days=7` | `plan.read` | What is open, and what was over the last 1 to 90 days, oldest first: `[{key, kind, scope, audience, principal, text, message, args, raised, changed, cleared}]`. `key` names the condition (`floor.broken:pump:hp1/dhw`); `text` is what it says in English, `message` the same marked for translation with its values in `args`; `raised`, `changed` (what it says, last) and `cleared` are seconds since the epoch, `cleared` `null` while it lasts and the same as `raised` for a moment. Events of `audience` `technical` (floors, settings let go, plugins, device warnings) need `settings.read` as well; `household` ones (intents, rooms) don't. |
+| `GET /summaries?days=7` | `plan.read` | The daily summaries of the last 1 to 90 days, newest first, each made at 07:00 for the day before: `[{day, kwh, cost, currency, ended, temporary, rooms, floors, writes, starts}]`. `kwh` and `cost` are the pump's for the day (`cost` `null` without prices); `ended` the intents that ended that day, `{kind, name, state, why, why_message, why_args}`; `temporary` each request for a while that ran, `{kind, name, kwh, cost}`, what the pump used while it ran; `rooms` and `floors` the minutes below, `{name, minutes}`. `writes` (the changes the planner asked for) and `starts` (the compressor's) need `settings.read`. |
 
 ### Intents and levels
 

@@ -740,9 +740,16 @@ async def health_page(request: Request, who: Logged) -> Response:
 
 @router.get("/events")
 async def events_page(request: Request, who: Logged) -> Response:
+    from .labels import STATES
+
     days = 7
-    found = await services(request).events(who, days)
-    return render(request, "events.html", who, events=found, days=days)
+    s = services(request)
+    found = await s.events(who, days)
+    latest = await s.summaries(who, 1)
+    summary = latest[0] if latest else None
+    return render(
+        request, "events.html", who, events=found, days=days, summary=summary, states=STATES
+    )
 
 
 @router.get("/audit")

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:35+0200\n"
+"POT-Creation-Date: 2026-10-17 03:01+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -158,6 +158,14 @@ msgid "%(name)s needs you: %(why)s"
 msgstr "%(name)s braucht Sie: %(why)s"
 
 #, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran"
+msgstr "%(name)s: %(kwh)s kWh, solange es lief"
+
+#, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran, %(cost)s %(currency)s"
+msgstr "%(name)s: %(kwh)s kWh, solange es lief, %(cost)s %(currency)s"
+
+#, python-format
 msgid "%(name)s: %(text)s"
 msgstr "%(name)s: %(text)s"
 
@@ -246,6 +254,10 @@ msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr "%(room)s liegt seit über einer halben Stunde unter seinen %(low)s °C"
 
 #, python-format
+msgid "%(room)s was below its band for %(minutes)s minutes."
+msgstr "%(room)s lag %(minutes)s Minuten unter seinem Band."
+
+#, python-format
 msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
 msgstr "%(room)s erreicht bis %(time)s %(temp)s °C, nicht %(low)s °C"
 
@@ -306,6 +318,10 @@ msgid "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over out
 msgstr ""
 "%(warm)s °C pro Stunde beim Heizen; %(cool)s °C pro Stunde Verlust bei 20 °C über "
 "außen"
+
+#, python-format
+msgid "%(writes)s settings written, %(starts)s compressor starts."
+msgstr "%(writes)s Einstellungen geschrieben, %(starts)s Verdichterstarts."
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* von Thermaestro aus den übrigen Werten des Anbieters abgeleitet."
@@ -1100,6 +1116,9 @@ msgstr "Jede Einstellung neben ihrer Werkseinstellung"
 
 msgid "Everyday"
 msgstr "Alltägliche"
+
+msgid "Everything was met."
+msgstr "Alles wurde erfüllt."
 
 msgid "Exhaust air temperature"
 msgstr "Ablufttemperatur"
@@ -2731,6 +2750,10 @@ msgstr "Der Verdichter wurde in der letzten Woche nicht laufend gesehen."
 msgid "The compressor wasn't seen standing in the last week."
 msgstr "Der Verdichter wurde in der letzten Woche nicht stehend gesehen."
 
+#, python-format
+msgid "The day before, %(day)s"
+msgstr "Der Vortag, %(day)s"
+
 msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone,"
 " and one to stand in on a day the first has no prices; every zone of a country takes "
@@ -2796,6 +2819,10 @@ msgstr "Das Warmwasser fiel unter seine Mindesttemperatur von %(floor)s °C"
 #, python-format
 msgid "The hot water was %(top)s °C at its latest, short of %(least)s °C"
 msgstr "Das Warmwasser hatte zum spätesten Zeitpunkt %(top)s °C, unter %(least)s °C"
+
+#, python-format
+msgid "The hot water was below its floor for %(minutes)s minutes."
+msgstr "Das Warmwasser lag %(minutes)s Minuten unter seiner Mindesttemperatur."
 
 msgid "The hot water's floor"
 msgstr "Die Untergrenze des Warmwassers"
@@ -2942,6 +2969,14 @@ msgstr ""
 msgid "The pump showed"
 msgstr "Die Pumpe zeigte"
 
+#, python-format
+msgid "The pump used %(kwh)s kWh, costing %(cost)s %(currency)s."
+msgstr "Die Pumpe verbrauchte %(kwh)s kWh für %(cost)s %(currency)s."
+
+#, python-format
+msgid "The pump used %(kwh)s kWh."
+msgstr "Die Pumpe verbrauchte %(kwh)s kWh."
+
 msgid "The pump's connection"
 msgstr "Verbindung zur Pumpe"
 
@@ -2982,6 +3017,10 @@ msgstr "Die Regeln"
 
 msgid "The same again"
 msgstr "Noch einmal"
+
+#, python-format
+msgid "The summary of %(day)s is ready"
+msgstr "Die Zusammenfassung für den %(day)s ist fertig"
 
 msgid "The tank's standing loss"
 msgstr "Die Bereitschaftsverluste des Speichers"

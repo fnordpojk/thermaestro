@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:35+0200\n"
+"POT-Creation-Date: 2026-10-17 03:01+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -158,6 +158,14 @@ msgid "%(name)s needs you: %(why)s"
 msgstr "%(name)s behöver dig: %(why)s"
 
 #, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran"
+msgstr "%(name)s: %(kwh)s kWh medan den pågick"
+
+#, python-format
+msgid "%(name)s: %(kwh)s kWh while it ran, %(cost)s %(currency)s"
+msgstr "%(name)s: %(kwh)s kWh medan den pågick, %(cost)s %(currency)s"
+
+#, python-format
 msgid "%(name)s: %(text)s"
 msgstr "%(name)s: %(text)s"
 
@@ -246,6 +254,10 @@ msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr "%(room)s har varit under sina %(low)s °C i mer än en halvtimme"
 
 #, python-format
+msgid "%(room)s was below its band for %(minutes)s minutes."
+msgstr "%(room)s var under sitt intervall i %(minutes)s minuter."
+
+#, python-format
 msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
 msgstr "%(room)s når %(temp)s °C, inte %(low)s °C, till kl. %(time)s"
 
@@ -304,6 +316,10 @@ msgstr "%(w_k)s W per kelvin: ungefär %(flow)s l/s köldbärare"
 #, python-format
 msgid "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over outdoors"
 msgstr "%(warm)s °C i timmen när den värms; %(cool)s °C i timmen förlorat vid 20 °C över ute"
+
+#, python-format
+msgid "%(writes)s settings written, %(starts)s compressor starts."
+msgstr "%(writes)s inställningar skrivna, %(starts)s kompressorstarter."
 
 msgid "* derived by Thermaestro from the provider's other values."
 msgstr "* härlett av Thermaestro ur leverantörens övriga värden."
@@ -1082,6 +1098,9 @@ msgstr "Varje inställning bredvid sin fabriksinställning"
 
 msgid "Everyday"
 msgstr "Vardagliga"
+
+msgid "Everything was met."
+msgstr "Allt uppfylldes."
 
 msgid "Exhaust air temperature"
 msgstr "Frånluftstemperatur"
@@ -2688,6 +2707,10 @@ msgstr "Kompressorn sågs inte gå under den senaste veckan."
 msgid "The compressor wasn't seen standing in the last week."
 msgstr "Kompressorn sågs inte stå still under den senaste veckan."
 
+#, python-format
+msgid "The day before, %(day)s"
+msgstr "Föregående dag, %(day)s"
+
 msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source for the zone,"
 " and one to stand in on a day the first has no prices; every zone of a country takes "
@@ -2751,6 +2774,10 @@ msgstr "Varmvattnet föll under sin lägsta temperatur, %(floor)s °C"
 #, python-format
 msgid "The hot water was %(top)s °C at its latest, short of %(least)s °C"
 msgstr "Varmvattnet var %(top)s °C vid den senaste tiden, under %(least)s °C"
+
+#, python-format
+msgid "The hot water was below its floor for %(minutes)s minutes."
+msgstr "Varmvattnet var under sin lägsta temperatur i %(minutes)s minuter."
 
 msgid "The hot water's floor"
 msgstr "Varmvattnets lägsta nivå"
@@ -2896,6 +2923,14 @@ msgstr ""
 msgid "The pump showed"
 msgstr "Pumpen visade"
 
+#, python-format
+msgid "The pump used %(kwh)s kWh, costing %(cost)s %(currency)s."
+msgstr "Pumpen använde %(kwh)s kWh, som kostade %(cost)s %(currency)s."
+
+#, python-format
+msgid "The pump used %(kwh)s kWh."
+msgstr "Pumpen använde %(kwh)s kWh."
+
 msgid "The pump's connection"
 msgstr "Pumpens anslutning"
 
@@ -2935,6 +2970,10 @@ msgstr "Reglerna"
 
 msgid "The same again"
 msgstr "Samma igen"
+
+#, python-format
+msgid "The summary of %(day)s is ready"
+msgstr "Sammanfattningen av %(day)s är klar"
 
 msgid "The tank's standing loss"
 msgstr "Beredarens stilleståndsförlust"

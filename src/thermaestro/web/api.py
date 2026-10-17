@@ -421,6 +421,14 @@ async def events(
     return await services(request).events(who, days)
 
 
+@router.get("/summaries")
+@action("plan.read")
+async def summaries(
+    request: Request, who: Logged, days: Annotated[int, Query(ge=1, le=90)] = 7
+) -> list[dict[str, Any]]:
+    return await services(request).summaries(who, days)
+
+
 # --- the audit log -----------------------------------------------------------------------
 
 

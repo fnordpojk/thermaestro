@@ -14,6 +14,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import pytest
 from plant import Plant, Scenario, draw
@@ -25,10 +26,12 @@ from plant.scenario import Emitter
 from plant.vloop import simulate
 
 from thermaestro import clock
-from thermaestro.core import AuditLog
+from thermaestro.core import AuditLog, Values
 from thermaestro.core.events import Event, Events
 from thermaestro.intents import RANKS, Intent, Intents, Level, kinds
 from thermaestro.learn import Learnings
+from thermaestro.planner.model import Price
+from thermaestro.planner.summary import Summaries
 from thermaestro.store import Control, Database, LeverMode, Plugin
 
 LEVERS: dict[str, LeverMode] = {
@@ -381,6 +384,40 @@ def test_a_request_is_answered_from_the_plan(tmp_path: Path) -> None:
     simulated(tmp_path, s, 0.2, optimizer=True, during=ask)
     planned = [m for m in answers if m.startswith(("The plan has", "Ready about", "It can't"))]
     assert planned, answers
+
+
+async def unpriced(now: datetime) -> list[Price]:
+    return []
+
+
+def test_the_day_before_is_summed_up_at_seven(tmp_path: Path) -> None:
+    """At 07:00 the day before is summed up: the electricity and what a warmer half day
+    used of it, the intent that ended, the writes and the compressor's starts."""
+    s = draw(3, emitter="radiators")
+
+    def warmer() -> list[Intent]:
+        now = clock.now()
+        made = {"principal": "user:test", "created": now - timedelta(minutes=1)}
+        return [kinds.warmer(CS, 1.0, until=now + timedelta(hours=12), **made)]  # type: ignore[arg-type]
+
+    simulated(tmp_path, s, 1.3, optimizer=True, more=warmer)
+
+    async def read() -> tuple[list[dict[str, Any]], list[Event]]:
+        async with await Database.open(tmp_path / "sim.db") as db:
+            kept = await Summaries(db, Values(db), None, None, list, unpriced).recent(7)
+            return kept, await Events(db).since(0.0, "summary.daily:")
+
+    [day], told = asyncio.run(read())
+    assert day["day"] == s.start_time.date().isoformat()
+    assert [e.key for e in told] == [f"summary.daily:{day['day']}"]
+    assert day["kwh"] > 0
+    assert day["cost"] > 0
+    [half] = day["temporary"]
+    assert half["kind"] == "warmer"
+    assert 0 < half["kwh"] < day["kwh"]
+    assert "warmer" in [i["kind"] for i in day["ended"]]
+    assert day["writes"] > 0
+    assert day["starts"] > 0
 
 
 def test_shadow_decides_as_the_optimizer_in_control(tmp_path: Path) -> None:
