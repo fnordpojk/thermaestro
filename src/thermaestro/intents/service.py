@@ -4,9 +4,11 @@ Rights decide who may ask for what (the kind, and for the cost stance, which par
 they don't decide what wins. Every change is in the audit log.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime
 from typing import Any, Protocol
+
+from pydantic import JsonValue
 
 from .. import clock
 from ..auth.permissions import allows
@@ -67,6 +69,11 @@ def rights_for(intent: Intent, previous: Intent | None = None) -> set[str]:
     return {"intent.standing.write"}
 
 
+Final = Callable[[Intent, State], Awaitable[tuple[str, dict[str, JsonValue]] | None]]
+"""An intent's final report as it ends, as it will be: a message marked for translation and
+its values; None for none."""
+
+
 class Intents:
     def __init__(
         self,
@@ -78,6 +85,8 @@ class Intents:
         self._db = db
         self._audit = audit
         self._capabilities = capabilities
+        self.final: Final | None = None
+        """Gives an intent's final report as it ends: what came of it."""
 
     # --- reading ---------------------------------------------------------------------------
 
@@ -228,9 +237,19 @@ class Intents:
         await self._audit.record(who, "intent.confirm", details={"id": id, "kind": intent.kind})
         return confirmed
 
-    async def report(self, id: str, state: State, why: str | None = None) -> Intent:
-        """What the planner finds: at risk, giving way, met, missed."""
-        return await self._change(await self.get(id), state, why, "planner")
+    async def report(
+        self,
+        id: str,
+        state: State,
+        why: str | None = None,
+        *,
+        message: str | None = None,
+        args: dict[str, JsonValue] | None = None,
+    ) -> Intent:
+        """What the planner finds: at risk, giving way, met, missed; `why` from `message`
+        and its `args` where it was made from one."""
+        found = await self.get(id)
+        return await self._change(found, state, why, "planner", message=message, args=args)
 
     async def put_level(self, level: Level, *, who: str, granted: frozenset[str]) -> None:
         _require(granted, "intent.levels.write")
@@ -285,7 +304,8 @@ class Intents:
 
     async def advance(self, now: datetime | None = None) -> list[Intent]:
         """Move intents along: scheduled ones start, ended ones finish. A deadline that
-        ends unmet is missed. Returns the ones that changed."""
+        ends unmet is missed. Each one that ends gets its final report, where `final` gives
+        one. Returns the ones that changed."""
         now = now or clock.now()
         resolver = await self.resolver()
         changed = []
@@ -293,20 +313,34 @@ class Intents:
             end = resolver.end(intent)
             start = intent.validity.starts or intent.created
             if end is not None and end <= now:
-                if intent.validity.ends == "when_met":
-                    state, why = "missed", "not met by its latest"
-                else:
-                    state, why = "finished", None
-                changed.append(await self._change(intent, state, why, "core", now))  # type: ignore[arg-type]
+                state: State = "missed" if intent.validity.ends == "when_met" else "finished"
+                why = "not met by its latest" if state == "missed" else None
+                message, args = None, None
+                report = await self.final(intent, state) if self.final is not None else None
+                if report is not None:
+                    message, args = report
+                    why = message % args if args else message
+                changed.append(
+                    await self._change(intent, state, why, "core", now, message=message, args=args)
+                )
             elif intent.state == "scheduled" and start <= now:
                 changed.append(await self._change(intent, "active", None, "core", now))
         return changed
 
     async def _change(
-        self, intent: Intent, state: State, why: str | None, who: str, now: datetime | None = None
+        self,
+        intent: Intent,
+        state: State,
+        why: str | None,
+        who: str,
+        now: datetime | None = None,
+        *,
+        message: str | None = None,
+        args: dict[str, JsonValue] | None = None,
     ) -> Intent:
         now = now or clock.now()
-        changed = intent.model_copy(update={"state": state, "why": why})
+        update = {"state": state, "why": why, "why_message": message, "why_args": args or {}}
+        changed = intent.model_copy(update=update)
         await self._db.run(lambda t: _store(t, changed, now))
         await self._audit.record(
             who,

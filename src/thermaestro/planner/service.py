@@ -32,7 +32,7 @@ from .. import clock
 from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
-from ..core.events import Events
+from ..core.events import Events, Raise
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost
@@ -42,7 +42,7 @@ from ..core.sensors import DEFAULT_FRESHNESS_S, SITE, SensorHub
 from ..core.series import Series
 from ..core.values import Key, Values
 from ..core.weather import value_at
-from ..intents import Capabilities, Intents
+from ..intents import Capabilities, Intent, Intents
 from ..intents.entry import RESPONSE_H
 from ..intents.resolve import Resolver
 from ..learn import Learned, Learnings, mark
@@ -51,8 +51,11 @@ from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import expected, house
 from ..learn.pump import Response, lead
+from ..optimize import Problem
+from ..optimize import plan as solve
 from ..store import Control, Database, Location, PriceLayer, Transaction, Vat
 from . import rules
+from .assurance import Finding, judge
 from .model import (
     SLOT,
     Decision,
@@ -63,8 +66,8 @@ from .model import (
     Situation,
     Tank,
 )
-from .optimizer import Optimized, Optimizer
-from .watch import Watch
+from .optimizer import TIME_LIMIT_S, Optimized, Optimizer
+from .watch import MISSED_S, Watch
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -139,6 +142,12 @@ class _Effect:
     decision: Decision
     since: datetime
     wait_s: float
+
+
+MISSED_WATER = mark("The hot water was %(top)s °C at its latest, short of %(least)s °C")
+KEPT_BAND = mark("Its rooms kept their band throughout")
+BELOW_BAND = mark("Its rooms were below their band for %(minutes)s minutes in all")
+COMFORT_KINDS = frozenset({"warmer", "guests", "away"})
 
 
 class Planner:
@@ -297,6 +306,7 @@ class Planner:
                 optimized = await self.optimizer.run(sit, self._resolver)
                 self.optimized = optimized
                 theirs = [] if hands_off else optimized.decisions
+                await self._assure(optimized, sit)
         elif self.optimizer.last is not None and self.optimizer.last.ok and not hands_off:
             optimized = self.optimizer.last
             theirs = await self.optimizer.between(sit)
@@ -311,6 +321,79 @@ class Planner:
         if slot:
             await self._keep(sit, ruled, theirs, optimized, control.planner)
         return chosen
+
+    async def _assure(self, optimized: Optimized, sit: Situation) -> None:
+        """How each intent stands in the optimizer's plan, kept as its state and told as an
+        event: at risk, giving way, or back to active once planned met. An intent is
+        changed only when its state, or what it gives way to, changes: the plan's figures
+        move every slot, and an intent isn't told again for that."""
+        found: dict[str, Finding] = {}
+        if optimized.ok and optimized.problem is not None and optimized.plan is not None:
+
+            def again(problem: Problem) -> Any:
+                return solve(problem, TIME_LIMIT_S)
+
+            found = await asyncio.to_thread(
+                judge, optimized.watched, optimized.problem, optimized.plan, sit.zone, again
+            )
+        for intent in await self._intents.all():
+            if intent.state not in ("active", "at_risk", "giving_way"):
+                continue
+            key = f"intent.state:{intent.id}"
+            finding = found.get(intent.id)
+            if finding is None:
+                if intent.state != "active":
+                    await self._intents.report(intent.id, "active")
+                    if self.events is not None:
+                        await self.events.clear(key)
+                continue
+            gives_way_to = intent.why_args.get("what_label")
+            if intent.state == finding.state and gives_way_to == finding.args.get("what_label"):
+                continue
+            await self._intents.report(
+                intent.id, finding.state, finding.text(), message=finding.message, args=finding.args
+            )
+            if self.events is not None:
+                what = Raise(
+                    f"intent.{finding.state}",
+                    intent.scope,
+                    finding.message,
+                    finding.args,
+                    audience="household",
+                    principal=intent.principal,
+                )
+                await self.events.clear(key)
+                await self.events.raise_(key, what)
+
+    async def final_report(self, intent: Intent, state: str) -> tuple[str, dict[str, Any]] | None:
+        """What came of an intent as it ends: for a bath missed, how warm the hot water was
+        against what it asked; for a temporary comfort intent, whether its rooms kept their
+        band, and if not, for how long they didn't (a miss counts from its start, half an
+        hour before it is raised)."""
+        sit = self.situation
+        if sit is None:
+            return None
+        if intent.kind == "bath" and state == "missed":
+            least = _asked_top(intent)
+            tank = sit.tanks.get(intent.scope)
+            if least is None or tank is None or tank.top is None:
+                return None
+            return MISSED_WATER, {"top": round(tank.top, 1), "least": round(least, 1)}
+        if intent.kind not in COMFORT_KINDS or state != "finished" or self.events is None:
+            return None
+        start = (intent.validity.starts or intent.created).timestamp()
+        now = clock.time()
+        rooms = {r.scope for r in sit.rooms if intent.scope in ("house", r.scope, r.system)}
+        seconds = 0.0
+        for event in await self.events.since(start, "comfort.missed:"):
+            if event.scope not in rooms:
+                continue
+            began = max(event.raised - MISSED_S, start)
+            ended = min(event.cleared if event.cleared is not None else now, now)
+            seconds += max(0.0, ended - began)
+        if seconds <= 0:
+            return KEPT_BAND, {}
+        return BELOW_BAND, {"minutes": round(seconds / 60)}
 
     def _follow(self, sit: Situation, covered: frozenset[str], theirs: list[Decision]) -> None:
         """While the optimizer drives a climate system's offset, the rules' loop follows
@@ -884,6 +967,15 @@ class Planner:
                 self.memory.periodic[f"{scope}{suffix}"] = datetime.fromtimestamp(periodic[k], UTC)
             else:
                 self.memory.periodic.pop(f"{scope}{suffix}", None)
+
+
+def _asked_top(intent: Intent) -> float | None:
+    """The hot water an intent asks for, at the top of the tank."""
+    for expectation in intent.expectations:
+        for target in expectation.targets:
+            if target.name == "tank_top_temp" and isinstance(target.value, int | float):
+                return float(target.value)
+    return None
 
 
 def _same(a: Value | None, b: Value | None) -> bool:

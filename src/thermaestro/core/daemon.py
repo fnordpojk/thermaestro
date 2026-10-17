@@ -129,6 +129,7 @@ async def run(
             weather=weather,
             events=events,
         )
+        intents.final = planner.final_report
         core = Core(
             layout,
             startup,

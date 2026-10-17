@@ -178,6 +178,10 @@ class Intent(Model):
     state: State = "received"
     why: str | None = None
     """What the state means here: why it was rejected, what it is short by."""
+    why_message: str | None = None
+    """`why` as marked for translation, where it was made from a message, its values in
+    `why_args`: what a page shows in its reader's language."""
+    why_args: dict[str, JsonValue] = Field(default_factory=dict)
     confirmed: bool = True
     """False for what was seeded or learned and not yet confirmed: it stays a default."""
 

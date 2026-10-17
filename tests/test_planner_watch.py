@@ -6,14 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
-from test_planner_rules import NOW, TANK, floor, situation
+from test_planner_rules import NOW, ROOM, TANK, band, floor, situation
 
 from thermaestro.cap.messages import DeviceEvent, Health
 from thermaestro.core.events import Events
 from thermaestro.core.executor import Claim, Executor
 from thermaestro.core.host import Instance, PluginHost, State
 from thermaestro.planner import Situation
-from thermaestro.planner.watch import MISSING_S, Watch
+from thermaestro.planner.watch import MISSED_S, MISSING_S, Watch
 from thermaestro.store import Database, Plugin
 
 
@@ -109,4 +109,30 @@ async def test_a_devices_warning_while_it_is_on(tmp_path: Path) -> None:
         assert event.text() == "pump: Brine out is near the pump's alarm limit"
         pump.active.clear()
         await watch.look(situation([]))
+        assert await keys(db) == []
+
+
+async def test_a_room_below_its_band_for_over_half_an_hour(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        watch = watching(db)
+        warm = situation([band()], temp=21.25)
+        await watch.look(warm)
+        reach = timedelta(hours=8)  # past the response its emitters take
+        cold = later_by(situation([band()], temp=20.0), reach.total_seconds())
+        await watch.look(cold)
+        assert await keys(db) == []  # below, but not for half an hour yet
+        await watch.look(later_by(cold, MISSED_S))
+        [event] = await Events(db).open()
+        assert (event.key, event.audience) == (f"comfort.missed:{ROOM}", "household")
+        assert event.text() == "living has been below its 20.5 °C for over half an hour"
+        await watch.look(later_by(situation([band()], temp=20.6), reach.total_seconds() + 3600))
+        assert await keys(db) == []
+
+
+async def test_a_room_isnt_missed_before_its_heat_could_show(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        watch = watching(db)
+        cold = situation([band()], temp=20.0)  # first seen: as if the band had just risen
+        await watch.look(cold)
+        await watch.look(later_by(cold, MISSED_S + 60))
         assert await keys(db) == []

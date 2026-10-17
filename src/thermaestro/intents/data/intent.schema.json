@@ -279,6 +279,25 @@
           ],
           "default": null,
           "title": "Why"
+        },
+        "why_args": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Why Args",
+          "type": "object"
+        },
+        "why_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Why Message"
         }
       },
       "required": [

@@ -132,6 +132,39 @@ def _running(s: Sample) -> float | None:
     return None if s.text is None else float(s.text == "running")
 
 
+@dataclass(frozen=True)
+class RoomGoal:
+    """What a room's intents ask of it, hour by hour, as they ask it: the band's low edge
+    without the margin the plan keeps inside it, and which intents set it."""
+
+    system: str
+    name: str
+    low: tuple[float | None, ...]
+    by: tuple[tuple[str, ...], ...]
+    reach_h: float
+    """How long its heat takes to show: a band can't be met sooner."""
+
+
+@dataclass(frozen=True)
+class DeadlineGoal:
+    """A hot-water deadline as its intent asks it, without the margin a `must` is planned
+    with."""
+
+    by: str
+    scope: str
+    slot: int
+    at_least: float
+    strength: str
+
+
+@dataclass
+class Watched:
+    """What each planned goal asks, for judging how its intent stands in the plan."""
+
+    rooms: dict[str, RoomGoal] = field(default_factory=dict)
+    deadlines: list[DeadlineGoal] = field(default_factory=list)
+
+
 @dataclass
 class Optimized:
     ok: bool
@@ -143,6 +176,7 @@ class Optimized:
     """The levers it decided for; the rules decide the rest."""
     notes: list[tuple[str, str]] = field(default_factory=list)
     """Goals it left to the rules, by scope, and why: a message for the web UI's catalog."""
+    watched: Watched = field(default_factory=Watched)
 
 
 class Optimizer:
@@ -166,6 +200,7 @@ class Optimizer:
         """Per climate system: how warm each plan expected its rooms to be an hour on, by
         when."""
         self._drift: dict[str, float] = {}
+        self._watched = Watched()
 
     # --- a round ---------------------------------------------------------------------------
 
@@ -176,8 +211,9 @@ class Optimizer:
             log.exception("the optimizer's problem couldn't be made")
             self.last = Optimized(False, f"{e}")
             return self.last
+        watched = self._watched
         if not covered:
-            self.last = Optimized(False, NOTHING, problem, notes=notes)
+            self.last = Optimized(False, NOTHING, problem, notes=notes, watched=watched)
             return self.last
         found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
         if found.ok:
@@ -188,11 +224,11 @@ class Optimizer:
                     for t in [t for t in kept if t < problem.slots[0].t]:
                         del kept[t]
         if not found.ok:
-            self.last = Optimized(False, found.why, problem, found, notes=notes)
+            self.last = Optimized(False, found.why, problem, found, notes=notes, watched=watched)
             return self.last
         decisions = levers.decide(found, problem, await self.now(sit, problem))
         mine = [replace_planner(d) for d in decisions if d.lever in covered]
-        self.last = Optimized(True, "", problem, found, mine, covered, notes)
+        self.last = Optimized(True, "", problem, found, mine, covered, notes, watched)
         return self.last
 
     async def between(self, sit: Situation) -> list[Decision]:
@@ -216,6 +252,7 @@ class Optimizer:
     ) -> tuple[Problem, frozenset[str], list[tuple[str, str]]]:
         t0 = sit.now.timestamp() // 900 * 900
         starts = [t0 + 900 * j for j in range(SLOTS)]
+        self._watched = Watched()
         covered: set[str] = set()
         notes: list[tuple[str, str]] = []
         slots = await self._slots(sit, starts)
@@ -487,12 +524,21 @@ class Optimizer:
         highest = min(lever.high if lever.high is not None else 10.0, curve.high + BEYOND)
         margin = min(MARGIN_MOST, max(MARGIN_LEAST, MARGIN_ERRORS * fit.error))
         bands: dict[str, list[Band]] = {r.scope: [] for r in rooms}
+        lows: dict[str, list[float | None]] = {r.scope: [] for r in rooms}
+        whose: dict[str, list[tuple[str, ...]]] = {r.scope: [] for r in rooms}
         for h in range(HORIZON_H):
             at = datetime.fromtimestamp(starts[0] + 3600 * h + 1800, UTC)
             force = resolver.in_force(at, heating=sit.heating)
             for r in rooms:
                 bound = force.bound("room_temp", r.scope) or force.bound("room_temp", system)
                 bands[r.scope].append(_inside(bound, margin))
+                lows[r.scope].append(bound.low if bound is not None else None)
+                whose[r.scope].append(bound.by if bound is not None else ())
+        reach = rules._response_h(sit, system)
+        for r in rooms:
+            self._watched.rooms[r.scope] = RoomGoal(
+                system, r.name, tuple(lows[r.scope]), tuple(whose[r.scope]), reach
+            )
         current = rules._number(lever.current, rules._number(lever.baseline))
         before = await self._water_before(system, sit.now.timestamp(), fit.lag)
         return (
@@ -624,6 +670,8 @@ class Optimizer:
             if 0 <= slot < len(starts):
                 margin = MUST_MARGIN if d.strength == "must" else 0.0
                 deadlines.append(Deadline(slot, d.at_least + margin, d.rank, d.by))
+                goal = DeadlineGoal(d.by, scope, slot, d.at_least, d.strength)
+                self._watched.deadlines.append(goal)
         return (
             Tank(
                 scope,

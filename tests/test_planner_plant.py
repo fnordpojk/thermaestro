@@ -4,6 +4,7 @@ shifting nets out, the write budget holds, the heating stop is followed, a lost 
 puts the offset back, a value not kept isn't asked for again, and shadow decides as
 control would."""
 
+import asyncio
 import itertools
 import json
 import math
@@ -25,9 +26,10 @@ from plant.vloop import simulate
 
 from thermaestro import clock
 from thermaestro.core import AuditLog
-from thermaestro.intents import RANKS, Intent, Level, kinds
+from thermaestro.core.events import Event, Events
+from thermaestro.intents import RANKS, Intent, Intents, Level, kinds
 from thermaestro.learn import Learnings
-from thermaestro.store import Control, LeverMode, Plugin
+from thermaestro.store import Control, Database, LeverMode, Plugin
 
 LEVERS: dict[str, LeverMode] = {
     "cs1/heating.offset": "control",
@@ -85,12 +87,14 @@ def simulated(
     during: Callable[[Sim], Awaitable[None]] | None = None,
     optimizer: bool = False,
     hindsight: bool = False,
+    more: Callable[[], list[Intent]] | None = None,
 ) -> tuple[Sim, Intended]:
     """Run the planner on the plant for `days`; the sim, and the planner's intended writes.
     As in a house: each day's draws differ, and the prices are those published by then,
     estimated beyond. `optimizer`: what the learners would have made of the house is known,
     the forecast is off as a provider's is, and the optimizer drives. `hindsight`: the
-    optimizer, told the truth: the weather as it comes, every price, each day's draws."""
+    optimizer, told the truth: the weather as it comes, every price, each day's draws.
+    `more`: intents of the household's besides, made as the run starts."""
 
     path.mkdir(parents=True, exist_ok=True)
     optimizer = optimizer or hindsight
@@ -107,7 +111,7 @@ def simulated(
             since = s.start_time - timedelta(days=1)
             truth = [p for p in series if p.start >= since]
             prices = truth if hindsight else partial(known, series)
-            intents = household(slider=slider, rooms=rooms)
+            intents = household(slider=slider, rooms=rooms) + (more() if more else [])
             learnings, weather = None, None
             if optimizer:
                 learnings = Learnings(sim.db, AuditLog(path / "learn-audit"))
@@ -324,6 +328,35 @@ def test_the_optimizer_keeps_comfort_the_floor_and_the_budget(tmp_path: Path) ->
     # The optimizer drove, slot by slot, and the rules' decisions were kept beside.
     assert ("optimizer", 1) in PLANNED[tmp_path]
     assert ("rules", 0) in PLANNED[tmp_path]
+
+
+def test_a_bath_too_hot_to_make_is_at_risk_then_missed(tmp_path: Path) -> None:
+    """Hotter than the compressor can make the tank: at risk in the plan, told as an event,
+    and missed at its latest, with how warm the water was."""
+    s = draw(3, emitter="radiators")
+
+    def bath() -> list[Intent]:
+        now = clock.now()
+        made = {"principal": "user:test", "created": now - timedelta(minutes=1)}
+        return [kinds.bath(TANK, 75.0, now + timedelta(hours=8), **made)]  # type: ignore[arg-type]
+
+    simulated(tmp_path, s, 0.5, optimizer=True, more=bath)
+
+    async def read() -> tuple[list[Intent], list[Event]]:
+        async with await Database.open(tmp_path / "sim.db") as db:
+            ended = await Intents(db, AuditLog(tmp_path / "read-audit")).all(open_only=False)
+            return ended, await Events(db).since(0.0)
+
+    intents, events = asyncio.run(read())
+    [found] = [i for i in intents if i.kind == "bath"]
+    assert found.state == "missed"
+    assert found.why is not None
+    assert found.why.startswith("The hot water was ")
+    assert found.why.endswith("at its latest, short of 75.0 °C")
+    told = [e for e in events if e.key == f"intent.state:{found.id}"]
+    assert told
+    assert told[0].kind in ("intent.at_risk", "intent.giving_way")
+    assert told[0].principal == "user:test"
 
 
 def test_shadow_decides_as_the_optimizer_in_control(tmp_path: Path) -> None:

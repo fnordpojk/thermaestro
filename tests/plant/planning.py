@@ -11,6 +11,7 @@ from typing import Any
 
 from thermaestro.auth.permissions import ALL
 from thermaestro.core import AuditLog
+from thermaestro.core.events import Events
 from thermaestro.core.executor import COUNTED
 from thermaestro.core.house import House
 from thermaestro.core.sensors import SensorHub
@@ -95,7 +96,9 @@ async def planning(
         prices=given,
         learnings=learnings,
         weather=weather,
+        events=Events(sim.db),
     )
+    service.final = planner.final_report
 
     async def check() -> None:
         await tick()
