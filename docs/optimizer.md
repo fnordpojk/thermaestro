@@ -38,6 +38,16 @@ Every goal the household sets is soft, so a plan always exists and says what fal
 
 What each stage leaves short is shown on the Plan page, in its own unit: degree-hours below a band, degrees short at a deadline, kWh over a limit.
 
+## How each intent stands
+
+After each slot's plan, every intent it plans is judged against it, over the next day (further ahead, the forecast and the prices are guesses):
+
+- **at risk** where the plan expects a miss: a room planned more than 0.1 °C below its band for an hour or more, not counting the hours its heat needs to show (from when the band last rose, or from now), or the hot water planned more than 0.3 °C short at a deadline;
+- **giving way** where that miss is a higher goal's doing: the plan is solved once more with the short goal's stage ranked first, and if it is met then, the intent was giving way, to the stages above it that came out worse. A goal already ranked first can't give way: it is at risk;
+- otherwise **active**, as planned met.
+
+An intent is changed, and told as an event, only when its state or what it gives way to changes: the plan's figures move every slot. The house's own measurements give what is missed: a room below its band for over half an hour once its heat could show, the hot water below its floor, a bath not met by its latest. See [the Events page](setup.md#what-happened-the-events-page).
+
 ## From the plan to the settings
 
 The heating offset takes whole steps, and every change is a write. Over the next four hours, the optimizer picks the steps that come closest to the plan, half a step either side counting as on it, each change costing a step held wrong for an hour and a half, and no more changes than what is left of half the day's write budget, after the changes since midnight, spread over the hours left. With a room below its band now, the offset isn't lowered, and with one above it, it isn't raised, whatever the plan expects. A tank is charged with one extra charge where the plan charges it now for a hot-water deadline. For price, its own charges are held off while the plan charges it no sooner than an hour on, and let go once the plan charges it within the next slot (only with a cost stance and prices; otherwise the pump's own thermostat stands): a charge isn't started for price alone, so the rooms keep the compressor. Near its floor, every hold is let go, and below it a charge is started, whatever the plan. A pool's start temperature is set just above where it is when the plan heats it now. The addition is kept off where the plan doesn't use it, unless the household leaves it to the pump.

@@ -269,6 +269,12 @@ The system keeps at least one enabled user who can manage users: a change that w
 
 Every change through the API is in the audit log, with who made it and from which address, except one's own language and formats. Secrets' names may be in it, their values never.
 
+### Events
+
+| Method and path | Right | Answer |
+|---|---|---|
+| `GET /events?days=7` | `plan.read` | What is open, and what was over the last 1 to 90 days, oldest first: `[{key, kind, scope, audience, principal, text, message, args, raised, changed, cleared}]`. `key` names the condition (`floor.broken:pump:hp1/dhw`); `text` is what it says in English, `message` the same marked for translation with its values in `args`; `raised`, `changed` (what it says, last) and `cleared` are seconds since the epoch, `cleared` `null` while it lasts and the same as `raised` for a moment. Events of `audience` `technical` (floors, settings let go, plugins, device warnings) need `settings.read` as well; `household` ones (intents, rooms) don't. |
+
 ### Intents and levels
 
 What the household wants. A request is in household terms, one `kind` with only its own fields; the right it needs comes from the kind (above).
@@ -285,6 +291,8 @@ What the household wants. A request is in household terms, one `kind` with only 
 | `GET /levels` | `plan.read` | `[{id, name, scope, low, high, top}]` |
 | `PUT /levels/{id}` | `intent.levels.write` | `{"name": "Day", "scope": "pump:hp1/cs1", "low": 20.5, "high": 22}`, or a tank's `{"name": "Normal", "scope": "pump:hp1/dhw", "top": 50}` |
 | `DELETE /levels/{id}` | `intent.levels.write` | Refused while an intent names it |
+
+An intent's `state` is `received`, `rejected`, `scheduled`, `active`, `at_risk`, `giving_way`, `met`, `missed` or `finished`. `why` says what the state means here in English: why it was refused, what the plan expects it short by, what came of it. Where it was made from a message, `why_message` is that message, marked for translation, and `why_args` its values.
 
 The requests, each with what it takes besides `kind` (times are ISO 8601 with an offset; `days` 0 Monday to 6 Sunday; spans `{days, start, end}` in local times):
 

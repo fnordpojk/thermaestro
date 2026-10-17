@@ -295,6 +295,8 @@ Choose NibePi's `config.json` and **Read it**. The page shows what it would make
 
 Asking answers at once: until when it applies, what it sets aside, and what the house can't do ("no room sensor: normal heat, shifted by price within a bound instead of a band"). The household's group may ask for things for a while; changing what always applies needs more rights ([the rights](api.md#rights)).
 
+Where [the optimizer](optimizer.md) plans an intent, its state says how it stands in the plan: **at risk** where the plan expects a miss (a room below its band for an hour or more, once its heat has had time to show, or the hot water short at a deadline), **giving way** where the miss is a higher-ranked goal's doing, named ("Gives way to comfort: the plan has the hot water at 46 °C at 19:30, short of 50 °C"). An intent that has ended keeps what came of it: a bath missed says how warm the water was at its latest, and warmer, guests or away whether its rooms kept their band, and if not, for how many minutes they didn't.
+
 ## What Thermaestro decides: the Plan page
 
 **Plan** in the menu shows what the planner decided in its last round, for each setting: what it asked, why (in household terms, with what it serves: the hot water's floor, a ranked goal, or price), whether the optimizer decided it, and what became of it. Then:
@@ -304,6 +306,21 @@ Asking answers at once: until when it applies, what it sets aside, and what the 
 - The hot-water deadlines ahead with the cheapest time to charge for each, the house's power against its limit (the household's, or the grid company's where lower, with why), what shadow would have done, and every change asked in the last day.
 
 Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it plans.
+
+## What happened: the Events page
+
+**Events** in the menu lists what happened that you may want to know, as it stands now and over the last week. Each is raised once while it lasts and cleared when it ends:
+
+- an intent at risk, or giving way, in the plan;
+- a room below its band for over half an hour (the 30 minutes a band may be missed), once its heat has had time to show since the band last rose;
+- the hot water below its floor;
+- a climate system whose rooms have no fresh temperature, so its offset is the pump's own meanwhile;
+- a setting let go after a change Thermaestro didn't make;
+- every setting put back because the planner stopped answering;
+- a plugin, a device or a feed of prices or weather missing for over an hour, or asking for something;
+- a device's own warnings, such as the brine near the pump's alarm limit.
+
+The household sees its own: intents and rooms. Those who may read the settings (Administrators) see the house's workings too. Notifications for them come later, and will be sent only to those who turn them on.
 
 ## Users and groups
 
@@ -321,7 +338,7 @@ Each user's own page, under their name in the menu, has the language and formats
 THERMAESTRO_TOKEN=<token> thermaestro status --url http://<address>:8080
 ```
 
-The pages that show how things stand (the overview, the pump, prices, weather, intents, the plan and System → Health) keep themselves current: every minute while they are in view, and at once when you come back to them. A form being filled in isn't touched. A page left open still logs out after 12 hours unused.
+The pages that show how things stand (the overview, the pump, prices, weather, intents, the plan, events and System → Health) keep themselves current: every minute while they are in view, and at once when you come back to them. A form being filled in isn't touched. A page left open still logs out after 12 hours unused.
 
 **Wall displays.** For a screen that shows Thermaestro all the time, such as a tablet on the wall, the account page makes a display link (with the right `wall_displays.own`, which Administrators have). Give it a name and the rights it needs, usually just seeing the values and the plan. Open the link in that screen's browser within a day; it works once, and that browser then stays logged in, without a password typed on it, until you revoke the display on the account page or change your password. A display can't make changes that need a password.
 
@@ -329,4 +346,4 @@ The pages that show how things stand (the overview, the pump, prices, weather, i
 
 - **System → Health:** each plugin's state, restarts and health counters, and the HTTPS certificate's fingerprint.
 - **System → Audit log:** every change, and who made it. `thermaestro audit verify` checks the log's chain on the host.
-- The overview lists what needs attention.
+- The overview lists what needs attention, and **Events** what happened.
