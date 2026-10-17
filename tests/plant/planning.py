@@ -99,6 +99,7 @@ async def planning(
         events=Events(sim.db),
     )
     service.final = planner.final_report
+    service.answer = planner.answer
 
     async def check() -> None:
         await tick()

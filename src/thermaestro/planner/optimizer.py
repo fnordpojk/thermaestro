@@ -231,6 +231,20 @@ class Optimizer:
         self.last = Optimized(True, "", problem, found, mine, covered, notes, watched)
         return self.last
 
+    async def preview(self, sit: Situation, resolver: Resolver) -> Optimized:
+        """The plan as it would be now, kept nowhere: for an answer as something is asked.
+        What the plans an hour ago expected isn't checked off by it, nor the drift moved."""
+        try:
+            problem, covered, notes = await self.problem(sit, resolver, preview=True)
+        except Exception as e:
+            log.exception("the optimizer's problem couldn't be made")
+            return Optimized(False, f"{e}")
+        watched = self._watched
+        if not covered:
+            return Optimized(False, NOTHING, problem, notes=notes, watched=watched)
+        found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
+        return Optimized(found.ok, found.why, problem, found, notes=notes, watched=watched)
+
     async def between(self, sit: Situation) -> list[Decision]:
         """Between slots, only hot water: from the slot's plan, with what is seen now."""
         last = self.last
@@ -248,7 +262,7 @@ class Optimizer:
     # --- the problem -----------------------------------------------------------------------
 
     async def problem(
-        self, sit: Situation, resolver: Resolver
+        self, sit: Situation, resolver: Resolver, *, preview: bool = False
     ) -> tuple[Problem, frozenset[str], list[tuple[str, str]]]:
         t0 = sit.now.timestamp() // 900 * 900
         starts = [t0 + 900 * j for j in range(SLOTS)]
@@ -259,7 +273,7 @@ class Optimizer:
         units = self._units()
         systems = []
         for system in sorted(sit.caps.systems):
-            found, why = await self._system(sit, resolver, system, units, starts)
+            found, why = await self._system(sit, resolver, system, units, starts, preview)
             if found is None:
                 notes.append((system, why))
                 continue
@@ -470,6 +484,7 @@ class Optimizer:
         system: str,
         units: dict[str, dict[str, Any]],
         starts: list[float],
+        preview: bool = False,
     ) -> tuple[System | None, str]:
         lever = sit.levers.get(f"{system}/heating.offset")
         if lever is None:
@@ -505,7 +520,10 @@ class Optimizer:
             r.scope: await self._room_mean(r.scope, sit.now.timestamp(), r.temp) for r in rooms
         }
         mean = statistics.mean(temps.values())
-        drift = self._came_out(system, sit.now.timestamp(), mean)
+        if preview:
+            drift = self._drift.get(system, 0.0)
+        else:
+            drift = self._came_out(system, sit.now.timestamp(), mean)
         fit = Fit(
             float(model["alpha"]),
             float(model["beta"]),

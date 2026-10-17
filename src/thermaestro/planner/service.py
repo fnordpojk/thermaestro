@@ -43,7 +43,7 @@ from ..core.series import Series
 from ..core.values import Key, Values
 from ..core.weather import value_at
 from ..intents import Capabilities, Intent, Intents
-from ..intents.entry import RESPONSE_H
+from ..intents.entry import RESPONSE_H, Said
 from ..intents.resolve import Resolver
 from ..learn import Learned, Learnings, mark
 from ..learn.energy import charge_kw
@@ -54,7 +54,7 @@ from ..learn.pump import Response, lead
 from ..optimize import Problem
 from ..optimize import plan as solve
 from ..store import Control, Database, Location, PriceLayer, Transaction, Vat
-from . import rules
+from . import answers, rules
 from .assurance import Finding, judge
 from .model import (
     SLOT,
@@ -148,6 +148,8 @@ MISSED_WATER = mark("The hot water was %(top)s °C at its latest, short of %(lea
 KEPT_BAND = mark("Its rooms kept their band throughout")
 BELOW_BAND = mark("Its rooms were below their band for %(minutes)s minutes in all")
 COMFORT_KINDS = frozenset({"warmer", "guests", "away"})
+ANSWERED = frozenset({"bath", "hot_water_by", "warmer", "guests", "away", "comfort_band"})
+"""The kinds the optimizer's plan can answer for as they are asked."""
 
 
 class Planner:
@@ -172,6 +174,8 @@ class Planner:
         self._weather = weather
         self.events = events
         self._watch = Watch(events, executor, host) if events is not None else None
+        self._planning = asyncio.Lock()
+        """One plan at a time: a slot's, or one for an answer."""
         self._db = db
         self._learnings = learnings
         """Where what the planner observes is kept, so a restart keeps it; in memory only
@@ -303,7 +307,8 @@ class Planner:
         theirs: list[Decision] = []
         if slot:
             if self._resolver is not None:
-                optimized = await self.optimizer.run(sit, self._resolver)
+                async with self._planning:
+                    optimized = await self.optimizer.run(sit, self._resolver)
                 self.optimized = optimized
                 theirs = [] if hands_off else optimized.decisions
                 await self._assure(optimized, sit)
@@ -364,6 +369,21 @@ class Planner:
                 )
                 await self.events.clear(key)
                 await self.events.raise_(key, what)
+
+    async def answer(self, intent: Intent) -> list[Said]:
+        """What the optimizer's plan says of an intent just asked for, from a plan made
+        with it and kept nowhere: when it will be ready, or how short, and what gives way
+        for it."""
+        if self.optimizer is None or intent.kind not in ANSWERED:
+            return []
+        async with self._planning:
+            sit = await self.gather()
+            resolver = self._resolver
+            if resolver is None:
+                return []
+            preview = await self.optimizer.preview(sit, resolver)
+        others = {i.id: i for i in await self._intents.all()}
+        return answers.answer(intent, preview, self.optimized, others, sit.zone)
 
     async def final_report(self, intent: Intent, state: str) -> tuple[str, dict[str, Any]] | None:
         """What came of an intent as it ends: for a bath missed, how warm the hot water was

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:28+0200\n"
+"POT-Creation-Date: 2026-10-17 02:35+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -166,6 +166,10 @@ msgid "%(name_label)s (%(offset)s °C) (%(principal)s) is set aside meanwhile"
 msgstr "%(name_label)s (%(offset)s °C) (%(principal)s) wird so lange zurückgestellt"
 
 #, python-format
+msgid "%(name_label)s (%(offset)s °C) gives way for it"
+msgstr "%(name_label)s (%(offset)s °C) gibt dafür nach"
+
+#, python-format
 msgid "%(name_label)s (%(offset)s °C): until %(when)s"
 msgstr "%(name_label)s (%(offset)s °C): bis %(when)s"
 
@@ -180,6 +184,10 @@ msgstr "%(name_label)s (%(offset)s °C): bis zur nächsten Änderung, %(when)s"
 #, python-format
 msgid "%(name_label)s (%(principal)s) is set aside meanwhile"
 msgstr "%(name_label)s (%(principal)s) wird so lange zurückgestellt"
+
+#, python-format
+msgid "%(name_label)s gives way for it"
+msgstr "%(name_label)s gibt dafür nach"
 
 #, python-format
 msgid "%(name_label)s: until %(when)s"
@@ -236,6 +244,10 @@ msgstr "%(part)s: wärmer, bitte"
 #, python-format
 msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr "%(room)s liegt seit über einer halben Stunde unter seinen %(low)s °C"
+
+#, python-format
+msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
+msgstr "%(room)s erreicht bis %(time)s %(temp)s °C, nicht %(low)s °C"
 
 #, python-format
 msgid "%(seen)s of %(least)s charges or hours seen to learn from."
@@ -1460,6 +1472,10 @@ msgstr "Wünsche"
 msgid "Intents in force"
 msgstr "Geltende Wünsche"
 
+#, python-format
+msgid "It can't be made within two days: at most %(temp)s °C"
+msgstr "Es ist innerhalb von zwei Tagen nicht zu schaffen: höchstens %(temp)s °C"
+
 msgid "Its own control"
 msgstr "Eigene Regelung"
 
@@ -2360,6 +2376,10 @@ msgid "Reading the pump: %(done)s of %(total)s."
 msgstr "Lese die Pumpe: %(done)s von %(total)s."
 
 #, python-format
+msgid "Ready about %(minutes)s minutes late, at %(later)s; or %(temp)s °C at %(time)s"
+msgstr "Etwa %(minutes)s Minuten zu spät fertig, um %(later)s; oder %(temp)s °C um %(time)s"
+
+#, python-format
 msgid "Recorded for %(span)s; a day is needed."
 msgstr "Aufgezeichnet seit %(span)s; ein Tag ist nötig."
 
@@ -2872,9 +2892,16 @@ msgstr "Der Plan voraus"
 msgid "The plan could not be loaded."
 msgstr "Der Plan konnte nicht geladen werden."
 
+msgid "The plan firms up when tomorrow's prices are published"
+msgstr "Der Plan wird sicherer, wenn die Preise für morgen veröffentlicht sind"
+
 #, python-format
 msgid "The plan has %(room)s at %(temp)s °C at %(time)s, below its %(low)s °C"
 msgstr "Der Plan hat %(room)s um %(time)s bei %(temp)s °C, unter seinen %(low)s °C"
+
+#, python-format
+msgid "The plan has it ready by %(time)s"
+msgstr "Der Plan hat es bis %(time)s fertig"
 
 #, python-format
 msgid "The plan has the hot water at %(temp)s °C at %(time)s, short of %(least)s °C"

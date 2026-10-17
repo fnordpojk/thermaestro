@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-17 02:28+0200\n"
+"POT-Creation-Date: 2026-10-17 02:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -168,6 +168,10 @@ msgid "%(name_label)s (%(offset)s °C) (%(principal)s) is set aside meanwhile"
 msgstr ""
 
 #, python-format
+msgid "%(name_label)s (%(offset)s °C) gives way for it"
+msgstr ""
+
+#, python-format
 msgid "%(name_label)s (%(offset)s °C): until %(when)s"
 msgstr ""
 
@@ -181,6 +185,10 @@ msgstr ""
 
 #, python-format
 msgid "%(name_label)s (%(principal)s) is set aside meanwhile"
+msgstr ""
+
+#, python-format
+msgid "%(name_label)s gives way for it"
 msgstr ""
 
 #, python-format
@@ -237,6 +245,10 @@ msgstr ""
 
 #, python-format
 msgid "%(room)s has been below its %(low)s °C for over half an hour"
+msgstr ""
+
+#, python-format
+msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
 msgstr ""
 
 #, python-format
@@ -1368,6 +1380,10 @@ msgstr ""
 msgid "Intents in force"
 msgstr ""
 
+#, python-format
+msgid "It can't be made within two days: at most %(temp)s °C"
+msgstr ""
+
 msgid "Its own control"
 msgstr ""
 
@@ -2212,6 +2228,12 @@ msgid "Reading the pump: %(done)s of %(total)s."
 msgstr ""
 
 #, python-format
+msgid ""
+"Ready about %(minutes)s minutes late, at %(later)s; or %(temp)s °C at "
+"%(time)s"
+msgstr ""
+
+#, python-format
 msgid "Recorded for %(span)s; a day is needed."
 msgstr ""
 
@@ -2691,8 +2713,15 @@ msgstr ""
 msgid "The plan could not be loaded."
 msgstr ""
 
+msgid "The plan firms up when tomorrow's prices are published"
+msgstr ""
+
 #, python-format
 msgid "The plan has %(room)s at %(temp)s °C at %(time)s, below its %(low)s °C"
+msgstr ""
+
+#, python-format
+msgid "The plan has it ready by %(time)s"
 msgstr ""
 
 #, python-format

@@ -130,6 +130,7 @@ async def run(
             events=events,
         )
         intents.final = planner.final_report
+        intents.answer = planner.answer
         core = Core(
             layout,
             startup,

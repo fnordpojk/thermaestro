@@ -196,7 +196,7 @@ def check(
     after = resolver.in_force(at).paused
     for other in others:
         if other.id in after and other.id not in before:
-            name = _name(other)
+            name = named(other)
             asked = {**name, "principal": other.principal}
             messages.append(say(SET_ASIDE_OFFSET if "offset" in name else SET_ASIDE, **asked))
     if intent.kind == "warmer":
@@ -311,7 +311,7 @@ def _until(intent: Intent, resolver: Resolver, calendar: Calendar) -> Said | Non
     if end is None:
         return None
     when = f"{calendar.local(end):%Y-%m-%d %H:%M}"
-    name = _name(intent)
+    name = named(intent)
     with_offset = "offset" in name
     if intent.validity.ends == "when_met":
         said = UNTIL_DONE_OFFSET if with_offset else UNTIL_DONE
@@ -322,7 +322,7 @@ def _until(intent: Intent, resolver: Resolver, calendar: Calendar) -> Said | Non
     return say(said, **name, when=when)
 
 
-def _name(intent: Intent) -> dict[str, JsonValue]:
+def named(intent: Intent) -> dict[str, JsonValue]:
     """An intent's name in an answer: its label, and for warmer or cooler its offset."""
     if intent.kind == "warmer":
         offset = intent.parameters.get("offset")

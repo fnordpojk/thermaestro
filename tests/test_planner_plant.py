@@ -50,6 +50,8 @@ BOTH = [
 PLANNED: dict[Path, list[tuple[str, int]]] = {}
 """Per run, by its path: which planner made each decision kept, and whether it drove."""
 OUTCOMES: dict[Path, list[str]] = {}
+PLANNED_SERVICES: dict[Path, Intents] = {}
+"""Per run's sim path: its intents, for a test to ask for more while it runs."""
 """Per run's sim path: each slot's optimizer outcome, and what it left to the rules."""
 
 
@@ -129,7 +131,8 @@ def simulated(
                 weather = PlantWeather(s, truth=hindsight)
             async with planning(
                 sim, intents, LEVELS, prices, rooms=rooms, learnings=learnings, weather=weather
-            ):
+            ) as planned:
+                PLANNED_SERVICES[sim.path] = planned.intents
                 if during is not None:
                     await during(sim)
                 await sim.run(days - (clock.time() - s.start_time.timestamp()) / DAY_S)
@@ -357,6 +360,27 @@ def test_a_bath_too_hot_to_make_is_at_risk_then_missed(tmp_path: Path) -> None:
     assert told
     assert told[0].kind in ("intent.at_risk", "intent.giving_way")
     assert told[0].principal == "user:test"
+
+
+def test_a_request_is_answered_from_the_plan(tmp_path: Path) -> None:
+    """Asked for with the optimizer planning, a bath is answered by a plan made with it:
+    ready by its time, or how late, or how warm instead."""
+    s = draw(3, emitter="radiators")
+    answers: list[str] = []
+
+    async def ask(sim: Sim) -> None:
+        await sim.run(0.1)
+        now = clock.now()
+        made = {"principal": "user:test", "created": now}
+        bath = kinds.bath(TANK, 50.0, now + timedelta(hours=6), **made)  # type: ignore[arg-type]
+        found = PLANNED_SERVICES[sim.path]
+        verdict = await found.create(bath, granted=frozenset({"*"}))
+        assert verdict.accepted
+        answers.extend(verdict.messages)
+
+    simulated(tmp_path, s, 0.2, optimizer=True, during=ask)
+    planned = [m for m in answers if m.startswith(("The plan has", "Ready about", "It can't"))]
+    assert planned, answers
 
 
 def test_shadow_decides_as_the_optimizer_in_control(tmp_path: Path) -> None:

@@ -46,6 +46,8 @@ After each slot's plan, every intent it plans is judged against it, over the nex
 - **giving way** where that miss is a higher goal's doing: the plan is solved once more with the short goal's stage ranked first, and if it is met then, the intent was giving way, to the stages above it that came out worse. A goal already ranked first can't give way: it is at risk;
 - otherwise **active**, as planned met.
 
+As something is asked for, the optimizer makes a plan with it, kept nowhere (it doesn't change the slot's plan, or how its predictions are checked), and the answer says what that plan makes of it: ready by its time; about how many minutes late and how warm the water would be at its time instead, the two choices there are; or not within two days. How late comes from the tank's own model charged from now, since a plan stops charging for a deadline once it has passed; where the tank could make it in time and the plan doesn't, something ranked above it comes first, and the answer says it is short. A room that won't reach its band is named with how warm it will be and by when, another request that would give way for it is named, and where the deadline lies past the published prices, the plan firms up once tomorrow's are out.
+
 An intent is changed, and told as an event, only when its state or what it gives way to changes: the plan's figures move every slot. The house's own measurements give what is missed: a room below its band for over half an hour once its heat could show, the hot water below its floor, a bath not met by its latest. See [the Events page](setup.md#what-happened-the-events-page).
 
 ## From the plan to the settings

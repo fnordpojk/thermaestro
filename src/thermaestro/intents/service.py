@@ -4,7 +4,9 @@ Rights decide who may ask for what (the kind, and for the cost stance, which par
 they don't decide what wins. Every change is in the audit log.
 """
 
+import logging
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -14,10 +16,12 @@ from .. import clock
 from ..auth.permissions import allows
 from ..store import Database, Home, Location, Transaction
 from .calendar import Calendar
-from .entry import Capabilities, Verdict, check
+from .entry import Capabilities, Said, Verdict, check
 from .model import OPEN, Intent, Level, State
 from .resolve import InForce, Resolver
 from .seed import SEED, Found, seed
+
+log = logging.getLogger(__name__)
 
 
 class Audit(Protocol):
@@ -69,6 +73,8 @@ def rights_for(intent: Intent, previous: Intent | None = None) -> set[str]:
     return {"intent.standing.write"}
 
 
+Answer = Callable[[Intent], Awaitable[list[Said]]]
+"""More of the answer to an intent just kept: what the plan says of it."""
 Final = Callable[[Intent, State], Awaitable[tuple[str, dict[str, JsonValue]] | None]]
 """An intent's final report as it ends, as it will be: a message marked for translation and
 its values; None for none."""
@@ -87,6 +93,8 @@ class Intents:
         self._capabilities = capabilities
         self.final: Final | None = None
         """Gives an intent's final report as it ends: what came of it."""
+        self.answer: Answer | None = None
+        """Gives more of the answer to an intent just kept: what the plan says of it."""
 
     # --- reading ---------------------------------------------------------------------------
 
@@ -153,6 +161,7 @@ class Intents:
         )
         if verdict.accepted:
             await self._db.run(lambda t: _store(t, verdict.intent, now))
+            verdict = await self._answered(verdict)
         await self._audit.record(
             intent.principal,
             "intent.create",
@@ -198,6 +207,7 @@ class Intents:
         )
         if verdict.accepted:
             await self._db.run(lambda t: _store(t, verdict.intent, now))
+            verdict = await self._answered(verdict)
         await self._audit.record(
             who,
             "intent.edit",
@@ -212,6 +222,18 @@ class Intents:
             },
         )
         return verdict
+
+    async def _answered(self, verdict: Verdict) -> Verdict:
+        """The verdict with what the plan says of the intent, where something can say it; a
+        failing answer leaves the verdict as it was, the intent kept."""
+        if self.answer is None:
+            return verdict
+        try:
+            more = await self.answer(verdict.intent)
+        except Exception:
+            log.exception("the plan's answer to %s couldn't be made", verdict.intent.id)
+            return verdict
+        return replace(verdict, said=(*verdict.said, *more))
 
     async def end(
         self, id: str, *, who: str, granted: frozenset[str], why: str | None = None

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:28+0200\n"
+"POT-Creation-Date: 2026-10-17 02:35+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -166,6 +166,10 @@ msgid "%(name_label)s (%(offset)s °C) (%(principal)s) is set aside meanwhile"
 msgstr "%(name_label)s (%(offset)s °C) (%(principal)s) läggs åt sidan så länge"
 
 #, python-format
+msgid "%(name_label)s (%(offset)s °C) gives way for it"
+msgstr "%(name_label)s (%(offset)s °C) ger vika för det"
+
+#, python-format
 msgid "%(name_label)s (%(offset)s °C): until %(when)s"
 msgstr "%(name_label)s (%(offset)s °C): till %(when)s"
 
@@ -180,6 +184,10 @@ msgstr "%(name_label)s (%(offset)s °C): till nästa ändring, %(when)s"
 #, python-format
 msgid "%(name_label)s (%(principal)s) is set aside meanwhile"
 msgstr "%(name_label)s (%(principal)s) läggs åt sidan så länge"
+
+#, python-format
+msgid "%(name_label)s gives way for it"
+msgstr "%(name_label)s ger vika för det"
 
 #, python-format
 msgid "%(name_label)s: until %(when)s"
@@ -236,6 +244,10 @@ msgstr "%(part)s: varmare, tack"
 #, python-format
 msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr "%(room)s har varit under sina %(low)s °C i mer än en halvtimme"
+
+#, python-format
+msgid "%(room)s will reach %(temp)s °C, not %(low)s °C, by %(time)s"
+msgstr "%(room)s når %(temp)s °C, inte %(low)s °C, till kl. %(time)s"
 
 #, python-format
 msgid "%(seen)s of %(least)s charges or hours seen to learn from."
@@ -1438,6 +1450,10 @@ msgstr "Önskemål"
 msgid "Intents in force"
 msgstr "Önskemål som gäller"
 
+#, python-format
+msgid "It can't be made within two days: at most %(temp)s °C"
+msgstr "Det går inte att få klart inom två dygn: högst %(temp)s °C"
+
 msgid "Its own control"
 msgstr "Egen styrning"
 
@@ -2317,6 +2333,12 @@ msgid "Reading the pump: %(done)s of %(total)s."
 msgstr "Läser pumpen: %(done)s av %(total)s."
 
 #, python-format
+msgid "Ready about %(minutes)s minutes late, at %(later)s; or %(temp)s °C at %(time)s"
+msgstr ""
+"Klart ungefär %(minutes)s minuter för sent, kl. %(later)s; eller %(temp)s °C kl. "
+"%(time)s"
+
+#, python-format
 msgid "Recorded for %(span)s; a day is needed."
 msgstr "Registrerat i %(span)s; ett dygn behövs."
 
@@ -2824,9 +2846,16 @@ msgstr "Planen framåt"
 msgid "The plan could not be loaded."
 msgstr "Planen kunde inte läsas in."
 
+msgid "The plan firms up when tomorrow's prices are published"
+msgstr "Planen blir säkrare när morgondagens priser publiceras"
+
 #, python-format
 msgid "The plan has %(room)s at %(temp)s °C at %(time)s, below its %(low)s °C"
 msgstr "Planen har %(room)s på %(temp)s °C kl. %(time)s, under sina %(low)s °C"
+
+#, python-format
+msgid "The plan has it ready by %(time)s"
+msgstr "Planen har det klart till %(time)s"
 
 #, python-format
 msgid "The plan has the hot water at %(temp)s °C at %(time)s, short of %(least)s °C"
