@@ -7,7 +7,14 @@ same `id`.
 
 from typing import Annotated, Literal, Self
 
-from pydantic import AwareDatetime, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import (
+    AwareDatetime,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    TypeAdapter,
+    model_validator,
+)
 
 from .model import (
     Envelope,
@@ -25,13 +32,14 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.4"
+VERSION = "0.5"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
 `SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
 one of the device's own settings, which a plugin offers with the `write` feature. 0.4
-added a node's `rating`, what its maker documents about it. Older peers still talk to
-newer ones."""
-FEATURES = ("subscribe", "forecast", "write")
+added a node's `rating`, what its maker documents about it. 0.5 added `notify.targets` and
+`notify`, a notification for a person, which a plugin offers with the `notify` feature.
+Older peers still talk to newer ones."""
+FEATURES = ("subscribe", "forecast", "write", "notify")
 """What this side of the protocol understands."""
 
 RequestId = Annotated[int, Field(ge=0)]
@@ -163,6 +171,51 @@ class Fate(Model):
     detail: str | None = None
 
 
+TargetId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_.-]{1,128}$")]
+
+
+class NotifyTargets(Model):
+    """Where the plugin can send a notification (protocol 0.5, the `notify` feature).
+    Answered with `notify.list`."""
+
+    type: Literal["notify.targets"] = "notify.targets"
+    id: RequestId
+
+
+class Target(Model):
+    id: TargetId
+    name: str | None = None
+    """What the device or service calls it, where it says."""
+
+
+class NotifyList(Model):
+    type: Literal["notify.list"] = "notify.list"
+    id: RequestId
+    targets: tuple[Target, ...]
+
+
+class Notify(Model):
+    """A notification for a person, to one of the targets the plugin listed (protocol 0.5,
+    the `notify` feature). Answered with `notified`. The core sends it only for a person
+    who turned notifications on, never on its own account."""
+
+    type: Literal["notify"] = "notify"
+    id: RequestId
+    target: TargetId
+    title: Annotated[str, StringConstraints(max_length=200)]
+    message: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+
+
+class Notified(Model):
+    """Whether the notification was handed on; not whether anyone read it."""
+
+    type: Literal["notified"] = "notified"
+    id: RequestId
+    ok: bool
+    detail: str | None = None
+    """Why not, where it wasn't."""
+
+
 class Health(Model):
     type: Literal["health"] = "health"
     t: AwareDatetime
@@ -277,6 +330,10 @@ Message = Annotated[
     | Act
     | Write
     | Fate
+    | NotifyTargets
+    | NotifyList
+    | Notify
+    | Notified
     | Health
     | DeviceEvent
     | ForeignWrite
@@ -302,6 +359,8 @@ TO_PLUGIN = frozenset(
         "unsubscribe",
         "act",
         "write",
+        "notify.targets",
+        "notify",
         "series.get",
         "series.subscribe",
         "rules.get",
@@ -314,6 +373,8 @@ TO_CORE = frozenset(
         "values",
         "update",
         "fate",
+        "notify.list",
+        "notified",
         "health",
         "device_event",
         "foreign_write",

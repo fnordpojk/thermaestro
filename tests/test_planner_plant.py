@@ -363,6 +363,10 @@ def test_a_bath_too_hot_to_make_is_at_risk_then_missed(tmp_path: Path) -> None:
     assert told
     assert told[0].kind in ("intent.at_risk", "intent.giving_way")
     assert told[0].principal == "user:test"
+    assert all(e.cleared is not None for e in told)  # over once the bath was
+    [missed] = [e for e in events if e.key == f"intent.missed:{found.id}"]
+    assert missed.principal == "user:test"
+    assert missed.text().startswith("Bath was missed: the hot water was ")
 
 
 def test_a_request_is_answered_from_the_plan(tmp_path: Path) -> None:

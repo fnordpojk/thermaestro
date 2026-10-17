@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from ..auth import PERMISSIONS, AccountError, LoginFailed
 from . import i18n, labels
 from .app import action, anonymous, caller, identify, local_path, services
+from .notifications import CHANNELS, LABELS
 from .operations import Caller, NeedsConfirmation
 from .security import (
     PRE_SESSION_COOKIE,
@@ -603,6 +604,9 @@ async def _account(request: Request, who: Caller, status_code: int = 200, **extr
         sessions=await s.sessions(who),
         current=who.session.id if who.session else None,
         rights=own_rights,
+        notify=await s.notifications(who),
+        conditions=LABELS,
+        channels=CHANNELS,
         **extra,
     )
 
@@ -636,6 +640,33 @@ async def set_preferences(
     except AccountError as e:
         return await _account(request, who, 400, error=_message(e))
     return back("/account#formats")
+
+
+@router.post("/account/notifications")
+@action("notifications.write")
+async def set_notifications(
+    request: Request, who: Logged, target: Text = "", mqtt: Text = ""
+) -> Response:
+    conditions = [c for c in (await request.form()).getlist("conditions") if isinstance(c, str)]
+    instance, _, chosen = target.partition("/")
+    body: dict[str, Any] = {"conditions": conditions, "mqtt": bool(mqtt)}
+    if chosen:
+        body["home_assistant"] = {"instance": instance, "target": chosen}
+    try:
+        await services(request).set_notifications(who, body)
+    except AccountError as e:
+        return await _account(request, who, 400, error=_message(e))
+    return back("/account#notifications")
+
+
+@router.post("/account/notifications/test")
+@action("notifications.test")
+async def test_notification(request: Request, who: Logged) -> Response:
+    try:
+        tested = await services(request).test_notification(who)
+    except AccountError as e:
+        return await _account(request, who, 400, error=_message(e))
+    return await _account(request, who, tested=tested)
 
 
 @router.post("/account/tokens")

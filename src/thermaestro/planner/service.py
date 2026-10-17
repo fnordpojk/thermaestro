@@ -43,7 +43,7 @@ from ..core.series import Series
 from ..core.values import Key, Values
 from ..core.weather import value_at
 from ..intents import Capabilities, Intent, Intents
-from ..intents.entry import RESPONSE_H, Said
+from ..intents.entry import RESPONSE_H, Said, named
 from ..intents.resolve import Resolver
 from ..learn import Learned, Learnings, mark
 from ..learn.energy import charge_kw
@@ -148,6 +148,10 @@ class _Effect:
 MISSED_WATER = mark("The hot water was %(top)s °C at its latest, short of %(least)s °C")
 KEPT_BAND = mark("Its rooms kept their band throughout")
 BELOW_BAND = mark("Its rooms were below their band for %(minutes)s minutes in all")
+INTENT_MISSED = mark("%(name_label)s was missed")
+INTENT_MISSED_WATER = mark(
+    "%(name_label)s was missed: the hot water was %(top)s °C at its latest, short of %(least)s °C"
+)
 COMFORT_KINDS = frozenset({"warmer", "guests", "away"})
 ANSWERED = frozenset({"bath", "hot_water_by", "warmer", "guests", "away", "comfort_band"})
 """The kinds the optimizer's plan can answer for as they are asked."""
@@ -384,6 +388,13 @@ class Planner:
                 )
                 await self.events.clear(key)
                 await self.events.raise_(key, what)
+        if self.events is not None:
+            # However an intent ended (its time, met, or ended by someone), what was told of
+            # it in the plan is over.
+            still = {f"intent.state:{i.id}" for i in await self._intents.all()}
+            for event in await self.events.open("intent.state:"):
+                if event.key not in still:
+                    await self.events.clear(event.key)
 
     async def answer(self, intent: Intent) -> list[Said]:
         """What the optimizer's plan says of an intent just asked for, from a plan made
@@ -404,7 +415,23 @@ class Planner:
         """What came of an intent as it ends: for a bath missed, how warm the hot water was
         against what it asked; for a temporary comfort intent, whether its rooms kept their
         band, and if not, for how long they didn't (a miss counts from its start, half an
-        hour before it is raised)."""
+        hour before it is raised). One missed is told as an event too."""
+        report = await self._final(intent, state)
+        if state == "missed" and self.events is not None:
+            args: dict[str, Any] = {**named(intent), **(report[1] if report else {})}
+            water = report is not None and report[0] == MISSED_WATER
+            what = Raise(
+                "intent.missed",
+                intent.scope,
+                INTENT_MISSED_WATER if water else INTENT_MISSED,
+                args,
+                audience="household",
+                principal=intent.principal,
+            )
+            await self.events.moment(f"intent.missed:{intent.id}", what)
+        return report
+
+    async def _final(self, intent: Intent, state: str) -> tuple[str, dict[str, Any]] | None:
         sit = self.situation
         if sit is None:
             return None

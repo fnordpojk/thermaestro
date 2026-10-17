@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 03:01+0200\n"
+"POT-Creation-Date: 2026-10-17 03:32+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -196,6 +196,16 @@ msgstr "%(name_label)s (%(principal)s) läggs åt sidan så länge"
 #, python-format
 msgid "%(name_label)s gives way for it"
 msgstr "%(name_label)s ger vika för det"
+
+#, python-format
+msgid "%(name_label)s was missed"
+msgstr "%(name_label)s missades"
+
+#, python-format
+msgid ""
+"%(name_label)s was missed: the hot water was %(top)s °C at its latest, short of "
+"%(least)s °C"
+msgstr "%(name_label)s missades: varmvattnet var %(top)s °C som senast, under %(least)s °C"
 
 #, python-format
 msgid "%(name_label)s: until %(when)s"
@@ -409,6 +419,9 @@ msgstr "Egen brunn"
 msgid "A public holiday counts as"
 msgstr "En helgdag räknas som"
 
+msgid "A room below its band"
+msgstr "Ett rum under sitt intervall"
+
 msgid ""
 "A room is suggested from the entity's area: the room of that name, or a new room made"
 " from the area."
@@ -442,6 +455,9 @@ msgstr ""
 "En enkel termostat stänger av rummet vid sin egen inställning. Där Thermaestro styr "
 "rummet, vrid upp termostaten till högsta läget, så att den inte stänger rummet innan "
 "Thermaestros intervall är nått."
+
+msgid "A test notification: this is where Thermaestro's notifications reach you."
+msgstr "En testavisering: här når Thermaestros aviseringar dig."
 
 msgid ""
 "A token lets a script or the command line use the API. It carries only the rights you"
@@ -1099,6 +1115,9 @@ msgstr "Varje inställning bredvid sin fabriksinställning"
 msgid "Everyday"
 msgstr "Vardagliga"
 
+msgid "Everyone's requests"
+msgstr "Allas önskemål"
+
 msgid "Everything was met."
 msgstr "Allt uppfylldes."
 
@@ -1702,6 +1721,9 @@ msgstr "Kommunalt vatten"
 msgid "Must be met."
 msgstr "Måste uppfyllas."
 
+msgid "My requests: at risk, giving way or missed"
+msgstr "Mina önskemål: i fara, ger vika eller missade"
+
 msgid "Name"
 msgstr "Namn"
 
@@ -1824,6 +1846,13 @@ msgstr "NibePis vv_ai_profile.json"
 #, python-format
 msgid "Nine times in ten over the last %(days)s days, the bias taken off."
 msgstr "Nio gånger av tio under de senaste %(days)s dygnen, med snedvridningen borttagen."
+
+msgid ""
+"No Home Assistant offers a notification target yet. With Home Assistant set up under "
+"System, its phone app's targets are listed here."
+msgstr ""
+"Ingen Home Assistant erbjuder ännu något mål för aviseringar. När Home Assistant är "
+"inställt under System listas mobilappens mål här."
 
 msgid "No administrator exists yet."
 msgstr "Det finns ingen administratör än."
@@ -1978,6 +2007,9 @@ msgstr "Inte angivet"
 msgid "Not seen enough yet"
 msgstr "Inte sett tillräckligt än"
 
+msgid "Not sent, the last week"
+msgstr "Inte skickade, senaste veckan"
+
 msgid "Not usable on this pump"
 msgstr "Inte användbar på den här pumpen"
 
@@ -2001,6 +2033,16 @@ msgstr "Inget under den här perioden."
 
 msgid "Nothing is connected yet."
 msgstr "Inget är anslutet än."
+
+#, python-format
+msgid ""
+"Nothing is sent to you until you turn it on here. Each is sent as it happens, again "
+"if what it says changes, and once more when it is over; at most %(limit)s an hour, "
+"the rest on the Events page."
+msgstr ""
+"Inget skickas till dig förrän du slår på det här. Varje avisering skickas när det "
+"händer, igen om det den säger ändras, och en gång till när det är över; högst "
+"%(limit)s i timmen, resten på sidan Händelser."
 
 msgid "Nothing recorded in the last week."
 msgstr "Inget registrerat under den senaste veckan."
@@ -2026,6 +2068,9 @@ msgstr "Inget än: en leverantör visas här när den har skickat sin första pr
 
 msgid "Nothing yet: the pump runs on its own settings."
 msgstr "Inget än: pumpen går på sina egna inställningar."
+
+msgid "Notifications"
+msgstr "Aviseringar"
 
 msgid "Now"
 msgstr "Nu"
@@ -2151,6 +2196,10 @@ msgstr "Utetemperatur, medel"
 
 msgid "Outdoors"
 msgstr "Utomhus"
+
+#, python-format
+msgid "Over: %(what)s"
+msgstr "Över: %(what)s"
 
 msgid "Overview"
 msgstr "Översikt"
@@ -2467,6 +2516,9 @@ msgstr "Säkerhetstoken"
 msgid "Send"
 msgstr "Skicka"
 
+msgid "Send a test"
+msgstr "Skicka ett test"
+
 msgid "Sensor"
 msgstr "Givare"
 
@@ -2707,6 +2759,9 @@ msgstr "Kompressorn sågs inte gå under den senaste veckan."
 msgid "The compressor wasn't seen standing in the last week."
 msgstr "Kompressorn sågs inte stå still under den senaste veckan."
 
+msgid "The daily summary"
+msgstr "Den dagliga sammanfattningen"
+
 #, python-format
 msgid "The day before, %(day)s"
 msgstr "Föregående dag, %(day)s"
@@ -2791,6 +2846,9 @@ msgstr "Huset högst, kW"
 #, python-format
 msgid "The house now: %(now)s kW, of at most %(limit)s kW."
 msgstr "Huset nu: %(now)s kW, av högst %(limit)s kW."
+
+msgid "The house's workings: floors, settings let go, plugins, warnings"
+msgstr "Husets maskineri: lägsta temperaturer, släppta inställningar, tillägg, varningar"
 
 msgid ""
 "The household's own named settings, used by name: changing one changes every intent "
@@ -3098,6 +3156,12 @@ msgstr "Tider anges i husets tidszon."
 
 msgid "To"
 msgstr "Till"
+
+msgid "To Home Assistant"
+msgstr "Till Home Assistant"
+
+msgid "To MQTT"
+msgstr "Till MQTT"
 
 msgid "To, °C"
 msgstr "Till, °C"
@@ -3712,6 +3776,10 @@ msgstr "extra varmvatten"
 msgid "failed"
 msgstr "misslyckades"
 
+#, python-format
+msgid "failed: %(why)s"
+msgstr "misslyckades: %(why)s"
+
 msgid "fallback"
 msgstr "reserv"
 
@@ -3778,6 +3846,9 @@ msgstr "värme"
 
 msgid "held"
 msgstr "håller"
+
+msgid "held back by the limit"
+msgstr "hölls tillbaka av gränsen"
 
 msgid "held now"
 msgstr "hålls nu"
@@ -3914,6 +3985,9 @@ msgstr "mm per timme"
 msgid "must be ready"
 msgstr "måste vara klart"
 
+msgid "needs Home Assistant discovery over MQTT switched on"
+msgstr "kräver att upptäckt i Home Assistant över MQTT är påslagen"
+
 msgid "neither its block nor its boost is a lever in use"
 msgstr "varken dess spärr eller dess extra laddning är en inställning i bruk"
 
@@ -3999,6 +4073,9 @@ msgstr "inget eget"
 
 msgid "nothing yet"
 msgstr "inget ännu"
+
+msgid "nowhere"
+msgstr "ingenstans"
 
 msgid "off"
 msgstr "av"
@@ -4127,6 +4204,9 @@ msgstr "sett i dess svar"
 
 msgid "seen in running"
 msgstr "sett under drift"
+
+msgid "sent"
+msgstr "skickad"
 
 msgid "sent; it can't be checked"
 msgstr "skickad; den kan inte kontrolleras"

@@ -317,5 +317,34 @@ async def test_it_conforms(tmp_path: Path) -> None:
             await asyncio.gather(served, return_exceptions=True)
 
 
+async def test_notifications_to_a_target_it_offers(tmp_path: Path) -> None:
+    fake = stocked()
+    async with running(fake) as url, plugin(url, await secrets(tmp_path)) as (_, link):
+        listed = await link.notify_targets(timeout=5)
+        assert [(t.id, t.name) for t in listed.targets] == [
+            ("mobile_app_pixel_8", "Send a notification via Pixel 8")
+        ]
+        sent = await link.notify(
+            "mobile_app_pixel_8", "Thermaestro", "The bath is ready", timeout=5
+        )
+        assert sent.ok
+        [call] = fake.called
+        assert (call["domain"], call["service"]) == ("notify", "mobile_app_pixel_8")
+        assert call["service_data"] == {"title": "Thermaestro", "message": "The bath is ready"}
+        # Nothing but a notify service it listed is called.
+        refused = await link.notify("send_message", "", "hello", timeout=5)
+        assert not refused.ok
+        assert refused.detail == "Home Assistant has no notify.send_message"
+        assert len(fake.called) == 1
+
+
+async def test_a_notification_failing_says_why(tmp_path: Path) -> None:
+    fake = stocked()
+    async with running(fake) as url, plugin(url, await secrets(tmp_path, "stale")) as (_, link):
+        sent = await link.notify("mobile_app_pixel_8", "", "The bath is ready", timeout=5)
+        assert not sent.ok
+        assert sent.detail is not None
+
+
 def test_the_entry_point_is_registered() -> None:
     assert "homeassistant" in discover()

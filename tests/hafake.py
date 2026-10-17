@@ -1,6 +1,7 @@
 """A small stand-in for Home Assistant's WebSocket API: login, `get_states`, the three
 registries, `subscribe_entities` with the compressed state format,
-`weather/subscribe_forecast`, and ways to send changes. Only what the plugin uses."""
+`weather/subscribe_forecast`, `get_services` and `call_service` for notify, and ways to
+send changes. Only what the plugin uses."""
 
 import time
 from collections.abc import AsyncIterator
@@ -11,6 +12,7 @@ from aiohttp import WSMsgType, web
 from aiohttp.test_utils import TestServer
 
 TOKEN = "good-token"
+NOTIFY = "notify"
 
 
 class FakeHomeAssistant:
@@ -25,6 +27,10 @@ class FakeHomeAssistant:
         self.forecasts: dict[str, list[dict[str, Any]]] = {}
         """An hourly forecast per weather entity, in the entity's units."""
         self.forecast_subscribers: list[tuple[web.WebSocketResponse, int, str]] = []
+        self.notify = {"mobile_app_pixel_8": "Send a notification via Pixel 8"}
+        """The notify services offered, besides `send_message`."""
+        self.called: list[dict[str, Any]] = []
+        """Every service called."""
 
     async def new_forecast(self, entity: str, forecast: list[dict[str, Any]]) -> None:
         self.forecasts[entity] = forecast
@@ -97,6 +103,16 @@ class FakeHomeAssistant:
             added = {e: s for e, s in self.states.items() if e in entities}
             await ws.send_json({"id": id, "type": "event", "event": {"a": added}})
             return
+        elif kind == "get_services":
+            offered = {s: {"name": n, "fields": {}} for s, n in self.notify.items()}
+            result = {NOTIFY: {**offered, "send_message": {"name": "Send a notification message"}}}
+        elif kind == "call_service":
+            self.called.append(command)
+            if command["domain"] != NOTIFY or command["service"] not in self.notify:
+                error = {"code": "not_found", "message": "Service not found."}
+                await ws.send_json({"id": id, "type": "result", "success": False, "error": error})
+                return
+            result = {"context": {"id": "01J"}}
         elif kind == "weather/subscribe_forecast":
             entity = command["entity_id"]
             if entity not in self.forecasts:

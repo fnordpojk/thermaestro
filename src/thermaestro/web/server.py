@@ -21,6 +21,7 @@ from ..store import StoreError
 from . import certificate
 from .app import create_app
 from .discovery_names import Names
+from .notifications import Notifier
 from .operations import Services
 
 if TYPE_CHECKING:
@@ -96,6 +97,11 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         learning=core.learning,
     )
     await services.load_zone()
+    notifier = Notifier(core.db, accounts, core.host, core.discovery, lambda: services.zone)
+    if core.events is not None:
+        notifier.listen(core.events)
+    services.notifier = notifier
+    sending = asyncio.create_task(notifier.run())
     app = create_app(services, await _csrf_key(core))
     core.discovery.start(Names(services))
 
@@ -146,6 +152,8 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
     )
 
     async def stop() -> None:
+        sending.cancel()
+        await asyncio.gather(sending, return_exceptions=True)
         await _stop(servers, tasks, listeners)
 
     return stop

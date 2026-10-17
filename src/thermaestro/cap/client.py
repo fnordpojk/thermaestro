@@ -26,6 +26,10 @@ from .messages import (
     Fate,
     Hello,
     Message,
+    Notified,
+    Notify,
+    NotifyList,
+    NotifyTargets,
     Op,
     Read,
     SeriesData,
@@ -153,6 +157,20 @@ class Link:
         message = Write(id=self.next_id(), point=point, value=value)
         async for fate in self._fates(message, "write", timeout):
             yield fate
+
+    async def notify_targets(self, *, timeout: float = TIMEOUT_S) -> NotifyList:
+        """Where the plugin can send a notification."""
+        reply = await self.request(NotifyTargets(id=self.next_id()), timeout)
+        return _expect(NotifyList, "notify.targets", reply)
+
+    async def notify(
+        self, target: str, title: str, message: str, *, timeout: float = TIMEOUT_S
+    ) -> Notified:
+        """A notification for a person, to one of the plugin's targets."""
+        reply = await self.request(
+            Notify(id=self.next_id(), target=target, title=title, message=message), timeout
+        )
+        return _expect(Notified, "notify", reply)
 
     async def _fates(self, message: Act | Write, name: str, timeout: float) -> AsyncIterator[Fate]:
         async with self._exchange(message) as replies:

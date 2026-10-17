@@ -248,6 +248,9 @@ A layer: `role` (such as `spot` or `grid.fee`), `source` (`series` or `fixed`), 
 | `DELETE /groups/{name}` | `users.manage` ⚿ | → `{status: "ok"}` |
 | `GET /rights` | logged in | `{right: what it allows}` |
 | `GET /account/preferences` | logged in | One's own language and formats |
+| `GET /account/notifications` | logged in | One's own notifications: `wanted` (`conditions`, `home_assistant` `{instance, target}` or `null`, `mqtt`), `allowed` (the conditions one's rights let one turn on: `mine`, `everyone`, `rooms`, `summary`, `house`), `targets` (each Home Assistant's notification targets, `{instance, target, name}`), `topic` (one's MQTT topic, `null` while discovery is off), `limit` (an hour), and `recent` (the last week's, newest first: `{t, channel, event, outcome, detail}`, `outcome` `sent`, `failed` or `held`) |
+| `PUT /account/notifications` | logged in | `{conditions, home_assistant, mqtt}` → the same, as kept. A condition one's rights don't allow, or a Home Assistant that isn't set up, is refused (`400`). Nothing is sent until something is turned on. |
+| `POST /account/notifications/test` | logged in | A test now, to wherever one chose → what became of it, as in `recent` |
 | `PUT /account/preferences` | logged in | `language` (`en`, `sv`, `de`), `region` (a country code, such as `SE`), `dates` (`iso`), `clock` (`24`, `12`), `decimal` (`point`, `comma`) → the same. A field left out follows the browser. |
 | `GET /tokens` | `tokens.own` | One's own tokens: `[{id, name, permissions, created, expires, last_used}]` |
 | `POST /tokens` | `tokens.own` ⚿ | `{name, permissions, days}` → `201`, `{token}`, shown this once |

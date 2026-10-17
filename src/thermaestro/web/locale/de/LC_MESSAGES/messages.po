@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 03:01+0200\n"
+"POT-Creation-Date: 2026-10-17 03:32+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -196,6 +196,18 @@ msgstr "%(name_label)s (%(principal)s) wird so lange zurückgestellt"
 #, python-format
 msgid "%(name_label)s gives way for it"
 msgstr "%(name_label)s gibt dafür nach"
+
+#, python-format
+msgid "%(name_label)s was missed"
+msgstr "%(name_label)s wurde verpasst"
+
+#, python-format
+msgid ""
+"%(name_label)s was missed: the hot water was %(top)s °C at its latest, short of "
+"%(least)s °C"
+msgstr ""
+"%(name_label)s wurde verpasst: das Warmwasser hatte zum spätesten Zeitpunkt %(top)s "
+"°C, unter %(least)s °C"
 
 #, python-format
 msgid "%(name_label)s: until %(when)s"
@@ -414,6 +426,9 @@ msgstr "Ein eigener Brunnen"
 msgid "A public holiday counts as"
 msgstr "Ein Feiertag zählt als"
 
+msgid "A room below its band"
+msgstr "Ein Raum unter seinem Band"
+
 msgid ""
 "A room is suggested from the entity's area: the room of that name, or a new room made"
 " from the area."
@@ -447,6 +462,9 @@ msgstr ""
 "Ein einfaches Thermostat schaltet den Raum bei seiner eigenen Einstellung ab. Wo "
 "Thermaestro den Raum steuert, drehen Sie das Thermostat ganz auf, damit es den Raum "
 "nicht abschaltet, bevor Thermaestros Bereich erreicht ist."
+
+msgid "A test notification: this is where Thermaestro's notifications reach you."
+msgstr "Eine Testbenachrichtigung: hier erreichen Sie die Benachrichtigungen von Thermaestro."
 
 msgid ""
 "A token lets a script or the command line use the API. It carries only the rights you"
@@ -1117,6 +1135,9 @@ msgstr "Jede Einstellung neben ihrer Werkseinstellung"
 msgid "Everyday"
 msgstr "Alltägliche"
 
+msgid "Everyone's requests"
+msgstr "Die Wünsche aller"
+
 msgid "Everything was met."
 msgstr "Alles wurde erfüllt."
 
@@ -1724,6 +1745,9 @@ msgstr "Leitungswasser"
 msgid "Must be met."
 msgstr "Muss erfüllt werden."
 
+msgid "My requests: at risk, giving way or missed"
+msgstr "Meine Wünsche: gefährdet, gibt nach oder verpasst"
+
 msgid "Name"
 msgstr "Name"
 
@@ -1852,6 +1876,13 @@ msgstr "NibePis vv_ai_profile.json"
 #, python-format
 msgid "Nine times in ten over the last %(days)s days, the bias taken off."
 msgstr "Neun von zehn Malen in den letzten %(days)s Tagen, die mittlere Abweichung abgezogen."
+
+msgid ""
+"No Home Assistant offers a notification target yet. With Home Assistant set up under "
+"System, its phone app's targets are listed here."
+msgstr ""
+"Noch bietet kein Home Assistant ein Ziel für Benachrichtigungen an. Ist Home "
+"Assistant unter System eingerichtet, stehen hier die Ziele seiner Handy-App."
 
 msgid "No administrator exists yet."
 msgstr "Es gibt noch keinen Administrator."
@@ -2012,6 +2043,9 @@ msgstr "Nicht angegeben"
 msgid "Not seen enough yet"
 msgstr "Noch nicht genug gesehen"
 
+msgid "Not sent, the last week"
+msgstr "Nicht gesendet, letzte Woche"
+
 msgid "Not usable on this pump"
 msgstr "Auf dieser Pumpe nicht verwendbar"
 
@@ -2035,6 +2069,17 @@ msgstr "Nichts in diesem Zeitraum."
 
 msgid "Nothing is connected yet."
 msgstr "Noch ist nichts verbunden."
+
+#, python-format
+msgid ""
+"Nothing is sent to you until you turn it on here. Each is sent as it happens, again "
+"if what it says changes, and once more when it is over; at most %(limit)s an hour, "
+"the rest on the Events page."
+msgstr ""
+"Nichts wird Ihnen gesendet, bevor Sie es hier einschalten. Jede Benachrichtigung "
+"kommt, wenn es geschieht, erneut, wenn sich ändert, was sie sagt, und noch einmal, "
+"wenn es vorbei ist; höchstens %(limit)s pro Stunde, der Rest auf der Seite "
+"Ereignisse."
 
 msgid "Nothing recorded in the last week."
 msgstr "In der letzten Woche nichts aufgezeichnet."
@@ -2062,6 +2107,9 @@ msgstr ""
 
 msgid "Nothing yet: the pump runs on its own settings."
 msgstr "Noch nichts: die Pumpe läuft mit ihren eigenen Einstellungen."
+
+msgid "Notifications"
+msgstr "Benachrichtigungen"
 
 msgid "Now"
 msgstr "Jetzt"
@@ -2192,6 +2240,10 @@ msgstr "Außentemperatur, Mittel"
 
 msgid "Outdoors"
 msgstr "Draußen"
+
+#, python-format
+msgid "Over: %(what)s"
+msgstr "Vorbei: %(what)s"
 
 msgid "Overview"
 msgstr "Übersicht"
@@ -2508,6 +2560,9 @@ msgstr "Sicherheitstoken"
 msgid "Send"
 msgstr "Senden"
 
+msgid "Send a test"
+msgstr "Test senden"
+
 msgid "Sensor"
 msgstr "Sensor"
 
@@ -2750,6 +2805,9 @@ msgstr "Der Verdichter wurde in der letzten Woche nicht laufend gesehen."
 msgid "The compressor wasn't seen standing in the last week."
 msgstr "Der Verdichter wurde in der letzten Woche nicht stehend gesehen."
 
+msgid "The daily summary"
+msgstr "Die tägliche Zusammenfassung"
+
 #, python-format
 msgid "The day before, %(day)s"
 msgstr "Der Vortag, %(day)s"
@@ -2836,6 +2894,11 @@ msgstr "Das Haus höchstens, kW"
 #, python-format
 msgid "The house now: %(now)s kW, of at most %(limit)s kW."
 msgstr "Das Haus jetzt: %(now)s kW, von höchstens %(limit)s kW."
+
+msgid "The house's workings: floors, settings let go, plugins, warnings"
+msgstr ""
+"Die Technik des Hauses: Mindesttemperaturen, freigegebene Einstellungen, Plugins, "
+"Warnungen"
 
 msgid ""
 "The household's own named settings, used by name: changing one changes every intent "
@@ -3146,6 +3209,12 @@ msgstr "Zeiten gelten in der Zeitzone des Hauses."
 
 msgid "To"
 msgstr "Bis"
+
+msgid "To Home Assistant"
+msgstr "An Home Assistant"
+
+msgid "To MQTT"
+msgstr "An MQTT"
 
 msgid "To, °C"
 msgstr "Bis, °C"
@@ -3779,6 +3848,10 @@ msgstr "mehr Warmwasser"
 msgid "failed"
 msgstr "fehlgeschlagen"
 
+#, python-format
+msgid "failed: %(why)s"
+msgstr "fehlgeschlagen: %(why)s"
+
 msgid "fallback"
 msgstr "Ersatz"
 
@@ -3845,6 +3918,9 @@ msgstr "Heizung"
 
 msgid "held"
 msgstr "gehalten"
+
+msgid "held back by the limit"
+msgstr "durch die Grenze zurückgehalten"
 
 msgid "held now"
 msgstr "jetzt gehalten"
@@ -3983,6 +4059,9 @@ msgstr "mm pro Stunde"
 msgid "must be ready"
 msgstr "muss bereit sein"
 
+msgid "needs Home Assistant discovery over MQTT switched on"
+msgstr "braucht die eingeschaltete Erkennung in Home Assistant über MQTT"
+
 msgid "neither its block nor its boost is a lever in use"
 msgstr "weder seine Sperre noch seine Extraladung ist eine genutzte Einstellung"
 
@@ -4070,6 +4149,9 @@ msgstr "nichts Eigenes"
 
 msgid "nothing yet"
 msgstr "noch nichts"
+
+msgid "nowhere"
+msgstr "nirgendwohin"
 
 msgid "off"
 msgstr "aus"
@@ -4198,6 +4280,9 @@ msgstr "in seinen Antworten gesehen"
 
 msgid "seen in running"
 msgstr "im Betrieb gesehen"
+
+msgid "sent"
+msgstr "gesendet"
 
 msgid "sent; it can't be checked"
 msgstr "gesendet; kann nicht geprüft werden"

@@ -10,7 +10,7 @@ entering the password, so it needs no step-up of its own.
 import json
 import math
 from collections.abc import Collection
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from ..intents import Intents
     from ..learn import Learning
     from ..planner import Planner
+    from .notifications import Notifier
 
 from .. import clock
 from ..auth import (
@@ -123,6 +124,7 @@ class Services(
     executor: "Executor | None" = None
     planner: "Planner | None" = None
     learning: "Learning | None" = None
+    notifier: "Notifier | None" = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)
@@ -715,6 +717,55 @@ class Services(
         preferences = _validated(Preferences, body, "the language and formats")
         await self.accounts.set_preferences(caller.principal.user, preferences)
         return preferences
+
+    # --- one's own notifications ---------------------------------------------------------
+
+    async def notifications(self, caller: Caller) -> dict[str, Any]:
+        """What the caller turned on, what they may, where it can go, and what was sent
+        to them lately, newest first."""
+        from .notifications import Wanted, allowed
+
+        user, n = caller.principal.user, self.notifier
+        if n is None:
+            empty = {"wanted": Wanted().model_dump(), "allowed": [], "targets": []}
+            return {**empty, "topic": None, "limit": 0, "recent": []}
+        targets = [{"instance": i, "target": t, "name": name} for i, t, name in await n.targets()]
+        return {
+            "wanted": (await n.wanted(user)).model_dump(),
+            "allowed": [c for c in allowed(user) if self._may(caller, c)],
+            "targets": targets,
+            "topic": n.topic(user),
+            "limit": n.limit,
+            "recent": [asdict(s) for s in await n.recent(user)],
+        }
+
+    async def set_notifications(self, caller: Caller, body: dict[str, Any]) -> dict[str, Any]:
+        """What the caller turns on, and where it goes; only what their rights allow."""
+        from .notifications import Wanted
+
+        if self.notifier is None:
+            raise AccountError("notifications aren't running")
+        wanted = _validated(Wanted, body, "the notifications")
+        refused = [c for c in wanted.conditions if not self._may(caller, c)]
+        if refused:
+            raise AccountError(f"not allowed to turn on: {', '.join(sorted(refused))}")
+        try:
+            kept = await self.notifier.choose(caller.principal.user, wanted)
+        except ValueError as e:
+            raise AccountError(str(e)) from None
+        return kept.model_dump()
+
+    async def test_notification(self, caller: Caller) -> list[dict[str, Any]]:
+        """A test to wherever the caller chose: what became of it."""
+        if self.notifier is None:
+            raise AccountError("notifications aren't running")
+        return [asdict(s) for s in await self.notifier.test(caller.principal.user)]
+
+    @staticmethod
+    def _may(caller: Caller, condition: str) -> bool:
+        from .notifications import NEEDS
+
+        return all(caller.principal.allows(p) for p in NEEDS[condition])  # type: ignore[index]
 
     # --- the audit log -------------------------------------------------------------------
 

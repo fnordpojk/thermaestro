@@ -306,6 +306,29 @@ async def set_preferences(body: dict[str, Any], request: Request, who: Logged) -
     return chosen.model_dump(exclude_none=True)
 
 
+# --- one's own notifications -------------------------------------------------------------
+
+
+@router.get("/account/notifications")
+@action("notifications.read")
+async def notifications(request: Request, who: Logged) -> dict[str, Any]:
+    return await services(request).notifications(who)
+
+
+@router.put("/account/notifications")
+@action("notifications.write")
+async def set_notifications(body: dict[str, Any], request: Request, who: Logged) -> dict[str, Any]:
+    """`{conditions, home_assistant: {instance, target} | null, mqtt}`: what is sent, and
+    where. Nothing is sent until it is turned on."""
+    return await services(request).set_notifications(who, body)
+
+
+@router.post("/account/notifications/test")
+@action("notifications.test")
+async def test_notification(request: Request, who: Logged) -> list[dict[str, Any]]:
+    return await services(request).test_notification(who)
+
+
 # --- tokens and sessions -----------------------------------------------------------------
 
 

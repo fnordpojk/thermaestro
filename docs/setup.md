@@ -322,7 +322,16 @@ Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it
 
 From 07:00 the top of the page sums up the day before, midnight to midnight in the house's time: what the pump used and what it cost; each intent that ended, with what came of it; each request for a while that ran, with what the pump used while it ran and what that cost; and the minutes each room was below its band and the hot water below its floor. The energy comes from the pump's own meter where it has one, else from its learned draw for the time the compressor ran, so it shows once that is learned. What a request used is what the pump used while it ran, not how much more than without it: that needs a reference, still to be built. Summaries are kept for 90 days; a day before Thermaestro ran isn't summed up.
 
-The household sees its own: intents and rooms. Those who may read the settings (Administrators) see the house's workings too, and in the summary how many changes Thermaestro asked for and how often the compressor started. Notifications for them come later, and will be sent only to those who turn them on.
+The household sees its own: intents and rooms. Those who may read the settings (Administrators) see the house's workings too, and in the summary how many changes Thermaestro asked for and how often the compressor started.
+
+### Notifications
+
+Nothing is sent to anyone until they turn it on, each on their own page (under their name in the menu), **Notifications**:
+
+- **What:** one's own requests at risk, giving way or missed; everyone's, for those who may end anyone's; a room below its band; the daily summary; and for those who may read the settings, the house's workings (the floor, settings let go, plugins, device warnings). What a user may turn on follows their rights.
+- **Where:** a Home Assistant notification target, such as the phone the Home Assistant app runs on, listed from the Home Assistant set up under **Setup → External**; and an MQTT topic of their own while discovery is on ([the topic](mqtt.md#notifications)). Either, or both.
+- Each is sent as it happens, again if what it says changes, and once more when it is over, in the user's language. At most ten an hour reach one person; the rest are held back, and the Events page has them.
+- **Send a test** sends one now. What couldn't be sent in the last week, and why, is listed below it.
 
 ## Users and groups
 

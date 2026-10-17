@@ -55,6 +55,47 @@
 </form>
 </section>
 
+<section id="notifications">
+<h2>{{ _("Notifications") }}</h2>
+<p>{{ _("Nothing is sent to you until you turn it on here. Each is sent as it happens, again if what it says changes, and once more when it is over; at most %(limit)s an hour, the rest on the Events page.", limit=notify.limit) }}</p>
+{% if tested is defined and tested %}
+<ul class="notice" role="status">
+  {% for t in tested %}<li>{{ channels[t.channel] }}: {% if t.outcome == "sent" %}{{ _("sent") }}{% else %}{{ _("failed: %(why)s", why=t.detail) }}{% endif %}</li>{% endfor %}
+</ul>
+{% endif %}
+{% set chosen = notify.wanted.home_assistant %}
+<form method="post" action="/account/notifications" class="grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset><legend>{{ _("What") }}</legend>
+  {% for c in notify.allowed %}<label class="check"><input type="checkbox" name="conditions" value="{{ c }}"{% if c in notify.wanted.conditions %} checked{% endif %}> {{ _(conditions[c]) }}</label>{% endfor %}
+  </fieldset>
+  <label>{{ _("To Home Assistant") }}
+    <select name="target">
+      <option value="">{{ _("nowhere") }}</option>
+      {% set ns = namespace(found=false) %}
+      {% for t in notify.targets %}{% set here = chosen and chosen.instance == t.instance and chosen.target == t.target %}{% if here %}{% set ns.found = true %}{% endif %}<option value="{{ t.instance }}/{{ t.target }}"{% if here %} selected{% endif %}>{{ t.name or t.target }}</option>{% endfor %}
+      {% if chosen and not ns.found %}<option value="{{ chosen.instance }}/{{ chosen.target }}" selected>{{ chosen.target }}</option>{% endif %}
+    </select></label>
+  {% if not notify.targets %}<p class="hint">{{ _("No Home Assistant offers a notification target yet. With Home Assistant set up under System, its phone app's targets are listed here.") }}</p>{% endif %}
+  <label class="check"><input type="checkbox" name="mqtt" value="1"{% if notify.wanted.mqtt %} checked{% endif %}> {{ _("To MQTT") }} {% if notify.topic %}<code>{{ notify.topic }}</code>{% else %}<small>{{ _("needs Home Assistant discovery over MQTT switched on") }}</small>{% endif %}</label>
+  <button type="submit">{{ _("Save") }}</button>
+</form>
+<form method="post" action="/account/notifications/test">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">{{ _("Send a test") }}</button>
+</form>
+{% set failed = notify.recent | selectattr("outcome", "ne", "sent") | list %}
+{% if failed %}
+<h3>{{ _("Not sent, the last week") }}</h3>
+<table>
+  <thead><tr><th>{{ _("When") }}</th><th>{{ _("Where") }}</th><th>{{ _("Why") }}</th></tr></thead>
+  <tbody>
+  {% for f in failed %}<tr><td>{{ f.t | when }}</td><td>{{ _(channels[f.channel]) if f.channel == "limit" else channels[f.channel] }}</td><td>{{ f.detail or "" }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+</section>
+
 <section>
 <h2>{{ _("Where you're logged in") }}</h2>
 <table>

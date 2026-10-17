@@ -41,10 +41,15 @@ from ..cap.messages import (
     Error,
     Fate,
     Health,
+    Notified,
+    Notify,
+    NotifyList,
+    NotifyTargets,
     Read,
     SeriesGet,
     SeriesSubscribe,
     Subscribe,
+    Target,
     Update,
     Values,
 )
@@ -66,6 +71,9 @@ from ..forecast import instants, iso
 from ..seriesplugin import Held
 from ..store import HomeAssistant, SecretStore
 
+NOTIFY = "notify"
+NOT_TARGETS = frozenset({"send_message"})
+"""Notify services that aren't one target: `send_message` needs an entity named."""
 log = logging.getLogger(__name__)
 
 ROOT = "ha"
@@ -302,7 +310,7 @@ class State:
 class HomeAssistantPlugin:
     name = "homeassistant"
     version = "0.1.0"
-    features: tuple[str, ...] = ("subscribe",)
+    features: tuple[str, ...] = ("subscribe", "notify")
 
     def __init__(
         self,
@@ -390,6 +398,9 @@ class HomeAssistantPlugin:
                 )
             )
             return
+        if isinstance(request, NotifyTargets | Notify):
+            await send(await self._notification(request))
+            return
         if isinstance(request, SeriesGet | SeriesSubscribe):
             await asyncio.shield(self._ready)
             if request.series not in {s.id for s in self._series()}:
@@ -409,6 +420,48 @@ class HomeAssistantPlugin:
             await send(Values(id=request.id, values=tuple(await self._read_points(request))))
         else:
             await self._subscription(request, send)
+
+    # --- notifications ------------------------------------------------------------------
+
+    async def _notification(self, request: NotifyTargets | Notify) -> NotifyList | Notified:
+        """Home Assistant's notify services, listed or called; nothing else is ever called.
+        Each on a connection of its own: the reading one is the reader's alone."""
+        try:
+            token = await self._token()
+            async with aiohttp.ClientSession() as session:
+                connection = await Connection.open(session, self.settings.url, token)
+                try:
+                    services = await connection.call({"type": "get_services"})
+                    offered = {
+                        name: (about or {}).get("name")
+                        for name, about in (services or {}).get(NOTIFY, {}).items()
+                        if name not in NOT_TARGETS
+                    }
+                    if isinstance(request, NotifyTargets):
+                        targets = [Target(id=n, name=offered[n]) for n in sorted(offered)]
+                        return NotifyList(id=request.id, targets=tuple(targets))
+                    if request.target not in offered:
+                        detail = f"Home Assistant has no notify.{request.target}"
+                        return Notified(id=request.id, ok=False, detail=detail)
+                    data = {"message": request.message}
+                    if request.title:
+                        data["title"] = request.title
+                    await connection.call(
+                        {
+                            "type": "call_service",
+                            "domain": NOTIFY,
+                            "service": request.target,
+                            "service_data": data,
+                        }
+                    )
+                    return Notified(id=request.id, ok=True)
+                finally:
+                    await connection.close()
+        except (aiohttp.ClientError, AuthFailed, RuntimeError, TimeoutError, ValueError) as e:
+            log.warning("Home Assistant notification failed: %s", e)
+            if isinstance(request, NotifyTargets):
+                return NotifyList(id=request.id, targets=())
+            return Notified(id=request.id, ok=False, detail=str(e) or type(e).__name__)
 
     # --- reading ------------------------------------------------------------------------
 

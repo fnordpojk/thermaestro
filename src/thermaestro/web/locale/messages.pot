@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-17 03:01+0200\n"
+"POT-Creation-Date: 2026-10-17 03:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -197,6 +197,16 @@ msgstr ""
 
 #, python-format
 msgid "%(name_label)s gives way for it"
+msgstr ""
+
+#, python-format
+msgid "%(name_label)s was missed"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(name_label)s was missed: the hot water was %(top)s °C at its latest, "
+"short of %(least)s °C"
 msgstr ""
 
 #, python-format
@@ -403,6 +413,9 @@ msgstr ""
 msgid "A public holiday counts as"
 msgstr ""
 
+msgid "A room below its band"
+msgstr ""
+
 msgid ""
 "A room is suggested from the entity's area: the room of that name, or a "
 "new room made from the area."
@@ -426,6 +439,9 @@ msgid ""
 "Thermaestro steers the room, turn the thermostat up to its highest "
 "setting, so it doesn't stop the room before Thermaestro's band is "
 "reached."
+msgstr ""
+
+msgid "A test notification: this is where Thermaestro's notifications reach you."
 msgstr ""
 
 msgid ""
@@ -1049,6 +1065,9 @@ msgstr ""
 msgid "Everyday"
 msgstr ""
 
+msgid "Everyone's requests"
+msgstr ""
+
 msgid "Everything was met."
 msgstr ""
 
@@ -1630,6 +1649,9 @@ msgstr ""
 msgid "Must be met."
 msgstr ""
 
+msgid "My requests: at risk, giving way or missed"
+msgstr ""
+
 msgid "Name"
 msgstr ""
 
@@ -1737,6 +1759,11 @@ msgstr ""
 
 #, python-format
 msgid "Nine times in ten over the last %(days)s days, the bias taken off."
+msgstr ""
+
+msgid ""
+"No Home Assistant offers a notification target yet. With Home Assistant "
+"set up under System, its phone app's targets are listed here."
 msgstr ""
 
 msgid "No administrator exists yet."
@@ -1886,6 +1913,9 @@ msgstr ""
 msgid "Not seen enough yet"
 msgstr ""
 
+msgid "Not sent, the last week"
+msgstr ""
+
 msgid "Not usable on this pump"
 msgstr ""
 
@@ -1910,6 +1940,13 @@ msgstr ""
 msgid "Nothing is connected yet."
 msgstr ""
 
+#, python-format
+msgid ""
+"Nothing is sent to you until you turn it on here. Each is sent as it "
+"happens, again if what it says changes, and once more when it is over; at"
+" most %(limit)s an hour, the rest on the Events page."
+msgstr ""
+
 msgid "Nothing recorded in the last week."
 msgstr ""
 
@@ -1931,6 +1968,9 @@ msgid "Nothing yet: a provider shows here once it has sent its first forecast."
 msgstr ""
 
 msgid "Nothing yet: the pump runs on its own settings."
+msgstr ""
+
+msgid "Notifications"
 msgstr ""
 
 msgid "Now"
@@ -2049,6 +2089,10 @@ msgid "Outdoor temperature, mean"
 msgstr ""
 
 msgid "Outdoors"
+msgstr ""
+
+#, python-format
+msgid "Over: %(what)s"
 msgstr ""
 
 msgid "Overview"
@@ -2362,6 +2406,9 @@ msgstr ""
 msgid "Send"
 msgstr ""
 
+msgid "Send a test"
+msgstr ""
+
 msgid "Sensor"
 msgstr ""
 
@@ -2594,6 +2641,9 @@ msgstr ""
 msgid "The compressor wasn't seen standing in the last week."
 msgstr ""
 
+msgid "The daily summary"
+msgstr ""
+
 #, python-format
 msgid "The day before, %(day)s"
 msgstr ""
@@ -2666,6 +2716,9 @@ msgstr ""
 
 #, python-format
 msgid "The house now: %(now)s kW, of at most %(limit)s kW."
+msgstr ""
+
+msgid "The house's workings: floors, settings let go, plugins, warnings"
 msgstr ""
 
 msgid ""
@@ -2940,6 +2993,12 @@ msgid "Times are in the house's time zone."
 msgstr ""
 
 msgid "To"
+msgstr ""
+
+msgid "To Home Assistant"
+msgstr ""
+
+msgid "To MQTT"
 msgstr ""
 
 msgid "To, °C"
@@ -3534,6 +3593,10 @@ msgstr ""
 msgid "failed"
 msgstr ""
 
+#, python-format
+msgid "failed: %(why)s"
+msgstr ""
+
 msgid "fallback"
 msgstr ""
 
@@ -3599,6 +3662,9 @@ msgid "heating"
 msgstr ""
 
 msgid "held"
+msgstr ""
+
+msgid "held back by the limit"
 msgstr ""
 
 msgid "held now"
@@ -3736,6 +3802,9 @@ msgstr ""
 msgid "must be ready"
 msgstr ""
 
+msgid "needs Home Assistant discovery over MQTT switched on"
+msgstr ""
+
 msgid "neither its block nor its boost is a lever in use"
 msgstr ""
 
@@ -3820,6 +3889,9 @@ msgid "nothing of its own"
 msgstr ""
 
 msgid "nothing yet"
+msgstr ""
+
+msgid "nowhere"
 msgstr ""
 
 msgid "off"
@@ -3948,6 +4020,9 @@ msgid "seen in its answers"
 msgstr ""
 
 msgid "seen in running"
+msgstr ""
+
+msgid "sent"
 msgstr ""
 
 msgid "sent; it can't be checked"

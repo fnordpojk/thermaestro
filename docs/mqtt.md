@@ -54,7 +54,7 @@ Each sensor also has its quantity, its place (a room, outdoors, or elsewhere), a
 
 Home Assistant's entities don't come through MQTT. The Home Assistant plugin connects to Home Assistant's WebSocket API (`<url>/api/websocket`) and logs in with a long-lived access token. Make the token in Home Assistant (your profile, Security), and enter it with the address under **Setup → External → Home Assistant**. The token is kept in the secrets file.
 
-The plugin subscribes only to the entities chosen under **Setup → Sensors → From Home Assistant**. It never writes to Home Assistant. Values are converted to Thermaestro's units (°F to °C, mbar to hPa, and so on). Home Assistant's `unavailable` and `unknown` become an unknown value.
+The plugin subscribes only to the entities chosen under **Setup → Sensors → From Home Assistant**. It changes nothing in Home Assistant: the one service it calls is a `notify` service a user picked for their own notifications (see [the Events page](setup.md#notifications)). Values are converted to Thermaestro's units (°F to °C, mbar to hPa, and so on). Home Assistant's `unavailable` and `unknown` become an unknown value.
 
 ## Publishing to Home Assistant: MQTT discovery
 
@@ -86,6 +86,7 @@ With the prefix `homeassistant`, the base `thermaestro` and the id `1a2b3c4d`:
 | `thermaestro/1a2b3c4d/attributes/<key>` | an entity's attributes, as JSON | 0 | yes |
 | `thermaestro/1a2b3c4d/request` | a request, read by Thermaestro (see below) | | must not be |
 | `thermaestro/1a2b3c4d/request/result` | the answer to a request | 1 | no |
+| `thermaestro/1a2b3c4d/notify/<user>` | a user's notification, if they turned it on (see below) | 1 | no |
 
 Thermaestro also subscribes to `homeassistant/status`. When Home Assistant sends `online` there (it starts), Thermaestro waits a random 0.5 to 3 seconds and sends everything again.
 
@@ -195,6 +196,10 @@ A request is a JSON object on `thermaestro/<id>/request`, in the same household 
 - **The answer** goes to `thermaestro/<id>/request/result`, not retained: `{"accepted": true, "id": "in-…", "messages": ["Warmer, please (+1 °C): until …"]}`, or `accepted: false` with why.
 - **A retained request is ignored:** it would be asked again at every connection.
 - Every request is in the audit log, as `mqtt`.
+
+### Notifications
+
+A user who turns MQTT on for their notifications (their own page, **Notifications**) gets each on `thermaestro/<id>/notify/<user name>`, not retained, as JSON in their language: `{"title": "Thermaestro", "message": "Bath was missed", "kind": "intent.missed", "key": "intent.missed:in-…", "state": "raised", "t": 1792303200.0}`. `state` is `raised`, `changed` or `cleared`; the message of one cleared starts with "Over:". They go only while discovery is on. Anyone who may read the broker can read them, as with every other topic here.
 
 ### Buttons and states for control
 

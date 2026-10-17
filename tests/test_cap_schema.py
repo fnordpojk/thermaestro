@@ -199,6 +199,20 @@ EXAMPLES: list[dict[str, Any]] = [
     {"type": "error", "id": 9, "code": "unsupported", "detail": "no series in this plugin"},
     {"type": "error", "id": None, "code": "invalid", "detail": "not JSON"},
     {"type": "auth", "token": "5f2b9c"},
+    {"type": "notify.targets", "id": 12},
+    {
+        "type": "notify.list",
+        "id": 12,
+        "targets": [{"id": "mobile_app_pixel_8", "name": "Send a notification via Pixel 8"}],
+    },
+    {
+        "type": "notify",
+        "id": 13,
+        "target": "mobile_app_pixel_8",
+        "title": "Thermaestro",
+        "message": "The bath is at risk: the hot water will be 46 °C at 19:30, short of 50 °C",
+    },
+    {"type": "notified", "id": 13, "ok": False, "detail": "Service notify.mobile_app_x not found"},
 ]
 
 SCHEMA = json.loads(shipped())
@@ -250,6 +264,8 @@ def test_parts_validate_against_their_definitions(
         {"type": "act", "id": 1, "lever": "hp1/dhw/block", "op": "toggle"},
         {"type": "fate", "id": 1, "stage": "applied", "t": T},
         {"type": "write", "id": 1, "point": "hp1/x.nibe.47134", "value": "thirty"},
+        {"type": "notify", "id": 1, "target": "a phone", "title": "", "message": "hi"},
+        {"type": "notify", "id": 1, "target": "mobile_app_x", "title": "", "message": ""},
         {"type": "describe", "id": -1},
         {"type": "describe", "id": 1, "extra": True},
         {"type": "values", "id": 1, "values": [ENVELOPE | {"quality": "fine"}]},

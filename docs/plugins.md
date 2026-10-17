@@ -131,6 +131,8 @@ Every request carries an `id` the core chooses, and everything that answers it c
 | `unsubscribe` | none; ends the subscription with this `id` |
 | `act` | one or more `fate` messages |
 | `write` | one or more `fate` messages: a person's change of one of the device's own settings, a point under `x.<plugin>`, to `value` in the units its reads give. Sent only to a plugin whose `hello` lists the `write` feature, and only for a person, never for the planner |
+| `notify.targets` | `notify.list`: where the plugin can send a notification, each target's `id` and, where it says, its `name`. Sent only to a plugin whose `hello` lists the `notify` feature |
+| `notify` | `notified`: whether a notification for a person, `title` and `message`, was handed on to one of those targets, and if not, why (`detail`). Sent only for a person who turned notifications on |
 | `series.get` | `series.data` |
 | `series.subscribe` | `series.update` messages until `unsubscribe` |
 | `rules.get` | `rules` |
@@ -160,8 +162,8 @@ A plugin answers a request it can't serve with `error`, with the code `version`,
 These lines were produced by the message types themselves:
 
 ```json
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.4","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write"]}
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.4","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.5","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write","notify"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.5","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
 {"type":"read","id":3,"points":["hp1/dhw/temp.top"],"after":null}
 {"type":"values","id":3,"values":[{"point":"hp1/dhw/temp.top","value":52.3,"unit":"degC","raw":null,"t_observed":"2026-10-09T12:00:00Z","t_received":"2026-10-09T12:00:00Z","quality":"good","source":"measured","resolution":null,"why":null}]}
 {"type":"act","id":4,"lever":"hp1/dhw/block","op":"engage","params":{}}
@@ -169,13 +171,17 @@ These lines were produced by the message types themselves:
 {"type":"write","id":5,"point":"hp1/x.nibe.47134","value":30.0}
 {"type":"series.get","id":5,"series":"spot","from":"2026-10-09T12:00:00Z","to":"2026-10-09T12:00:00Z"}
 {"type":"error","id":6,"code":"unsupported","detail":"not offered"}
+{"type":"notify.targets","id":7}
+{"type":"notify.list","id":7,"targets":[{"id":"mobile_app_pixel_8","name":"Send a notification via Pixel 8"}]}
+{"type":"notify","id":8,"target":"mobile_app_pixel_8","title":"Thermaestro","message":"Bath was missed"}
+{"type":"notified","id":8,"ok":true,"detail":null}
 ```
 
 Times are ISO 8601 with a time zone. Fields with defaults may be left out.
 
 ### The JSON Schema
 
-For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.4.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.4.schema.json). It is generated from the message types:
+For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.5.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.5.schema.json). It is generated from the message types:
 
 ```sh
 uv run python scripts/make-capschema.py          # write it

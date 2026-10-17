@@ -187,6 +187,10 @@ class Topics:
     def request(self) -> str:
         return f"{self.base}/{self.id}/request"
 
+    def notify(self, user: str) -> str:
+        """A person's notifications."""
+        return f"{self.base}/{self.id}/notify/{user}"
+
     @property
     def result(self) -> str:
         return f"{self.base}/{self.id}/request/result"
@@ -444,6 +448,8 @@ class Publisher:
         self._modes: dict[str, str] = {}
         """Each lever's mode entity, to the lever's reference."""
         self._controlled: tuple[float, dict[str, Any]] | None = None
+        self._live: aiomqtt.Client | None = None
+        """The broker, while publishing: what notifications go out through."""
         values.listeners.append(self._heard)
         client.outward = self
 
@@ -510,6 +516,7 @@ class Publisher:
         assert topics is not None  # noqa: S101 - wanted() said publish
         self.state = "publishing"
         self._last, self._sent_at, self._pending = {}, {}, {}
+        self._live = client
         try:
             self.model = await self._build()
             await self._sweep(client, keep=self._kept(topics))
@@ -526,8 +533,31 @@ class Publisher:
             await self._loop(client)
         finally:
             self.state = "off"
+            self._live = None
             with contextlib.suppress(aiomqtt.MqttError):
                 await client.publish(topics.status, b"offline", qos=1, retain=True)
+
+    # --- notifications -------------------------------------------------------------------
+
+    def notify_topic(self, user: str) -> str | None:
+        """Where a person's notifications go, while discovery is on."""
+        setting = self._setting
+        if setting is None or not setting.enabled or self._topics is None:
+            return None
+        return self._topics.notify(user)
+
+    async def notify(self, user: str, payload: dict[str, Any]) -> str | None:
+        """A person's notification on their topic, not kept; why not, where it wasn't."""
+        topic, client = self.notify_topic(user), self._live
+        if topic is None:
+            return "Home Assistant discovery over MQTT is off"
+        if client is None:
+            return "not connected to the MQTT broker"
+        try:
+            await client.publish(topic, json.dumps(payload, ensure_ascii=False), qos=1)
+        except aiomqtt.MqttError as e:
+            return str(e) or "the broker refused it"
+        return None
 
     # --- publishing ----------------------------------------------------------------------
 

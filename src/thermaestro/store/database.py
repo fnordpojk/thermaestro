@@ -385,6 +385,23 @@ MIGRATIONS: tuple[str, ...] = (
         body TEXT NOT NULL CHECK (json_valid(body))
     ) STRICT, WITHOUT ROWID;
     """,
+    # 23: notifications: what each person turned on, and every one sent, failed or held back
+    """
+    CREATE TABLE IF NOT EXISTS notifications (
+        user_id INTEGER PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+        body TEXT NOT NULL CHECK (json_valid(body))
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS notified (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        t REAL NOT NULL,
+        channel TEXT NOT NULL,
+        event TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        detail TEXT
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS notified_by_user ON notified (user_id, t);
+    """,
 )
 VERSION = len(MIGRATIONS)
 
