@@ -410,6 +410,17 @@ async def end_session(user: str, session_id: str, request: Request, who: Logged)
     return {"status": "ok"}
 
 
+# --- events --------------------------------------------------------------------------------
+
+
+@router.get("/events")
+@action("plan.read")
+async def events(
+    request: Request, who: Logged, days: Annotated[int, Query(ge=1, le=90)] = 7
+) -> list[dict[str, Any]]:
+    return await services(request).events(who, days)
+
+
 # --- the audit log -----------------------------------------------------------------------
 
 

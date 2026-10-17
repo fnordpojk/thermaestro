@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Events") }}{% endblock %}
+{% block refresh %}1{% endblock %}
+{% block main %}
+<h1>{{ _("Events") }}</h1>
+<p class="hint">{{ _("What happened that you may want to know: each is raised once while it lasts, and cleared when it ends. The last %(days)s days.", days=days) }}</p>
+{% set open = events | selectattr("cleared", "none") | list %}
+<h2>{{ _("Now") }}</h2>
+{% if open %}
+<ul class="events">
+  {% for e in open | reverse %}
+  <li class="event event-{{ e.audience }}"><span>{{ said(e.message, e.args) }}</span> <small>{{ _("since %(when)s", when=e.raised | when) }}</small></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>{{ _("Nothing at the moment.") }}</p>
+{% endif %}
+{% set past = events | rejectattr("cleared", "none") | list %}
+{% if past %}
+<h2>{{ _("Before") }}</h2>
+<table class="events">
+  <thead><tr><th>{{ _("From") }}</th><th>{{ _("To") }}</th><th>{{ _("What") }}</th></tr></thead>
+  <tbody>
+  {% for e in past | reverse %}
+  <tr><td>{{ e.raised | when }}</td><td>{% if e.cleared != e.raised %}{{ e.cleared | when }}{% endif %}</td><td>{{ said(e.message, e.args) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

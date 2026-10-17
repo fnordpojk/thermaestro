@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 16:22+0200\n"
+"POT-Creation-Date: 2026-10-17 02:08+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -90,6 +90,10 @@ msgid "%(kwh)s kWh per °C"
 msgstr "%(kwh)s kWh per °C"
 
 #, python-format
+msgid "%(lever)s was let go: %(why)s"
+msgstr "%(lever)s släpptes: %(why)s"
+
+#, python-format
 msgid "%(lever)s: mode"
 msgstr "%(lever)s: läge"
 
@@ -130,6 +134,26 @@ msgid "%(n)s so far"
 msgstr "%(n)s hittills"
 
 #, python-format
+msgid "%(name)s has been %(state_label)s for over an hour"
+msgstr "%(name)s har varit %(state_label)s i mer än en timme"
+
+#, python-format
+msgid "%(name)s has been down for over an hour"
+msgstr "%(name)s har varit nere i mer än en timme"
+
+#, python-format
+msgid "%(name)s hasn't published %(series)s for over an hour"
+msgstr "%(name)s har inte publicerat %(series)s på mer än en timme"
+
+#, python-format
+msgid "%(name)s needs you: %(why)s"
+msgstr "%(name)s behöver dig: %(why)s"
+
+#, python-format
+msgid "%(name)s: %(text)s"
+msgstr "%(name)s: %(text)s"
+
+#, python-format
 msgid "%(num)s charge"
 msgid_plural "%(num)s charges"
 msgstr[0] "%(num)s laddning"
@@ -168,6 +192,10 @@ msgstr "%(part)s: en extra laddning"
 #, python-format
 msgid "%(part)s: warmer, please"
 msgstr "%(part)s: varmare, tack"
+
+#, python-format
+msgid "%(room)s has been below its %(low)s °C for over half an hour"
+msgstr "%(room)s har varit under sina %(low)s °C i mer än en halvtimme"
 
 #, python-format
 msgid "%(seen)s of %(least)s charges or hours seen to learn from."
@@ -538,6 +566,9 @@ msgstr "Grundpris per kWh"
 
 msgid "Became"
 msgstr "Blev"
+
+msgid "Before"
+msgstr "Tidigare"
 
 msgid "Before NibePi"
 msgstr "Före NibePi"
@@ -961,6 +992,9 @@ msgstr "Ange ditt lösenord igen"
 msgid "Entity"
 msgstr "Entitet"
 
+msgid "Events"
+msgstr "Händelser"
+
 msgid "Every key in the file"
 msgstr "Varje nyckel i filen"
 
@@ -1089,6 +1123,22 @@ msgstr "Hämta det från Open-Meteos arkiv"
 
 msgid "Given"
 msgstr "Ges"
+
+#, python-format
+msgid ""
+"Gives way to %(what_label)s: the plan has %(room)s at %(temp)s °C at %(time)s, below "
+"its %(low)s °C"
+msgstr ""
+"Ger vika för %(what_label)s: planen har %(room)s på %(temp)s °C kl. %(time)s, under "
+"sina %(low)s °C"
+
+#, python-format
+msgid ""
+"Gives way to %(what_label)s: the plan has the hot water at %(temp)s °C at %(time)s, "
+"short of %(least)s °C"
+msgstr ""
+"Ger vika för %(what_label)s: planen har varmvattnet på %(temp)s °C kl. %(time)s, "
+"under %(least)s °C"
 
 msgid ""
 "Great Britain left the European day-ahead market, and no source gives its auction's "
@@ -1323,6 +1373,13 @@ msgstr "Önskemål som gäller"
 
 msgid "Its own control"
 msgstr "Egen styrning"
+
+msgid "Its rooms kept their band throughout"
+msgstr "Rummen höll sig inom sitt intervall hela tiden"
+
+#, python-format
+msgid "Its rooms were below their band for %(minutes)s minutes in all"
+msgstr "Rummen var under sitt intervall i sammanlagt %(minutes)s minuter"
 
 msgid "JSON field"
 msgstr "JSON-fält"
@@ -1741,6 +1798,12 @@ msgstr "Ingen värmepump har beskrivit en varmvattenberedare eller en kompressor
 msgid "No pump yet."
 msgstr "Ingen pump än."
 
+#, python-format
+msgid "No room in %(system)s has a fresh temperature: its offset is the pump's own meanwhile"
+msgstr ""
+"Inget rum i %(system)s har en färsk temperatur: förskjutningen är pumpens egen så "
+"länge"
+
 msgid "No rooms yet."
 msgstr "Inga rum än."
 
@@ -1827,6 +1890,9 @@ msgstr "Inget begärt än."
 
 msgid "Nothing asked in the last day."
 msgstr "Inget begärt det senaste dygnet."
+
+msgid "Nothing at the moment."
+msgstr "Inget just nu."
 
 msgid "Nothing in this period."
 msgstr "Inget under den här perioden."
@@ -2586,6 +2652,14 @@ msgstr ""
 msgid "The highest, how many"
 msgstr "De högsta, hur många"
 
+#, python-format
+msgid "The hot water fell below its floor of %(floor)s °C"
+msgstr "Varmvattnet föll under sin lägsta temperatur, %(floor)s °C"
+
+#, python-format
+msgid "The hot water was %(top)s °C at its latest, short of %(least)s °C"
+msgstr "Varmvattnet var %(top)s °C vid den senaste tiden, under %(least)s °C"
+
 msgid "The hot water's floor"
 msgstr "Varmvattnets lägsta nivå"
 
@@ -2680,8 +2754,21 @@ msgstr "Planen framåt"
 msgid "The plan could not be loaded."
 msgstr "Planen kunde inte läsas in."
 
+#, python-format
+msgid "The plan has %(room)s at %(temp)s °C at %(time)s, below its %(low)s °C"
+msgstr "Planen har %(room)s på %(temp)s °C kl. %(time)s, under sina %(low)s °C"
+
+#, python-format
+msgid "The plan has the hot water at %(temp)s °C at %(time)s, short of %(least)s °C"
+msgstr "Planen har varmvattnet på %(temp)s °C kl. %(time)s, under %(least)s °C"
+
 msgid "The plan keeps every goal."
 msgstr "Planen håller varje mål."
+
+msgid "The planner stopped answering: every setting Thermaestro changed was put back as found"
+msgstr ""
+"Planeraren slutade svara: varje inställning Thermaestro ändrat återställdes som den "
+"var"
 
 msgid "The pool"
 msgstr "Poolen"
@@ -3002,6 +3089,14 @@ msgstr "Vad varje leverantör ger"
 msgid "What happened"
 msgstr "Vad som hände"
 
+#, python-format
+msgid ""
+"What happened that you may want to know: each is raised once while it lasts, and "
+"cleared when it ends. The last %(days)s days."
+msgstr ""
+"Det som hänt som du kan vilja veta: var och en tas upp en gång medan den varar och "
+"avslutas när den är över. De senaste %(days)s dagarna."
+
 msgid ""
 "What heat costs is reckoned from the hot-water tank's volume and the compressor's "
 "COP. A pump's plugin gives them for the models it knows; otherwise enter them from "
@@ -3226,6 +3321,9 @@ msgstr "ett lösenord måste ha minst 15 tecken"
 msgid "a power reading: the pump's own meter, or the whole house's"
 msgstr "en effektmätning: värmepumpens egen mätare, eller hela husets"
 
+msgid "a protection floor"
+msgstr "en skyddsgräns"
+
 msgid "a room temperature in this climate system"
 msgstr "en rumstemperatur i det här klimatsystemet"
 
@@ -3357,6 +3455,9 @@ msgstr "kontrollera, och be om det"
 
 msgid "civil time, with summer time"
 msgstr "normal klocka, med sommartid"
+
+msgid "comfort"
+msgstr "komforten"
 
 msgid "comma (4,5)"
 msgstr "komma (4,5)"
@@ -3547,6 +3648,12 @@ msgstr "varmvatten"
 msgid "hot water at least %(temp)s °C"
 msgstr "varmvatten minst %(temp)s °C"
 
+msgid "hot water that must be ready"
+msgstr "varmvatten som måste vara klart"
+
+msgid "hot water that should be ready"
+msgstr "varmvatten som bör vara klart"
+
 msgid "hours"
 msgstr "timmar"
 
@@ -3701,6 +3808,9 @@ msgstr "okänt"
 #, python-format
 msgid "not opened yet; the link works until %(end)s"
 msgstr "inte öppnad än; länken fungerar till %(end)s"
+
+msgid "not overheating"
+msgstr "att inte bli för varmt"
 
 msgid "not read yet"
 msgstr "inte läst än"
@@ -3881,6 +3991,10 @@ msgstr "kort med %(value)s %(unit)s"
 msgid "should be ready"
 msgstr "bör vara klart"
 
+#, python-format
+msgid "since %(when)s"
+msgstr "sedan %(when)s"
+
 msgid "stale"
 msgstr "inaktuellt"
 
@@ -3986,6 +4100,9 @@ msgstr "poolens temperatur"
 
 msgid "the power"
 msgstr "effekten"
+
+msgid "the power limit"
+msgstr "effektgränsen"
 
 msgid "the price per kW"
 msgstr "priset per kW"
@@ -4152,4 +4269,7 @@ msgstr "°C i timmen vid 50 °C"
 #~ " som gäller nu; en plan som ser ett"
 #~ " eller två dygn framåt kommer med husets"
 #~ " modell."
+
+#~ msgid "%(name)s has been %(state)s for over an hour"
+#~ msgstr ""
 

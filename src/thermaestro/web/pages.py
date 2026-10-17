@@ -68,6 +68,7 @@ def _environment() -> jinja2.Environment:
     env.filters["without"] = labels.without
     env.filters["known"] = labels.known
     env.filters["duration"] = labels.duration
+    env.globals["said"] = i18n.said
     return env
 
 
@@ -735,6 +736,13 @@ async def health_page(request: Request, who: Logged) -> Response:
         devices={d["instance"] for d in s.devices(who)},
         fingerprint=s.fingerprint,
     )
+
+
+@router.get("/events")
+async def events_page(request: Request, who: Logged) -> Response:
+    days = 7
+    found = await services(request).events(who, days)
+    return render(request, "events.html", who, events=found, days=days)
 
 
 @router.get("/audit")

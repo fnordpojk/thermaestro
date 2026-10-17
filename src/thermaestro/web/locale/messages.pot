@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-12 16:22+0200\n"
+"POT-Creation-Date: 2026-10-17 02:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -92,6 +92,10 @@ msgid "%(kwh)s kWh per °C"
 msgstr ""
 
 #, python-format
+msgid "%(lever)s was let go: %(why)s"
+msgstr ""
+
+#, python-format
 msgid "%(lever)s: mode"
 msgstr ""
 
@@ -132,6 +136,26 @@ msgid "%(n)s so far"
 msgstr ""
 
 #, python-format
+msgid "%(name)s has been %(state_label)s for over an hour"
+msgstr ""
+
+#, python-format
+msgid "%(name)s has been down for over an hour"
+msgstr ""
+
+#, python-format
+msgid "%(name)s hasn't published %(series)s for over an hour"
+msgstr ""
+
+#, python-format
+msgid "%(name)s needs you: %(why)s"
+msgstr ""
+
+#, python-format
+msgid "%(name)s: %(text)s"
+msgstr ""
+
+#, python-format
 msgid "%(num)s charge"
 msgid_plural "%(num)s charges"
 msgstr[0] ""
@@ -169,6 +193,10 @@ msgstr ""
 
 #, python-format
 msgid "%(part)s: warmer, please"
+msgstr ""
+
+#, python-format
+msgid "%(room)s has been below its %(low)s °C for over half an hour"
 msgstr ""
 
 #, python-format
@@ -514,6 +542,9 @@ msgid "Base price per kWh"
 msgstr ""
 
 msgid "Became"
+msgstr ""
+
+msgid "Before"
 msgstr ""
 
 msgid "Before NibePi"
@@ -913,6 +944,9 @@ msgstr ""
 msgid "Entity"
 msgstr ""
 
+msgid "Events"
+msgstr ""
+
 msgid "Every key in the file"
 msgstr ""
 
@@ -1035,6 +1069,18 @@ msgid "Get it from Open-Meteo's archive"
 msgstr ""
 
 msgid "Given"
+msgstr ""
+
+#, python-format
+msgid ""
+"Gives way to %(what_label)s: the plan has %(room)s at %(temp)s °C at "
+"%(time)s, below its %(low)s °C"
+msgstr ""
+
+#, python-format
+msgid ""
+"Gives way to %(what_label)s: the plan has the hot water at %(temp)s °C at"
+" %(time)s, short of %(least)s °C"
 msgstr ""
 
 msgid ""
@@ -1258,6 +1304,13 @@ msgid "Intents in force"
 msgstr ""
 
 msgid "Its own control"
+msgstr ""
+
+msgid "Its rooms kept their band throughout"
+msgstr ""
+
+#, python-format
+msgid "Its rooms were below their band for %(minutes)s minutes in all"
 msgstr ""
 
 msgid "JSON field"
@@ -1651,6 +1704,12 @@ msgstr ""
 msgid "No pump yet."
 msgstr ""
 
+#, python-format
+msgid ""
+"No room in %(system)s has a fresh temperature: its offset is the pump's "
+"own meanwhile"
+msgstr ""
+
 msgid "No rooms yet."
 msgstr ""
 
@@ -1740,6 +1799,9 @@ msgid "Nothing asked for yet."
 msgstr ""
 
 msgid "Nothing asked in the last day."
+msgstr ""
+
+msgid "Nothing at the moment."
 msgstr ""
 
 msgid "Nothing in this period."
@@ -2468,6 +2530,14 @@ msgstr ""
 msgid "The highest, how many"
 msgstr ""
 
+#, python-format
+msgid "The hot water fell below its floor of %(floor)s °C"
+msgstr ""
+
+#, python-format
+msgid "The hot water was %(top)s °C at its latest, short of %(least)s °C"
+msgstr ""
+
 msgid "The hot water's floor"
 msgstr ""
 
@@ -2553,7 +2623,22 @@ msgstr ""
 msgid "The plan could not be loaded."
 msgstr ""
 
+#, python-format
+msgid "The plan has %(room)s at %(temp)s °C at %(time)s, below its %(low)s °C"
+msgstr ""
+
+#, python-format
+msgid ""
+"The plan has the hot water at %(temp)s °C at %(time)s, short of %(least)s"
+" °C"
+msgstr ""
+
 msgid "The plan keeps every goal."
+msgstr ""
+
+msgid ""
+"The planner stopped answering: every setting Thermaestro changed was put "
+"back as found"
 msgstr ""
 
 msgid "The pool"
@@ -2846,6 +2931,12 @@ msgstr ""
 msgid "What happened"
 msgstr ""
 
+#, python-format
+msgid ""
+"What happened that you may want to know: each is raised once while it "
+"lasts, and cleared when it ends. The last %(days)s days."
+msgstr ""
+
 msgid ""
 "What heat costs is reckoned from the hot-water tank's volume and the "
 "compressor's COP. A pump's plugin gives them for the models it knows; "
@@ -3054,6 +3145,9 @@ msgstr ""
 msgid "a power reading: the pump's own meter, or the whole house's"
 msgstr ""
 
+msgid "a protection floor"
+msgstr ""
+
 msgid "a room temperature in this climate system"
 msgstr ""
 
@@ -3184,6 +3278,9 @@ msgid "check, then ask for it"
 msgstr ""
 
 msgid "civil time, with summer time"
+msgstr ""
+
+msgid "comfort"
 msgstr ""
 
 msgid "comma (4,5)"
@@ -3375,6 +3472,12 @@ msgstr ""
 msgid "hot water at least %(temp)s °C"
 msgstr ""
 
+msgid "hot water that must be ready"
+msgstr ""
+
+msgid "hot water that should be ready"
+msgstr ""
+
 msgid "hours"
 msgstr ""
 
@@ -3530,6 +3633,9 @@ msgstr ""
 
 #, python-format
 msgid "not opened yet; the link works until %(end)s"
+msgstr ""
+
+msgid "not overheating"
 msgstr ""
 
 msgid "not read yet"
@@ -3711,6 +3817,10 @@ msgstr ""
 msgid "should be ready"
 msgstr ""
 
+#, python-format
+msgid "since %(when)s"
+msgstr ""
+
 msgid "stale"
 msgstr ""
 
@@ -3811,6 +3921,9 @@ msgid "the pool's temperature"
 msgstr ""
 
 msgid "the power"
+msgstr ""
+
+msgid "the power limit"
 msgstr ""
 
 msgid "the price per kW"

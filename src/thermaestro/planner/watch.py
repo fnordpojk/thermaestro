@@ -31,7 +31,7 @@ NO_FRESH_ROOM = mark(
     "No room in %(system)s has a fresh temperature: its offset is the pump's own meanwhile"
 )
 LET_GO = mark("%(lever)s was let go: %(why)s")
-DOWN = mark("%(name)s has been %(state)s for over an hour")
+DOWN = mark("%(name)s has been %(state_label)s for over an hour")
 UNHEALTHY = mark("%(name)s has been down for over an hour")
 ASKS = mark("%(name)s needs you: %(why)s")
 LATE = mark("%(name)s hasn't published %(series)s for over an hour")
@@ -99,7 +99,7 @@ class Watch:
             health = instance.health
             if instance.state != State.UP:
                 seen[f"plugin.missing:{id}"] = Raise(
-                    "plugin.missing", id, DOWN, {**name, "state": str(instance.state)}
+                    "plugin.missing", id, DOWN, {**name, "state_label": str(instance.state)}
                 )
             elif health is not None and health.needs_user_action:
                 seen[f"plugin.missing:{id}"] = Raise(

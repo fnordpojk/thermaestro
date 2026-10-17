@@ -97,7 +97,7 @@
             <ol>{% for key in i.parameters.get("ranking") or [] %}<li>{{ _(ranks[key]) if key in ranks else key }}</li>{% endfor %}</ol></li>
         {% endif %}
         {% if i.strength == "must" %}<li>{{ _("Must be met.") }}</li>{% elif i.strength == "should" %}<li>{{ _("Should be met; may give way.") }}</li>{% endif %}
-        <li>{{ _("State: %(state)s", state=_(states[i.state]) if i.state in states else i.state) }}{% if i.why %} ({{ i.why }}){% endif %}</li>
+        <li>{{ _("State: %(state)s", state=_(states[i.state]) if i.state in states else i.state) }}{% if i.why_message %} ({{ said(i.why_message, i.why_args) }}){% elif i.why %} ({{ i.why }}){% endif %}</li>
         {% if i.validity.starts %}<li>{{ _("Starts %(when)s", when=i.validity.starts.isoformat() | when) }}</li>{% endif %}
         <li>{{ _("Asked %(when)s", when=i.created.isoformat() | when) }}</li>
         </ul>

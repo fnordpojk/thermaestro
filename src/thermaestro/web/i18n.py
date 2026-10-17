@@ -11,7 +11,7 @@ of the request being rendered sit in context variables.
 
 import gettext
 import io
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -210,6 +210,27 @@ def translations(language: str) -> gettext.NullTranslations:
 def _(message: str, **values: object) -> str:
     text = translations(current.get()).gettext(message)
     return text % values if values else text
+
+
+def said(message: str | None, values: Mapping[str, object] | None = None) -> str:
+    """A message kept in English with its values (an event's, an intent's reason), said in
+    the current language: decimals as the reader writes them, and a value named `…_label`,
+    itself a message, said too."""
+    if not message:
+        return ""
+    shown: dict[str, object] = {}
+    for name, value in (values or {}).items():
+        if name.endswith("_label") and isinstance(value, str):
+            shown[name] = _(value)
+        elif isinstance(value, float):
+            shown[name] = number(value)
+        else:
+            shown[name] = value
+    text = translations(current.get()).gettext(message)
+    try:
+        return text % shown if shown else text
+    except (KeyError, TypeError, ValueError):
+        return message % shown if shown else message
 
 
 def ngettext(singular: str, plural: str, n: int, **values: object) -> str:

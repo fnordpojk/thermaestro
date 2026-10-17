@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from ..learn import Learning
     from ..planner import Planner
 
+from .. import clock
 from ..auth import (
     AccountError,
     Accounts,
@@ -716,6 +717,34 @@ class Services(
         return preferences
 
     # --- the audit log -------------------------------------------------------------------
+
+    async def events(self, caller: Caller, days: int = 7) -> list[dict[str, Any]]:
+        """What is open, and what was over the last `days`, oldest first: the household's for
+        anyone who may see the plan, the house's workings only for those who may read the
+        settings."""
+        caller.principal.require("plan.read")
+        found = self.planner.events if self.planner is not None else None
+        if found is None:
+            return []
+        technical = caller.principal.allows("settings.read")
+        since = clock.time() - max(1, min(days, 90)) * 86_400
+        return [
+            {
+                "key": e.key,
+                "kind": e.kind,
+                "scope": e.scope,
+                "audience": e.audience,
+                "principal": e.principal,
+                "text": e.text(),
+                "message": e.message,
+                "args": e.args,
+                "raised": e.raised,
+                "changed": e.changed,
+                "cleared": e.cleared,
+            }
+            for e in await found.since(since)
+            if technical or e.audience == "household"
+        ]
 
     async def audit_entries(self, caller: Caller, limit: int = 200) -> list[dict[str, Any]]:
         """The newest entries first."""
