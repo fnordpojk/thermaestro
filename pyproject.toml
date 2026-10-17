@@ -12,13 +12,13 @@ classifiers = [
 ]
 dependencies = [
     # The plugin messages, and the JSON Schema generated from them.
-    "pydantic>=2,<3",
+    "pydantic>=2.14.0,<3",
     # The frame and protocol codec. Pinned to this release: both sides of the
     # protocol registry must match.
     "thermaestro-gateway==0.0.0",
     # The web UI and API. FastAPI is still 0.x and changes often, so upgrades are
     # taken one minor version at a time.
-    "fastapi>=0.142.2,<0.143",
+    "fastapi>=0.143.0,<0.144",
     "uvicorn>=0.54.0",
     "jinja2>=3.1.6",
     "python-multipart>=0.0.32",
@@ -55,7 +55,7 @@ tibber = "thermaestro.tibber.plugin:create"
 Repository = "https://github.com/fnordpojk/thermaestro"
 
 [build-system]
-requires = ["uv_build>=0.12.23,<0.13"]
+requires = ["uv_build>=0.13.0,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.workspace]
@@ -72,8 +72,8 @@ dev = [
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
-    "ruff>=0.16.10",
-    "types-jsonschema>=4.26.0.20260518",
+    "ruff>=0.17.0",
+    "types-jsonschema>=4.26.0.20261006",
     "types-pyserial>=3.5.0.20260712",
 ]
 
