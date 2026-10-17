@@ -9,11 +9,16 @@
   hot-water block, no power reading.
 - The answer says when it ends, what it shadows, and on a slow heating system, how long
   the change takes to show.
+
+Each part of the answer is a message marked for translation with its values (`Said`), so
+a page says it in its reader's language; `Verdict.messages` is the same in English.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+
+from pydantic import JsonValue
 
 from ..store import Emitter
 from .calendar import Calendar
@@ -33,15 +38,84 @@ RESPONSE_H: dict[str, float] = {
     "unknown": 4.0,
 }
 """How long a change of heat takes to show in the room, by emitter, until it is learned."""
+
+
+def mark(text: str) -> str:
+    """Marks a message for the web UI's catalog: shown translated, kept in English here."""
+    return text
+
+
 EMITTER_WORDS = {
-    "radiators": "the radiators",
-    "fan_coils": "the fan coils",
-    "floor_light": "the floor heating",
-    "slab": "the floor heating",
-    "radiators_and_floor_light": "the heating",
-    "radiators_and_slab": "the heating",
-    "unknown": "the heating",
+    "radiators": mark("the radiators"),
+    "fan_coils": mark("the fan coils"),
+    "floor_light": mark("the floor heating"),
+    "slab": mark("the floor heating"),
+    "radiators_and_floor_light": mark("the heating"),
+    "radiators_and_slab": mark("the heating"),
+    "unknown": mark("the heating"),
 }
+NAMES = {
+    "warmer": mark("Warmer, please"),
+    "bath": mark("Bath"),
+    "guests": mark("Guests"),
+    "away": mark("Away"),
+    "hands_off": mark("Hands off"),
+    "fireplace": mark("Fireplace"),
+    "boost_now": mark("Boost now"),
+    "comfort_band": mark("Comfort band"),
+    "hot_water_by": mark("Hot water by"),
+    "hot_water_floor": mark("Hot water floor"),
+    "cost_stance": mark("Cost stance"),
+    "addition_policy": mark("Addition policy"),
+    "pool": mark("Pool"),
+    "power_peak": mark("Power peak"),
+    "quiet_hours": mark("Quiet hours"),
+}
+COOLER = mark("Cooler, please")
+"""How an intent is named in an answer."""
+
+MQTT_STANDING = mark("a request over MQTT is for a while: standing intents are set in the UI")
+NO_POWER = mark("a power limit needs a whole-house power reading; there is none yet")
+ENDED = mark("it would already have ended")
+NO_LEVEL = mark("there is no level '%(level)s'")
+CONTRADICTS = mark(
+    "it contradicts what is set for %(scope)s: %(target)s at least %(low)s and at most %(high)s,"
+    " %(when)s"
+)
+HANDS_OFF_MOST_SAID = mark("hands off lasts at most 48 hours")
+SET_ASIDE = mark("%(name_label)s (%(principal)s) is set aside meanwhile")
+SET_ASIDE_OFFSET = mark("%(name_label)s (%(offset)s °C) (%(principal)s) is set aside meanwhile")
+UNTIL_DONE = mark("%(name_label)s: until done, at the latest %(when)s")
+UNTIL_DONE_OFFSET = mark("%(name_label)s (%(offset)s °C): until done, at the latest %(when)s")
+UNTIL_CHANGE = mark("%(name_label)s: until the next change, %(when)s")
+UNTIL_CHANGE_OFFSET = mark("%(name_label)s (%(offset)s °C): until the next change, %(when)s")
+UNTIL = mark("%(name_label)s: until %(when)s")
+UNTIL_OFFSET = mark("%(name_label)s (%(offset)s °C): until %(when)s")
+NOT_CHANGEABLE = mark("%(system)s's heating can't be changed: shown, not acted on")
+NO_ROOM_SENSOR = mark(
+    "%(system)s has no room sensor: normal heat, shifted by price within a bound instead of a band"
+)
+NO_BLOCK = mark("without a hot-water block, charges can only be added when cheap, not held off")
+NO_PRICES = mark("no prices yet: comfort only, no shifting by price")
+NO_ADDITION = mark("the addition can't be changed here: the pump's own logic stays")
+NO_POOL = mark("the pool can't be changed here: the pump's own pool control stays")
+WARMER_IN = mark("%(emitter_label)s will be %(offset)s °C warmer in about %(hours)s hours")
+COOLER_IN = mark("%(emitter_label)s will be %(offset)s °C cooler in about %(hours)s hours")
+
+Said = tuple[str, dict[str, JsonValue]]
+"""A message marked for translation, and its values."""
+
+
+def say(message: str, **args: JsonValue) -> Said:
+    return message, args
+
+
+def english(said: Said) -> str:
+    message, args = said
+    if not args:
+        return message
+    shown = {k: v for k, v in args.items()}
+    return message % shown
 
 
 @dataclass(frozen=True)
@@ -71,7 +145,13 @@ class Capabilities:
 class Verdict:
     intent: Intent
     accepted: bool
-    messages: tuple[str, ...] = ()
+    said: tuple[Said, ...] = ()
+    """What the answer says, each part a message and its values."""
+
+    @property
+    def messages(self) -> tuple[str, ...]:
+        """What the answer says, in English."""
+        return tuple(english(s) for s in self.said)
 
 
 def check(
@@ -82,23 +162,27 @@ def check(
     calendar: Calendar,
     now: datetime,
 ) -> Verdict:
-    messages: list[str] = []
+    messages: list[Said] = []
 
-    def refuse(why: str) -> Verdict:
-        return Verdict(
-            intent.model_copy(update={"state": "rejected", "why": why}), False, (why, *messages)
-        )
+    def refuse(why: Said) -> Verdict:
+        update = {
+            "state": "rejected",
+            "why": english(why),
+            "why_message": why[0],
+            "why_args": why[1],
+        }
+        return Verdict(intent.model_copy(update=update), False, (why, *messages))
 
     if intent.principal == "mqtt" and intent.kind in STANDING:
-        return refuse("a request over MQTT is for a while: standing intents are set in the UI")
+        return refuse(say(MQTT_STANDING))
     if intent.kind == "power_peak" and not caps.power:
-        return refuse("a power limit needs a whole-house power reading; there is none yet")
+        return refuse(say(NO_POWER))
     intent, clipped = _definite_end(intent)
     if clipped:
         messages.append(clipped)
     end = Resolver([intent], levels, calendar).end(intent)
     if end is not None and end <= now:
-        return refuse("it would already have ended")
+        return refuse(say(ENDED))
     missing = _missing_levels(intent, levels)
     if missing:
         return refuse(missing)
@@ -112,29 +196,31 @@ def check(
     after = resolver.in_force(at).paused
     for other in others:
         if other.id in after and other.id not in before:
-            messages.append(f"{_name(other)} ({other.principal}) is set aside meanwhile")
+            name = _name(other)
+            asked = {**name, "principal": other.principal}
+            messages.append(say(SET_ASIDE_OFFSET if "offset" in name else SET_ASIDE, **asked))
     if intent.kind == "warmer":
         messages.extend(_reach(intent, caps))
-    messages.insert(0, _until(intent, resolver, calendar))
+    until = _until(intent, resolver, calendar)
+    if until is not None:
+        messages.insert(0, until)
     state = "scheduled" if intent.validity.starts and intent.validity.starts > now else "active"
     accepted = intent.model_copy(update={"state": state, "why": None})
-    return Verdict(accepted, True, tuple(m for m in messages if m))
+    return Verdict(accepted, True, tuple(messages))
 
 
-def _definite_end(intent: Intent) -> tuple[Intent, str | None]:
+def _definite_end(intent: Intent) -> tuple[Intent, Said | None]:
     v = intent.validity
     if intent.kind == "hands_off":
         start = v.starts or intent.created
         latest = start + HANDS_OFF_MOST
         if v.at is None or v.at > latest:
             ended = Validity(starts=v.starts, ends="at", at=latest)
-            return intent.model_copy(update={"validity": ended}), (
-                "hands off lasts at most 48 hours"
-            )
+            return intent.model_copy(update={"validity": ended}), say(HANDS_OFF_MOST_SAID)
     return intent, None
 
 
-def _missing_levels(intent: Intent, levels: Mapping[str, Level]) -> str | None:
+def _missing_levels(intent: Intent, levels: Mapping[str, Level]) -> Said | None:
     named = [t.level for e in intent.expectations for t in e.targets if t.level]
     for key in ("hot_water",):
         value = intent.parameters.get(key)
@@ -145,7 +231,7 @@ def _missing_levels(intent: Intent, levels: Mapping[str, Level]) -> str | None:
         named.extend(str(v) for v in chosen.values())
     for level_id in named:
         if level_id not in levels:
-            return f"there is no level {level_id!r}"
+            return say(NO_LEVEL, level=level_id)
     return None
 
 
@@ -155,7 +241,7 @@ def _contradiction(
     levels: Mapping[str, Level],
     calendar: Calendar,
     now: datetime,
-) -> str | None:
+) -> Said | None:
     """A floor above a ceiling from intents of the intent's own tier, within a week."""
     same = [o for o in others if o.open and o.tier == intent.tier and o.id != intent.id]
     if intent.kind in TEMPORARY or not intent.expectations:
@@ -167,41 +253,42 @@ def _contradiction(
         for (target, scope), bound in resolver.in_force(t).bounds.items():
             if bound.low is not None and bound.high is not None and bound.low > bound.high:
                 at = calendar.local(t)
-                return (
-                    f"it contradicts what is set for {scope}: {target.replace('_', ' ')} at"
-                    f" least {bound.low:g} and at most {bound.high:g}, {at:%A %H:%M}"
+                return say(
+                    CONTRADICTS,
+                    scope=scope,
+                    target=target.replace("_", " "),
+                    low=_number(bound.low),
+                    high=_number(bound.high),
+                    when=f"{at:%A %H:%M}",
                 )
         t += STEP
     return None
 
 
-def _gaps(intent: Intent, caps: Capabilities) -> list[str]:
+def _gaps(intent: Intent, caps: Capabilities) -> list[Said]:
     """What the house lacks for the intent, and what happens instead."""
     out = []
     systems = caps.systems if intent.scope == "house" else {intent.scope} & caps.systems
     if intent.kind in ("comfort_band", "warmer"):
         for system in sorted(systems):
             if system not in caps.offset:
-                out.append(f"{system}'s heating can't be changed: shown, not acted on")
+                out.append(say(NOT_CHANGEABLE, system=system))
             elif not any(s == system for s in caps.rooms.values()) and not intent.parameters.get(
                 "no_sensor"
             ):
-                out.append(
-                    f"{system} has no room sensor: normal heat, shifted by price within a"
-                    " bound instead of a band"
-                )
+                out.append(say(NO_ROOM_SENSOR, system=system))
     if intent.kind in ("hot_water_by", "bath") and intent.scope not in caps.block:
-        out.append("without a hot-water block, charges can only be added when cheap, not held off")
+        out.append(say(NO_BLOCK))
     if intent.kind == "cost_stance" and not caps.prices:
-        out.append("no prices yet: comfort only, no shifting by price")
+        out.append(say(NO_PRICES))
     if intent.kind == "addition_policy" and not caps.addition:
-        out.append("the addition can't be changed here: the pump's own logic stays")
+        out.append(say(NO_ADDITION))
     if intent.kind == "pool" and intent.scope not in caps.pools:
-        out.append("the pool can't be changed here: the pump's own pool control stays")
+        out.append(say(NO_POOL))
     return out
 
 
-def _reach(intent: Intent, caps: Capabilities) -> list[str]:
+def _reach(intent: Intent, caps: Capabilities) -> list[Said]:
     """On a slow system, how long a warmer or cooler takes to show."""
     offset = intent.parameters.get("offset")
     if not isinstance(offset, int | float):
@@ -213,30 +300,40 @@ def _reach(intent: Intent, caps: Capabilities) -> list[str]:
         hours = caps.response_h.get(system) or RESPONSE_H.get(emitter, RESPONSE_H["unknown"])
         hours = round(hours)
         if hours >= 4:
-            way = "warmer" if offset > 0 else "cooler"
-            out.append(
-                f"{EMITTER_WORDS.get(emitter, 'the heating')} will be {abs(offset):g} °C {way}"
-                f" in about {hours:g} hours"
-            )
+            label = EMITTER_WORDS.get(emitter, EMITTER_WORDS["unknown"])
+            said = WARMER_IN if offset > 0 else COOLER_IN
+            out.append(say(said, emitter_label=label, offset=_number(abs(offset)), hours=hours))
     return out
 
 
-def _until(intent: Intent, resolver: Resolver, calendar: Calendar) -> str:
+def _until(intent: Intent, resolver: Resolver, calendar: Calendar) -> Said | None:
     end = resolver.end(intent)
     if end is None:
-        return ""
-    when = calendar.local(end)
+        return None
+    when = f"{calendar.local(end):%Y-%m-%d %H:%M}"
+    name = _name(intent)
+    with_offset = "offset" in name
     if intent.validity.ends == "when_met":
-        return f"{_name(intent)}: until done, at the latest {when:%Y-%m-%d %H:%M}"
-    if intent.validity.ends == "next_change":
-        return f"{_name(intent)}: until the next change, {when:%Y-%m-%d %H:%M}"
-    return f"{_name(intent)}: until {when:%Y-%m-%d %H:%M}"
+        said = UNTIL_DONE_OFFSET if with_offset else UNTIL_DONE
+    elif intent.validity.ends == "next_change":
+        said = UNTIL_CHANGE_OFFSET if with_offset else UNTIL_CHANGE
+    else:
+        said = UNTIL_OFFSET if with_offset else UNTIL
+    return say(said, **name, when=when)
 
 
-def _name(intent: Intent) -> str:
+def _name(intent: Intent) -> dict[str, JsonValue]:
+    """An intent's name in an answer: its label, and for warmer or cooler its offset."""
     if intent.kind == "warmer":
         offset = intent.parameters.get("offset")
-        if isinstance(offset, int | float) and offset < 0:
-            return f"Cooler, please ({offset:+g} °C)"
-        return f"Warmer, please ({offset:+g} °C)" if isinstance(offset, int | float) else "Warmer"
-    return intent.kind.replace("_", " ").capitalize()
+        if isinstance(offset, int | float):
+            label = COOLER if offset < 0 else NAMES["warmer"]
+            return {"name_label": label, "offset": f"{offset:+g}"}
+    return {"name_label": NAMES.get(intent.kind, intent.kind.replace("_", " ").capitalize())}
+
+
+def _number(value: float | None) -> JsonValue:
+    """A whole number as one, as it would be said."""
+    if value is None:
+        return None
+    return int(value) if float(value).is_integer() else value

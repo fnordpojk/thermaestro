@@ -101,6 +101,7 @@ class ControlOperations:
             "accepted": verdict.accepted,
             "intent": verdict.intent.model_dump(mode="json"),
             "messages": list(verdict.messages),
+            "said": [list(s) for s in verdict.said],
         }
 
     async def edit_intent(self, caller: "Caller", id: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -128,6 +129,7 @@ class ControlOperations:
             "accepted": verdict.accepted,
             "intent": verdict.intent.model_dump(mode="json"),
             "messages": list(verdict.messages),
+            "said": [list(s) for s in verdict.said],
         }
 
     async def understand(self, caller: "Caller", text: str) -> dict[str, Any]:

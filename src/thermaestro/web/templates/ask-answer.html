@@ -4,6 +4,6 @@
   <p>{{ error }}</p>
 {% else %}
   <p><strong>{% if answer.accepted %}{{ _("Asked for.") }}{% else %}{{ _("Refused.") }}{% endif %}</strong></p>
-  {% if answer.messages %}<ul>{% for m in answer.messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% if answer.messages %}<ul>{% if answer.said %}{% for m in answer.said %}<li>{{ said(m[0], m[1]) }}</li>{% endfor %}{% else %}{% for m in answer.messages %}<li>{{ m }}</li>{% endfor %}{% endif %}</ul>{% endif %}
 {% endif %}
 </div>

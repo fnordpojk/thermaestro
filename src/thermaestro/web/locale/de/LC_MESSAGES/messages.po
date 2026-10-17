@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:08+0200\n"
+"POT-Creation-Date: 2026-10-17 02:28+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -28,6 +28,14 @@ msgstr ""
 #, python-format
 msgid "%(drawn)s °C of the tank in all"
 msgstr "%(drawn)s °C des Speichers insgesamt"
+
+#, python-format
+msgid "%(emitter_label)s will be %(offset)s °C cooler in about %(hours)s hours"
+msgstr "%(emitter_label)s wird in etwa %(hours)s Stunden %(offset)s °C kühler sein"
+
+#, python-format
+msgid "%(emitter_label)s will be %(offset)s °C warmer in about %(hours)s hours"
+msgstr "%(emitter_label)s wird in etwa %(hours)s Stunden %(offset)s °C wärmer sein"
 
 #, python-format
 msgid "%(fall)s °C an hour at 50 °C"
@@ -154,6 +162,38 @@ msgid "%(name)s: %(text)s"
 msgstr "%(name)s: %(text)s"
 
 #, python-format
+msgid "%(name_label)s (%(offset)s °C) (%(principal)s) is set aside meanwhile"
+msgstr "%(name_label)s (%(offset)s °C) (%(principal)s) wird so lange zurückgestellt"
+
+#, python-format
+msgid "%(name_label)s (%(offset)s °C): until %(when)s"
+msgstr "%(name_label)s (%(offset)s °C): bis %(when)s"
+
+#, python-format
+msgid "%(name_label)s (%(offset)s °C): until done, at the latest %(when)s"
+msgstr "%(name_label)s (%(offset)s °C): bis es erledigt ist, spätestens %(when)s"
+
+#, python-format
+msgid "%(name_label)s (%(offset)s °C): until the next change, %(when)s"
+msgstr "%(name_label)s (%(offset)s °C): bis zur nächsten Änderung, %(when)s"
+
+#, python-format
+msgid "%(name_label)s (%(principal)s) is set aside meanwhile"
+msgstr "%(name_label)s (%(principal)s) wird so lange zurückgestellt"
+
+#, python-format
+msgid "%(name_label)s: until %(when)s"
+msgstr "%(name_label)s: bis %(when)s"
+
+#, python-format
+msgid "%(name_label)s: until done, at the latest %(when)s"
+msgstr "%(name_label)s: bis es erledigt ist, spätestens %(when)s"
+
+#, python-format
+msgid "%(name_label)s: until the next change, %(when)s"
+msgstr "%(name_label)s: bis zur nächsten Änderung, %(when)s"
+
+#, python-format
 msgid "%(num)s charge"
 msgid_plural "%(num)s charges"
 msgstr[0] "%(num)s Ladung"
@@ -220,6 +260,18 @@ msgstr "%(step)s °C Wasser je Verschiebungsschritt, %(slope)s °C je Grad kält
 #, python-format
 msgid "%(steps)s steps of the house's power seen at the compressor's starts and stops."
 msgstr "%(steps)s Sprünge der Hausleistung beim Starten und Stoppen des Verdichters gesehen."
+
+#, python-format
+msgid ""
+"%(system)s has no room sensor: normal heat, shifted by price within a bound instead "
+"of a band"
+msgstr ""
+"%(system)s hat keinen Raumfühler: normale Wärme, nach dem Preis innerhalb einer "
+"Grenze verschoben statt eines Bands"
+
+#, python-format
+msgid "%(system)s's heating can't be changed: shown, not acted on"
+msgstr "Die Heizung von %(system)s kann nicht geändert werden: angezeigt, nicht gesteuert"
 
 #, python-format
 msgid "%(tank)s holds %(liters)s liters."
@@ -438,6 +490,9 @@ msgstr "Fügen Sie die Verbindung der Pumpe unter Einrichtung hinzu."
 msgid "Addition"
 msgstr "Zusatzheizung"
 
+msgid "Addition policy"
+msgstr "Zuheizer"
+
 msgid "Address"
 msgstr "Adresse"
 
@@ -570,6 +625,9 @@ msgstr "Grundpreis"
 
 msgid "Base price per kWh"
 msgstr "Grundpreis je kWh"
+
+msgid "Bath"
+msgstr "Bad"
 
 msgid "Became"
 msgstr "Wurde zu"
@@ -771,6 +829,9 @@ msgstr "Farben: hell"
 msgid "Comfort"
 msgstr "Komfort"
 
+msgid "Comfort band"
+msgstr "Komfortband"
+
 msgid "Comfort: a band for a climate system or a room, on a weekly pattern"
 msgstr "Komfort: ein Band für ein Heizsystem oder einen Raum, nach einem Wochenplan"
 
@@ -820,6 +881,9 @@ msgid "Cost and comfort: what gives way first, and how much comfort may give for
 msgstr ""
 "Kosten und Komfort: was zuerst nachgibt, und wie viel Komfort für Ersparnisse "
 "nachgeben darf"
+
+msgid "Cost stance"
+msgstr "Kosten und Komfort"
 
 msgid "Counts"
 msgstr "Zählt"
@@ -1272,6 +1336,9 @@ msgstr "Warmwasser auf seine niedrigste Temperatur, und das Haus zur Rückkehr w
 
 msgid "Hot water drawn, through the week"
 msgstr "Gezapftes Warmwasser, über die Woche"
+
+msgid "Hot water floor"
+msgstr "Niedrigste Warmwassertemperatur"
 
 msgid "Hot water that must be ready"
 msgstr "Warmwasser, das bereit sein muss"
@@ -2170,6 +2237,9 @@ msgstr "Leistungsgrenze"
 
 msgid "Power limit, kW"
 msgstr "Leistungsgrenze, kW"
+
+msgid "Power peak"
+msgstr "Leistungsgrenze"
 
 msgid "Power to the grid"
 msgstr "Leistung ins Netz"
@@ -3383,11 +3453,21 @@ msgstr "ein Passwort darf höchstens 256 Zeichen haben"
 msgid "a password needs at least 15 characters"
 msgstr "ein Passwort braucht mindestens 15 Zeichen"
 
+msgid "a power limit needs a whole-house power reading; there is none yet"
+msgstr ""
+"eine Leistungsgrenze braucht eine Leistungsmessung für das ganze Haus; es gibt noch "
+"keine"
+
 msgid "a power reading: the pump's own meter, or the whole house's"
 msgstr "eine Leistungsmessung: der eigene Zähler der Wärmepumpe, oder der des ganzen Hauses"
 
 msgid "a protection floor"
 msgstr "eine Schutzgrenze"
+
+msgid "a request over MQTT is for a while: standing intents are set in the UI"
+msgstr ""
+"eine Anfrage über MQTT gilt für eine Weile: was immer gilt, wird in der Weboberfläche"
+" eingestellt"
 
 msgid "a room temperature in this climate system"
 msgstr "eine Raumtemperatur in diesem Heizkreis"
@@ -3691,6 +3771,9 @@ msgstr "Gäste bis morgen 18:00"
 msgid "hands off for 2 days"
 msgstr "Finger weg für 2 Tage"
 
+msgid "hands off lasts at most 48 hours"
+msgstr "Finger weg gilt höchstens 48 Stunden"
+
 msgid "heating"
 msgstr "Heizung"
 
@@ -3752,8 +3835,19 @@ msgstr "inkl. MwSt."
 msgid "included"
 msgstr "enthalten"
 
+#, python-format
+msgid ""
+"it contradicts what is set for %(scope)s: %(target)s at least %(low)s and at most "
+"%(high)s, %(when)s"
+msgstr ""
+"es widerspricht dem, was für %(scope)s eingestellt ist: %(target)s mindestens %(low)s"
+" und höchstens %(high)s, %(when)s"
+
 msgid "it has no band"
 msgstr "er hat keinen Bereich"
+
+msgid "it would already have ended"
+msgstr "es wäre schon vorbei"
 
 msgid "its COP or the compressor's draw isn't known"
 msgstr "sein COP oder die Leistungsaufnahme des Verdichters ist nicht bekannt"
@@ -3831,6 +3925,9 @@ msgstr "nein"
 
 msgid "no answer in time"
 msgstr "keine Antwort rechtzeitig"
+
+msgid "no prices yet: comfort only, no shifting by price"
+msgstr "noch keine Preise: nur Komfort, keine Verschiebung nach dem Preis"
 
 msgid "no room in it has a fresh temperature"
 msgstr "kein Raum darin hat eine aktuelle Temperatur"
@@ -4103,6 +4200,9 @@ msgstr "dann könnte kein Benutzer mehr Benutzer verwalten"
 msgid "the addition at most %(kw)s kW"
 msgstr "der Zuheizer höchstens %(kw)s kW"
 
+msgid "the addition can't be changed here: the pump's own logic stays"
+msgstr "der Zuheizer kann hier nicht geändert werden: die eigene Logik der Pumpe bleibt"
+
 #, python-format
 msgid "the addition: %(policy)s"
 msgstr "der Zuheizer: %(policy)s"
@@ -4142,11 +4242,20 @@ msgstr "den Diagnosewerten"
 msgid "the everyday values"
 msgstr "den Alltagswerten"
 
+msgid "the fan coils"
+msgstr "die Gebläsekonvektoren"
+
 msgid "the fireplace is lit"
 msgstr "der Kamin brennt"
 
+msgid "the floor heating"
+msgstr "die Fußbodenheizung"
+
 msgid "the gateway's, or an S-series pump's own"
 msgstr "die des Gateways oder die eigene einer Pumpe der S-Serie"
+
+msgid "the heating"
+msgstr "die Heizung"
 
 msgid "the hot water's floor"
 msgstr "die Untergrenze des Warmwassers"
@@ -4163,6 +4272,9 @@ msgstr "der Hauptanbieter"
 
 msgid "the password you entered isn't right"
 msgstr "das eingegebene Passwort ist nicht richtig"
+
+msgid "the pool can't be changed here: the pump's own pool control stays"
+msgstr "der Pool kann hier nicht geändert werden: die eigene Poolsteuerung der Pumpe bleibt"
 
 msgid "the pool's temperature"
 msgstr "die Pooltemperatur"
@@ -4188,6 +4300,9 @@ msgstr "die Heizgrenze der Pumpe hat die Heizung ausgeschaltet"
 msgid "the pump's own"
 msgstr "der der Pumpe"
 
+msgid "the radiators"
+msgstr "die Heizkörper"
+
 msgid "the room's reference"
 msgstr "Referenz des Raums"
 
@@ -4208,6 +4323,10 @@ msgstr "die beiden Passwörter stimmen nicht überein"
 
 msgid "there is already an administrator"
 msgstr "es gibt bereits einen Administrator"
+
+#, python-format
+msgid "there is no level '%(level)s'"
+msgstr "es gibt keine Stufe '%(level)s'"
 
 msgid "this display link has been used, has expired, or was revoked"
 msgstr "der Display-Link wurde schon verwendet, ist abgelaufen oder wurde widerrufen"
@@ -4293,6 +4412,11 @@ msgstr "mit der Quelle bei, °C"
 
 msgid "withdrawn"
 msgstr "zurückgezogen"
+
+msgid "without a hot-water block, charges can only be added when cheap, not held off"
+msgstr ""
+"ohne Warmwassersperre können Ladungen nur hinzugefügt werden, wenn es günstig ist, "
+"nicht zurückgehalten"
 
 msgid "working days"
 msgstr "Werktage"
