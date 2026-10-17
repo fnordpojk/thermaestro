@@ -52,6 +52,7 @@ def _environment() -> jinja2.Environment:
         newstyle=True,
     )
     env.filters["num"] = i18n.number
+    env.globals["summary_lines"] = labels.summary_lines
     env.filters["when"] = i18n.when
     env.filters["unit"] = i18n.unit
     env.filters["country"] = i18n.country
@@ -771,16 +772,12 @@ async def health_page(request: Request, who: Logged) -> Response:
 
 @router.get("/events")
 async def events_page(request: Request, who: Logged) -> Response:
-    from .labels import STATES
-
     days = 7
     s = services(request)
     found = await s.events(who, days)
     latest = await s.summaries(who, 1)
     summary = latest[0] if latest else None
-    return render(
-        request, "events.html", who, events=found, days=days, summary=summary, states=STATES
-    )
+    return render(request, "events.html", who, events=found, days=days, summary=summary)
 
 
 @router.get("/audit")

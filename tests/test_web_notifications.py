@@ -1,6 +1,7 @@
 """Notifications: nothing sent unless a person turned it on, only what their rights let
 them see, in their language, once per change, within the limit, and every failure kept."""
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ from thermaestro.auth import Accounts, AddressLimiter, Preferences, SetupCode, U
 from thermaestro.cap.messages import Notified, NotifyList, Target
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.events import Events, Raise
+from thermaestro.planner.summary import READY
 from thermaestro.planner.watch import COMFORT_MISSED, FLOOR_BROKEN
 from thermaestro.store import Database, SecretStore
 from thermaestro.web import Services, create_app
@@ -269,3 +271,31 @@ async def test_turned_on_from_ones_own_page(tmp_path: Path) -> None:
                 ("home_assistant", "sent")
             ]
             assert h.link.sent[-1][2].startswith("A test notification")
+
+
+async def test_the_daily_summary_carries_the_summary(tmp_path: Path) -> None:
+    from test_web_events import DAY
+
+    async with house(tmp_path) as h:
+        await h.db.run(
+            lambda t: t.execute(
+                "INSERT INTO summaries (day, made, body) VALUES (?, ?, ?)",
+                (DAY["day"], h.clock[0], json.dumps(DAY)),
+            )
+        )
+        kid, admin = await h.user("kid"), await h.user("admin")
+        await h.notifier.choose(kid, Wanted(conditions=("summary",), mqtt=True))
+        await h.notifier.choose(admin, Wanted(conditions=("summary",), home_assistant=PHONE))
+        told = Raise("summary.daily", "house", READY, {"day": DAY["day"]}, audience="household")
+        await h.events.moment(f"summary.daily:{DAY['day']}", told, now=h.clock[0])
+        await h.notifier.drain()
+        [(_, payload)] = h.broker.sent
+        lines = payload["message"].splitlines()
+        assert lines[:2] == [
+            "The day before, 2026-10-16",
+            "The pump used 52.0 kWh, costing 80.25 SEK.",
+        ]
+        assert "Guests: 38.2 kWh while it ran, 61.40 SEK" in lines
+        assert not any("settings written" in line for line in lines)  # not the kid's to read
+        [(_, _, message)] = h.link.sent
+        assert message.splitlines()[-1] == "12 settings written, 7 compressor starts."

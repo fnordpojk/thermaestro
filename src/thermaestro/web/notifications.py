@@ -8,13 +8,15 @@ through that Home Assistant's plugin, and to an MQTT topic of their own while di
 on.
 
 Each event is sent as it is raised, again as what it says changes, and as it clears; a
-moment, over as it happens, once. At most `LIMIT` an hour to each person: beyond, they are
-held back, and the Events page has them. Every one sent, failed or held back is kept for
-30 days, and the user's page shows what failed.
+moment, over as it happens, once. The daily summary's carries the summary itself, as the
+user may read it. At most `LIMIT` an hour to each person: beyond, they are held back, and
+the Events page has them. Every one sent, failed or held back is kept for 30 days, and
+the user's page shows what failed.
 """
 
 import asyncio
 import contextlib
+import json
 import logging
 import time
 from collections import deque
@@ -31,6 +33,7 @@ from ..cap.messages import TargetId
 from ..core.events import Event, Events
 from ..store import Database
 from . import i18n
+from .labels import summary_lines
 
 if TYPE_CHECKING:
     from ..core.discovery import Publisher
@@ -67,6 +70,9 @@ LIST_S = 5.0
 """The longest the account page waits for a Home Assistant to list its targets."""
 TITLE = "Thermaestro"
 OVER = i18n.mark("Over: %(what)s")
+DAY_BEFORE = i18n.mark("The day before, %(day)s")
+MESSAGE_MAX = 2000
+"""What a notification may say, as the plugin protocol allows."""
 TEST = i18n.mark("A test notification: this is where Thermaestro's notifications reach you.")
 QUEUED = 200
 """Events waiting to be sent; beyond, the newest are dropped and logged."""
@@ -268,12 +274,31 @@ class Notifier:
             await self._record(user, Sent(now, "limit", name, "held"))
             return
         sent.append(now)
+        summary = await self._summary(event, user)
         with self._in(user):
             text = i18n.said(event.message, event.args)
-            if phase == "cleared":
+            if summary is not None:
+                day = i18n._(DAY_BEFORE, day=summary.get("day"))
+                text = "\n".join([day, *summary_lines(summary)])[:MESSAGE_MAX]
+            elif phase == "cleared":
                 text = i18n._(OVER, what=text)
         about = {"kind": event.kind, "key": event.key, "state": phase, "t": now}
         await self._out(user, wanted, text, about, name)
+
+    async def _summary(self, event: Event, user: User) -> dict[str, Any] | None:
+        """The daily summary a `summary.daily` event tells of, as that user may read it."""
+        day = event.args.get("day")
+        if event.kind != "summary.daily" or not isinstance(day, str):
+            return None
+        row = await self._db.run(
+            lambda t: t.execute("SELECT body FROM summaries WHERE day = ?", (day,)).fetchone()
+        )
+        if row is None:
+            return None
+        found: dict[str, Any] = json.loads(row[0])
+        if not _has(user, "settings.read"):
+            found = {k: v for k, v in found.items() if k not in ("writes", "starts")}
+        return found
 
     async def _out(
         self, user: User, wanted: Wanted, text: str, about: dict[str, Any], name: str

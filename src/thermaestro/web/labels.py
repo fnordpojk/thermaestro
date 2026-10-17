@@ -418,6 +418,95 @@ STATES = {
 }
 
 
+def summary_lines(summary: Mapping[str, object]) -> list[str]:
+    """A daily summary, a line each, in the current language: as the Events page shows it
+    and a notification says it. The writes and the compressor's starts only where the
+    summary carries them, for those who may read the settings."""
+    s: dict[str, object] = dict(summary)
+    out = []
+    currency = str(s.get("currency") or "")
+    kwh, cost = s.get("kwh"), s.get("cost")
+    if isinstance(kwh, int | float):
+        if isinstance(cost, int | float):
+            out.append(
+                i18n._(
+                    "The pump used %(kwh)s kWh, costing %(cost)s %(currency)s.",
+                    kwh=i18n.number(kwh),
+                    cost=i18n.number(cost, 2),
+                    currency=currency,
+                )
+            )
+        else:
+            out.append(i18n._("The pump used %(kwh)s kWh.", kwh=i18n.number(kwh)))
+    ended = _rows(s.get("ended"))
+    for i in ended:
+        state = str(i.get("state"))
+        line = f"{_named(i.get('name'))}: {i18n._(STATES[state]) if state in STATES else state}"
+        message, why = i.get("why_message"), i.get("why")
+        if isinstance(message, str) and message:
+            args = i.get("why_args")
+            line += f" ({i18n.said(message, args if isinstance(args, Mapping) else None)})"
+        elif isinstance(why, str) and why:
+            line += f" ({why})"
+        out.append(line)
+    for t in _rows(s.get("temporary")):
+        name, used, paid = _named(t.get("name")), t.get("kwh"), t.get("cost")
+        number = i18n.number(used) if isinstance(used, int | float) else "?"
+        if isinstance(paid, int | float):
+            out.append(
+                i18n._(
+                    "%(name)s: %(kwh)s kWh while it ran, %(cost)s %(currency)s",
+                    name=name,
+                    kwh=number,
+                    cost=i18n.number(paid, 2),
+                    currency=currency,
+                )
+            )
+        else:
+            out.append(i18n._("%(name)s: %(kwh)s kWh while it ran", name=name, kwh=number))
+    rooms, floors = _rows(s.get("rooms")), _rows(s.get("floors"))
+    for r in rooms:
+        out.append(
+            i18n._(
+                "%(room)s was below its band for %(minutes)s minutes.",
+                room=r.get("name"),
+                minutes=r.get("minutes"),
+            )
+        )
+    for f in floors:
+        out.append(
+            i18n._(
+                "The hot water was below its floor for %(minutes)s minutes.",
+                minutes=f.get("minutes"),
+            )
+        )
+    if not ended and not rooms and not floors:
+        out.append(i18n._("Everything was met."))
+    if "writes" in s:
+        starts = s.get("starts")
+        out.append(
+            i18n._(
+                "%(writes)s settings written, %(starts)s compressor starts.",
+                writes=s.get("writes"),
+                starts=starts if starts is not None else "?",
+            )
+        )
+    return out
+
+
+def _rows(value: object) -> list[Mapping[str, object]]:
+    return [v for v in value if isinstance(v, Mapping)] if isinstance(value, list) else []
+
+
+def _named(name: object) -> str:
+    """An intent's name as a summary keeps it: its label, and an offset where it has one."""
+    if not isinstance(name, Mapping):
+        return ""
+    label = i18n._(str(name.get("name_label", "")))
+    offset = name.get("offset")
+    return f"{label} ({offset} °C)" if offset else label
+
+
 OUTCOMES = {
     "verified": mark("done, and read back"),
     "not_kept": mark("accepted, but not kept"),

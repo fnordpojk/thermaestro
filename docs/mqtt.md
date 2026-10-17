@@ -199,7 +199,7 @@ A request is a JSON object on `thermaestro/<id>/request`, in the same household 
 
 ### Notifications
 
-A user who turns MQTT on for their notifications (their own page, **Notifications**) gets each on `thermaestro/<id>/notify/<user name>`, not retained, as JSON in their language: `{"title": "Thermaestro", "message": "Bath was missed", "kind": "intent.missed", "key": "intent.missed:in-…", "state": "raised", "t": 1792303200.0}`. `state` is `raised`, `changed` or `cleared`; the message of one cleared starts with "Over:". They go only while discovery is on. Anyone who may read the broker can read them, as with every other topic here.
+A user who turns MQTT on for their notifications (their own page, **Notifications**) gets each on `thermaestro/<id>/notify/<user name>`, not retained, as JSON in their language: `{"title": "Thermaestro", "message": "Bath was missed", "kind": "intent.missed", "key": "intent.missed:in-…", "state": "raised", "t": 1792303200.0}`. `state` is `raised`, `changed` or `cleared`; the message of one cleared starts with "Over:". The daily summary's message is the summary, a line each. They go only while discovery is on. Anyone who may read the broker can read them, as with every other topic here.
 
 ### Buttons and states for control
 

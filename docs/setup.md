@@ -328,7 +328,7 @@ The household sees its own: intents and rooms. Those who may read the settings (
 
 Nothing is sent to anyone until they turn it on, each on their own page (under their name in the menu), **Notifications**:
 
-- **What:** one's own requests at risk, giving way or missed; everyone's, for those who may end anyone's; a room below its band; the daily summary; and for those who may read the settings, the house's workings (the floor, settings let go, plugins, device warnings). What a user may turn on follows their rights.
+- **What:** one's own requests at risk, giving way or missed; everyone's, for those who may end anyone's; a room below its band; the daily summary, all of it in the notification as the Events page shows it; and for those who may read the settings, the house's workings (the floor, settings let go, plugins, device warnings). What a user may turn on follows their rights.
 - **Where:** a Home Assistant notification target, such as the phone the Home Assistant app runs on, listed from the Home Assistant set up under **Setup → External**; and an MQTT topic of their own while discovery is on ([the topic](mqtt.md#notifications)). Either, or both.
 - Each is sent as it happens, again if what it says changes, and once more when it is over, in the user's language. At most ten an hour reach one person; the rest are held back, and the Events page has them.
 - **Send a test** sends one now. What couldn't be sent in the last week, and why, is listed below it.
