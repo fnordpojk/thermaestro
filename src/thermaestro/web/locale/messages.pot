@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 23:33+0200\n"
+"POT-Creation-Date: 2026-10-19 00:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1047,6 +1047,12 @@ msgid "Enter your password again"
 msgstr ""
 
 msgid "Entity"
+msgstr ""
+
+msgid "Estimated from the compressor's run time and its learned draw."
+msgstr ""
+
+msgid "Estimated from the compressor's run time and the maker's figures."
 msgstr ""
 
 msgid "Events"
@@ -2736,8 +2742,8 @@ msgstr ""
 
 #, python-format
 msgid ""
-"The mean over the last %(days)s days, from the pump's own meter; "
-"%(addition)s kWh a day of it while the addition ran."
+"The mean over the last %(days)s days, from the electricity meter on the "
+"pump's supply; %(addition)s kWh a day of it while the addition ran."
 msgstr ""
 
 #, python-format
@@ -3177,7 +3183,7 @@ msgstr ""
 msgid "What the plan leaves short, in the order things give way:"
 msgstr ""
 
-msgid "What the pump uses a day, by its own meter"
+msgid "What the pump uses a day, by the electricity meter on its supply"
 msgstr ""
 
 msgid "What the radiators or floor give per degree of water over the room"
@@ -3339,7 +3345,9 @@ msgstr ""
 msgid "a power limit needs a whole-house power reading; there is none yet"
 msgstr ""
 
-msgid "a power reading: the pump's own meter, or the whole house's"
+msgid ""
+"a power reading: an electricity meter on the pump's supply, or the whole "
+"house's"
 msgstr ""
 
 msgid "a protection floor"

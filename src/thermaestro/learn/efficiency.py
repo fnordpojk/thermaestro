@@ -60,7 +60,7 @@ class PumpKeys:
     """The compressor's documented figures."""
     compressor_ref: str
     meter: Key | None = None
-    """The pump's own meter on its supply, in kWh, where one is set up."""
+    """An electricity meter on the pump's supply, in kWh, where one is set up."""
 
 
 class Efficiency:

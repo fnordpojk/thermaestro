@@ -118,6 +118,7 @@ async def test_the_day_before_summed_up_at_seven(tmp_path: Path) -> None:
         assert await found.recent(7) == [made]
         assert made["day"] == "2026-10-15"
         assert made["kwh"] == pytest.approx(24.0, abs=0.1)
+        assert made["energy_from"] == "meter"
         assert made["cost"] == pytest.approx(36.0, abs=0.2)
         [warmer] = made["temporary"]
         assert warmer["kind"] == "warmer"
@@ -177,6 +178,17 @@ async def test_unmeasured_energy_is_unknown_not_none_used(tmp_path: Path) -> Non
         [made] = await summaries(db, events).due(MORNING, UTC)
         assert (made["kwh"], made["cost"]) == (None, None)
         assert [t["kwh"] for t in made["temporary"]] == [None]
+
+
+async def test_without_a_meter_or_a_learned_draw_the_makers_figures(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = await house(db)
+        await db.run(lambda t: t.execute("DELETE FROM settings WHERE kind = 'sensor'"))
+        rated = [Pump("pump:hp1", COMPRESSOR, {"heating": 1.5, "dhw": 2.0})]
+        [made] = await summaries(db, events, rated).due(MORNING, UTC)
+        assert made["energy_from"] == "maker"
+        assert made["kwh"] == pytest.approx(3.0, abs=0.05)  # two hours' heating at 1.5 kW
+        assert made["cost"] == pytest.approx(3.0, abs=0.05)  # all of it in the first half
 
 
 async def test_summaries_made_before_the_pump_was_known_are_made_again(tmp_path: Path) -> None:

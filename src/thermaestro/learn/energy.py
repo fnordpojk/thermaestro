@@ -44,11 +44,13 @@ STARTS_DAYS = 7
 NOT_USABLE = mark("Not learned: %(what)s isn't usable on this pump yet.")
 STARTS_WHY = mark("The mean over the last %(days)s days.")
 ENERGY_WHY = mark(
-    "The mean over the last %(days)s days, from the pump's own meter; %(addition)s kWh a"
-    " day of it while the addition ran."
+    "The mean over the last %(days)s days, from the electricity meter on the pump's supply;"
+    " %(addition)s kWh a day of it while the addition ran."
 )
 WHAT = {
-    "house": mark("a power reading: the pump's own meter, or the whole house's"),
+    "house": mark(
+        "a power reading: an electricity meter on the pump's supply, or the whole house's"
+    ),
     "compressor": mark("the compressor's state"),
     "demand": mark("the pump's demand"),
 }
@@ -62,7 +64,7 @@ class UnitKeys:
     demand: Key
     addition: Key | None
     meter: Key | None = None
-    """The pump's own meter on its supply, in kWh, where one is set up."""
+    """An electricity meter on the pump's supply, in kWh, where one is set up."""
 
 
 class Energy:

@@ -283,10 +283,14 @@ class Planner:
         return planned
 
     def _pump_units(self) -> list[Pump]:
-        """The pump units the summary reads, with their compressor's state."""
+        """The pump units the summary reads: their compressor's state, and its electrical
+        power as the maker documents it."""
         if self.optimizer is None:
             return []
-        return [Pump(unit, info["compressor"]) for unit, info in self.optimizer._units().items()]
+        return [
+            Pump(unit, info["compressor"], _rated_kw(info["rating"]))
+            for unit, info in self.optimizer._units().items()
+        ]
 
     async def round(self, *, slot: bool = True) -> Plan:
         """Gather, decide, ask; the whole of one plan. `slot`: everything is planned, as at
@@ -1134,3 +1138,14 @@ def plan_body(optimized: Optimized, sit: Situation) -> dict[str, Any]:
         }
     )
     return out
+
+
+def _rated_kw(rating: Any) -> dict[str, float] | None:
+    """The compressor's electrical power by its maker's figures: heating at the lowest
+    supply temperature documented, hot water at the highest."""
+    points = [p for p in getattr(rating, "heating", ()) if p.elec_kw]
+    if not points:
+        return None
+    low = min(points, key=lambda p: p.supply_c)
+    high = max(points, key=lambda p: p.supply_c)
+    return {"heating": float(low.elec_kw), "dhw": float(high.elec_kw)}

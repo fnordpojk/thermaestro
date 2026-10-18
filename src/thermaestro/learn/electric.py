@@ -224,7 +224,7 @@ def meter_runs(
     end: float = float("inf"),
 ) -> list[Step]:
     """The draw over each stretch the compressor ran on one purpose (`serving`, by
-    purpose), from the pump's own meter, its standing draw taken off."""
+    purpose), from a meter on the pump's supply, its standing draw taken off."""
     out = []
     for purpose, stretches in serving.items():
         for t0, t1 in stretches:

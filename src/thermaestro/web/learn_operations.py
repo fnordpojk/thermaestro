@@ -42,7 +42,7 @@ NAMES = {
     "pool.model": mark("How fast the pool warms and cools"),
     "compressor.draw": mark("What the compressor draws while it runs"),
     "compressor.starts": mark("How often the compressor starts"),
-    "pump.energy": mark("What the pump uses a day, by its own meter"),
+    "pump.energy": mark("What the pump uses a day, by the electricity meter on its supply"),
     "cop.heating": mark("How much heat a kWh gives heating (COP)"),
     "cop.dhw": mark("How much heat a kWh gives making hot water (COP)"),
     "brine.w_k": mark("What the brine carries per degree of its drop"),

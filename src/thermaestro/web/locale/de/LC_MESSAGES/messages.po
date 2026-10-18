@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 23:33+0200\n"
+"POT-Creation-Date: 2026-10-19 00:23+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -1118,6 +1118,12 @@ msgstr "Geben Sie Ihr Passwort erneut ein"
 
 msgid "Entity"
 msgstr "Entität"
+
+msgid "Estimated from the compressor's run time and its learned draw."
+msgstr "Geschätzt aus der Laufzeit des Verdichters und seiner gelernten Leistungsaufnahme."
+
+msgid "Estimated from the compressor's run time and the maker's figures."
+msgstr "Geschätzt aus der Laufzeit des Verdichters und den Herstellerangaben."
 
 msgid "Events"
 msgstr "Ereignisse"
@@ -2917,11 +2923,11 @@ msgstr "Der Mittelwert der gesehenen Ladungen, die neueste zählt am meisten."
 
 #, python-format
 msgid ""
-"The mean over the last %(days)s days, from the pump's own meter; %(addition)s kWh a "
-"day of it while the addition ran."
+"The mean over the last %(days)s days, from the electricity meter on the pump's "
+"supply; %(addition)s kWh a day of it while the addition ran."
 msgstr ""
-"Der Mittelwert der letzten %(days)s Tage, vom eigenen Zähler der Wärmepumpe; "
-"%(addition)s kWh am Tag davon, während der Zuheizer lief."
+"Der Mittelwert der letzten %(days)s Tage, vom Stromzähler an der Zuleitung der "
+"Wärmepumpe; %(addition)s kWh am Tag davon, während der Zuheizer lief."
 
 #, python-format
 msgid "The mean over the last %(days)s days."
@@ -3410,8 +3416,8 @@ msgstr ""
 msgid "What the plan leaves short, in the order things give way:"
 msgstr "Was der Plan nicht erreicht, in der Reihenfolge, in der Dinge nachgeben:"
 
-msgid "What the pump uses a day, by its own meter"
-msgstr "Was die Wärmepumpe am Tag verbraucht, laut ihrem eigenen Zähler"
+msgid "What the pump uses a day, by the electricity meter on its supply"
+msgstr "Was die Wärmepumpe am Tag verbraucht, laut dem Stromzähler an ihrer Zuleitung"
 
 msgid "What the radiators or floor give per degree of water over the room"
 msgstr "Was Heizkörper oder Fußboden je Grad Wasser über dem Raum abgeben"
@@ -3592,8 +3598,10 @@ msgstr ""
 "eine Leistungsgrenze braucht eine Leistungsmessung für das ganze Haus; es gibt noch "
 "keine"
 
-msgid "a power reading: the pump's own meter, or the whole house's"
-msgstr "eine Leistungsmessung: der eigene Zähler der Wärmepumpe, oder der des ganzen Hauses"
+msgid "a power reading: an electricity meter on the pump's supply, or the whole house's"
+msgstr ""
+"eine Leistungsmessung: ein Stromzähler an der Zuleitung der Wärmepumpe, oder der des "
+"ganzen Hauses"
 
 msgid "a protection floor"
 msgstr "eine Schutzgrenze"

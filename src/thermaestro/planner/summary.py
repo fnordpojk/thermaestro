@@ -4,8 +4,9 @@ time:
 - what was met and what was missed: each intent that ended that day, with what came of it;
   each room's minutes below its band; the hot water's minutes below its floor;
 - a line per temporary intent that ran that day: the pump's electricity while it ran, and
-  what it cost, from the pump's own meter where there is one, else from the compressor's
-  learned draw for the time it ran and the addition's power;
+  what it cost, from an electricity meter on the pump's supply where one is set up, else
+  estimated for the time the compressor ran: from its learned draw, or until that has
+  proved itself, from the maker's figures; and the addition's power;
 - the day's electricity and cost, the writes Thermaestro asked for, and the compressor's
   starts.
 
@@ -59,6 +60,9 @@ class Pump:
     unit: str
     """`instance:path`."""
     compressor: Key | None
+    rated: Mapping[str, float] | None = None
+    """The compressor's electrical power as its maker documents it, kW: `heating` and
+    `dhw`."""
 
 
 class Summaries:
@@ -150,7 +154,8 @@ class Summaries:
         t0 = datetime.combine(day, time(0), zone).timestamp()
         t1 = datetime.combine(day + timedelta(days=1), time(0), zone).timestamp()
         slots = [t0 + SLOT_S * i for i in range(int((t1 - t0) // SLOT_S))]
-        kwh, measured = await self._kwh(slots)
+        kwh, energy_from = await self._kwh(slots)
+        measured = energy_from is not None
         by_slot = {p.start.timestamp(): p.value for p in prices}
         cost = [k * by_slot[s] if s in by_slot else None for s, k in zip(slots, kwh, strict=True)]
         priced = [c for c in cost if c is not None]
@@ -174,33 +179,40 @@ class Summaries:
                 for i, a, b in ran
             ],
             "kwh": round(sum(kwh), 1) if measured else None,
+            "energy_from": energy_from,
             "cost": round(sum(priced), 2) if priced and measured else None,
             "currency": currency,
             "writes": await self._writes(t0, t1),
             "starts": await self._starts(t0, t1),
         }
 
-    async def _kwh(self, slots: list[float]) -> tuple[list[float], bool]:
-        """What the pumps drew in each slot, kWh; and whether anything measured it: a
-        pump's meter, or its compressor's learned draw."""
+    async def _kwh(self, slots: list[float]) -> tuple[list[float], str | None]:
+        """What the pumps drew in each slot, kWh; and from what, the least sure where they
+        differ: `meter` (one on the pump's supply), `draw` (the compressor's learned draw
+        for the time it ran), `maker` (the maker's figures for that time); None where a
+        pump's electricity can't be told at all."""
         out = [0.0] * len(slots)
-        measured = False
         if not slots:
-            return out, measured
+            return out, None
         end = slots[-1] + SLOT_S
         meters = await pump_meters(self._db)
+        found: list[str | None] = []
         for pump in self._pumps():
             meter = meters.get(pump.unit)
             if meter is not None:
-                measured = True
+                found.append("meter")
                 counter = Series(await self._values.history(meter, slots[0] - 3600, end))
                 for i, s in enumerate(slots):
                     out[i] += counter_kwh(counter, s, s + SLOT_S) or 0.0
                 continue
-            draws = self._learnings.used(DRAW, pump.unit) if self._learnings else None
+            learned = self._learnings.used(DRAW, pump.unit) if self._learnings else None
+            draws, basis = (
+                (learned, "draw") if isinstance(learned, Mapping) else (pump.rated, "maker")
+            )
             if not isinstance(draws, Mapping) or pump.compressor is None:
+                found.append(None)
                 continue
-            measured = True
+            found.append(basis)
             heating = float(draws.get("heating") or 0.0)
             dhw = float(draws.get("dhw") or heating)
             instance, path = split(pump.unit)
@@ -217,7 +229,9 @@ class Summaries:
                 kw = running * ((1 - charging) * heating + charging * dhw)
                 kw += held_mean(added, s, s + SLOT_S) or 0.0
                 out[i] += kw * SLOT_S / 3600
-        return out, measured
+        if not found or None in found:
+            return out, None
+        return out, max(found, key=lambda b: ("meter", "draw", "maker").index(str(b)))
 
     async def _intents(
         self, t0: float, t1: float

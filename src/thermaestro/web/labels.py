@@ -419,6 +419,13 @@ STATES = {
 }
 
 
+ESTIMATED = {
+    "draw": mark("Estimated from the compressor's run time and its learned draw."),
+    "maker": mark("Estimated from the compressor's run time and the maker's figures."),
+}
+"""How a summary's electricity was told, where no meter measured it."""
+
+
 def summary_lines(summary: Mapping[str, object]) -> list[str]:
     """A daily summary, a line each, in the current language: as the Events page shows it
     and a notification says it. The writes and the compressor's starts only where the
@@ -439,6 +446,9 @@ def summary_lines(summary: Mapping[str, object]) -> list[str]:
             )
         else:
             out.append(i18n._("The pump used %(kwh)s kWh.", kwh=i18n.number(kwh)))
+        estimated = ESTIMATED.get(str(s.get("energy_from")))
+        if estimated is not None:
+            out.append(i18n._(estimated))
     ended = _rows(s.get("ended"))
     for i in ended:
         state = str(i.get("state"))

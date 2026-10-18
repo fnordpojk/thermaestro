@@ -306,7 +306,8 @@ def _held(samples: Sequence[Sample], end: float) -> Iterable[tuple[float, float,
 async def counts_with_compressor(
     samples: list[Sample], recorded: Recorded, context: Context
 ) -> Judged | None:
-    """A pump's own meter counts faster while the compressor runs than while it stands."""
+    """A meter on a pump's supply counts faster while the compressor runs than while it
+    stands."""
     if context.compressor is None:
         return None
     compressor = await recorded.get(context.compressor)
