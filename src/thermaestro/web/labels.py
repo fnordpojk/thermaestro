@@ -451,7 +451,9 @@ def summary_lines(summary: Mapping[str, object]) -> list[str]:
         out.append(line)
     for t in _rows(s.get("temporary")):
         name, used, paid = _named(t.get("name")), t.get("kwh"), t.get("cost")
-        number = i18n.number(used) if isinstance(used, int | float) else "?"
+        if not isinstance(used, int | float):
+            continue  # nothing measured what it used
+        number = i18n.number(used)
         if isinstance(paid, int | float):
             out.append(
                 i18n._(

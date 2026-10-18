@@ -11,7 +11,7 @@ import math
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -390,7 +390,7 @@ def test_a_request_is_answered_from_the_plan(tmp_path: Path) -> None:
     assert planned, answers
 
 
-async def unpriced(now: datetime) -> list[Price]:
+async def unpriced(day: date, zone: tzinfo) -> list[Price]:
     return []
 
 

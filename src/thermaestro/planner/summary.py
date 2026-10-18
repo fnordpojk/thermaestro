@@ -12,7 +12,11 @@ time:
 What a temporary intent used is what the pump used while it ran, not what it used more than
 without it: that needs a baseline, the pump alone on the same days, which comes with
 replaying recordings. Each summary is kept, shown on the Events page, and told as an event.
-A day nothing was seen in, before Thermaestro ran, isn't summed up.
+A day nothing was seen in, before Thermaestro ran, isn't summed up; days missed while it
+wasn't running are, up to a week back, once it runs again.
+
+A summary waits for what it is made from: the pumps, as their plugins describe them after a
+start, and the day's prices, until noon; after that it is made without what it costs.
 """
 
 import json
@@ -39,6 +43,10 @@ from .watch import MISSED_S
 
 AT = time(7)
 """When the day before is summed up, in the house's time."""
+PRICED_BY = time(12)
+"""How long a summary waits for the day's prices before it is made without them."""
+CATCH_UP_DAYS = 7
+"""How far back days missed while Thermaestro wasn't running are summed up."""
 SLOT_S = 900.0
 KEEP_DAYS = 90
 READY = mark("The summary of %(day)s is ready")
@@ -61,7 +69,7 @@ class Summaries:
         events: Events | None,
         learnings: Learnings | None,
         pumps: Callable[[], Sequence[Pump]],
-        prices: Callable[[datetime], Awaitable[Sequence[Price]]],
+        prices: Callable[[date, tzinfo], Awaitable[Sequence[Price]]],
     ) -> None:
         self._db = db
         self._values = values
@@ -72,22 +80,32 @@ class Summaries:
         self._looked: date | None = None
         """The last day made or passed over: once a day, not every check."""
 
-    async def due(self, now: datetime, zone: tzinfo) -> dict[str, Any] | None:
-        """The day before's summary, made if it is 07:00 or later and it isn't yet."""
+    async def due(self, now: datetime, zone: tzinfo) -> list[dict[str, Any]]:
+        """The summaries due, made: from 07:00, the day before, and any day of the last week
+        missed while Thermaestro wasn't running. None while what they are made from isn't
+        there yet."""
         local = now.astimezone(zone)
         if local.time() < AT:
-            return None
-        day = local.date() - timedelta(days=1)
-        if day == self._looked:
-            return None
-        self._looked = day
-        if await self.get(day) is not None or not await self._seen(day, zone):
-            return None
-        made = await self.make(day, zone, now)
-        await self._keep(day, made, now.timestamp())
-        if self._events is not None:
-            what = Raise("summary.daily", "house", READY, {"day": day.isoformat()}, "household")
-            await self._events.moment(f"summary.daily:{day.isoformat()}", what)
+            return []
+        yesterday = local.date() - timedelta(days=1)
+        if yesterday == self._looked or not self._pumps():
+            return []
+        made: list[dict[str, Any]] = []
+        for back in range(CATCH_UP_DAYS - 1, -1, -1):
+            day = yesterday - timedelta(days=back)
+            if await self.get(day) is not None or not await self._seen(day, zone):
+                continue
+            prices = await self._prices(day, zone)
+            if not prices and await self._db.all(PriceLayer) and local.time() < PRICED_BY:
+                return made  # the day's prices may yet come
+            summary = await self.make(day, zone, prices)
+            await self._keep(day, summary, now.timestamp())
+            if self._events is not None:
+                args = {"day": day.isoformat()}
+                what = Raise("summary.daily", "house", READY, args, "household")
+                await self._events.moment(f"summary.daily:{day.isoformat()}", what)
+            made.append(summary)
+        self._looked = yesterday
         return made
 
     async def get(self, day: date) -> dict[str, Any] | None:
@@ -128,13 +146,13 @@ class Summaries:
 
     # --- making one ----------------------------------------------------------------------------
 
-    async def make(self, day: date, zone: tzinfo, now: datetime) -> dict[str, Any]:
+    async def make(self, day: date, zone: tzinfo, prices: Sequence[Price]) -> dict[str, Any]:
         t0 = datetime.combine(day, time(0), zone).timestamp()
         t1 = datetime.combine(day + timedelta(days=1), time(0), zone).timestamp()
         slots = [t0 + SLOT_S * i for i in range(int((t1 - t0) // SLOT_S))]
-        kwh = await self._kwh(slots)
-        prices = {p.start.timestamp(): p.value for p in await self._prices(now)}
-        cost = [k * prices[s] if s in prices else None for s, k in zip(slots, kwh, strict=True)]
+        kwh, measured = await self._kwh(slots)
+        by_slot = {p.start.timestamp(): p.value for p in prices}
+        cost = [k * by_slot[s] if s in by_slot else None for s, k in zip(slots, kwh, strict=True)]
         priced = [c for c in cost if c is not None]
         ended, ran = await self._intents(t0, t1)
         layers = await self._db.all(PriceLayer)
@@ -150,28 +168,31 @@ class Summaries:
                 {
                     "kind": i.kind,
                     "name": named(i),
-                    "kwh": round(_within(slots, kwh, a, b), 1),
-                    "cost": _priced(slots, cost, a, b),
+                    "kwh": round(_within(slots, kwh, a, b), 1) if measured else None,
+                    "cost": _priced(slots, cost, a, b) if measured else None,
                 }
                 for i, a, b in ran
             ],
-            "kwh": round(sum(kwh), 1),
-            "cost": round(sum(priced), 2) if priced else None,
+            "kwh": round(sum(kwh), 1) if measured else None,
+            "cost": round(sum(priced), 2) if priced and measured else None,
             "currency": currency,
             "writes": await self._writes(t0, t1),
             "starts": await self._starts(t0, t1),
         }
 
-    async def _kwh(self, slots: list[float]) -> list[float]:
-        """What the pumps drew in each slot, kWh."""
+    async def _kwh(self, slots: list[float]) -> tuple[list[float], bool]:
+        """What the pumps drew in each slot, kWh; and whether anything measured it: a
+        pump's meter, or its compressor's learned draw."""
         out = [0.0] * len(slots)
+        measured = False
         if not slots:
-            return out
+            return out, measured
         end = slots[-1] + SLOT_S
         meters = await pump_meters(self._db)
         for pump in self._pumps():
             meter = meters.get(pump.unit)
             if meter is not None:
+                measured = True
                 counter = Series(await self._values.history(meter, slots[0] - 3600, end))
                 for i, s in enumerate(slots):
                     out[i] += counter_kwh(counter, s, s + SLOT_S) or 0.0
@@ -179,6 +200,7 @@ class Summaries:
             draws = self._learnings.used(DRAW, pump.unit) if self._learnings else None
             if not isinstance(draws, Mapping) or pump.compressor is None:
                 continue
+            measured = True
             heating = float(draws.get("heating") or 0.0)
             dhw = float(draws.get("dhw") or heating)
             instance, path = split(pump.unit)
@@ -195,7 +217,7 @@ class Summaries:
                 kw = running * ((1 - charging) * heating + charging * dhw)
                 kw += held_mean(added, s, s + SLOT_S) or 0.0
                 out[i] += kw * SLOT_S / 3600
-        return out
+        return out, measured
 
     async def _intents(
         self, t0: float, t1: float

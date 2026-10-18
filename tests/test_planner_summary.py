@@ -1,9 +1,10 @@
 """The daily summary: made at 07:00 for the day before, once; the pump's electricity from its
 meter, what it cost, a temporary intent's share, the minutes a room was below its band,
-the writes and the compressor's starts."""
+the writes and the compressor's starts. It waits for the pump and the day's prices, and
+makes the days missed while Thermaestro wasn't running."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 
 import pytest
@@ -16,25 +17,33 @@ from thermaestro.intents import kinds
 from thermaestro.planner.model import Price
 from thermaestro.planner.summary import Pump, Summaries
 from thermaestro.planner.watch import COMFORT_MISSED
-from thermaestro.store import Database, Sensor
+from thermaestro.store import Database, PriceLayer, Sensor
+from thermaestro.store.database import MIGRATIONS
 
 DAY = datetime(2026, 10, 15, tzinfo=UTC)
 T0 = DAY.timestamp()
 T1 = T0 + 86_400
 COMPRESSOR = Key("pump", "hp1/compressor.ep14/state")
 METER = Key(SENSORS, "meter/energy")
+PUMPS = [Pump("pump:hp1", COMPRESSOR)]
+MORNING = DAY + timedelta(days=1, hours=7)
 
 
 def at(hours: float) -> float:
     return T0 + hours * 3600
 
 
-async def prices(now: datetime) -> list[Price]:
+async def prices(day: date, zone: tzinfo) -> list[Price]:
     """1 a kWh the first half of the day, 2 the second."""
-    return [Price(DAY + timedelta(minutes=15 * i), 1.0 if i < 48 else 2.0) for i in range(96)]
+    start = datetime.combine(day, datetime.min.time(), zone)
+    return [Price(start + timedelta(minutes=15 * i), 1.0 if i < 48 else 2.0) for i in range(96)]
 
 
-async def house(db: Database) -> Events:
+async def unpublished(day: date, zone: tzinfo) -> list[Price]:
+    return []
+
+
+async def house(db: Database, days: int = 1) -> Events:
     await db.put(
         Sensor(
             name="Heat pump",
@@ -46,10 +55,10 @@ async def house(db: Database) -> Events:
         ),
         "meter",
     )
-    # The meter: a kWh an hour, read every minute, from the hour before the day.
-    counter = [(METER, at(m / 60), m / 60 + 1, None) for m in range(-60, 24 * 60 + 2)]
+    # The meter: a kWh an hour, read every minute, from the day's start.
+    counter = [(METER, at(m / 60), m / 60, None) for m in range(days * 24 * 60 + 2)]
     # The compressor: two runs.
-    ran = [(at(h), state) for h, state in [(-1, "off"), (0, "running"), (1, "off")]]
+    ran = [(at(h), state) for h, state in [(0, "running"), (1, "off")]]
     ran += [(at(h), state) for h, state in [(3, "running"), (4, "off")]]
     state = [(COMPRESSOR, t, None, text) for t, text in ran]
     await db.run(
@@ -95,19 +104,17 @@ async def house(db: Database) -> Events:
     return events
 
 
-def summaries(db: Database, events: Events) -> Summaries:
-    return Summaries(db, Values(db), events, None, lambda: [Pump("pump:hp1", COMPRESSOR)], prices)
+def summaries(db: Database, events: Events, pumps: list[Pump] = PUMPS, priced=prices) -> Summaries:  # type: ignore[no-untyped-def]
+    return Summaries(db, Values(db), events, None, lambda: pumps, priced)
 
 
 async def test_the_day_before_summed_up_at_seven(tmp_path: Path) -> None:
     async with await Database.open(tmp_path / "t.db") as db:
         events = await house(db)
         found = summaries(db, events)
-        next_day = DAY + timedelta(days=1)
-        assert await found.due(next_day + timedelta(hours=6, minutes=59), UTC) is None
-        made = await found.due(next_day + timedelta(hours=7), UTC)
-        assert made is not None
-        assert await found.due(next_day + timedelta(hours=7, minutes=5), UTC) is None
+        assert await found.due(MORNING - timedelta(minutes=1), UTC) == []
+        [made] = await found.due(MORNING, UTC)
+        assert await found.due(MORNING + timedelta(minutes=5), UTC) == []
         assert await found.recent(7) == [made]
         assert made["day"] == "2026-10-15"
         assert made["kwh"] == pytest.approx(24.0, abs=0.1)
@@ -128,5 +135,62 @@ async def test_the_day_before_summed_up_at_seven(tmp_path: Path) -> None:
 async def test_a_day_nothing_was_seen_in_is_not_summed_up(tmp_path: Path) -> None:
     async with await Database.open(tmp_path / "t.db") as db:
         events = await house(db)
-        assert await summaries(db, events).due(DAY - timedelta(hours=17), UTC) is None
+        assert await summaries(db, events).due(DAY - timedelta(hours=17), UTC) == []
         assert await summaries(db, events).recent(7) == []
+
+
+async def test_it_waits_for_the_pump_and_the_days_prices(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = await house(db)
+        spot = PriceLayer(
+            role="energy.spot",
+            source="series",
+            plugin="tibber",
+            series="spot",
+            unit="SEK/kWh",
+            vat="excl",
+        )
+        await db.put(spot, "spot")
+        pumps: list[Pump] = []
+        found = summaries(db, events, pumps, unpublished)
+        assert await found.due(MORNING, UTC) == []  # the pump hasn't described itself yet
+        pumps.extend(PUMPS)
+        assert await found.due(MORNING + timedelta(minutes=1), UTC) == []  # nor the prices
+        [made] = await found.due(MORNING + timedelta(hours=5), UTC)  # noon: without them
+        assert made["cost"] is None
+        assert made["kwh"] == pytest.approx(24.0, abs=0.1)
+        assert made["starts"] == 2
+
+
+async def test_days_missed_while_it_was_off_are_made(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = await house(db, days=3)
+        made = await summaries(db, events).due(MORNING + timedelta(days=2), UTC)
+        assert [m["day"] for m in made] == ["2026-10-15", "2026-10-16", "2026-10-17"]
+        assert [m["kwh"] for m in made] == pytest.approx([24.0, 24.0, 24.0], abs=0.1)
+
+
+async def test_unmeasured_energy_is_unknown_not_none_used(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = await house(db)
+        await db.run(lambda t: t.execute("DELETE FROM settings WHERE kind = 'sensor'"))
+        [made] = await summaries(db, events).due(MORNING, UTC)
+        assert (made["kwh"], made["cost"]) == (None, None)
+        assert [t["kwh"] for t in made["temporary"]] == [None]
+
+
+async def test_summaries_made_before_the_pump_was_known_are_made_again(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        rows = [("2026-10-15", {"starts": None, "kwh": 0.0}), ("2026-10-16", {"starts": 9})]
+
+        def keep(t) -> None:  # type: ignore[no-untyped-def]
+            for day, body in rows:
+                t.execute(
+                    "INSERT INTO summaries (day, made, body) VALUES (?, 0, ?)",
+                    (day, json.dumps(body)),
+                )
+            t.execute(MIGRATIONS[23])
+
+        await db.run(keep)
+        left = await db.run(lambda t: t.execute("SELECT day FROM summaries").fetchall())
+        assert [d for (d,) in left] == ["2026-10-16"]

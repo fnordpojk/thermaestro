@@ -402,6 +402,11 @@ MIGRATIONS: tuple[str, ...] = (
     ) STRICT;
     CREATE INDEX IF NOT EXISTS notified_by_user ON notified (user_id, t);
     """,
+    # 24: summaries made before the pump had described itself (no compressor starts, which
+    # every pump has), made again from the history once Thermaestro runs
+    """
+    DELETE FROM summaries WHERE json_extract(body, '$.starts') IS NULL;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

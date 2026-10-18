@@ -24,7 +24,7 @@ import logging
 from collections import deque
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime, timedelta, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
@@ -182,7 +182,7 @@ class Planner:
         self._planning = asyncio.Lock()
         """One plan at a time: a slot's, or one for an answer."""
         self.summaries = Summaries(
-            db, values, events, learnings, self._pump_units, lambda now: self._prices(now)
+            db, values, events, learnings, self._pump_units, self._day_prices
         )
         self._db = db
         self._learnings = learnings
@@ -197,6 +197,7 @@ class Planner:
         self._sensors = sensors
         self._series = series
         self._prices = prices or self._stack
+        self._given_prices = prices
         self._check_s = check_s
         self.memory = Memory()
         self.plan: Plan | None = None
@@ -836,16 +837,42 @@ class Planner:
         vat = await self._db.get(Vat)
         today: date = now.astimezone(zone).date()
         out = []
-        rules, holiday = await household(self._db, zone)
         for days in range(-1, 3):
             day = today + timedelta(days=days)
-            stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
-            if days >= 0:
-                stack = await estimate(layers, vat, self._series, stack)
-            out += [
-                Price(s.start, s.total, s.estimated) for s in stack.slots if s.total is not None
-            ]
+            out += await self._day_stack(day, zone, layers, vat, estimated=days >= 0)
         return out
+
+    async def _day_stack(
+        self,
+        day: date,
+        zone: ZoneInfo,
+        layers: Mapping[str, PriceLayer],
+        vat: Vat | None,
+        *,
+        estimated: bool,
+    ) -> list[Price]:
+        assert self._series is not None  # noqa: S101 - the caller checked
+        rules, holiday = await household(self._db, zone)
+        stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
+        if estimated:
+            stack = await estimate(layers, vat, self._series, stack)
+        return [Price(s.start, s.total, s.estimated) for s in stack.slots if s.total is not None]
+
+    async def _day_prices(self, day: date, zone: tzinfo) -> list[Price]:
+        """A past day's prices, as published, for its summary."""
+        start = datetime.combine(day, time(0), zone)
+        end = start + timedelta(days=1)
+        if self._given_prices is not None:
+            return [p for p in await self._prices(clock.now()) if start <= p.start < end]
+        location = await self._db.get(Location)
+        if self._series is None or location is None:
+            return []
+        layers = await self._db.all(PriceLayer)
+        if not layers:
+            return []
+        vat = await self._db.get(Vat)
+        house = ZoneInfo(location.timezone)
+        return await self._day_stack(day, house, layers, vat, estimated=False)
 
     # --- asking and following up -----------------------------------------------------------
 
