@@ -407,6 +407,14 @@ MIGRATIONS: tuple[str, ...] = (
     """
     DELETE FROM summaries WHERE json_extract(body, '$.starts') IS NULL;
     """,
+    # 25: the planner's memory between rounds, so a restart carries on from it
+    """
+    CREATE TABLE IF NOT EXISTS planner_memory (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        kept REAL NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body))
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

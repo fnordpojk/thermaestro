@@ -28,7 +28,7 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
-from .. import clock
+from .. import clock, durations
 from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
@@ -57,6 +57,7 @@ from ..store import Control, Database, Location, PriceLayer, Transaction, Vat
 from . import answers, rules
 from .assurance import Finding, judge
 from .model import (
+    FRESH_S,
     SLOT,
     Decision,
     LeverState,
@@ -200,6 +201,9 @@ class Planner:
         self._given_prices = prices
         self._check_s = check_s
         self.memory = Memory()
+        self._memory_kept: str | None = None
+        """The memory as last kept, so an unchanged one isn't written again."""
+        self._memory_restored = False
         self.plan: Plan | None = None
         self.situation: Situation | None = None
         """What the last full round saw: for the plan page."""
@@ -295,6 +299,8 @@ class Planner:
     async def round(self, *, slot: bool = True) -> Plan:
         """Gather, decide, ask; the whole of one plan. `slot`: everything is planned, as at
         the start of a slot; else hot water only."""
+        if not self._memory_restored:
+            await self.restore_memory(clock.time())
         sit = replace(await self.gather(), slot=slot)
         await self._observe(sit)
         if self._watch is not None:
@@ -315,7 +321,40 @@ class Planner:
             plan.asked.append(await self._ask(decision, sit.now))
         await self._follow_up(sit.now)
         self.plan = plan
+        await self.keep_memory(sit.now.timestamp())
         return plan
+
+    async def keep_memory(self, now: float) -> None:
+        """The memory, kept where a restart finds it; only when it changed."""
+        body = json.dumps(self.memory.body(), sort_keys=True)
+        if body == self._memory_kept:
+            return
+        await self._db.run(
+            lambda t: t.execute(
+                "INSERT OR REPLACE INTO planner_memory (id, kept, body) VALUES (1, ?, ?)",
+                (now, body),
+            )
+        )
+        self._memory_kept = body
+
+    async def restore_memory(self, now: float) -> None:
+        """The memory as kept before a restart: whole if kept within `FRESH_S`, else what
+        still holds after a stop."""
+        self._memory_restored = True
+        row = await self._db.run(
+            lambda t: t.execute("SELECT kept, body FROM planner_memory WHERE id = 1").fetchone()
+        )
+        if row is None:
+            return
+        kept, body = row
+        fresh = now - float(kept) <= FRESH_S
+        self.memory = Memory.from_body(json.loads(body), fresh=fresh)
+        self._memory_kept = body if fresh else None
+        log.info(
+            "the planner's memory taken up from %s ago%s",
+            durations.text(max(0.0, now - float(kept))),
+            "" if fresh else ", without its price holds",
+        )
 
     async def _decide(self, sit: Situation, slot: bool) -> list[Decision]:
         """Both planners plan; the one the household chose drives. The optimizer drives

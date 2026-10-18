@@ -150,7 +150,7 @@ Sensors from outside the pump, each placed in a room, outdoors, or elsewhere.
 
 - **From Home Assistant:** tick the entities to read, then give each a name and a room. Each picked value becomes a sensor.
 - **Add an MQTT sensor:** a name, the topic (such as `zigbee2mqtt/bedroom`), and the JSON field holding the value; leave the field empty if the payload is the number itself.
-- **A heat pump's own electricity meter** on its supply: an MQTT topic or a Home Assistant entity measuring energy, with "On the supply of" set to the pump. A meter that counts pulses gives its counts per kWh (a raw count of 10000 per kWh: `10000`); an entity in kWh, or in Wh as Home Assistant says, needs none. A counter is kept at most every 10 seconds, and one that starts over from 0 is read as such. Once it has counted faster while the compressor runs than while it stands, the compressor's draw and each hot-water charge's electricity are read from it (see Learned).
+- **An electricity meter on a heat pump's supply**, where there is one (most pumps have none): an MQTT topic or a Home Assistant entity measuring energy, with "On the supply of" set to the pump. A meter that counts pulses gives its counts per kWh (a raw count of 10000 per kWh: `10000`); an entity in kWh, or in Wh as Home Assistant says, needs none. A counter is kept at most every 10 seconds, and one that starts over from 0 is read as such. Once it has counted faster while the compressor runs than while it stands, the compressor's draw and each hot-water charge's electricity are read from it (see Learned).
 
 Each sensor also has:
 

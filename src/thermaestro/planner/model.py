@@ -5,8 +5,10 @@ without a pump. The planner (`service.py`) gathers the situation from the runnin
 asks the executor for each decision, and follows up on what became of it.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, tzinfo
+from typing import Any
 
 from ..cap.messages import Op
 from ..cap.model import Value
@@ -103,7 +105,10 @@ class Tank:
 
 @dataclass
 class Memory:
-    """What the planner keeps between rounds, in memory: rebuilt after a restart."""
+    """What the planner keeps between rounds. Kept in the database too, so a restart
+    carries on from it: all of it within `FRESH_S`; after a longer stop, what still holds
+    (the loop's integral, the periodic increase last seen, how long charges take), not the
+    price holds, which a stop has ended."""
 
     integral: dict[str, float] = field(default_factory=dict)
     """Per climate system: the PI loop's integral, in offset steps."""
@@ -116,6 +121,39 @@ class Memory:
     """Per tank: whether price holds its charges off, for the hysteresis."""
     blocked_since: dict[str, datetime] = field(default_factory=dict)
     """Per tank: since when price has held its charges off, for the longest hold."""
+
+    def body(self) -> dict[str, Any]:
+        return {
+            "integral": self.integral,
+            "last_round": self.last_round.isoformat() if self.last_round else None,
+            "periodic": {k: v.isoformat() for k, v in self.periodic.items()},
+            "charge_s": self.charge_s,
+            "blocked": self.blocked,
+            "blocked_since": {k: v.isoformat() for k, v in self.blocked_since.items()},
+        }
+
+    @classmethod
+    def from_body(cls, body: Mapping[str, Any], *, fresh: bool) -> "Memory":
+        """As kept; the price holds and the last round only if it was kept `fresh`."""
+        last = body.get("last_round")
+        return cls(
+            integral={k: float(v) for k, v in (body.get("integral") or {}).items()},
+            last_round=datetime.fromisoformat(last) if fresh and last else None,
+            periodic={
+                k: datetime.fromisoformat(v) for k, v in (body.get("periodic") or {}).items()
+            },
+            charge_s={k: float(v) for k, v in (body.get("charge_s") or {}).items()},
+            blocked={k: bool(v) for k, v in (body.get("blocked") or {}).items()} if fresh else {},
+            blocked_since={
+                k: datetime.fromisoformat(v) for k, v in (body.get("blocked_since") or {}).items()
+            }
+            if fresh
+            else {},
+        )
+
+
+FRESH_S = 3600.0
+"""How recently the planner's memory must have been kept to be taken up whole."""
 
 
 @dataclass(frozen=True)
