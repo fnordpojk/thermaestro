@@ -199,7 +199,9 @@ class Optimizer:
         self._expected: dict[str, dict[float, float]] = {}
         """Per climate system: how warm each plan expected its rooms to be an hour on, by
         when."""
-        self._drift: dict[str, float] = {}
+        self.drift: dict[str, float] = {}
+        """Per climate system: the learned correction of the house model; the planner's
+        memory, kept across a restart."""
         self._watched = Watched()
 
     # --- a round ---------------------------------------------------------------------------
@@ -521,7 +523,7 @@ class Optimizer:
         }
         mean = statistics.mean(temps.values())
         if preview:
-            drift = self._drift.get(system, 0.0)
+            drift = self.drift.get(system, 0.0)
         else:
             drift = self._came_out(system, sit.now.timestamp(), mean)
         fit = Fit(
@@ -622,11 +624,11 @@ class Optimizer:
         share of each miss is carried as a drift the house model didn't foresee, so a
         model that is a little off is corrected by what it sees."""
         expected = self._expected.get(system, {}).pop(now // 900 * 900, None)
-        drift = self._drift.get(system, 0.0)
+        drift = self.drift.get(system, 0.0)
         if expected is not None:
             drift += DRIFT_GAIN * (room - expected)
             drift = max(-DRIFT_MOST, min(DRIFT_MOST, drift))
-            self._drift[system] = drift
+            self.drift[system] = drift
         return drift
 
     async def _water_before(self, system: str, now: float, lag: int) -> tuple[float, ...]:

@@ -120,3 +120,39 @@ async def test_no_broker_no_client(tmp_path: Path) -> None:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
+
+
+async def test_an_error_while_reading_doesnt_end_mqtt(broker: int, tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.put(Mqtt(host="127.0.0.1", port=broker))
+        await db.put(Sensor(name="Hall", source="mqtt", topic="t/hall", placement="other"), "hall")
+        values = Values(db)
+        hub = SensorHub(db, values)
+        await hub.load()
+        real = hub.receive_mqtt
+        heard: list[str] = []
+
+        def flaky(topic: str, payload: bytes) -> None:
+            heard.append(topic)
+            if len(heard) == 1:
+                raise RuntimeError("a listener broke")
+            real(topic, payload)
+
+        hub.receive_mqtt = flaky  # type: ignore[method-assign]
+        mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub, backoff_s=(0.05, 0.1))
+        task = asyncio.create_task(mqtt.run())
+        try:
+            await until(lambda: mqtt.state == "connected")
+            async with aiomqtt.Client("127.0.0.1", broker) as client:
+                await client.publish("t/hall", b"19.0")
+                await until(lambda: heard)
+                # It connects again and goes on reading.
+                async with asyncio.timeout(10):
+                    while Key(SENSORS, "hall/temperature") not in values.latest:
+                        assert not task.done(), task
+                        await client.publish("t/hall", b"19.5")
+                        await asyncio.sleep(0.2)
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task

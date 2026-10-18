@@ -374,7 +374,8 @@ class Heating:
         if recent and off >= FROZEN_SHARE * len(recent) and before is not None:
             for name in (MODEL, TAU, RESPONSE):
                 found = self._learnings.get(name, keys.scope)
-                if found is not None and found.value is not None:
+                # Only what had proved itself is kept in use; anything else waits as it is.
+                if found is not None and found.value is not None and found.state == "proved":
                     update = {"state": "frozen", "why": FROZEN, "args": {}}
                     await self._learnings.put(found.model_copy(update=update))
             return
@@ -390,6 +391,10 @@ class Heating:
         if whole is None:
             for name in (MODEL, TAU, RESPONSE):
                 found = self._learnings.get(name, keys.scope)
+                if found is not None and found.state in ("proved", "frozen"):
+                    # Too few hours yet since heating came back: what proved itself stays in
+                    # use until there are enough to judge it again.
+                    continue
                 await self._learnings.put(
                     Learned(
                         name=name,

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from thermaestro.core import AuditLog, Values
+from thermaestro.learn import Learnings
 from thermaestro.planner import Planner
 from thermaestro.planner.model import FRESH_S, Memory
 from thermaestro.store import Database
@@ -28,6 +29,9 @@ def remembered() -> Memory:
         charge_s={TANK: 846.0},
         blocked={TANK: True},
         blocked_since={TANK: NOW - timedelta(hours=2)},
+        fired={"in-boost": NOW - timedelta(minutes=5)},
+        charging_since={TANK: NOW - timedelta(minutes=4), f"{TANK}#on": NOW},
+        drift={CS: 0.4},
     )
 
 
@@ -52,7 +56,10 @@ async def test_after_a_long_stop_the_price_holds_are_over(tmp_path: Path) -> Non
         assert kept.integral == {CS: -14.0}
         assert kept.periodic == remembered().periodic
         assert kept.charge_s == {TANK: 846.0}
+        assert kept.drift == {CS: 0.4}
+        assert kept.fired == remembered().fired  # a boost asked for isn't asked for again
         assert (kept.blocked, kept.blocked_since, kept.last_round) == ({}, {}, None)
+        assert kept.charging_since == {}
 
 
 async def test_nothing_kept_starts_afresh(tmp_path: Path) -> None:
@@ -60,3 +67,27 @@ async def test_nothing_kept_starts_afresh(tmp_path: Path) -> None:
         fresh = planner(db, tmp_path)
         await fresh.restore_memory(NOW.timestamp())
         assert fresh.memory == Memory()
+
+
+async def test_the_optimizer_shares_the_drift_kept(tmp_path: Path) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        before = planner(db, tmp_path)
+        before.memory = remembered()
+        await before.keep_memory(NOW.timestamp())
+        learnings = Learnings(db, AuditLog(tmp_path / "learn-audit"))
+        await learnings.load()
+        nothing = cast(Any, None)
+        after = Planner(
+            db,
+            Values(db),
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            AuditLog(tmp_path / "a"),
+            learnings=learnings,
+        )
+        await after.restore_memory(NOW.timestamp() + 60)
+        assert after.optimizer is not None
+        assert after.optimizer.drift is after.memory.drift
+        assert after.optimizer.drift == {CS: 0.4}

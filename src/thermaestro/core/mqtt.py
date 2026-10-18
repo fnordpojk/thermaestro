@@ -81,13 +81,20 @@ class MqttClient:
             try:
                 await self._session(setting, topics, wanted)
                 failures = 0
-            except aiomqtt.MqttError as e:
+            except Exception as e:
+                # The broker going away, or anything else in a session: never the end of MQTT.
                 failures += 1
-                self.state, self.error = "failed", str(e)
+                self.state, self.error = "failed", str(e) or type(e).__name__
                 pause = min(self._backoff[1], self._backoff[0] * 2 ** (failures - 1))
-                log.warning(
-                    "MQTT broker %s: %s; trying again in %s", setting.host, e, durations.text(pause)
-                )
+                if isinstance(e, aiomqtt.MqttError):
+                    log.warning(
+                        "MQTT broker %s: %s; trying again in %s",
+                        setting.host,
+                        e,
+                        durations.text(pause),
+                    )
+                else:
+                    log.exception("MQTT failed; trying again in %s", durations.text(pause))
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._reload.wait(), pause)
 

@@ -90,6 +90,9 @@ LOG_SET = 0x68
 READ_TIMEOUT_S = 5.0
 PUSHED_FRESHNESS_S = 30.0
 POLLED_FRESHNESS_S = 900.0
+STALE_CHECK_S = 15.0
+"""How often a subscription looks again when nothing arrives: so values the bus stopped
+bringing are sent as stale, not left as they last were."""
 METER_SAVE_S = 60.0
 """How often the heat meters' counts are kept, at most, for a restart."""
 COUNTERS = ("heat.produced", "elec.used")
@@ -720,7 +723,8 @@ class NibePlugin:
                     sent[path] = state
             if values:
                 await send(Update(id=request.id, values=tuple(values)))
-            await self._tick.wait()
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._tick.wait(), STALE_CHECK_S)
             if request.min_interval_s:
                 await asyncio.sleep(request.min_interval_s)
 

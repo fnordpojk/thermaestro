@@ -342,7 +342,11 @@ async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:
     """Mark sensors that have gone quiet as stale, and keep how often each reports."""
     while True:
         await asyncio.sleep(every_s)
-        sensors.tick()
+        try:
+            sensors.tick()
+        except Exception:
+            # Never the end of marking sensors stale: a dead one would stay good.
+            log.exception("marking the sensors stale failed; trying again in %s s", every_s)
         try:
             await sensors.save()
         except Exception:

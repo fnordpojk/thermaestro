@@ -210,9 +210,6 @@ class Planner:
         self.notices: list[Notice] = []
         self._not_kept: dict[str, float] = {}
         self._effects: list[_Effect] = []
-        self._fired: dict[str, datetime] = {}
-        """Boost-now intents whose charge was asked for, by id."""
-        self._charging_since: dict[str, datetime] = {}
         self._last_slot: float | None = None
         self._last_intents: frozenset[str] = frozenset()
         self._last_demand: str | None = None
@@ -229,6 +226,8 @@ class Planner:
         self.optimizer = (
             Optimizer(db, values, host, learnings, weather) if learnings is not None else None
         )
+        if self.optimizer is not None:
+            self.optimizer.drift = self.memory.drift
         """Plans beside the rules every slot; drives where the household chose it."""
         self.optimized: Optimized | None = None
         self.chosen = "rules"
@@ -349,6 +348,8 @@ class Planner:
         kept, body = row
         fresh = now - float(kept) <= FRESH_S
         self.memory = Memory.from_body(json.loads(body), fresh=fresh)
+        if self.optimizer is not None:
+            self.optimizer.drift = self.memory.drift
         self._memory_kept = body if fresh else None
         log.info(
             "the planner's memory taken up from %s ago%s",
@@ -614,7 +615,7 @@ class Planner:
         boosts = frozenset(
             i.scope
             for i in resolver.intents
-            if i.kind == "boost_now" and i.id in force.boost and i.id not in self._fired
+            if i.kind == "boost_now" and i.id in force.boost and i.id not in self.memory.fired
         )
         demand = self._value(self._pump_point("demand"))
         return Situation(
@@ -956,7 +957,7 @@ class Planner:
         if decision.op == "fire" and result.outcome in ("awaiting_effect", "shadowed", "verified"):
             for intent in await self._intents.all():
                 if intent.kind == "boost_now" and decision.lever.startswith(f"{intent.scope}/"):
-                    self._fired.setdefault(intent.id, now)
+                    self.memory.fired.setdefault(intent.id, now)
         return Asked(decision, result.outcome, result.detail)
 
     def _notice(self, decision: Decision, now: datetime) -> None:
@@ -989,12 +990,12 @@ class Planner:
                     },
                 )
         for intent in await self._intents.all():
-            if intent.kind == "boost_now" and intent.id in self._fired:
-                since = self._fired[intent.id]
-                charged = self._charging_since.get(intent.scope)
+            if intent.kind == "boost_now" and intent.id in self.memory.fired:
+                since = self.memory.fired[intent.id]
+                charged = self.memory.charging_since.get(intent.scope)
                 if demand != "dhw" and charged is not None and charged >= since:
                     await self._intents.report(intent.id, "met", "its charge has run")
-                    self._fired.pop(intent.id, None)
+                    self.memory.fired.pop(intent.id, None)
             elif intent.kind == "bath" and intent.state == "active":
                 instance, path = split(intent.scope)
                 top = self._number(self._values.latest.get(Key(instance, f"{path}/temp.top")))
@@ -1015,12 +1016,12 @@ class Planner:
         periodic increase."""
         for scope, tank in sit.tanks.items():
             charging = sit.demand == "dhw"
-            since = self._charging_since.get(f"{scope}#on")
+            since = self.memory.charging_since.get(f"{scope}#on")
             if charging and since is None:
-                self._charging_since[f"{scope}#on"] = sit.now
+                self.memory.charging_since[f"{scope}#on"] = sit.now
             elif not charging and since is not None:
-                del self._charging_since[f"{scope}#on"]
-                self._charging_since[scope] = since
+                del self.memory.charging_since[f"{scope}#on"]
+                self.memory.charging_since[scope] = since
                 took = (sit.now - since).total_seconds()
                 if 600 <= took <= 4 * 3600:
                     await self._charged(scope, took, since)

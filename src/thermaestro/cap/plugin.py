@@ -80,16 +80,18 @@ async def serve(endpoint: Endpoint, plugin: Plugin) -> None:
 
     events = asyncio.ensure_future(plugin.events(endpoint.send))
     tasks.add(events)
+    failed = asyncio.Event()
+    """Set when a subscription fails: the plugin's values would freeze where they were."""
     try:
         while True:
             try:
-                message = await _next(endpoint, events)
+                message = await _next(endpoint, events, failed)
             except BadLine as e:
                 await endpoint.send(Error(id=e.id, code=e.code, detail=e.detail))
                 continue
             if message is None:
-                # Its events failed: it can't go on. Left connected it would send nothing,
-                # however long; ended, the host starts it again.
+                # Its events or a subscription failed: it can't go on. Left connected it would
+                # send nothing, however long; ended, the host starts it again.
                 await endpoint.close()
                 return
             if isinstance(message, Hello):
@@ -105,11 +107,12 @@ async def serve(endpoint: Endpoint, plugin: Plugin) -> None:
                         detail=f"{message.type} is sent to the core, not to a plugin",
                     )
                 )
+            elif isinstance(message, Subscribe | SeriesSubscribe):
+                task = start(_subscribed(plugin.handle(message, endpoint.send), failed))
+                subscriptions[message.id] = task
+                task.add_done_callback(partial(_forget, subscriptions, message.id))
             else:
-                task = start(plugin.handle(message, endpoint.send))
-                if isinstance(message, Subscribe | SeriesSubscribe):
-                    subscriptions[message.id] = task
-                    task.add_done_callback(partial(_forget, subscriptions, message.id))
+                start(plugin.handle(message, endpoint.send))
     except Closed:
         pass
     finally:
@@ -125,27 +128,46 @@ def _forget(
         del subscriptions[id]
 
 
-async def _next(endpoint: Endpoint, events: "asyncio.Task[None]") -> Message | None:
-    """The next message; None once the plugin's events have failed. Events that end
-    without failing end nothing."""
-    if events.done():
-        return await endpoint.receive()
+async def _next(
+    endpoint: Endpoint, events: "asyncio.Task[None]", failed: asyncio.Event
+) -> Message | None:
+    """The next message; None once the plugin's events or one of its subscriptions have
+    failed. Events that end without failing end nothing."""
+    if failed.is_set():
+        return None
     receiving = asyncio.ensure_future(endpoint.receive())
+    failing = asyncio.ensure_future(failed.wait())
+    waits = {receiving, failing} | (set() if events.done() else {events})
     try:
-        await asyncio.wait({receiving, events}, return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
     except asyncio.CancelledError:
         receiving.cancel()
         raise
+    finally:
+        failing.cancel()
     if receiving.done():
         return receiving.result()
     receiving.cancel()
     with contextlib.suppress(asyncio.CancelledError, Closed, BadLine):
         await receiving
+    if failed.is_set():
+        return None
     error = None if events.cancelled() else events.exception()
     if error is None or isinstance(error, Closed):
-        return await endpoint.receive()
+        return await _next(endpoint, events, failed)
     log.error("the plugin stopped; ending its connection to start it again", exc_info=error)
     return None
+
+
+async def _subscribed(handling: Awaitable[None], failed: asyncio.Event) -> None:
+    """A subscription's handler: if it fails, the connection ends, as for events."""
+    try:
+        await handling
+    except Closed:
+        pass
+    except Exception:
+        log.exception("a subscription failed; ending the connection to start the plugin again")
+        failed.set()
 
 
 async def _logged(coro: Awaitable[None]) -> None:

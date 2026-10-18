@@ -107,8 +107,9 @@ class Tank:
 class Memory:
     """What the planner keeps between rounds. Kept in the database too, so a restart
     carries on from it: all of it within `FRESH_S`; after a longer stop, what still holds
-    (the loop's integral, the periodic increase last seen, how long charges take), not the
-    price holds, which a stop has ended."""
+    (the loop's integral, the optimizer's drift, the periodic increase last seen, how long
+    charges take, the boosts asked for), not the price holds or a charge under way, which a
+    stop has ended."""
 
     integral: dict[str, float] = field(default_factory=dict)
     """Per climate system: the PI loop's integral, in offset steps."""
@@ -121,6 +122,13 @@ class Memory:
     """Per tank: whether price holds its charges off, for the hysteresis."""
     blocked_since: dict[str, datetime] = field(default_factory=dict)
     """Per tank: since when price has held its charges off, for the longest hold."""
+    fired: dict[str, datetime] = field(default_factory=dict)
+    """Boost-now intents whose charge was asked for, by id: so a restart doesn't ask again."""
+    charging_since: dict[str, datetime] = field(default_factory=dict)
+    """Per tank: since when the pump has been charging it, as seen."""
+    drift: dict[str, float] = field(default_factory=dict)
+    """Per climate system: the optimizer's learned correction of the house model, °C an
+    hour."""
 
     def body(self) -> dict[str, Any]:
         return {
@@ -130,6 +138,9 @@ class Memory:
             "charge_s": self.charge_s,
             "blocked": self.blocked,
             "blocked_since": {k: v.isoformat() for k, v in self.blocked_since.items()},
+            "fired": {k: v.isoformat() for k, v in self.fired.items()},
+            "charging_since": {k: v.isoformat() for k, v in self.charging_since.items()},
+            "drift": self.drift,
         }
 
     @classmethod
@@ -149,6 +160,13 @@ class Memory:
             }
             if fresh
             else {},
+            fired={k: datetime.fromisoformat(v) for k, v in (body.get("fired") or {}).items()},
+            charging_since={
+                k: datetime.fromisoformat(v) for k, v in (body.get("charging_since") or {}).items()
+            }
+            if fresh
+            else {},
+            drift={k: float(v) for k, v in (body.get("drift") or {}).items()},
         )
 
 

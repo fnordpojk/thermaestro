@@ -89,6 +89,7 @@ COUNTED: frozenset[str] = frozenset(
 guard count. Shadow counts too, so it decides as control would."""
 
 TAKEN: frozenset[str] = frozenset({"verified", "unverifiable", "awaiting_effect", "timeout"})
+GONE = "the plugin's connection ended before it could be read back"
 """Outcomes after which the device may hold the new value, so a restore must undo it."""
 
 AUTOMATIC = frozenset({"planner", "core", "mqtt"})
@@ -339,14 +340,19 @@ class Executor:
                 await self._save(claim)
                 continue
             async with self._lock(ref):
-                if claim.held:
-                    result = await self._act(ref, "release", {}, "core", why, restoring=True)
-                elif claim.baseline is not None:
-                    result = await self._act(
-                        ref, "set", {"value": claim.baseline}, "core", why, restoring=True
-                    )
-                else:
-                    continue
+                try:
+                    if claim.held:
+                        result = await self._act(ref, "release", {}, "core", why, restoring=True)
+                    elif claim.baseline is not None:
+                        result = await self._act(
+                            ref, "set", {"value": claim.baseline}, "core", why, restoring=True
+                        )
+                    else:
+                        continue
+                except Exception as e:
+                    # One lever failing never keeps the others from being put back.
+                    log.exception("putting %s back failed", ref)
+                    result = Result("dropped", f"putting it back failed: {e}")
                 if result.outcome == "unchanged":  # already as found
                     claim.held, claim.last, claim.last_t = False, None, None
                     await self._save(claim)
@@ -504,8 +510,13 @@ class Executor:
         deadline = clocks.monotonic() + self._verify_s
         seen: Value | None = None
         while True:
-            with contextlib.suppress(TimeoutError, CapError):
+            try:
                 answer = await link.read([point], after=accepted, timeout=self._verify_s)
+            except (TimeoutError, CapError):
+                answer = None
+            except Closed:
+                return Result("unverifiable", GONE)
+            if answer is not None:
                 for envelope in answer.values:
                     if envelope.quality != "good" or not _after(envelope, accepted):
                         continue
@@ -728,8 +739,13 @@ class Executor:
         deadline = clocks.monotonic() + wait
         seen: Value | None = None
         while True:
-            with contextlib.suppress(TimeoutError, CapError):
+            try:
                 answer = await link.read([check.point], after=accepted, timeout=max(1.0, wait))
+            except (TimeoutError, CapError):
+                answer = None
+            except Closed:
+                return Result("unverifiable", GONE)
+            if answer is not None:
                 for envelope in answer.values:
                     if envelope.quality != "good" or not _after(envelope, accepted):
                         continue
@@ -921,10 +937,13 @@ class Executor:
             if beat is not None and self._clock() - beat > self._watchdog_s:
                 self._beat = None
                 log.error("the planner hasn't checked in: putting every lever back")
-                await self.restore("the planner stopped answering")
-                if self.events is not None:
-                    put_back = Raise("restore.watchdog", "house", PUT_BACK)
-                    await self.events.moment("restore.watchdog", put_back)
+                try:
+                    await self.restore("the planner stopped answering")
+                    if self.events is not None:
+                        put_back = Raise("restore.watchdog", "house", PUT_BACK)
+                        await self.events.moment("restore.watchdog", put_back)
+                except Exception:
+                    log.exception("the watchdog's restore failed; it keeps watching")
 
     async def _leases(self) -> None:
         """Renew leased levers while Thermaestro holds them. Only the core renews, so a

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from leverfake import LeverDevice
 
+from thermaestro.cap import Closed
 from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
@@ -496,3 +497,39 @@ async def test_a_baseline_a_person_sets_is_what_is_put_back(tmp_path: Path) -> N
         assert r.device.registers["x.fake.curve"] == 8
         changes = [e["details"] for e in audited(r) if e["what"] == "lever.baseline"]
         assert changes == [{"lever": CURVE, "from": None, "to": 8}]
+
+
+async def test_a_connection_ending_during_the_read_back(tmp_path: Path) -> None:
+    """The device took the change; its read-back was cut off: kept as taken, so it is put
+    back later and isn't taken for someone else's change."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        link = r.host.instances["dev"].link
+        assert link is not None
+
+        async def gone(*args: object, **kwargs: object) -> None:
+            raise Closed
+
+        link.read = gone  # type: ignore[method-assign, assignment]
+        result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        assert result.outcome == "unverifiable"
+        claim = r.executor.claims[OFFSET]
+        assert (claim.last, claim.changed) == (2, True)
+        assert acts(tmp_path / "t.db")[-1][3] == "unverifiable"
+
+
+async def test_one_lever_failing_to_go_back_leaves_the_others_put_back(tmp_path: Path) -> None:
+    async with rig(tmp_path, {OFFSET: "control", BLOCK: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(BLOCK, "engage", who="planner")
+        acting = r.executor._act
+
+        async def failing(ref: str, *args: object, **kwargs: object) -> object:
+            if ref == OFFSET:
+                raise RuntimeError("the plugin's answer made no sense")
+            return await acting(ref, *args, **kwargs)  # type: ignore[arg-type]
+
+        r.executor._act = failing  # type: ignore[method-assign, assignment]
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "dropped"
+        assert results[BLOCK].outcome == "awaiting_effect"
+        assert r.device.held == set()

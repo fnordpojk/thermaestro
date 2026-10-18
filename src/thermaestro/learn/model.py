@@ -62,10 +62,11 @@ class Learned(BaseModel):
     @property
     def used(self) -> Number | None:
         """What decisions use: the pinned number; else, for an observed value, what was
-        seen; for a model, its value once proved, else its starting value."""
+        seen; for a model, its value once proved (and while frozen, which only a proved one
+        is), else its starting value."""
         if self.pinned is not None:
             return self.pinned
-        if self.kind == "observed" or self.state == "proved":
+        if self.kind == "observed" or self.state in ("proved", "frozen"):
             return self.value if self.value is not None else self.starting
         return self.starting
 

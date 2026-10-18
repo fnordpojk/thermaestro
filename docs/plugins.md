@@ -214,7 +214,7 @@ It is run with `serve(endpoint, plugin)`, which:
 - answers lines that aren't messages, and messages meant for the core, with `error`;
 - runs each other request as its own task with `handle`, so a slow answer holds up nothing else;
 - cancels a subscription's task on `unsubscribe`;
-- runs `events` for as long as the connection lasts, for what the plugin sends unasked. If `events` raises, the connection ends and the core starts the plugin again (below): a plugin that can't go on, such as one whose device closed the connection, raises rather than lingering connected and silent. Returning from `events` ends nothing.
+- runs `events` for as long as the connection lasts, for what the plugin sends unasked. If `events` raises, or the handling of a `subscribe` or `series.subscribe` does, the connection ends and the core starts the plugin again (below): a plugin that can't go on, such as one whose device closed the connection, raises rather than lingering connected and silent. Returning from `events` ends nothing.
 
 A subscription's `handle` runs for as long as the subscription lasts, sending updates, and is canceled when it ends.
 

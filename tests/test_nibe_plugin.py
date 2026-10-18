@@ -14,9 +14,10 @@ from thermaestro_gateway.server import Gateway
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
-from thermaestro.cap.messages import Described, DeviceEvent, Read
+from thermaestro.cap.messages import Described, DeviceEvent, Read, Subscribe, Update
 from thermaestro.core import discover
 from thermaestro.nibe import logset, profile
+from thermaestro.nibe import plugin as nibe_plugin
 from thermaestro.nibe.maps import load
 from thermaestro.nibe.plugin import NibePlugin, NotIdentified, model_for
 from thermaestro.nibe.transport.nibegw import PlainSettings
@@ -614,3 +615,31 @@ async def test_settings_show_their_meaning(plugin: NibePlugin, stocked: SimPump)
     assert points["hp1/x.nibe.47137"].category == "config"  # a setting
     assert points["hp1/x.nibe.48852"].category == "diagnostic"  # the word order
     assert points["hp1/x.nibe.47137"].enum.value == {"Auto": 0, "Manual": 1, "Add. heat only": 2}
+
+
+async def test_values_the_bus_stops_bringing_go_stale(
+    plugin: NibePlugin, stocked: SimPump, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing arriving is no reason to send nothing: what was good is sent as stale."""
+    monkeypatch.setattr(nibe_plugin, "PUSHED_FRESHNESS_S", 0.5)
+    monkeypatch.setattr(nibe_plugin, "POLLED_FRESHNESS_S", 0.5)
+    monkeypatch.setattr(nibe_plugin, "STALE_CHECK_S", 0.1)
+    await until(lambda: value(plugin, "outdoor.temp")[1] == "good")
+    updates: list[Update] = []
+
+    async def send(message: object) -> None:
+        if isinstance(message, Update):
+            updates.append(message)
+
+    subscription = asyncio.create_task(
+        plugin.handle(Subscribe(id=7, points=("hp1/outdoor.temp",)), send)
+    )
+    try:
+        await until(lambda: any(e.quality == "good" for u in updates for e in u.values))
+        stocked.pause(5.0)
+        await until(
+            lambda: any(e.quality == "stale" for u in updates for e in u.values), timeout=4.0
+        )
+    finally:
+        subscription.cancel()
+        await asyncio.gather(subscription, return_exceptions=True)

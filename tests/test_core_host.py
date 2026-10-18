@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 from capfake import FakePump
 
-from thermaestro.cap import Send, pair, serve
+from thermaestro.cap import Message, Send, pair, serve
+from thermaestro.cap.messages import Subscribe
 from thermaestro.core import AuditLog, Key, PluginContext, PluginHost, State, Values
 from thermaestro.store import Database, Plugin, SecretStore
 
@@ -132,6 +133,34 @@ async def test_a_plugin_whose_events_fail_is_started_again(db: Database, tmp_pat
         await h.stop()
     audit = (tmp_path / "audit" / "audit.jsonl").read_text()
     assert audit.count('"plugin.restart"') == 1
+
+
+class Unsubscribed(FakePump):
+    """A plugin whose point subscription fails once it started."""
+
+    async def handle(self, request: Message, send: Send) -> None:
+        if isinstance(request, Subscribe):
+            raise RuntimeError("its subscription broke")
+        await super().handle(request, send)
+
+
+async def test_a_plugin_whose_subscription_fails_is_started_again(
+    db: Database, tmp_path: Path
+) -> None:
+    await db.put(Plugin(plugin="breaking"), "ha")
+    made: list[FakePump] = []
+
+    def factory(context: PluginContext) -> FakePump:
+        made.append(Unsubscribed() if not made else FakePump())
+        return made[-1]
+
+    h = host(db, tmp_path, {"breaking": factory})
+    await h.start()
+    try:
+        await until(lambda: Key("ha", "hp1/outdoor.temp") in h.values.latest)
+        assert len(made) == 2
+    finally:
+        await h.stop()
 
 
 async def test_disabled_and_out_of_process_instances(db: Database, tmp_path: Path) -> None:
