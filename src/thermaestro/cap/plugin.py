@@ -6,6 +6,7 @@ subscriptions; the plugin answers the rest.
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from functools import partial
@@ -43,7 +44,8 @@ class Plugin(Protocol):
 
     async def events(self, send: Send) -> None:
         """Runs while connected, for what the plugin sends unasked: health, device
-        events, changed descriptions. Canceled when the connection closes."""
+        events, changed descriptions. Canceled when the connection closes. Raising ends
+        the connection, so the host starts the plugin again; returning ends nothing."""
         ...
 
 
@@ -76,14 +78,20 @@ async def serve(endpoint: Endpoint, plugin: Plugin) -> None:
         task.add_done_callback(tasks.discard)
         return task
 
-    start(plugin.events(endpoint.send))
+    events = asyncio.ensure_future(plugin.events(endpoint.send))
+    tasks.add(events)
     try:
         while True:
             try:
-                message = await endpoint.receive()
+                message = await _next(endpoint, events)
             except BadLine as e:
                 await endpoint.send(Error(id=e.id, code=e.code, detail=e.detail))
                 continue
+            if message is None:
+                # Its events failed: it can't go on. Left connected it would send nothing,
+                # however long; ended, the host starts it again.
+                await endpoint.close()
+                return
             if isinstance(message, Hello):
                 await endpoint.send(answer_hello(message, plugin))
             elif isinstance(message, Unsubscribe):
@@ -115,6 +123,29 @@ def _forget(
 ) -> None:
     if subscriptions.get(id) is task:
         del subscriptions[id]
+
+
+async def _next(endpoint: Endpoint, events: "asyncio.Task[None]") -> Message | None:
+    """The next message; None once the plugin's events have failed. Events that end
+    without failing end nothing."""
+    if events.done():
+        return await endpoint.receive()
+    receiving = asyncio.ensure_future(endpoint.receive())
+    try:
+        await asyncio.wait({receiving, events}, return_when=asyncio.FIRST_COMPLETED)
+    except asyncio.CancelledError:
+        receiving.cancel()
+        raise
+    if receiving.done():
+        return receiving.result()
+    receiving.cancel()
+    with contextlib.suppress(asyncio.CancelledError, Closed, BadLine):
+        await receiving
+    error = None if events.cancelled() else events.exception()
+    if error is None or isinstance(error, Closed):
+        return await endpoint.receive()
+    log.error("the plugin stopped; ending its connection to start it again", exc_info=error)
+    return None
 
 
 async def _logged(coro: Awaitable[None]) -> None:

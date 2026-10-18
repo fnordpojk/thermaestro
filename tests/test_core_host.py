@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from capfake import FakePump
 
-from thermaestro.cap import pair, serve
+from thermaestro.cap import Send, pair, serve
 from thermaestro.core import AuditLog, Key, PluginContext, PluginHost, State, Values
 from thermaestro.store import Database, Plugin, SecretStore
 
@@ -97,6 +97,41 @@ async def test_a_failing_plugin_is_restarted_and_the_others_run_on(
         await h.stop()
     audit = (tmp_path / "audit" / "audit.jsonl").read_text()
     assert audit.count('"plugin.restart"') == 2
+
+
+class Dropped(FakePump):
+    """A plugin whose connection to its device drops after it started: its events fail."""
+
+    def __init__(self, drop: asyncio.Event) -> None:
+        super().__init__()
+        self.drop = drop
+
+    async def events(self, send: Send) -> None:
+        await super().events(send)
+        await self.drop.wait()
+        raise ConnectionError("the device closed the connection")
+
+
+async def test_a_plugin_whose_events_fail_is_started_again(db: Database, tmp_path: Path) -> None:
+    await db.put(Plugin(plugin="dropping"), "ha")
+    drop = asyncio.Event()
+    made: list[FakePump] = []
+
+    def factory(context: PluginContext) -> FakePump:
+        made.append(Dropped(drop) if not made else FakePump())
+        return made[-1]
+
+    h = host(db, tmp_path, {"dropping": factory})
+    await h.start()
+    try:
+        await until(lambda: state(h, "ha") is State.UP)
+        drop.set()
+        await until(lambda: len(made) == 2 and state(h, "ha") is State.UP)
+        assert h.instances["ha"].last_error == "the plugin ended its connection"
+    finally:
+        await h.stop()
+    audit = (tmp_path / "audit" / "audit.jsonl").read_text()
+    assert audit.count('"plugin.restart"') == 1
 
 
 async def test_disabled_and_out_of_process_instances(db: Database, tmp_path: Path) -> None:

@@ -31,6 +31,8 @@ class FakeHomeAssistant:
         """The notify services offered, besides `send_message`."""
         self.called: list[dict[str, Any]] = []
         """Every service called."""
+        self.refuse: str | None = None
+        """What Home Assistant says as it refuses every service call, where a test sets it."""
 
     async def new_forecast(self, entity: str, forecast: list[dict[str, Any]]) -> None:
         self.forecasts[entity] = forecast
@@ -108,6 +110,10 @@ class FakeHomeAssistant:
             result = {NOTIFY: {**offered, "send_message": {"name": "Send a notification message"}}}
         elif kind == "call_service":
             self.called.append(command)
+            if self.refuse is not None:
+                error = {"code": "home_assistant_error", "message": self.refuse}
+                await ws.send_json({"id": id, "type": "result", "success": False, "error": error})
+                return
             if command["domain"] != NOTIFY or command["service"] not in self.notify:
                 error = {"code": "not_found", "message": "Service not found."}
                 await ws.send_json({"id": id, "type": "result", "success": False, "error": error})

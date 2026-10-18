@@ -340,10 +340,11 @@ async def test_notifications_to_a_target_it_offers(tmp_path: Path) -> None:
 
 async def test_a_notification_failing_says_why(tmp_path: Path) -> None:
     fake = stocked()
-    async with running(fake) as url, plugin(url, await secrets(tmp_path, "stale")) as (_, link):
+    fake.refuse = "Unable to reach the phone"
+    async with running(fake) as url, plugin(url, await secrets(tmp_path)) as (_, link):
         sent = await link.notify("mobile_app_pixel_8", "", "The bath is ready", timeout=5)
         assert not sent.ok
-        assert sent.detail is not None
+        assert sent.detail == "Unable to reach the phone"
 
 
 def test_the_entry_point_is_registered() -> None:
