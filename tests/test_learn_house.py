@@ -3,6 +3,7 @@ simulated house (whose values the learner doesn't know), and the day-by-day read
 
 import math
 import random
+from dataclasses import replace
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
@@ -174,6 +175,26 @@ def test_the_pumps_curve_is_learned_and_proves_itself() -> None:
     curve = curve_for(scenario.houses[0])
     assert found.c1 == pytest.approx(-(0.09 * curve + 0.06), rel=0.5)
     assert found.c2 == pytest.approx(1 + 0.15 * curve, rel=0.5)
+
+
+def test_the_curve_from_the_pumps_calculated_supply_however_short_the_runs() -> None:
+    """A quarter of an hour's heating each hour, the curve's own supply reported: learned."""
+    hours = []
+    for i in range(96):
+        outdoor = 5.0 + 4.0 * math.sin(i / 7)
+        offset = 0.0 if (i // 24) % 2 == 0 else 2.0
+        target = 30.0 - 0.5 * outdoor + 1.5 * offset
+        hours.append(
+            h.Hour(
+                START + i * 3600, 21.0, outdoor, 30.0, offset=offset, heating=0.25, target=target
+            )
+        )
+    found, why, _ = pump.fit(hours)
+    assert found is not None, why
+    assert found.c1 == pytest.approx(-0.5)
+    assert found.c2 == pytest.approx(1.5)
+    measured = [replace(x, target=None, supply=40.0) for x in hours]
+    assert pump.fit(measured)[1] == pump.FEW  # never heated half an hour
 
 
 def test_an_offset_that_never_moved_teaches_nothing() -> None:

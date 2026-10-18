@@ -98,6 +98,8 @@ class SystemKeys:
     compressor: Key | None = None
     offset: Key | None = None
     """The point the heating offset is read back by."""
+    target: Key | None = None
+    """The supply temperature the pump's curve calculates, where it reports one."""
 
 
 class Heating:
@@ -157,6 +159,8 @@ class Heating:
                     None,
                 )
                 point = lever.verify.point if lever is not None else None
+                target = f"{node.path}/supply.temp.target"
+                described_paths = {p.path for p in described.points}
                 out.append(
                     SystemKeys(
                         scope,
@@ -176,6 +180,7 @@ class Heating:
                         Key(instance_id, f"{unit}/demand"),
                         compressor,
                         Key(instance_id, point) if point else None,
+                        Key(instance_id, target) if target in described_paths else None,
                     )
                 )
         return out
@@ -250,6 +255,11 @@ class Heating:
             if keys.offset is not None
             else [None] * count
         )
+        target = (
+            await hourly(keys.target, HOLD["water"], WATER_COVERED)
+            if keys.target is not None
+            else [None] * count
+        )
         share = await self._heating_share(keys, start, count)
         sun = await self._forecast("irradiance.global", start, count)
         wind = await self._forecast("wind_speed", start, count)
@@ -277,6 +287,7 @@ class Heating:
                     supply[i],
                     offset[i],
                     share[i],
+                    target[i],
                 )
             )
         return hours
@@ -541,6 +552,7 @@ def _hour_body(h: house.Hour) -> dict[str, Any]:
         "supply": _round(h.supply),
         "offset": _round(h.offset),
         "heating": _round(h.heating),
+        "target": _round(h.target),
     }
 
 
@@ -556,6 +568,7 @@ def _hour(body: dict[str, Any]) -> house.Hour:
         body.get("supply"),
         body.get("offset"),
         body.get("heating"),
+        body.get("target"),
     )
 
 

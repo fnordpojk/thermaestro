@@ -1,10 +1,15 @@
 """How a climate system's supply follows the outdoor temperature and the heating offset:
 the pump's curve, learned from what it does.
 
-From the hours the compressor heats the house (half the hour at least), the hour's mean
-supply is fitted as
+Where the pump reports the supply temperature its curve calculates, each hour's mean of it
+is fitted, every hour the pump may heat, however short its runs; else, from the hours the
+compressor heats the house (half the hour at least), the hour's mean supply measured:
 
     supply = c0 + c1 · outdoor + c2 · offset
+
+The two aren't mixed: once there are calculated hours, only they are fitted. Measured, the
+supply rises through a run and overshoots as the degree minutes swing; mild weather's runs
+of a quarter of an hour leave hardly an hour heated for half of it.
 
 `c1` is the curve's slope (below 0: colder outside, warmer water), `c2` what one step of
 the offset adds. It needs the offset to have moved: at least two values, each held for
@@ -32,7 +37,7 @@ HELD_LEAST = 12
 TEST_HOURS = 96
 
 STILL = mark("The offset hasn't moved enough to learn what a step does.")
-FEW = mark("%(hours)s hours of heating of %(least)s.")
+FEW = mark("%(hours)s usable hours of %(least)s.")
 LEAST = 48
 
 
@@ -51,15 +56,14 @@ class Response:
 
 
 def _rows(hours: Sequence[Hour]) -> list[tuple[float, float, float]]:
+    known = [h for h in hours if not h.skip and h.outdoor is not None and h.offset is not None]
+    calculated = [(h.outdoor, h.offset, h.target) for h in known if h.target is not None]
+    if calculated:
+        return calculated  # type: ignore[return-value]
     return [
-        (h.outdoor, h.offset, h.supply)
-        for h in hours
-        if not h.skip
-        and h.heating is not None
-        and h.heating >= HEATING_LEAST
-        and h.outdoor is not None
-        and h.offset is not None
-        and h.supply is not None
+        (h.outdoor, h.offset, h.supply)  # type: ignore[misc]
+        for h in known
+        if h.heating is not None and h.heating >= HEATING_LEAST and h.supply is not None
     ]
 
 

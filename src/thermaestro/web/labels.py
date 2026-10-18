@@ -13,6 +13,7 @@ POINTS = {
     "outdoor.temp.mean": mark("Outdoor temperature, mean"),
     "heating.stop_temp": mark("Heating stop"),
     "supply.temp": mark("Supply temperature"),
+    "supply.temp.target": mark("Calculated supply temperature"),
     "return.temp": mark("Return temperature"),
     "temp.top": mark("Top temperature"),
     "temp.mid": mark("Middle temperature"),

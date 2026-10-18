@@ -89,6 +89,8 @@ class Hour:
     """The heating offset in the hour."""
     heating: float | None = None
     """The share of the hour the compressor heated the house."""
+    target: float | None = None
+    """The supply temperature the pump's curve calculated, where the pump reports it."""
 
 
 @dataclass(frozen=True, slots=True)

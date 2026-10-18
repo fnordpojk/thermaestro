@@ -127,7 +127,7 @@ CS1_POINTS = (
     ),
     PointDef("cs1/room.temp", 30026),
     PointDef("cs1/pump.speed", SUPPLY_PUMP_SPEED),
-    PointDef("cs1/x.nibe.31017", 31017),  # calculated supply
+    PointDef("cs1/supply.temp.target", 31017, source="calculated"),
     PointDef("cs1/x.nibe.30039", 30039),  # external supply (BT25)
     PointDef("cs1/x.nibe.30040", 30040),  # flow (BF1)
     PointDef("cs1/x.nibe.40026", 40026),  # heating curve

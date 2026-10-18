@@ -221,13 +221,15 @@ class System:
     """The register that switches the climate system on; None for system 1, always there."""
     offset: int | None = None
     room_control: int | None = None
+    target: int | None = None
+    """The supply temperature the pump's curve calculates."""
 
 
 SYSTEMS = (
-    System(1, 40008, None, offset=47011, room_control=47394),
-    System(2, 40007, 47302, offset=47010, room_control=47393),
-    System(3, 40006, 47303, offset=47009, room_control=47392),
-    System(4, 40005, 47304, offset=47008, room_control=47391),
+    System(1, 40008, None, offset=47011, room_control=47394, target=43009),
+    System(2, 40007, 47302, offset=47010, room_control=47393, target=43008),
+    System(3, 40006, 47303, offset=47009, room_control=47392, target=43007),
+    System(4, 40005, 47304, offset=47008, room_control=47391, target=43006),
     System(5, 40162, 48569, offset=48494, room_control=48678),
     System(6, 40161, 48570, offset=48493, room_control=48677),
     System(7, 40160, 48571, offset=48492, room_control=48676),
@@ -290,6 +292,8 @@ def system_points(system: System) -> list[PointDef]:
             ),
         )
     ]
+    if system.target is not None:
+        points.append(PointDef(f"{cs}/supply.temp.target", system.target, source="calculated"))
     if system.offset is not None:
         points.append(PointDef(f"{cs}/x.nibe.{system.offset}", system.offset))
     if system.room_control is not None:

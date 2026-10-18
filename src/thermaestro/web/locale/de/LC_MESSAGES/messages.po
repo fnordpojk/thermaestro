@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 03:32+0200\n"
+"POT-Creation-Date: 2026-10-18 23:33+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -60,10 +60,6 @@ msgstr "%(hours)s Stunden"
 #, python-format
 msgid "%(hours)s hours of %(least)s to learn the pool from."
 msgstr "%(hours)s von %(least)s Stunden, um den Pool zu lernen."
-
-#, python-format
-msgid "%(hours)s hours of heating of %(least)s."
-msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
 
 #, python-format
 msgid "%(hours)s hours of heating with the heat known, of %(least)s."
@@ -760,6 +756,9 @@ msgstr "COP beim Heizen"
 
 msgid "CO₂"
 msgstr "CO₂"
+
+msgid "Calculated supply temperature"
+msgstr "Berechnete Vorlauftemperatur"
 
 msgid "Calibration"
 msgstr "Kalibrierung"
@@ -4616,4 +4615,7 @@ msgstr "°C pro Stunde bei 50 °C"
 
 #~ msgid "%(name)s has been %(state)s for over an hour"
 #~ msgstr ""
+
+#~ msgid "%(hours)s hours of heating of %(least)s."
+#~ msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
 

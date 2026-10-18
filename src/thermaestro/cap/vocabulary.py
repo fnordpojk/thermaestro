@@ -60,6 +60,7 @@ POINTS: dict[str, PointName] = {
     "outdoor.temp.mean": _p("degC", UNIT),
     "heating.stop_temp": _p("degC", UNIT),
     "supply.temp": _p("degC", CS, UNIT),
+    "supply.temp.target": _p("degC", CS, UNIT),
     "return.temp": _p("degC", CS, UNIT),
     "temp.top": _p("degC", DHW),
     "temp.mid": _p("degC", DHW),
