@@ -56,7 +56,7 @@ from ..optimize import (
 from ..optimize import plan as solve
 from ..store import Database, Rated, Transaction
 from . import rules
-from .model import Decision, Situation
+from .model import Decision, Memory, Situation
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -194,7 +194,8 @@ class Optimizer:
         self._learnings = learnings
         self._weather = weather
         self.last: Optimized | None = None
-        self._stopped: float | None = None
+        self.memory = Memory()
+        """The planner's memory: when the compressor last stopped is kept there."""
         self._was_on: bool | None = None
         self._expected: dict[str, dict[float, float]] = {}
         """Per climate system: how warm each plan expected its rooms to be an hour on, by
@@ -861,9 +862,10 @@ class Optimizer:
             on = on or (state is not None and state.quality == "good" and state.value == "running")
         now = sit.now.timestamp()
         if self._was_on and not on:
-            self._stopped = now
+            self.memory.stopped = now
         self._was_on = on
-        return on, None if on or self._stopped is None else now - self._stopped
+        stopped = self.memory.stopped
+        return on, None if on or stopped is None else now - stopped
 
     async def _starts_today(self, sit: Situation) -> int | None:
         local = sit.now.astimezone(sit.zone)

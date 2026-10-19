@@ -27,7 +27,7 @@ thermaestro export week.jsonl.gz --days 14
 thermaestro replay week.jsonl.gz replayed/ --labels hot-water.csv
 ```
 
-The replay loads the export into a new database in `replayed/` and steps through it a day at a time: at each day's end, an hour on, it adds what had been recorded by then, judges the inputs and runs every learner with the clock at that moment. Nothing learns from what came after, so replaying fewer days (`--days 3`) gives the same values for those days. It needs no plugin and touches no device.
+The replay loads the export into a new database in `replayed/` and steps through it a day at a time: at each day's end, an hour on, it adds what had been recorded by then, judges the inputs and runs every learner with the clock at that moment. The raw readings are kept as long as on the installation (14 days, or `--raw-days`) and older ones folded into 15-minute aggregates, so the learners see what they would have seen; the export's own aggregates come in day by day too. Nothing learns from what came after, so replaying fewer days (`--days 3`) gives the same values for those days. It needs no plugin and touches no device.
 
 What it writes to `replayed/`:
 

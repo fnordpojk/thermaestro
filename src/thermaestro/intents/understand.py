@@ -12,7 +12,7 @@ anything is asked.
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from .model import Level
@@ -340,7 +340,12 @@ def _date(m: re.Match[str], pattern: re.Pattern[str], now: datetime) -> date | N
 def _resolve(when: _When, now: datetime, purpose: str) -> datetime:
     """The moment: a duration from now; else a day and a time, today's or the next."""
     if when.after is not None and when.day is None and when.clock is None:
-        return (now + when.after).replace(second=0, microsecond=0)
+        if when.after % timedelta(days=1):
+            # Hours as the clock runs, also the night it changes; days to the same time of it.
+            moment = (now.astimezone(UTC) + when.after).astimezone(now.tzinfo)
+        else:
+            moment = now + when.after
+        return moment.replace(second=0, microsecond=0)
     clock = when.clock
     if clock is None:
         if when.part == "evening":

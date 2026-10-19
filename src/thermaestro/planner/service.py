@@ -60,6 +60,7 @@ from .model import (
     FRESH_S,
     SLOT,
     Decision,
+    Effect,
     LeverState,
     Memory,
     Price,
@@ -141,13 +142,6 @@ class Plan:
     asked: list[Asked] = field(default_factory=list)
 
 
-@dataclass
-class _Effect:
-    decision: Decision
-    since: datetime
-    wait_s: float
-
-
 MISSED_WATER = mark("The hot water was %(top)s °C at its latest, short of %(least)s °C")
 KEPT_BAND = mark("Its rooms kept their band throughout")
 BELOW_BAND = mark("Its rooms were below their band for %(minutes)s minutes in all")
@@ -212,8 +206,6 @@ class Planner:
         self.situation: Situation | None = None
         """What the last full round saw: for the plan page."""
         self.notices: list[Notice] = []
-        self._not_kept: dict[str, float] = {}
-        self._effects: list[_Effect] = []
         self._last_slot: float | None = None
         self._last_intents: frozenset[str] = frozenset()
         self._last_demand: str | None = None
@@ -232,14 +224,13 @@ class Planner:
         )
         if self.optimizer is not None:
             self.optimizer.drift = self.memory.drift
+            self.optimizer.memory = self.memory
         """Plans beside the rules every slot; drives where the household chose it."""
         self.optimized: Optimized | None = None
         self.chosen = "rules"
         """The planner the household chose to drive, as the last round read it."""
         self._resolver: Resolver | None = None
         """Each room's temperatures of the last hour, by point."""
-        self._aired: dict[str, float] = {}
-        """Rooms seen aired, by point: when."""
         values.listeners.append(self._heard)
 
     # --- running ---------------------------------------------------------------------------
@@ -382,6 +373,7 @@ class Planner:
         self.memory = Memory.from_body(json.loads(body), fresh=fresh)
         if self.optimizer is not None:
             self.optimizer.drift = self.memory.drift
+            self.optimizer.memory = self.memory
         if self._watch is not None:
             self._watch.load(self.memory.watch, fresh=fresh)
             await self._watch.resume()
@@ -755,7 +747,7 @@ class Planner:
             recent.popleft()
         before = [v for s, v in recent if t - AIRING_WITHIN_S <= s < t]
         if before and max(before) - value >= AIRING_DROP:
-            self._aired[point] = t
+            self.memory.aired[point] = t
 
     def _mean(self, point: str, now: datetime) -> float | None:
         """A room's temperature over the last half hour, each reading counted for as long
@@ -794,7 +786,7 @@ class Planner:
             if self._sensors and room_id in self._sensors.rooms
             else ""
         )
-        aired = self._aired.get(point)
+        aired = self.memory.aired.get(point)
         window = self._values.latest.get(Key(SITE, f"room.{room_id}/window.open"))
         airing = (aired is not None and now.timestamp() - aired < AIRING_S) or (
             window is not None and window.quality == "good" and window.value is True
@@ -983,7 +975,7 @@ class Planner:
         ):
             return Asked(decision, "skipped", "changed too recently; asked again next slot")
         key = f"{decision.lever} {decision.op} {json.dumps(decision.params, sort_keys=True)}"
-        until = self._not_kept.get(key)
+        until = self.memory.not_kept.get(key)
         if until is not None and now.timestamp() < until:
             return Asked(decision, "skipped", "accepted but not kept earlier")
         result = await self._executor.act(
@@ -994,11 +986,12 @@ class Planner:
             why=decision.reason,
         )
         if result.outcome == "not_kept":
-            self._not_kept[key] = now.timestamp() + NOT_KEPT_S
+            self.memory.not_kept[key] = now.timestamp() + NOT_KEPT_S
         elif result.outcome == "awaiting_effect":
             lever = self._executor.lever(decision.lever)
             wait = assume(lever).effect_delay_s if lever is not None else None
-            self._effects.append(_Effect(decision, now, wait or EFFECT_S))
+            effect = Effect(decision.lever, decision.reason, now, wait or EFFECT_S)
+            self.memory.effects.append(effect)
         elif result.outcome == "shadowed":
             self._notice(decision, now)
         if decision.op == "fire" and result.outcome in ("awaiting_effect", "shadowed", "verified"):
@@ -1020,18 +1013,18 @@ class Planner:
     async def _follow_up(self, now: datetime) -> None:
         """Judge the effects waited for, and report intents met."""
         demand = self._value(self._pump_point("demand"))
-        for effect in list(self._effects):
+        for effect in list(self.memory.effects):
             seen = demand == "dhw"
             waited = (now - effect.since).total_seconds()
             if seen or waited > effect.wait_s:
-                self._effects.remove(effect)
+                self.memory.effects.remove(effect)
                 await self._audit.record(
                     "planner",
                     "lever.effect",
                     outcome="ok" if seen else "failed",
-                    why=effect.decision.reason,
+                    why=effect.reason,
                     details={
-                        "lever": effect.decision.lever,
+                        "lever": effect.lever,
                         "seen": seen,
                         "after_s": round(waited),
                     },

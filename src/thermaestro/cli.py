@@ -91,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
         "--labels", type=Path, help="a CSV of hot-water use (time,what[,liters]) to score against"
     )
     replaying.add_argument("--days", type=int, help="replay only this many days")
+    replaying.add_argument(
+        "--raw-days",
+        type=int,
+        default=14,
+        help="how long the installation keeps raw readings (its history's raw_days)",
+    )
     args = parser.parse_args(argv)
     if args.command == "nibe-logset":
         return _logset(args.model, args.output)
@@ -154,7 +160,9 @@ def _replay(args: argparse.Namespace) -> int:
         if args.labels is not None:
             zone = ZoneInfo(read(args.export).header.get("timezone", "UTC"))
             labels = read_labels(args.labels, zone)
-        summary = asyncio.run(replay(args.export, args.out, labels=labels, days=args.days))
+        summary = asyncio.run(
+            replay(args.export, args.out, labels=labels, days=args.days, raw_days=args.raw_days)
+        )
     except (ReplayError, OSError, ValueError) as e:
         sys.stderr.write(f"{e}\n")
         return 2

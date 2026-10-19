@@ -15,12 +15,15 @@ of the minute), so it is told once, and again only when it really changes.
 
 from collections.abc import Mapping
 
+from .. import clock
 from ..core.events import Events, Raise, mark
 from ..core.executor import Executor
 from ..core.host import PluginHost, State
 from . import rules
 from .model import Situation
 
+JUMP_S = 60.0
+"""A jump of the system clock beyond this is set right in the timers."""
 MISSING_S = 3600.0
 """How long a plugin may be down, or a series late, before it is an event."""
 MISSED_S = 1800.0
@@ -53,6 +56,8 @@ class Watch:
         self._rose: dict[str, float] = {}
         """When each room's band last rose, or was first seen."""
         self._below: dict[str, float] = {}
+        self._last: tuple[float, float] | None = None
+        """The wall clock and the steady one at the last look."""
         """Since when each room has been below its band."""
 
     def state(self) -> dict[str, dict[str, float | None]]:
@@ -83,12 +88,25 @@ class Watch:
 
     async def look(self, sit: Situation) -> None:
         now = sit.now.timestamp()
+        self._steady()
         await self._events.sync("floor.broken:", self._floors(sit), now=now)
         await self._events.sync("room.stale:", self._rooms(sit), now=now)
         await self._events.sync("lever.let_go:", self._let_go(), now=now)
         await self._events.sync("plugin.missing:", self._plugins(now), now=now)
         await self._events.sync("device.warning:", self._warnings(), now=now)
         await self._events.sync("comfort.missed:", self._comfort(sit, now), now=now)
+
+    def _steady(self) -> None:
+        """The system clock set right (by NTP, say) moves the timers with it, so the jump
+        isn't taken for time passed: the wall clock against one that only goes forward."""
+        wall, steady = clock.time(), clock.monotonic()
+        if self._last is not None:
+            jump = (wall - self._last[0]) - (steady - self._last[1])
+            if abs(jump) > JUMP_S:
+                for timers in (self._since, self._rose, self._below):
+                    for key in timers:
+                        timers[key] += jump
+        self._last = (wall, steady)
 
     def _floors(self, sit: Situation) -> dict[str, Raise]:
         out = {}

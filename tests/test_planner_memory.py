@@ -8,7 +8,7 @@ from typing import Any, cast
 from thermaestro.core import AuditLog, Values
 from thermaestro.learn import Learnings
 from thermaestro.planner import Planner
-from thermaestro.planner.model import FRESH_S, Memory
+from thermaestro.planner.model import FRESH_S, Effect, Memory
 from thermaestro.store import Database
 
 NOW = datetime(2026, 10, 16, 0, 20, tzinfo=UTC)
@@ -91,3 +91,27 @@ async def test_the_optimizer_shares_the_drift_kept(tmp_path: Path) -> None:
         assert after.optimizer is not None
         assert after.optimizer.drift is after.memory.drift
         assert after.optimizer.drift == {CS: 0.4}
+
+
+async def test_the_short_cycle_guard_airing_and_waits_outlast_a_restart(tmp_path: Path) -> None:
+    """When the compressor last stopped, rooms seen aired, settings the pump didn't keep and
+    effects waited for: within the hour all of it; after a longer stop, not the waits."""
+    t = NOW.timestamp()
+    kept = Memory(
+        stopped=t - 300,
+        aired={"room.hall/temperature": t - 600},
+        not_kept={'pump:hp1/cs1/heating.offset set {"value": 2}': t + 1000},
+        effects=[Effect("pump:hp1/dhw/boost", "boost now, as asked", NOW, 900.0)],
+    )
+    async with await Database.open(tmp_path / "t.db") as db:
+        before = planner(db, tmp_path)
+        before.memory = kept
+        await before.keep_memory(t)
+        after = planner(db, tmp_path)
+        await after.restore_memory(t + 120)
+        assert after.memory == kept
+        later = planner(db, tmp_path)
+        await later.restore_memory(t + FRESH_S + 60)
+        assert later.memory.effects == []  # a wait a stop ended isn't judged
+        assert later.memory.stopped == t - 300
+        assert later.memory.aired == kept.aired

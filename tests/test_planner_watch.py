@@ -8,6 +8,7 @@ from typing import cast
 
 from test_planner_rules import NOW, ROOM, TANK, band, floor, situation
 
+from thermaestro import clock
 from thermaestro.cap.messages import DeviceEvent, Health
 from thermaestro.core.events import Events
 from thermaestro.core.executor import Claim, Executor
@@ -135,4 +136,29 @@ async def test_a_room_isnt_missed_before_its_heat_could_show(tmp_path: Path) -> 
         cold = situation([band()], temp=20.0)  # first seen: as if the band had just risen
         await watch.look(cold)
         await watch.look(later_by(cold, MISSED_S + 60))
+        assert await keys(db) == []
+
+
+async def test_a_clock_set_right_is_no_time_passed(tmp_path: Path) -> None:
+    """The system clock set forward two hours (by NTP, after long without it): the timers
+    move with it, so a plugin restarting for a minute isn't missing for over an hour."""
+
+    class Jumping:
+        def __init__(self) -> None:
+            self.wall, self.mono = NOW.timestamp(), 0.0
+
+        def time(self) -> float:
+            return self.wall
+
+        def monotonic(self) -> float:
+            return self.mono
+
+    source = Jumping()
+    async with await Database.open(tmp_path / "t.db") as db:
+        watch = watching(db, pump=instance("pump", State.RESTARTING))
+        with clock.simulated(source):
+            await watch.look(situation([]))
+            source.wall += 2 * 3600
+            source.mono += 60
+            await watch.look(later_by(situation([]), 2 * 3600))
         assert await keys(db) == []

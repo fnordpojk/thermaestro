@@ -104,12 +104,23 @@ class Tank:
 
 
 @dataclass
+class Effect:
+    """A change whose effect is waited for: the pump starting a charge."""
+
+    lever: str
+    reason: str
+    since: datetime
+    wait_s: float
+
+
+@dataclass
 class Memory:
     """What the planner keeps between rounds. Kept in the database too, so a restart
     carries on from it: all of it within `FRESH_S`; after a longer stop, what still holds
     (the loop's integral, the optimizer's drift, the periodic increase last seen, how long
-    charges take, the boosts asked for), not the price holds or a charge under way, which a
-    stop has ended."""
+    charges take, the boosts asked for, when the compressor stopped, rooms aired, changes
+    not kept), not the price holds, a charge under way or effects waited for, which a stop
+    has ended."""
 
     integral: dict[str, float] = field(default_factory=dict)
     """Per climate system: the PI loop's integral, in offset steps."""
@@ -131,6 +142,15 @@ class Memory:
     hour."""
     watch: dict[str, dict[str, float | None]] = field(default_factory=dict)
     """The watch's timers: when each condition began, each room's band and when it rose."""
+    stopped: float | None = None
+    """When the compressor last stopped, for the optimizer's guard against short cycles."""
+    aired: dict[str, float] = field(default_factory=dict)
+    """Rooms seen aired, by point: when."""
+    not_kept: dict[str, float] = field(default_factory=dict)
+    """Changes the device accepted but didn't keep, by what was asked: until when they
+    aren't asked again."""
+    effects: list[Effect] = field(default_factory=list)
+    """Changes whose effect is waited for."""
 
     def body(self) -> dict[str, Any]:
         return {
@@ -144,6 +164,18 @@ class Memory:
             "charging_since": {k: v.isoformat() for k, v in self.charging_since.items()},
             "drift": self.drift,
             "watch": self.watch,
+            "stopped": self.stopped,
+            "aired": self.aired,
+            "not_kept": self.not_kept,
+            "effects": [
+                {
+                    "lever": e.lever,
+                    "reason": e.reason,
+                    "since": e.since.isoformat(),
+                    "wait_s": e.wait_s,
+                }
+                for e in self.effects
+            ],
         }
 
     @classmethod
@@ -171,6 +203,15 @@ class Memory:
             else {},
             drift={k: float(v) for k, v in (body.get("drift") or {}).items()},
             watch=dict(body.get("watch") or {}),
+            stopped=body.get("stopped"),
+            aired={k: float(v) for k, v in (body.get("aired") or {}).items()},
+            not_kept={k: float(v) for k, v in (body.get("not_kept") or {}).items()},
+            effects=[
+                Effect(e["lever"], e["reason"], datetime.fromisoformat(e["since"]), e["wait_s"])
+                for e in body.get("effects") or ()
+            ]
+            if fresh
+            else [],
         )
 
 

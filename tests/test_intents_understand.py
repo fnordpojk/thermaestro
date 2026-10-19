@@ -161,3 +161,19 @@ def test_the_examples_shown_are_understood_in_every_language(language: str) -> N
     placeholder = translate("Or say it: a bath at 19:30, away until Sunday, a bit warmer until 22")
     phrases = placeholder.split(":", 1)[1].split(",")
     assert [read(p)[0] for p in phrases] == ["bath", "away", "warmer"], (language, phrases)
+
+
+def test_hours_count_as_the_clock_runs_across_a_change() -> None:
+    """Two hours from 01:30 the night summer time ends end at 02:30 by the clock, its 02:00
+    hour coming twice; two days end at the same time of the clock."""
+    now = datetime(2026, 10, 25, 1, 30, tzinfo=ZONE)
+
+    def until(text: str) -> datetime:
+        found = understand(
+            text, now=now, systems=[("pump:hp1/cs1", "Heating")], tanks=[], levels={}
+        )
+        return datetime.fromisoformat(found.request["until"])
+
+    assert until("hands off for 2 hours").timestamp() - now.timestamp() == 2 * 3600
+    days = until("hands off for 2 days").astimezone(ZONE)
+    assert (days.hour, days.minute) == (1, 30)

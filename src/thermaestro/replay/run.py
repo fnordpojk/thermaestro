@@ -41,6 +41,7 @@ from ..core.weather import Forecast, Span
 from ..learn import Learning
 from ..store import Database, Location, Transaction
 from ..store.settings import SETTINGS
+from ..store.startup import History
 from .export import FORMAT
 from .labels import Label, score
 
@@ -147,9 +148,16 @@ def _lines(path: Path) -> Iterator[dict[str, Any]]:
 
 
 async def replay(
-    source: Path, out: Path, *, labels: list[Label] | None = None, days: int | None = None
+    source: Path,
+    out: Path,
+    *,
+    labels: list[Label] | None = None,
+    days: int | None = None,
+    raw_days: int = History().raw_days,
 ) -> dict[str, Any]:
-    """Replay `source` into `out`; the audit's summary."""
+    """Replay `source` into `out`; the audit's summary. The raw history is kept for
+    `raw_days` and older readings folded into 15-minute aggregates, as an installation
+    keeps them, so the learners see what they would have seen."""
     found = read(source)
     database = await asyncio.to_thread(_fresh, out)
     zone = ZoneInfo(found.header.get("timezone", "UTC"))
@@ -181,6 +189,7 @@ async def replay(
                     now = datetime.combine(day + timedelta(days=1), datetime.min.time(), zone)
                     timer.t = now.timestamp() + AFTER_S
                     await _feed(db, timer.t)
+                    await values.prune(raw_days, History().aggregate_days, now=timer.t)
                     values.latest = await _latest(db, units)
                     await learning.check_inputs()
                     await learning.learn()
@@ -290,16 +299,27 @@ async def _stage(db: Database, source: Path) -> None:
             "CREATE TABLE replay_history (instance TEXT, point TEXT, t REAL, value REAL,"
             " text TEXT, quality TEXT)"
         )
-        batch: list[list[Any]] = []
+        t.execute(
+            "CREATE TABLE replay_history_15m (instance TEXT, point TEXT, slot REAL, min REAL,"
+            " mean REAL, max REAL, last REAL, n INTEGER)"
+        )
+        insert = {
+            "history": "INSERT INTO replay_history VALUES (?, ?, ?, ?, ?, ?)",
+            "history_15m": "INSERT INTO replay_history_15m VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        }
+        batches: dict[str, list[list[Any]]] = {kind: [] for kind in insert}
         for item in _lines(source):
-            if item["record"] != "history":
+            batch = batches.get(item["record"])
+            if batch is None:
                 continue
             batch.append(item["row"])
             if len(batch) >= 10_000:
-                t.executemany("INSERT INTO replay_history VALUES (?, ?, ?, ?, ?, ?)", batch)
+                t.executemany(insert[item["record"]], batch)
                 batch.clear()
-        t.executemany("INSERT INTO replay_history VALUES (?, ?, ?, ?, ?, ?)", batch)
+        for kind, batch in batches.items():
+            t.executemany(insert[kind], batch)
         t.execute("CREATE INDEX replay_history_t ON replay_history (t)")
+        t.execute("CREATE INDEX replay_history_15m_slot ON replay_history_15m (slot)")
 
     await db.run(write)
 
@@ -314,6 +334,13 @@ async def _feed(db: Database, until: float) -> None:
             (until,),
         )
         t.execute("DELETE FROM replay_history WHERE t < ?", (until,))
+        t.execute(
+            "INSERT OR IGNORE INTO history_15m (instance, point, slot, min, mean, max, last, n)"
+            " SELECT instance, point, slot, min, mean, max, last, n FROM replay_history_15m"
+            " WHERE slot + 900 <= ?",
+            (until,),
+        )
+        t.execute("DELETE FROM replay_history_15m WHERE slot + 900 <= ?", (until,))
         t.execute(
             "INSERT OR REPLACE INTO forecast_leads (source, quantity, valid, lead, value, made,"
             " observed) SELECT source, quantity, valid, lead, value, made, observed"

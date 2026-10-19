@@ -158,3 +158,21 @@ async def test_the_replay_command(tmp_path: Path, capsys: pytest.CaptureFixture[
     assert "replayed 2 days" in said
     assert "labels: 1 found, 0 missed" in said
     assert await asyncio.to_thread(main, ["replay", str(labels), str(tmp_path / "x")]) == 2
+
+
+async def test_the_raw_history_is_kept_as_long_as_on_an_installation(tmp_path: Path) -> None:
+    """Older readings are folded into 15-minute aggregates as an installation folds them, so
+    the learners see what they would have seen."""
+    from thermaestro.core.values import HELD_MAX_S
+    from thermaestro.replay.run import AFTER_S
+
+    out = await recording(tmp_path)
+    summary = await replay(out, tmp_path / "short", raw_days=2)
+    last = date.fromisoformat(summary["days"][-1])
+    end = datetime.combine(last + timedelta(days=1), datetime.min.time(), UTC).timestamp()
+    cutoff = end + AFTER_S - 2 * 86_400
+    async with await Database.open(tmp_path / "short" / "replay.db") as db:
+        oldest = await db.run(lambda t: t.execute("SELECT MIN(t) FROM history").fetchone()[0])
+        folded = await db.run(lambda t: t.execute("SELECT COUNT(*) FROM history_15m").fetchone()[0])
+    assert oldest >= cutoff - HELD_MAX_S - 900  # the reading before the cutoff holds on past it
+    assert folded > 0
