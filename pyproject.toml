@@ -27,8 +27,8 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "cryptography>=50.0.2",
     "aiomqtt>=2",
-    "aiohttp>=3.12",
-    "pymodbus>=3.15,<3.16",
+    "aiohttp>=3.14.5",
+    "pymodbus>=3.16.1,<3.17",
     "holidays>=0.106",
     "numpy>=2.3",
     "highspy>=1.11",
@@ -55,7 +55,7 @@ tibber = "thermaestro.tibber.plugin:create"
 Repository = "https://github.com/fnordpojk/thermaestro"
 
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14"]
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.workspace]
