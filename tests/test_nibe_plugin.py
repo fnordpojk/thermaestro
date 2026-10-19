@@ -643,3 +643,51 @@ async def test_values_the_bus_stops_bringing_go_stale(
     finally:
         subscription.cancel()
         await asyncio.gather(subscription, return_exceptions=True)
+
+
+async def test_a_read_lost_while_identifying_is_asked_again(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """One read lost doesn't shape the session: the second climate system and the word
+    order of 32-bit values are still found."""
+    stocked.registers.update({47302: 1, 40007: 250})
+    stocked.lost.update({47302: 1, 40007: 1, 48852: 1})
+    once = PlainSettings(resend_s=2.0, answer_s=2.0, silent_s=5.0, tick_s=0.05)  # no resend
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": once},
+        identify_timeout_s=5,
+        read_timeout_s=1.0,
+    )
+    async with running_plugin(p) as running:
+        assert running.high_word_first is True
+        assert "hp1/cs2" in {n.path for n in running.describe().nodes}
+    assert stocked.lost == {47302: 0, 40007: 0, 48852: 0}
+
+
+async def test_a_product_named_late_is_described(stocked: SimPump, gateway: Gateway) -> None:
+    """With the model set, identification doesn't wait for the pump to name its product;
+    once it does, its label and documented ratings are described."""
+    stocked.info_interval_s = 3.0
+    events: list[object] = []
+    p = NibePlugin(
+        settings(gateway, model="F1245"),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=1,
+    )
+    async with running_plugin(p, events) as running:
+        nodes = {n.path: n for n in running.describe().nodes}
+        assert nodes["hp1/dhw"].rating is None  # not named yet
+
+        def named() -> Described | None:
+            found = [e for e in events if isinstance(e, Described) and e.nodes]
+            return found[-1] if found else None
+
+        await until(lambda: named() is not None)
+        described = named()
+        assert described is not None
+        renamed = {n.path: n for n in described.nodes}
+        assert renamed["hp1"].label == "F1245-6 CU"
+        tank = renamed["hp1/dhw"].rating
+        assert tank is not None
+        assert tank.liters == 178.0

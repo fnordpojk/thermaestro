@@ -88,6 +88,10 @@ log = logging.getLogger(__name__)
 PRODUCT_INFO = 0x6D
 LOG_SET = 0x68
 READ_TIMEOUT_S = 5.0
+IDENTIFY_TRIES = 3
+"""How often a register that identifies the pump is asked for before it counts as
+one the pump hasn't got: a read lost on the bus mustn't shape the whole session (a
+climate system left out, or the word order of 32-bit values unknown)."""
 PUSHED_FRESHNESS_S = 30.0
 POLLED_FRESHNESS_S = 900.0
 STALE_CHECK_S = 15.0
@@ -318,11 +322,11 @@ class NibePlugin:
         # Read first: a plain NibeGW gateway forwards the bus (and with it the product
         # information) only to clients that have sent it something. These registers are the
         # same on every bus-family model: 43001 u16, 44331 u8, 48852 u8.
-        version = await self._read_word(profile.FIRMWARE[0])
-        release = await self._read_word(profile.FIRMWARE[1])
+        version = await self._read_word(profile.FIRMWARE[0], IDENTIFY_TRIES)
+        release = await self._read_word(profile.FIRMWARE[1], IDENTIFY_TRIES)
         if version is not None:
             self.firmware = f"{version}R{release & 0xFF}" if release is not None else str(version)
-        swap = await self._read_word(profile.WORD_SWAP)
+        swap = await self._read_word(profile.WORD_SWAP, IDENTIFY_TRIES)
         self.high_word_first = None if swap is None else swap & 0xFF == 0
         name = self.gateway.model
         if name is None:
@@ -333,18 +337,19 @@ class NibePlugin:
         self.model = self.maps.model(name)
         systems = [1]
         for system in self.family.detectable(self.model):
-            if system.accessory is None or await self._read_value(system.accessory) != 1:
+            accessory = system.accessory
+            if accessory is None or await self._read_value(accessory, IDENTIFY_TRIES) != 1:
                 continue
-            words_ = await self._read(system.supply)
+            words_ = await self._tried(system.supply, IDENTIFY_TRIES)
             if words_ is not None:
                 supply = decode(self.model.register(system.supply), *words_, high_word_first=True)
                 if supply.status is not Status.NOT_CONNECTED:
                     systems.append(system.number)
         pools = []
         for pool in self.family.detectable_pools(self.model):
-            if await self._read_value(pool.accessory) != 1:
+            if await self._read_value(pool.accessory, IDENTIFY_TRIES) != 1:
                 continue
-            words_ = await self._read(pool.sensor)
+            words_ = await self._tried(pool.sensor, IDENTIFY_TRIES)
             if words_ is not None:
                 sensor = decode(self.model.register(pool.sensor), *words_, high_word_first=True)
                 if sensor.status is not Status.NOT_CONNECTED:
@@ -381,6 +386,7 @@ class NibePlugin:
             return
         if telegram.command == PRODUCT_INFO and not self._product.done():
             self._product.set_result(telegram.payload[3:].decode("ascii", errors="replace"))
+            self._named()
         elif telegram.command == LOG_SET:
             payload = telegram.payload
             for i in range(0, len(payload) - 3, 4):
@@ -445,12 +451,20 @@ class NibePlugin:
                 self._store(following, (second, 0))  # the answer carries the next one too
         return first, second
 
-    async def _read_word(self, register: int) -> int | None:
-        words_ = await self._read(register)
+    async def _tried(self, register: int, tries: int) -> tuple[int, int] | None:
+        """A read asked again where the pump didn't answer, up to `tries` times in all."""
+        for _ in range(tries):
+            words_ = await self._read(register)
+            if words_ is not None or register in self._refused:
+                return words_
+        return None
+
+    async def _read_word(self, register: int, tries: int = 1) -> int | None:
+        words_ = await self._tried(register, tries)
         return None if words_ is None else words_[0]
 
-    async def _read_value(self, register: int) -> float | int | None:
-        words_ = await self._read(register)
+    async def _read_value(self, register: int, tries: int = 1) -> float | int | None:
+        words_ = await self._tried(register, tries)
         if words_ is None or self.model is None or register not in self.model:
             return None
         decoded = decode(self.model.register(register), *words_, high_word_first=True)
@@ -1174,6 +1188,49 @@ class NibePlugin:
     def describe(self, id: int | None = None) -> Described:
         model, layout = self._pump()
         unit = profile.UNIT
+        nodes = self._nodes(model, layout)
+        points = [self._point(d) for d in layout.points.values()]
+        points += [
+            Point(
+                path=f"{unit}/{d.path}",
+                unit=d.unit,
+                wraps_at=None,
+                resolution=Knowledge(value=d.resolution, known="documented"),
+                delivery=Delivery(how="on_change"),
+                validity=d.validity,
+            )
+            for d in layout.derived.values()
+            if self._derived(f"{unit}/{d.path}") is not None
+        ]
+        if self.family.name == "s-series":
+            points.append(
+                Point(
+                    path=f"{unit}/{IDENTIFICATION}",
+                    label="Modbus device identification",
+                    description="What the pump answers to Modbus's read device identification;"
+                    " shown, not relied on.",
+                    category="diagnostic",
+                    delivery=Delivery(how="on_change"),
+                )
+            )
+        values = self._snapshot().values
+        if self.family.hot_water_mode is not None:
+            mode = values.get(self.family.hot_water_mode)
+            self._described_mode = None if mode is None else int(mode)
+            self._block_described = True
+        levers = [spec.lever for spec in self.family.levers(model, layout.points, values)]
+        return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
+
+    def _named(self) -> None:
+        """The pump named its product after it was identified by the model set: the unit's
+        label and the documented ratings that come with the product are described anew."""
+        if self.model is None or self.layout is None or self._send_event is None:
+            return
+        nodes = tuple(self._nodes(self.model, self.layout))
+        self._spawn(self._send_event(Described(complete=False, nodes=nodes)))
+
+    def _nodes(self, model: ModelMap, layout: profile.Layout) -> list[Node]:
+        unit = profile.UNIT
         promises = self._transport.promises if self._transport else None
         nodes = [
             Node(
@@ -1213,37 +1270,7 @@ class NibePlugin:
                     rating=rated.get(kind),
                 )
             )
-        points = [self._point(d) for d in layout.points.values()]
-        points += [
-            Point(
-                path=f"{unit}/{d.path}",
-                unit=d.unit,
-                wraps_at=None,
-                resolution=Knowledge(value=d.resolution, known="documented"),
-                delivery=Delivery(how="on_change"),
-                validity=d.validity,
-            )
-            for d in layout.derived.values()
-            if self._derived(f"{unit}/{d.path}") is not None
-        ]
-        if self.family.name == "s-series":
-            points.append(
-                Point(
-                    path=f"{unit}/{IDENTIFICATION}",
-                    label="Modbus device identification",
-                    description="What the pump answers to Modbus's read device identification;"
-                    " shown, not relied on.",
-                    category="diagnostic",
-                    delivery=Delivery(how="on_change"),
-                )
-            )
-        values = self._snapshot().values
-        if self.family.hot_water_mode is not None:
-            mode = values.get(self.family.hot_water_mode)
-            self._described_mode = None if mode is None else int(mode)
-            self._block_described = True
-        levers = [spec.lever for spec in self.family.levers(model, layout.points, values)]
-        return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
+        return nodes
 
     def _presence(self, path: str, kind: str) -> Presence:
         if kind == "pool":

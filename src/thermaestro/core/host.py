@@ -30,6 +30,8 @@ log = logging.getLogger(__name__)
 
 STABLE_S = 60.0
 """A session that lasted this long resets the failure count."""
+RESHAPE_CHECK_S = 5.0
+"""How often a subscription with nothing new looks whether its points were added to."""
 
 
 class State(StrEnum):
@@ -59,6 +61,8 @@ class Instance:
     plugin started again tells what is still on)."""
     link: Link | None = None
     """The connection while the instance is up: what the write path sends through."""
+    reshaped: asyncio.Event = field(default_factory=asyncio.Event)
+    """Set when a partial description adds points: they are subscribed to then."""
 
 
 class PluginHost:
@@ -270,20 +274,33 @@ class PluginHost:
                     await followed
 
     async def _points(self, instance: Instance, link: Link) -> None:
-        assert instance.described is not None  # noqa: S101 - described before this
-        points = [p.path for p in instance.described.points]
-        if not points:
-            await link.done.wait()
-            raise Closed
-        async with link.subscribe(points) as subscription:
-            while True:
+        """Subscribe to every described point, and again when a description adds some."""
+        while True:
+            assert instance.described is not None  # noqa: S101 - described before this
+            instance.reshaped.clear()
+            points = [p.path for p in instance.described.points]
+            if not points:
+                waits = {
+                    asyncio.ensure_future(link.done.wait()),
+                    asyncio.ensure_future(instance.reshaped.wait()),
+                }
                 try:
-                    update = await subscription.next(timeout=3600.0)
-                except TimeoutError:
-                    continue  # no values for an hour; health says why, if anything
-                described = {p.path: p for p in instance.described.points}
-                for envelope in update.values:
-                    self.values.add(instance.id, envelope, described.get(envelope.point))
+                    await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    for wait in waits:
+                        wait.cancel()
+                if link.done.is_set():
+                    raise Closed
+                continue
+            async with link.subscribe(points) as subscription:
+                while not instance.reshaped.is_set():
+                    try:
+                        update = await subscription.next(timeout=RESHAPE_CHECK_S)
+                    except TimeoutError:
+                        continue  # nothing new; health says why, if anything
+                    described = {p.path: p for p in instance.described.points}
+                    for envelope in update.values:
+                        self.values.add(instance.id, envelope, described.get(envelope.point))
 
     def _event(self, instance: Instance, message: Message) -> None:
         if isinstance(message, Health):
@@ -297,7 +314,10 @@ class PluginHost:
                 else:
                     instance.active.pop(key, None)
         elif isinstance(message, Described) and instance.described is not None:
+            before = {p.path for p in instance.described.points}
             instance.described = _merge(instance.described, message)
+            if {p.path for p in instance.described.points} - before:
+                instance.reshaped.set()
             task = asyncio.ensure_future(self._keep(instance.id, instance.described))
             self._keeping.add(task)
             task.add_done_callback(self._keeping.discard)

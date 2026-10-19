@@ -337,6 +337,10 @@ class HomeAssistantPlugin:
         self._unconverted: dict[str, list[dict[str, Any]]] = {}
         """Forecasts that came before their entity's state, which names their units."""
         self._states_seen = False
+        self._send: Send | None = None
+        self._described: set[str] | None = None
+        """The points last described, once the core has asked."""
+        self._sending: set[asyncio.Future[None]] = set()
 
     def _weather(self) -> list[str]:
         return [e for e in self.settings.entities if e.startswith("weather.")]
@@ -344,6 +348,7 @@ class HomeAssistantPlugin:
     # --- the plugin interface -----------------------------------------------------------
 
     async def events(self, send: Send) -> None:
+        self._send = send
         try:
             token = await self._token()
             async with aiohttp.ClientSession() as session:
@@ -517,8 +522,23 @@ class HomeAssistantPlugin:
             self._keep_forecast(entity, self._unconverted.pop(entity))
         self._states_seen = True
         self._maybe_ready()
+        self._grown()
         tick, self._tick = self._tick, asyncio.Event()
         tick.set()
+
+    def _grown(self) -> None:
+        """Points that came with their attributes after the plugin described itself (a
+        thermostat's demand or window, while Home Assistant was still starting) are
+        described then."""
+        if self._described is None or self._send is None:
+            return
+        new = [p for p in self._points() if p.path not in self._described]
+        if not new:
+            return
+        self._described |= {p.path for p in new}
+        task = asyncio.ensure_future(self._send(Described(complete=False, points=tuple(new))))
+        self._sending.add(task)
+        task.add_done_callback(self._sending.discard)
 
     # --- forecasts ----------------------------------------------------------------------
 
@@ -626,13 +646,10 @@ class HomeAssistantPlugin:
                 path=ROOT, kind="site", presence=Presence(how="configured"), label="Home Assistant"
             )
         ]
-        points = []
         for entity in self.settings.entities:
-            state = self.states.get(entity)
-            attributes = state.attributes if state else {}
-            name = attributes.get("friendly_name") or entity
-            domain = entity.split(".", 1)[0]
-            if domain == "climate":
+            if entity.split(".", 1)[0] == "climate":
+                state = self.states.get(entity)
+                name = (state.attributes if state else {}).get("friendly_name") or entity
                 nodes.append(
                     Node(
                         path=f"{ROOT}/{entity}",
@@ -641,12 +658,8 @@ class HomeAssistantPlugin:
                         label=name,
                     )
                 )
-                for point, unit in self._climate_points(attributes):
-                    points.append(_point(f"{ROOT}/{entity}/{point}", unit, None))
-            elif domain != "weather":
-                unit = attributes.get("unit_of_measurement")
-                stored = UNITS[unit][0] if unit in UNITS else unit
-                points.append(_point(f"{ROOT}/{OWN}{entity}", stored, name))
+        points = self._points()
+        self._described = {p.path for p in points}
         series = self._series()
         return Described(
             id=id,
@@ -655,6 +668,22 @@ class HomeAssistantPlugin:
             series=tuple(series),
             provider=_weather_provider() if series else None,
         )
+
+    def _points(self) -> list[Point]:
+        points = []
+        for entity in self.settings.entities:
+            state = self.states.get(entity)
+            attributes = state.attributes if state else {}
+            domain = entity.split(".", 1)[0]
+            if domain == "climate":
+                for point, unit in self._climate_points(attributes):
+                    points.append(_point(f"{ROOT}/{entity}/{point}", unit, None))
+            elif domain != "weather":
+                name = attributes.get("friendly_name") or entity
+                unit = attributes.get("unit_of_measurement")
+                stored = UNITS[unit][0] if unit in UNITS else unit
+                points.append(_point(f"{ROOT}/{OWN}{entity}", stored, name))
+        return points
 
     @staticmethod
     def _climate_points(attributes: dict[str, Any]) -> list[tuple[str, str | None]]:

@@ -137,6 +137,8 @@ class SimPump:
     log_set_interval_s: float = 0.5
     silent_reads: int = 0
     """How many of the next read requests it takes get no answer."""
+    lost: Counter[int] = field(default_factory=Counter)
+    """Per register, how many of its next read requests get no answer, as if lost."""
     product: str = "F1245-6 CU"
     firmware: int = 9721
     info_interval_s: float = 15.0
@@ -248,6 +250,8 @@ class SimPump:
             self.taken_reads.append(register)
             if self.silent_reads:
                 self.silent_reads -= 1
+            elif self.lost[register] > 0:
+                self.lost[register] -= 1
             elif register not in self.absent:
                 self._due.append((now + self.answer_delay_s, self._read_answer(register)))
         elif command == nibe.WRITE_TOKEN and frame[1] == nibe.WRITE_TOKEN:

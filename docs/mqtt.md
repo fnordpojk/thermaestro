@@ -56,7 +56,7 @@ After a restart each sensor starts from its last reading, as old as it is, so ro
 
 Home Assistant's entities don't come through MQTT. The Home Assistant plugin connects to Home Assistant's WebSocket API (`<url>/api/websocket`) and logs in with a long-lived access token. Make the token in Home Assistant (your profile, Security), and enter it with the address under **Setup → External → Home Assistant**. The token is kept in the secrets file.
 
-The plugin subscribes only to the entities chosen under **Setup → Sensors → From Home Assistant**. It changes nothing in Home Assistant: the one service it calls is a `notify` service a user picked for their own notifications (see [the Events page](setup.md#notifications)). Values are converted to Thermaestro's units (°F to °C, mbar to hPa, and so on). Home Assistant's `unavailable` and `unknown` become an unknown value.
+The plugin subscribes only to the entities chosen under **Setup → Sensors → From Home Assistant**. It changes nothing in Home Assistant: the one service it calls is a `notify` service a user picked for their own notifications (see [the Events page](setup.md#notifications)). Values are converted to Thermaestro's units (°F to °C, mbar to hPa, and so on). Home Assistant's `unavailable` and `unknown` become an unknown value. A thermostat's heating demand and open window are read where Home Assistant reports them, also when they first come after the plugin started, as while Home Assistant is still starting.
 
 ## Publishing to Home Assistant: MQTT discovery
 

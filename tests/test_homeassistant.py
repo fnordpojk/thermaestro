@@ -11,7 +11,7 @@ from hafake import TOKEN, FakeHomeAssistant, running
 
 from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
-from thermaestro.cap.messages import Health
+from thermaestro.cap.messages import Described, Health
 from thermaestro.core import discover
 from thermaestro.homeassistant.plugin import HomeAssistantPlugin, list_entities
 from thermaestro.store import HomeAssistant, SecretStore
@@ -84,7 +84,10 @@ async def secrets(tmp_path: Path, token: str = TOKEN) -> SecretStore:
 
 @contextlib.asynccontextmanager
 async def plugin(
-    url: str, store: SecretStore, entities: tuple[str, ...] = ENTITIES
+    url: str,
+    store: SecretStore,
+    entities: tuple[str, ...] = ENTITIES,
+    events: list[object] | None = None,
 ) -> AsyncIterator[tuple[HomeAssistantPlugin, Link]]:
     p = HomeAssistantPlugin(
         HomeAssistant(url=url, token="ha.token", entities=entities),
@@ -93,7 +96,7 @@ async def plugin(
     )
     core, plugin_side = pair()
     served = asyncio.create_task(serve(plugin_side, p))
-    link = Link(core)
+    link = Link(core, on_event=events.append if events is not None else None)
     link.start()
     try:
         await link.hello(timeout=5)
@@ -349,3 +352,29 @@ async def test_a_notification_failing_says_why(tmp_path: Path) -> None:
 
 def test_the_entry_point_is_registered() -> None:
     assert "homeassistant" in discover()
+
+
+async def test_a_thermostats_points_come_with_its_attributes(tmp_path: Path) -> None:
+    """Home Assistant still starting sends a thermostat without its attributes: its demand
+    and window are described once they come."""
+    fake = stocked()
+    fake.set("climate.living_room", "unavailable", friendly_name="Living room thermostat")
+    events: list[object] = []
+    store = await secrets(tmp_path)
+    async with running(fake) as url, plugin(url, store, events=events) as (_, link):
+        described = await link.describe(timeout=5)
+        demand, window = "ha/climate.living_room/heat_demand", "ha/climate.living_room/window.open"
+        assert demand not in {pt.path for pt in described.points}
+        await fake.change(
+            "climate.living_room",
+            "heat",
+            current_temperature=21.0,
+            pi_heating_demand=55,
+            window_open=False,
+        )
+        async with asyncio.timeout(5):
+            while not any(isinstance(e, Described) for e in events):
+                await asyncio.sleep(0.02)
+        added = next(e for e in events if isinstance(e, Described))
+        assert {pt.path for pt in added.points} == {demand, window}
+        assert not added.complete

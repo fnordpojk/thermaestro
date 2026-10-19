@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from capfake import FakePump
+from capfake import POINTS, FakePump
 
 from thermaestro.cap import Message, Send, pair, serve
-from thermaestro.cap.messages import DeviceEvent, Subscribe
+from thermaestro.cap.messages import Described, DeviceEvent, Subscribe
 from thermaestro.core import AuditLog, Key, PluginContext, PluginHost, State, Values
 from thermaestro.store import Database, Plugin, SecretStore
 
@@ -264,5 +264,31 @@ async def test_a_plugin_started_again_tells_what_is_on(db: Database, tmp_path: P
         await until(lambda: len(made) == 2 and state(h, "pump") is State.UP)
         assert h.instances["pump"].active == {}
         assert came_up == ["pump", "pump"]
+    finally:
+        await h.stop()
+
+
+class Grown(FakePump):
+    """A plugin that describes a point only after it started."""
+
+    def describe(self, id: int) -> Described:
+        whole = super().describe(id)
+        return whole.model_copy(
+            update={"points": tuple(p for p in whole.points if p.path != "hp1/outdoor.temp")}
+        )
+
+    async def events(self, send: Send) -> None:
+        await super().events(send)
+        await asyncio.sleep(0.3)
+        outdoor = next(p for p in POINTS if p.path == "hp1/outdoor.temp")
+        await send(Described(complete=False, points=(outdoor,)))
+
+
+async def test_a_point_described_later_is_followed(db: Database, tmp_path: Path) -> None:
+    await db.put(Plugin(plugin="growing"), "pump")
+    h = host(db, tmp_path, {"growing": lambda c: Grown()})
+    await h.start()
+    try:
+        await until(lambda: Key("pump", "hp1/outdoor.temp") in h.values.latest)
     finally:
         await h.stop()
