@@ -10,11 +10,13 @@ now, the offset isn't lowered, and with one above it, it isn't raised, whatever 
 expects.
 
 **A tank** is charged by a boost where the plan charges it in this slot for a hot-water
-deadline and the pump isn't charging. For price, its own charges are held off by a block
-while the plan charges it no sooner than an hour on, and let go once the plan charges it
-within the slot after (only with a cost stance and prices: otherwise the pump's own
-thermostat stands). A charge isn't started for price alone: the rooms keep the compressor.
-Near its floor every hold is let go, and below it a charge is started, whatever the plan.
+deadline and the pump isn't charging, and at once where the household asked for a boost
+now: the plan doesn't plan that charge, it only follows it. For price, its own charges are
+held off by a block while the plan charges it no sooner than an hour on, and let go once
+the plan charges it within the slot after (only with a cost stance and prices: otherwise
+the pump's own thermostat stands). A charge isn't started for price alone: the rooms keep
+the compressor. Near its floor every hold is let go, and below it a charge is started,
+whatever the plan.
 
 **A pool** heats now where the plan heats it now: its start temperature set just above
 where it is; else it is left to its band's bottom. **The addition** is kept off where the
@@ -78,6 +80,8 @@ class Now:
     """A cost stance and prices: price may move things."""
     budget: tuple[int, int] | None = None
     """Writes in the last day, and the soft budget."""
+    boosts: dict[str, int] = field(default_factory=dict)
+    """Tanks the household asked to charge now, not yet asked of the pump: the rank."""
     compressor_on: bool = False
     stopped_s: float | None = None
     """How long ago the compressor stopped, if it stands."""
@@ -242,6 +246,14 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
                 out.append(Decision(block.ref, "release", rank=1, reason=why))
             if boost is not None and top < floor and not state.charging:
                 out.append(Decision(boost.ref, "fire", rank=1, reason=why + ": charging now"))
+            continue
+        asked = now.boosts.get(tank.scope)
+        if asked is not None and boost is not None:
+            if not state.charging:
+                reason = "boost now, as asked"
+                if block is not None and block.held:
+                    out.append(Decision(block.ref, "release", rank=asked, reason=reason))
+                out.append(Decision(boost.ref, "fire", rank=asked, reason=reason))
             continue
         share = planned.share
         upcoming = [d for d in tank.deadlines if d.slot >= 0]

@@ -823,6 +823,7 @@ class Optimizer:
             starts_today=starts,
             pace=pace,
             policy=str(bound.value) if bound is not None and bound.value is not None else None,
+            boosts={scope: sit.force.rank("must_deadlines") for scope in sit.boost_scopes},
             ranks={
                 "comfort_low": sit.force.rank("comfort_low"),
                 "comfort_high": sit.force.rank("comfort_high"),

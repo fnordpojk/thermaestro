@@ -98,6 +98,23 @@ def test_near_its_floor_every_hold_goes_whatever_the_plan() -> None:
     assert [(d.op, d.rank) for d in found] == [("release", 1), ("fire", 1)]
 
 
+def test_a_boost_asked_for_now_is_fired_whatever_the_plan() -> None:
+    """The plan charges only for deadlines; a boost now, asked by the household, is carried
+    out at once, a hold on the pump's charges let go for it."""
+    held = now(
+        levers={BLOCK.ref: replace(BLOCK, held=True), BOOST.ref: BOOST},
+        boosts={TANK: 2},
+    )
+    found = decide(planned([0.0] * 16), problem(tank()), held)
+    assert [(d.lever, d.op, d.rank, d.reason) for d in found] == [
+        (BLOCK.ref, "release", 2, "boost now, as asked"),
+        (BOOST.ref, "fire", 2, "boost now, as asked"),
+    ]
+    # Already charging: nothing more to ask, and nothing held off for price meanwhile.
+    charging = now(boosts={TANK: 2}, tanks={TANK: TankNow(48.0, 40.0, True)})
+    assert decide(planned([0.0] * 16), problem(tank()), charging) == []
+
+
 SHOULD = (Deadline(slot=7, at_least=52.0, rank=4),)
 
 
