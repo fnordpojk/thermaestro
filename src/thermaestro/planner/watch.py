@@ -13,6 +13,8 @@ What an event says holds still while its condition lasts (the floor, not the tem
 of the minute), so it is told once, and again only when it really changes.
 """
 
+from collections.abc import Mapping
+
 from ..core.events import Events, Raise, mark
 from ..core.executor import Executor
 from ..core.host import PluginHost, State
@@ -52,6 +54,32 @@ class Watch:
         """When each room's band last rose, or was first seen."""
         self._below: dict[str, float] = {}
         """Since when each room has been below its band."""
+
+    def state(self) -> dict[str, dict[str, float | None]]:
+        """The timers, to keep with the planner's memory."""
+        return {
+            "since": dict(self._since),
+            "low": dict(self._low),
+            "rose": dict(self._rose),
+            "below": dict(self._below),
+        }
+
+    def load(self, state: Mapping[str, Mapping[str, float | None]], *, fresh: bool) -> None:
+        """The timers as kept: when bands rose always; how long a condition has held only
+        if they were kept `fresh`, since a stop leaves it unknown."""
+        self._low = dict(state.get("low", {}))
+        self._rose = {k: float(v) for k, v in state.get("rose", {}).items() if v is not None}
+        if fresh:
+            self._since = {k: float(v) for k, v in state.get("since", {}).items() if v is not None}
+            self._below = {k: float(v) for k, v in state.get("below", {}).items() if v is not None}
+
+    async def resume(self) -> None:
+        """Conditions told before a restart and still open stay open while they still
+        hold: their timers go on from when they were raised."""
+        for event in await self._events.open("plugin.missing:"):
+            self._since.setdefault(event.key, event.raised - MISSING_S)
+        for event in await self._events.open("comfort.missed:"):
+            self._below.setdefault(event.scope, event.raised - MISSED_S)
 
     async def look(self, sit: Situation) -> None:
         now = sit.now.timestamp()

@@ -129,6 +129,8 @@ class Memory:
     drift: dict[str, float] = field(default_factory=dict)
     """Per climate system: the optimizer's learned correction of the house model, °C an
     hour."""
+    watch: dict[str, dict[str, float | None]] = field(default_factory=dict)
+    """The watch's timers: when each condition began, each room's band and when it rose."""
 
     def body(self) -> dict[str, Any]:
         return {
@@ -141,6 +143,7 @@ class Memory:
             "fired": {k: v.isoformat() for k, v in self.fired.items()},
             "charging_since": {k: v.isoformat() for k, v in self.charging_since.items()},
             "drift": self.drift,
+            "watch": self.watch,
         }
 
     @classmethod
@@ -167,6 +170,7 @@ class Memory:
             if fresh
             else {},
             drift={k: float(v) for k, v in (body.get("drift") or {}).items()},
+            watch=dict(body.get("watch") or {}),
         )
 
 

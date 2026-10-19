@@ -27,6 +27,8 @@ from .operations import Services
 if TYPE_CHECKING:
     from ..core.daemon import Core
 
+NOTIFY_DRAIN_S = 10.0
+"""How long the way out waits for notifications still to be sent."""
 log = logging.getLogger(__name__)
 
 CSRF_KEY = "web.csrf-key"
@@ -151,9 +153,16 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         f" and https://{web.listen}:{web.https_port} (SHA-256 {own.fingerprint})" if own else "",
     )
 
-    async def stop() -> None:
+    async def stop_notifying() -> None:
+        # Last, after the levers are put back: what that tells goes out too.
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(notifier.drain(), NOTIFY_DRAIN_S)
         sending.cancel()
         await asyncio.gather(sending, return_exceptions=True)
+
+    core.shutdown_hooks.append(stop_notifying)
+
+    async def stop() -> None:
         await _stop(servers, tasks, listeners)
 
     return stop

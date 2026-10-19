@@ -190,13 +190,14 @@ async def _serve(
     server = await _plugin_socket(core)
     await core.host.start()
     await core.executor.start()
-    core.planner.start()
-    core.learning.start()
     stop_web = None
     try:
         from ..web.server import start as start_web
 
+        # The web side first: its notifications hear the planner's first round.
         stop_web = await start_web(core)
+        core.planner.start()
+        core.learning.start()
         log.info("Thermaestro is running")
         if started is not None:
             await started(core)

@@ -104,6 +104,27 @@ async def test_stopping_puts_every_lever_back(tmp_path: Path) -> None:
     assert whats.index("lever.restore") < whats.index("core.stop")
 
 
+async def test_notifications_hear_the_whole_run(tmp_path: Path) -> None:
+    """From the planner's first round to the levers put back on the way out."""
+    lay = layout(tmp_path)
+    lay.state.mkdir(mode=0o700)
+    async with await Database.open(lay.database) as db:
+        await db.put(Plugin(plugin="fake"), "pump")
+    stop = asyncio.Event()
+    hooks: list[str] = []
+
+    async def started(core: Core) -> None:
+        hooks.extend(h.__qualname__ for h in core.shutdown_hooks)
+        stop.set()
+
+    await asyncio.wait_for(
+        run(lay, stop=stop, factories={"fake": lambda c: FakePump()}, started=started), 20
+    )
+    restore = next(i for i, h in enumerate(hooks) if "_restore" in h)
+    notifying = next(i for i, h in enumerate(hooks) if "stop_notifying" in h)
+    assert restore < notifying
+
+
 async def test_the_web_ui_runs_inside(tmp_path: Path) -> None:
     lay = layout(tmp_path)
     http_port, https_port = ports(lay)

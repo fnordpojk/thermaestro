@@ -35,7 +35,7 @@ from ..core.audit import AuditLog
 from ..core.events import Events, Raise
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
 from ..core.gridrules import GridLimits, household
-from ..core.host import PluginHost
+from ..core.host import PluginHost, State
 from ..core.house import House
 from ..core.prices import assemble, estimate
 from ..core.sensors import DEFAULT_FRESHNESS_S, SITE, SensorHub
@@ -76,6 +76,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+READY_S = 300.0
+"""The longest a start waits for the plugins before it plans with what there is."""
 CHECK_S = 60.0
 """How often the planner checks in, and looks for a reason to plan at once."""
 NOT_KEPT_S = 6 * 3600.0
@@ -204,6 +206,8 @@ class Planner:
         self._memory_kept: str | None = None
         """The memory as last kept, so an unchanged one isn't written again."""
         self._memory_restored = False
+        self._began: float | None = None
+        """When this planner's first round came: the bound on waiting for the house."""
         self.plan: Plan | None = None
         self.situation: Situation | None = None
         """What the last full round saw: for the plan page."""
@@ -300,10 +304,20 @@ class Planner:
         the start of a slot; else hot water only."""
         if not self._memory_restored:
             await self.restore_memory(clock.time())
+        if self._began is None:
+            self._began = clock.time()
+        await self._house.refresh()
+        if not self._ready():
+            # The plugins are still coming up: deciding, judging or reporting now would go
+            # by an empty or partial house (rooms not yet read, a pump not yet described).
+            return Plan(clock.now(), [])
         sit = replace(await self.gather(), slot=slot)
         await self._observe(sit)
         if self._watch is not None:
-            await self._watch.look(sit)
+            try:
+                await self._watch.look(sit)
+            except Exception:
+                log.exception("watching for events failed this round")
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
             if floor is not None and floor.low is not None:
@@ -323,8 +337,24 @@ class Planner:
         await self.keep_memory(sit.now.timestamp())
         return plan
 
+    def _ready(self) -> bool:
+        """Whether the house is known well enough to plan and judge: every plugin has come
+        up and described itself, or failed and is being started again (a plugin truly
+        missing is told as such); or `READY_S` has passed since this planner began."""
+        if self._began is not None and clock.time() - self._began >= READY_S:
+            return True
+        instances = self._host.instances.values() if self._host is not None else ()
+        for instance in instances:
+            if instance.state is State.STARTING:
+                return False
+            if instance.state is State.UP and instance.described is None:
+                return False
+        return True
+
     async def keep_memory(self, now: float) -> None:
         """The memory, kept where a restart finds it; only when it changed."""
+        if self._watch is not None:
+            self.memory.watch = self._watch.state()
         body = json.dumps(self.memory.body(), sort_keys=True)
         if body == self._memory_kept:
             return
@@ -344,12 +374,17 @@ class Planner:
             lambda t: t.execute("SELECT kept, body FROM planner_memory WHERE id = 1").fetchone()
         )
         if row is None:
+            if self._watch is not None:
+                await self._watch.resume()
             return
         kept, body = row
         fresh = now - float(kept) <= FRESH_S
         self.memory = Memory.from_body(json.loads(body), fresh=fresh)
         if self.optimizer is not None:
             self.optimizer.drift = self.memory.drift
+        if self._watch is not None:
+            self._watch.load(self.memory.watch, fresh=fresh)
+            await self._watch.resume()
         self._memory_kept = body if fresh else None
         log.info(
             "the planner's memory taken up from %s ago%s",
@@ -375,7 +410,10 @@ class Planner:
                     optimized = await self.optimizer.run(sit, self._resolver)
                 self.optimized = optimized
                 theirs = [] if hands_off else optimized.decisions
-                await self._assure(optimized, sit)
+                try:
+                    await self._assure(optimized, sit)
+                except Exception:
+                    log.exception("judging the intents in the plan failed this round")
         elif self.optimizer.last is not None and self.optimizer.last.ok and not hands_off:
             optimized = self.optimizer.last
             theirs = await self.optimizer.between(sit)
@@ -388,7 +426,10 @@ class Planner:
             chosen.sort(key=lambda d: d.rank)
             self._follow(sit, optimized.covered, theirs)
         if slot:
-            await self._keep(sit, ruled, theirs, optimized, control.planner)
+            try:
+                await self._keep(sit, ruled, theirs, optimized, control.planner)
+            except Exception:
+                log.exception("keeping the round's decisions failed")
         return chosen
 
     async def _assure(self, optimized: Optimized, sit: Situation) -> None:
@@ -396,21 +437,27 @@ class Planner:
         event: at risk, giving way, or back to active once planned met. An intent is
         changed only when its state, or what it gives way to, changes: the plan's figures
         move every slot, and an intent isn't told again for that."""
-        found: dict[str, Finding] = {}
-        if optimized.ok and optimized.problem is not None and optimized.plan is not None:
+        if not optimized.ok or optimized.problem is None or optimized.plan is None:
+            return  # no plan says anything new: every intent stays as it stands
 
-            def again(problem: Problem) -> Any:
-                return solve(problem, TIME_LIMIT_S)
+        def again(problem: Problem) -> Any:
+            return solve(problem, TIME_LIMIT_S)
 
-            found = await asyncio.to_thread(
-                judge, optimized.watched, optimized.problem, optimized.plan, sit.zone, again
-            )
+        watched = optimized.watched
+        found: dict[str, Finding] = await asyncio.to_thread(
+            judge, watched, optimized.problem, optimized.plan, sit.zone, again
+        )
+        judged = {d.by for d in watched.deadlines} | {
+            i for goal in watched.rooms.values() for hour in goal.by for i in hour
+        }
         for intent in await self._intents.all():
             if intent.state not in ("active", "at_risk", "giving_way"):
                 continue
             key = f"intent.state:{intent.id}"
             finding = found.get(intent.id)
             if finding is None:
+                if intent.id not in judged:
+                    continue  # not in this plan (its rooms airing or stale): as it stands
                 if intent.state != "active":
                     await self._intents.report(intent.id, "active")
                     if self.events is not None:

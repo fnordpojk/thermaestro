@@ -217,7 +217,12 @@ class Optimizer:
         if not covered:
             self.last = Optimized(False, NOTHING, problem, notes=notes, watched=watched)
             return self.last
-        found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
+        try:
+            found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
+        except Exception as e:
+            log.exception("the optimizer's solve failed")
+            self.last = Optimized(False, f"{e}", problem, notes=notes, watched=watched)
+            return self.last
         if found.ok:
             for scope, planned in found.systems.items():
                 if planned.room:
