@@ -12,7 +12,7 @@ from test_core_series import SPOT, STOCKHOLM, local, stocked
 from thermaestro.cap.model import Envelope
 from thermaestro.core.gridrules import GridLimits, holds, interval_means, peak_limit, tou_price
 from thermaestro.core.prices import assemble
-from thermaestro.core.values import Values
+from thermaestro.core.values import Key, Values
 from thermaestro.intents.calendar import Calendar
 from thermaestro.store import Database, GridRule, Home, PriceLayer, Vat
 from thermaestro.store.settings import Rate, When
@@ -201,3 +201,24 @@ async def test_the_grid_limit_from_the_rules_and_the_house_power(db: Database) -
     await db.put(unsaid, "peak")
     await db.delete(GridRule, "fuse")
     assert await limits.now(now, STOCKHOLM) is None  # it doesn't say how many count
+
+
+async def test_the_months_peaks_outlive_the_raw_history(db: Database) -> None:
+    """From about the 15th the month's first days are kept as 15-minute means only: their
+    peaks still count."""
+    await db.put(Home(holidays="SE"))
+    await db.put(PEAK, "peak")
+    values = Values(db)
+    for day, kw in ((1, 5.0), (2, 4.0), (3, 7.0)):
+        values.add("ha", power(local(2026, 12, day, 8), kw))
+        values.add("ha", power(local(2026, 12, day, 9), 0.0))
+    values.add("ha", power(local(2026, 12, 18, 9, 50), 3.0))
+    await values.flush()
+    now = local(2026, 12, 18, 10)  # a Friday, in the window
+    await values.prune(raw_days=14, aggregate_days=365, now=now.timestamp())
+    first = local(2026, 12, 1).timestamp()
+    key = Key("ha", "meter/grid.import.power")
+    assert await values.history(key, first, local(2026, 12, 4).timestamp()) == []  # folded
+    found = await GridLimits(db, values).now(now, STOCKHOLM)
+    assert found is not None
+    assert found.kw == 4.0

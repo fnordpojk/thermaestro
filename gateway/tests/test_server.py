@@ -120,3 +120,17 @@ async def test_a_protocol_read_from_hello_to_answer(
     answer = await client.message()
     assert isinstance(answer, p.Answer)
     assert (answer.id, answer.status, answer.frame) == (42, p.AnswerStatus.OK, answer_telegram)
+
+
+async def test_a_failing_serial_port_ends_the_gateway() -> None:
+    """The adapter unplugged: the gateway stops and says why, so whatever runs it can start
+    it again, rather than serving on with a dead bus."""
+    pump = Pump()
+    gw = Gateway(
+        Config(serial_port=pump.path, listen="127.0.0.1", read_port=0, write_port=0, control_port=0)
+    )
+    running = asyncio.create_task(gw.run())
+    await asyncio.sleep(0.2)
+    pump.close()
+    with pytest.raises(OSError, match="Input/output error"):
+        await asyncio.wait_for(running, TIMEOUT_S)

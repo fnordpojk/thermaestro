@@ -33,6 +33,8 @@ twelve hours, however slowly its sensor reports."""
 
 Row = tuple[float, float | None, str]
 """A sample as the history keeps it: when, its number, its quality."""
+SlotMean = tuple[float, float]
+"""A 15-minute aggregate's start and mean."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,6 +165,23 @@ class Values:
                 if row[0] is not None
             ]
             return min(found, default=None)
+
+        return await self._db.run(read)
+
+    async def folded(self, key: Key, start: float, end: float) -> tuple[list[SlotMean], float]:
+        """The 15-minute means in [start, end) where the samples were folded into them,
+        by each slot's start, and when the folded slots end (`start` where there are none):
+        the samples go on from there."""
+
+        def read(t: Transaction) -> tuple[list[SlotMean], float]:
+            slots = list(
+                t.execute(
+                    "SELECT slot, mean FROM history_15m"
+                    " WHERE instance = ? AND point = ? AND slot >= ? AND slot < ? ORDER BY slot",
+                    (key.instance, key.point, start, end),
+                )
+            )
+            return slots, slots[-1][0] + SLOT_S if slots else start
 
         return await self._db.run(read)
 

@@ -98,14 +98,19 @@ class Gateway:
         self._serial: serial.Serial | None = None
         self._ticker: asyncio.Task[None] | None = None
         self._stopping = asyncio.Event()
+        self.failure: Exception | None = None
+        """Why the serial port stopped working, if it did."""
 
     async def run(self) -> None:
-        """Run until stop() is called."""
+        """Run until stop() is called, or until the serial port fails: then raise its
+        error, so the process ends and whatever runs it can start it again."""
         await self.start()
         try:
             await self._stopping.wait()
         finally:
             await self.close()
+        if self.failure is not None:
+            raise self.failure
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -155,6 +160,16 @@ class Gateway:
     # --- in ------------------------------------------------------------------------------
 
     def _serial_readable(self, port: serial.Serial) -> None:
+        try:
+            self._read_serial(port)
+        except (serial.SerialException, OSError) as e:
+            # The adapter unplugged or broken: reading again would fail again, forever.
+            log.error("the serial port %s failed: %s", self.config.serial_port, e)
+            self.failure = e
+            asyncio.get_running_loop().remove_reader(port.fileno())
+            self.stop()
+
+    def _read_serial(self, port: serial.Serial) -> None:
         for byte in port.read(port.in_waiting or 1):
             t = now_us()
             step = self.bus.feed(byte, t)

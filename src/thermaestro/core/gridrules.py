@@ -142,7 +142,8 @@ class GridLimits:
     """The grid company's limit on the house's power now, from its rules and the house's
     power as measured: a subscribed power, or, in a power charge's window, the month's
     highest intervals so far. The lowest applies. A power charge that doesn't say how it
-    is measured is left out."""
+    is measured is left out. Days whose samples were folded into 15-minute means count
+    from those."""
 
     def __init__(self, db: Database, values: Values) -> None:
         self._db = db
@@ -184,13 +185,15 @@ class GridLimits:
         today = local.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
         async def means(start: float, end: float) -> dict[float, float]:
-            samples = await self._values.history(key, start, end)
+            slots, folded_until = await self._values.folded(key, start, end)
+            samples = await self._values.history(key, folded_until, end)
             good = [
                 (s.t, s.value * factor)
                 for s in samples
                 if s.quality == "good" and s.value is not None
             ]
-            return interval_means(good, minutes)
+            folded = interval_means(((t, mean * factor) for t, mean in slots), minutes)
+            return {**folded, **interval_means(good, minutes)}
 
         kept = self._months.get((key, minutes))
         if kept is None or kept[:2] != (first, today):
