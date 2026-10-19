@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 00:23+0200\n"
+"POT-Creation-Date: 2026-10-19 03:57+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -4498,6 +4498,9 @@ msgstr "bis %(lead)s"
 
 msgid "too many attempts; wait a few minutes"
 msgstr "zu viele Versuche; warten Sie ein paar Minuten"
+
+msgid "too many wrong passwords; wait a moment and try again"
+msgstr "zu viele falsche Passwörter; warten Sie einen Moment und versuchen Sie es erneut"
 
 msgid "total"
 msgstr "gesamt"

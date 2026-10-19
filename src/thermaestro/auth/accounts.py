@@ -4,8 +4,9 @@ Every check happens here, in the service layer, whichever way a request came in:
 web UI, the API, or the command line. Nothing is allowed unless a right says so.
 
 Logins: a wrong password delays the next try on that account (1 s, doubling, at most
-15 min); after 100 in a row the account is disabled until reset on the host. A client
-address gets a limited number of tries in a window. An unknown user and a wrong password
+15 min); after 100 in a row the account is disabled until reset on the host. The password
+entered again before a change that needs it counts the same. A client address gets a
+limited number of tries in a window. An unknown user and a wrong password
 look and take the same.
 
 Sessions and tokens are random 256-bit values; only their SHA-256 is stored.
@@ -402,29 +403,37 @@ class Accounts:
         )
 
     async def confirm(self, session: Session, password: str, *, source: str) -> None:
-        """The password entered again, for changes that need it (STEP_UP). Wrong ones count
-        against the address like failed logins. A wall display has no password of its own
-        to enter: it can't make such changes."""
+        """The password entered again, for changes that need it (STEP_UP). A wrong one
+        counts against the account as at login, so a session taken over can't be used to
+        guess the password, and against the address. A wall display has no password of its
+        own to enter: it can't make such changes."""
         if session.display is not None:
             raise AccountError("a wall display can't make changes that need a password")
-        if not self._limiter.allow(source, self._clock()):
+        now = self._clock()
+        if not self._limiter.allow(source, now):
             raise AccountError("too many attempts; wait a few minutes")
-        stored = await self._db.run(
+        user_id, who = session.user.id, f"user:{session.user.name}"
+        row = await self._db.run(
             lambda t: t.execute(
-                "SELECT password FROM users WHERE id = ?", (session.user.id,)
+                "SELECT password, failures, locked_until FROM users WHERE id = ?", (user_id,)
             ).fetchone()
         )
-        if stored is None or not await passwords.verify(stored[0], password, self._hasher):
+        if row is not None and now < row[2]:
             await self._audit.record(
-                f"user:{session.user.name}", "confirm", outcome="failed", source=source
+                who, "confirm", outcome="refused", why="delayed", source=source
             )
+            raise AccountError("too many wrong passwords; wait a moment and try again")
+        if row is None or not await passwords.verify(row[0], password, self._hasher):
+            if row is not None:
+                await self._count_failure(user_id, row[1] + 1, now)
+            await self._audit.record(who, "confirm", outcome="failed", source=source)
             raise AccountError("the password you entered isn't right")
-        now = self._clock()
-        await self._db.run(
-            lambda t: t.execute(
-                "UPDATE sessions SET confirmed = ? WHERE hash = ?", (now, session.hash)
-            )
-        )
+
+        def confirmed(t: Transaction) -> None:
+            t.execute("UPDATE sessions SET confirmed = ? WHERE hash = ?", (now, session.hash))
+            t.execute("UPDATE users SET failures = 0, locked_until = 0 WHERE id = ?", (user_id,))
+
+        await self._db.run(confirmed)
 
     def confirmed_recently(self, session: Session) -> bool:
         return self._clock() - session.confirmed < STEP_UP_S
@@ -451,14 +460,7 @@ class Accounts:
             await self._failed(name, source, why)
         user_id, stored, failures, _, _ = row
         if not await passwords.verify(stored, password, self._hasher):
-            failures += 1
-            delay = min(DELAY_MAX_S, DELAY_BASE_S * 2 ** (failures - 1))
-            await self._db.run(
-                lambda t: t.execute(
-                    "UPDATE users SET failures = ?, locked_until = ?, disabled = ? WHERE id = ?",
-                    (failures, now + delay, int(failures >= DISABLE_AFTER), user_id),
-                )
-            )
+            await self._count_failure(user_id, failures + 1, now)
             await self._failed(name, source, "password")
         rehash = passwords.needs_rehash(stored, self._hasher)
         new_hash = await passwords.hash_password(password, self._hasher) if rehash else stored
@@ -473,6 +475,16 @@ class Accounts:
         if user is None:  # removed in the meantime
             raise LoginFailed
         return user
+
+    async def _count_failure(self, user_id: int, failures: int, now: float) -> None:
+        """A wrong password: the next try waits, and too many in a row disable the account."""
+        delay = min(DELAY_MAX_S, DELAY_BASE_S * 2 ** (failures - 1))
+        await self._db.run(
+            lambda t: t.execute(
+                "UPDATE users SET failures = ?, locked_until = ?, disabled = ? WHERE id = ?",
+                (failures, now + delay, int(failures >= DISABLE_AFTER), user_id),
+            )
+        )
 
     async def _failed(self, name: str, source: str, why: str) -> NoReturn:
         # One stable line per failure, for fail2ban and the like.

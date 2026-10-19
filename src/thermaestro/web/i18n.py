@@ -178,6 +178,7 @@ SHOWN_BY_VALUE = (
     mark("there is already an administrator"),
     mark("too many attempts; wait a few minutes"),
     mark("the password you entered isn't right"),
+    mark("too many wrong passwords; wait a moment and try again"),
     mark("that would leave no user who can manage users"),
     mark("a user name is 1 to 64 letters, digits or . _ @ -"),
     mark("a password needs at least 15 characters"),

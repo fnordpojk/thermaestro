@@ -352,6 +352,7 @@ async def test_step_up(accounts: Accounts, clock: Clock) -> None:
     assert not accounts.confirmed_recently(session)
     with pytest.raises(AccountError):
         await accounts.confirm(session, "wrong", source="192.0.2.5")
+    clock.now += 1  # a wrong one delays the next try, as at login
     await accounts.confirm(session, GOOD, source="192.0.2.5")
     session = await accounts.session(raw)
     assert session is not None
@@ -654,3 +655,25 @@ def test_the_address_limiter_forgets_old_addresses() -> None:
         assert limiter.allow(f"192.0.2.{n}", now=0)
     assert limiter.allow("198.51.100.1", now=1000)
     assert len(limiter._seen) == 1
+
+
+async def test_wrong_passwords_at_step_up_count_as_at_login(
+    accounts: Accounts, clock: Clock
+) -> None:
+    """A session taken over can't be used to guess the password: a wrong one entered again
+    delays the next try on the account, at login too, and a right one clears the count."""
+    anna = await accounts.create_user("anna", GOOD, by="cli")
+    session = await accounts.session(await accounts.start_session(anna))
+    assert session is not None
+    with pytest.raises(AccountError, match="isn't right"):
+        await accounts.confirm(session, "wrong", source="192.0.2.5")
+    with pytest.raises(AccountError, match="wait"):
+        await accounts.confirm(session, GOOD, source="192.0.2.5")
+    with pytest.raises(LoginFailed):
+        await accounts.authenticate("anna", GOOD, source="192.0.2.6")
+    clock.now += 1
+    await accounts.confirm(session, GOOD, source="192.0.2.5")
+    with pytest.raises(AccountError, match="isn't right"):
+        await accounts.confirm(session, "wrong", source="192.0.2.5")  # counted from 0 again
+    clock.now += 1
+    await accounts.authenticate("anna", GOOD, source="192.0.2.6")

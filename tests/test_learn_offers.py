@@ -154,6 +154,17 @@ async def test_the_week_starts_from_nibepis_profile(tmp_path: Path) -> None:
         headers = await login(client, "admin")
         hours = [0.0] * 168
         hours[7] = 4.0
+        # The week is kept in the house's time: not before the house's location is set.
+        early = await client.post(
+            "/api/v1/import/nibepi/profile/read",
+            json={"profile": text(hours), "timezone": "UTC"},
+            headers=headers,
+        )
+        assert early.status_code == 400
+        assert "location first" in early.json()["error"]
+        where = {"latitude": 59.3, "longitude": 18.1, "timezone": "Europe/Stockholm"}
+        put = await client.put("/api/v1/settings/location", json=where, headers=headers)
+        assert put.status_code == 200, put.text
         read = await client.post(
             "/api/v1/import/nibepi/profile/read",
             json={"profile": text(hours), "timezone": "UTC"},

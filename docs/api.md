@@ -52,7 +52,7 @@ A wall display is a browser that stays logged in, such as a tablet on the wall s
 
 ### Entering the password again
 
-Changes under `users.manage`, `secrets.manage` and `plugins.manage` need the password entered in the last 15 minutes, and so do creating a token or a wall display and changing one's own password. A session that logged in longer ago gets `403` with `"confirm": true`; `POST /api/v1/confirm` with `{"password": ...}` renews it. Tokens don't need this.
+Changes under `users.manage`, `secrets.manage` and `plugins.manage` need the password entered in the last 15 minutes, and so do creating a token or a wall display and changing one's own password. A session that logged in longer ago gets `403` with `"confirm": true`; `POST /api/v1/confirm` with `{"password": ...}` renews it. A wrong password there counts as a wrong one at login: the next try, there or at login, is delayed the same way. Tokens don't need this.
 
 ## Rights
 

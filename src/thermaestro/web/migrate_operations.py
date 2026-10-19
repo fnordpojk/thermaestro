@@ -29,7 +29,7 @@ from ..migrate import profile, review
 from ..migrate.nibepi import LOCALHOSTS, Draft, NotNibePi, read
 from ..nibe.maps import ModelMap, RegisterMap, load
 from ..spotsources import choices
-from ..store import NibePiReview, Plugin, PriceLayer
+from ..store import Location, NibePiReview, Plugin, PriceLayer
 
 if TYPE_CHECKING:
     from ..core import Executor, PluginHost
@@ -172,6 +172,10 @@ class MigrateOperations:
         scope = tank or tanks[0]
         if scope not in tanks:
             raise AccountError(f"no hot-water tank {scope}")
+        if await self.db.get(Location) is None:
+            # The week is kept in the house's time: read before it is known, it would be
+            # shifted by however far the house is from UTC.
+            raise AccountError("set the house's location first, under Setup → House")
         name: str = timezone or str(getattr(self.zone, "key", None) or "UTC")
         try:
             kept_in = ZoneInfo(name)

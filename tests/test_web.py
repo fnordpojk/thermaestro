@@ -443,6 +443,7 @@ async def test_changes_to_users_need_a_recent_password(site: Site) -> None:
         again = dict(
             re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)">', wrong.text)
         )
+        site.clock.now += 1  # a wrong one delays the next try, as at login
         done = await client.post("/users", data={**again, "step_up_password": ADMIN_PASSWORD})
         assert (done.status_code, done.headers["location"]) == (303, "/users")
         # A page without a form to carry still goes through /confirm and back.
