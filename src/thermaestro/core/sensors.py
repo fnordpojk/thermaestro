@@ -23,7 +23,7 @@ import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from .. import clock, durations
 from ..cap.model import Envelope, Quality
@@ -66,6 +66,9 @@ class Reading:
     t: float
     """When observed, seconds since the epoch."""
     received: float
+    live: bool = True
+    """Heard while running: not the last value remembered from before a restart, nor
+    one the broker kept."""
 
 
 def dew_point(t: float, rh: float) -> float:
@@ -136,12 +139,17 @@ class SensorHub:
         """Each sensor's longest silence, by day (days since the epoch, UTC)."""
         self._unsaved: set[tuple[str, int]] = set()
         self._forgotten: int | None = None
+        self._up: dict[str | None, float] = {}
+        """When each source last connected: the broker (None), or a plugin instance."""
         values.listeners.append(self._heard)
 
     # --- settings --------------------------------------------------------------------------
 
     async def load(self) -> None:
-        """Read the sensor, room, outdoor and name settings again, after a change."""
+        """Read the sensor, room, outdoor and name settings again, after a change. A
+        sensor without a reading yet starts from its last one in the history, as old as
+        it is: rooms are known at a restart, and a value the broker kept can be told
+        apart from a new one."""
 
         def read(t: Any) -> tuple[Any, ...]:
             silences = list(t.execute("SELECT sensor, day, longest FROM sensor_silences"))
@@ -164,6 +172,19 @@ class SensorHub:
             elif sensor.topic:
                 self._by_topic.setdefault(sensor.topic, []).append(id)
         self._readings = {id: r for id, r in self._readings.items() if id in sensors}
+        unread = {
+            id: Key(SENSORS, f"{id}/{s.quantity}")
+            for id, s in sensors.items()
+            if id not in self._readings
+        }
+        last = await self._values.last(unread.values()) if unread else {}
+        for id, key in unread.items():
+            found = last.get(key)
+            if found is not None:
+                value = _remembered(sensors[id].quantity, found.value, found.text)
+                quality = cast(Quality, found.quality)
+                self._readings[id] = Reading(value, quality, None, found.t, found.t, False)
+                self._publish(id)
         for key, envelope in list(self._values.latest.items()):
             if key.instance not in (SENSORS, SITE):
                 self._heard(key.instance, envelope)
@@ -174,15 +195,29 @@ class SensorHub:
 
     # --- what comes in ---------------------------------------------------------------------
 
-    def receive_mqtt(self, topic: str, payload: bytes) -> None:
+    def connected(self, source: str | None = None) -> None:
+        """The broker (None), or a plugin instance, has just connected: a silence that
+        began before says nothing of its sensors."""
+        self._up[source] = self._clock()
+
+    def receive_mqtt(self, topic: str, payload: bytes, retained: bool = False) -> None:
+        """A message on sensors' topic. A retained one is what the broker kept, of unknown
+        age: the value already held is nothing new, and another is taken as stale until
+        the sensor next reports."""
         now = self._clock()
         for id in self._by_topic.get(topic, ()):
             sensor = self.sensors[id]
             value = parse(payload, sensor.json_key)
             if value is None:
-                self._accept(id, Reading(None, "unknown", "the payload isn't a value", now, now))
-            else:
+                why = "the payload isn't a value"
+                self._accept(id, Reading(None, "unknown", why, now, now, not retained))
+            elif not retained:
                 self._accept(id, Reading(value, "good", None, now, now))
+            else:
+                held = self._readings.get(id)
+                if held is None or held.value != _calibrated(sensor, value):
+                    why = "kept by the broker, of unknown age"
+                    self._accept(id, Reading(value, "stale", why, now, now, False))
 
     def _heard(self, instance: str, envelope: Envelope) -> None:
         if instance in (SENSORS, SITE):
@@ -204,23 +239,27 @@ class SensorHub:
 
     def _accept(self, id: str, reading: Reading) -> None:
         sensor = self.sensors[id]
-        value = reading.value
-        if isinstance(value, int | float) and not isinstance(value, bool):
-            if sensor.per_kwh is not None:
-                value = float(value) / sensor.per_kwh
-            reading.value = float(value) + sensor.calibration_offset
+        reading.value = _calibrated(sensor, reading.value)
         previous = self._readings.get(id)
         if _too_soon(sensor, previous, reading):
             return
-        if previous is not None and reading.t > previous.t:
+        if previous is not None and reading.t > previous.t and self._own(sensor, previous, reading):
             self._silence(id, reading.t - previous.t, reading.t)
         self._readings[id] = reading
         self._publish(id)
         self._derive()
 
+    def _own(self, sensor: Sensor, previous: Reading, reading: Reading) -> bool:
+        """Whether the silence between two reports was the sensor's own: both heard while
+        running, and its source (the broker, or the plugin) connected all along. A
+        restart, or the broker or Home Assistant away, silences every sensor at once."""
+        if not (previous.live and reading.live):
+            return False
+        up = self._up.get(_source(sensor))
+        return up is None or previous.received >= up
+
     def _silence(self, id: str, seconds: float, ended: float) -> None:
-        """A silence between two reports, kept where it is the day's longest. One across
-        a restart isn't seen: the sensor wasn't the one quiet."""
+        """A silence between two reports, kept where it is the day's longest."""
         day = int(ended // DAY_S)
         days = self._silences.setdefault(id, {})
         if seconds > days.get(day, 0.0):
@@ -441,6 +480,32 @@ class SensorHub:
     def readings(self) -> Iterable[tuple[str, Reading | None]]:
         for id in sorted(self.sensors, key=lambda i: self.sensors[i].name.lower()):
             yield id, self._current(id)
+
+
+def _calibrated(sensor: Sensor, value: Value) -> Value:
+    """A number as the sensor's settings make it: pulses to kWh, and its offset added."""
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        if sensor.per_kwh is not None:
+            value = float(value) / sensor.per_kwh
+        return float(value) + sensor.calibration_offset
+    return value
+
+
+def _remembered(quantity: str, value: float | None, text: str | None) -> Value:
+    """A value as the history keeps it, back as the sensor gave it: on and off are kept
+    as 1 and 0."""
+    if text is not None:
+        return text
+    if value in (0.0, 1.0) and _unit(quantity) is None:
+        return bool(value)
+    return value
+
+
+def _source(sensor: Sensor) -> str | None:
+    """What a sensor's values come through: the broker (None), or a plugin instance."""
+    if sensor.source == "point" and sensor.point:
+        return sensor.point.split(":", 1)[0]
+    return None
 
 
 def _too_soon(sensor: Sensor, previous: Reading | None, reading: Reading) -> bool:

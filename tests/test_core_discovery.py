@@ -546,3 +546,37 @@ async def test_requests_over_mqtt(broker: int, tmp_path: Path) -> None:  # noqa:
                 await client.publish(f"thermaestro/{ID}/request", b"", retain=True)
             await asyncio.sleep(0.5)
             assert len(asked) == 1
+
+
+async def test_nothing_is_cleared_before_the_plugins_have_described_themselves(
+    broker: int,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    pump_device = f"{ME}_{key('pump', 'hp1')}"
+    async with aiomqtt.Client("127.0.0.1", broker) as c:
+        await c.publish(
+            f"homeassistant/device/{pump_device}/config",
+            b'{"device":{"name":"from the last run"}}',
+            retain=True,
+        )
+        await c.publish(f"homeassistant/device/{ME}_gone/config", b'{"device":{}}', retain=True)
+    starting = Instance("pump", Plugin(plugin="nibe", settings={"host": "192.0.2.10"}))
+    host = SimpleNamespace(instances={"pump": starting})
+    async with (
+        publishing(tmp_path, broker, host) as (_, values, publisher, _),
+        listening(broker) as heard,
+    ):
+        publisher.start(Plain())
+        await until(lambda: heard.configs(ME))
+        await asyncio.sleep(0.6)
+        found = await retained(broker)
+        assert f"homeassistant/device/{pump_device}/config" in found
+        assert f"homeassistant/device/{ME}_gone/config" in found
+        # The pump has described itself: what is no longer published is cleared now.
+        for p, v in zip(PUMP_POINTS, (-3.5, 12345.0, "heating", -1.0, True), strict=True):
+            values.add("pump", envelope(p.path, v, p.unit), p)
+        host.instances["pump"] = pump()
+        await until(lambda: heard.last(f"homeassistant/device/{ME}_gone/config") == b"")
+        found = await retained(broker)
+        config = json.loads(found[f"homeassistant/device/{pump_device}/config"])
+        assert config["device"]["name"] == "Nibe F1245-10 PC"

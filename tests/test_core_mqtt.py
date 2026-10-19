@@ -132,11 +132,11 @@ async def test_an_error_while_reading_doesnt_end_mqtt(broker: int, tmp_path: Pat
         real = hub.receive_mqtt
         heard: list[str] = []
 
-        def flaky(topic: str, payload: bytes) -> None:
+        def flaky(topic: str, payload: bytes, retained: bool = False) -> None:
             heard.append(topic)
             if len(heard) == 1:
                 raise RuntimeError("a listener broke")
-            real(topic, payload)
+            real(topic, payload, retained)
 
         hub.receive_mqtt = flaky  # type: ignore[method-assign]
         mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub, backoff_s=(0.05, 0.1))
@@ -152,6 +152,27 @@ async def test_an_error_while_reading_doesnt_end_mqtt(broker: int, tmp_path: Pat
                         assert not task.done(), task
                         await client.publish("t/hall", b"19.5")
                         await asyncio.sleep(0.2)
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
+async def test_a_value_the_broker_kept_is_stale(broker: int, tmp_path: Path) -> None:
+    async with aiomqtt.Client("127.0.0.1", broker) as client:
+        await client.publish("t/kept", b"19.0", retain=True)
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.put(Mqtt(host="127.0.0.1", port=broker))
+        await db.put(Sensor(name="Kept", source="mqtt", topic="t/kept", placement="other"), "kept")
+        values = Values(db)
+        hub = SensorHub(db, values)
+        await hub.load()
+        mqtt = MqttClient(db, SecretStore(tmp_path / "secrets.json"), hub)
+        task = asyncio.create_task(mqtt.run())
+        try:
+            await until(lambda: Key(SENSORS, "kept/temperature") in values.latest)
+            kept = values.latest[Key(SENSORS, "kept/temperature")]
+            assert (kept.value, kept.quality) == (19.0, "stale")
         finally:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

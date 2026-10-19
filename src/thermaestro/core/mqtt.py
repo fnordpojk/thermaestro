@@ -114,6 +114,7 @@ class MqttClient:
             identifier=None,
             will=outward.will() if outward is not None and wanted == "publish" else None,
         ) as client:
+            self._hub.connected()
             for topic in topics:
                 await client.subscribe(topic)
             self.state, self.error = "connected", None
@@ -149,4 +150,4 @@ class MqttClient:
             if self.outward is not None and self.outward.handles(topic):
                 self.outward.receive(topic, data, bool(message.retain))
             else:
-                self._hub.receive_mqtt(topic, data)
+                self._hub.receive_mqtt(topic, data, bool(message.retain))

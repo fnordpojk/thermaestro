@@ -254,3 +254,115 @@ async def test_a_set_limit_wins_up_to_twelve_hours(db: Database) -> None:
     hub = SensorHub(db, Values(db), clock=Clock())
     await hub.load()
     assert hub.freshness("attic") == (12 * 3600, False)
+
+
+def at(point: str, value: float, t: float) -> Envelope:
+    observed = datetime.fromtimestamp(t, UTC)
+    return Envelope.model_validate(
+        {
+            "point": point,
+            "value": value,
+            "unit": "degC",
+            "t_observed": observed,
+            "t_received": observed,
+            "quality": "good",
+            "source": "measured",
+        }
+    )
+
+
+async def test_rooms_start_from_the_last_readings(db: Database) -> None:
+    """After a restart a room is known from its sensors' last readings, as old as they
+    are: one too old is stale at once, and none is written to the history again."""
+    clock = Clock()
+    await db.put(Room(name="Hall"), "hall")
+    await db.put(Sensor(name="Hall", source="mqtt", topic="t/hall", room="hall"), "hall")
+    await db.put(Sensor(name="Attic", source="mqtt", topic="t/attic", placement="other"), "attic")
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock)
+    await hub.load()
+    hub.receive_mqtt("t/attic", b"15.0")
+    clock.now += 7200
+    hub.receive_mqtt("t/hall", b"20.5")
+    await values.flush()
+
+    clock.now += 600  # Thermaestro restarted
+    values = Values(db)
+    again = SensorHub(db, values, clock=clock)
+    await again.load()
+    assert site(values, "room.hall/temperature") == (20.5, "good", None)
+    attic = values.latest[Key(SENSORS, "attic/temperature")]
+    assert (attic.value, attic.quality) == (15.0, "stale")
+    await values.flush()
+    kept = await db.run(
+        lambda t: list(
+            t.execute(
+                "SELECT point, quality FROM history WHERE instance = 'sensors' ORDER BY point"
+            )
+        )
+    )
+    assert kept == [("attic/temperature", "good"), ("hall/temperature", "good")]
+
+
+async def test_a_value_the_broker_kept_is_not_a_new_one(db: Database) -> None:
+    """At every connection the broker sends what it kept for each topic, however old."""
+    clock = Clock()
+    await db.put(Room(name="Hall"), "hall")
+    await db.put(
+        Sensor(name="Hall", source="mqtt", topic="t/hall", room="hall", calibration_offset=-0.5),
+        "hall",
+    )
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock)
+    await hub.load()
+    hub.receive_mqtt("t/hall", b"20.5")
+    await values.flush()
+
+    clock.now += 2 * 86_400  # the sensor died, and Thermaestro restarted
+    values = Values(db)
+    again = SensorHub(db, values, clock=clock)
+    await again.load()
+    again.receive_mqtt("t/hall", b"20.5", retained=True)
+    hall = values.latest[Key(SENSORS, "hall/temperature")]
+    assert (hall.value, hall.quality) == (20.0, "stale")
+    assert site(values, "room.hall/temperature")[1] == "unknown"
+    # Another value the broker kept: newer than the last one heard, but of unknown age.
+    again.receive_mqtt("t/hall", b"21.5", retained=True)
+    hall = values.latest[Key(SENSORS, "hall/temperature")]
+    assert (hall.value, hall.quality, hall.why) == (
+        21.0,
+        "stale",
+        "kept by the broker, of unknown age",
+    )
+    again.receive_mqtt("t/hall", b"21.5")
+    assert site(values, "room.hall/temperature") == (21.0, "good", None)
+    assert again.freshness("hall") == (3600, False)  # no silence learned from any of it
+
+
+async def test_an_outage_is_no_sensors_silence(db: Database) -> None:
+    """The broker or Home Assistant away silences every sensor at once: nothing is learned
+    of any one sensor from it."""
+    clock = Clock()
+    await db.put(Sensor(name="Hall", source="mqtt", topic="t/hall", placement="other"), "hall")
+    await db.put(
+        Sensor(name="Porch", source="point", point="ha:sensor.porch", placement="other"), "porch"
+    )
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock)
+    await hub.load()
+    hub.connected()
+    hub.connected("ha")
+    hub.receive_mqtt("t/hall", b"20.5")
+    values.add("ha", at("sensor.porch", 4.0, clock.now))
+    clock.now += 3 * 3600
+    hub.connected()  # the broker is back
+    hub.connected("ha")  # and Home Assistant: its plugin started again
+    hub.receive_mqtt("t/hall", b"20.6")
+    values.add("ha", at("sensor.porch", 4.5, clock.now))
+    assert hub.freshness("hall") == (3600, False)
+    assert hub.freshness("porch") == (3600, False)
+    clock.now += 2 * 3600  # connected all along: their own silences
+    hub.receive_mqtt("t/hall", b"20.7")
+    values.add("ha", at("sensor.porch", 5.0, clock.now))
+    assert hub.freshness("hall") == (4 * 3600, True)
+    assert hub.freshness("porch") == (4 * 3600, True)

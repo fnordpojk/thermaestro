@@ -48,7 +48,9 @@ Example: a sensor with the topic `zigbee2mqtt/sofa` and the JSON field `temperat
 
 A sensor with the topic `t/hall` and no JSON field reads 19.0 from the payload `19.0`.
 
-Each sensor also has its quantity, its place (a room, outdoors, or elsewhere), a calibration offset that is added to each value, and how long it may stay quiet before its value is stale. Left empty, that time is learned: twice the sensor's longest silence over the last week, at least one hour and at most twelve.
+Each sensor also has its quantity, its place (a room, outdoors, or elsewhere), a calibration offset that is added to each value, and how long it may stay quiet before its value is stale. Left empty, that time is learned: twice the sensor's longest silence over the last week, at least one hour and at most twelve. A silence while Thermaestro was stopped, or while the broker or Home Assistant was away, isn't the sensor's and isn't counted.
+
+After a restart each sensor starts from its last reading, as old as it is, so rooms are known at once and a sensor quiet for too long is stale at once. The broker sends what it kept for a topic (a retained message) at every connection, however old: the value already held is nothing new, and another is taken as stale until the sensor next reports.
 
 ## Reading sensors from Home Assistant
 
@@ -178,7 +180,7 @@ The state topic then carries `21.25`.
 ### Changes and cleanup
 
 - When devices or entities change, only the changed devices' discovery messages are sent again. A removed entity is first sent with only its `platform`, which has Home Assistant delete it. A removed device gets an empty message.
-- On every connection Thermaestro reads its own retained topics for two seconds and clears those it no longer publishes. Other installations' topics are left alone.
+- On every connection Thermaestro reads its own retained topics for two seconds and clears those it no longer publishes. Other installations' topics are left alone. After a start it waits for that until every plugin has described itself, or five minutes, so a pump's device isn't cleared only because it hasn't yet said what it has.
 - Switched off, or with a new prefix or base, Thermaestro clears every retained topic it published under the old ones.
 
 ### Requests

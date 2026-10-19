@@ -68,6 +68,9 @@ CONTROL_S = 30.0
 """How often what the household asked for and the levers' modes are read again."""
 SWEEP_S = 2.0
 """How long to collect the retained topics left at the broker."""
+SETTLE_S = 300.0
+"""The longest the sweep waits, after a start, for every plugin to describe itself: what
+a pump publishes isn't cleared only because it hasn't said what it has yet."""
 BIRTH_DELAY_S = (0.5, 3.0)
 """Home Assistant asks for a random pause before answering its birth message."""
 
@@ -428,6 +431,7 @@ class Publisher:
         self._topics: Topics | None = None
         self._old: list[Topics] = []
         self._swept = False
+        self._began: float | None = None
         self._collecting: dict[str, bytes] | None = None
         self._birth = asyncio.Event()
         self._last: dict[str, str] = {}
@@ -456,6 +460,7 @@ class Publisher:
     def start(self, namer: Namer) -> None:
         """Begin, once names can be given."""
         self.namer = namer
+        self._began = self._clock()
         self._client.reload()
 
     def changed(self, before: Discovery | None, after: Discovery) -> None:
@@ -492,16 +497,17 @@ class Publisher:
         return self._collecting is not None and any(t.ours(topic) for t in self._spaces())
 
     def receive(self, topic: str, payload: bytes, retained: bool) -> None:
+        if self._topics is not None and topic == self._topics.request and not retained:
+            # A retained request would be asked again at every connection: only live ones.
+            with contextlib.suppress(asyncio.QueueFull):
+                self._requests.put_nowait(payload)
+            return
         if self._collecting is not None and any(t.ours(topic) for t in self._spaces()):
             if retained and payload:
                 self._collecting[topic] = payload
             return
         if self._topics is not None and topic == self._topics.birth and payload == b"online":
             self._birth.set()
-        elif self._topics is not None and topic == self._topics.request and not retained:
-            # A retained request would be asked again at every connection: only live ones.
-            with contextlib.suppress(asyncio.QueueFull):
-                self._requests.put_nowait(payload)
 
     async def session(self, client: aiomqtt.Client, wanted: Wanted) -> None:
         if wanted == "sweep":
@@ -519,8 +525,10 @@ class Publisher:
         self._live = client
         try:
             self.model = await self._build()
-            await self._sweep(client, keep=self._kept(topics))
-            self._old.clear()
+            unswept = not self._settled()
+            if not unswept:
+                await self._sweep(client, keep=self._kept(topics))
+                self._old.clear()
             await client.subscribe(topics.birth)
             if self.asker is not None:
                 await client.subscribe(topics.request)
@@ -530,7 +538,7 @@ class Publisher:
                 len(self.model.devices),
                 len(self.model.entities),
             )
-            await self._loop(client)
+            await self._loop(client, unswept)
         finally:
             self.state = "off"
             self._live = None
@@ -561,7 +569,22 @@ class Publisher:
 
     # --- publishing ----------------------------------------------------------------------
 
-    async def _loop(self, client: aiomqtt.Client) -> None:
+    def _settled(self) -> bool:
+        """Whether every plugin has come up and described itself, or failed and is being
+        started again; or `SETTLE_S` has passed since the start."""
+        if self._began is not None and self._clock() - self._began >= SETTLE_S:
+            return True
+        instances = self._host.instances.values() if self._host is not None else ()
+        for instance in instances:
+            if instance.state is State.STARTING:
+                return False
+            if instance.state is State.UP and instance.described is None:
+                return False
+        return True
+
+    async def _loop(self, client: aiomqtt.Client, unswept: bool = False) -> None:
+        """Publish what changes, until canceled; `unswept`: the retained topics no longer
+        published are cleared once the plugins have described themselves."""
         rebuilt = prices = self._clock()
         while True:
             with contextlib.suppress(TimeoutError):
@@ -586,6 +609,12 @@ class Publisher:
                     self._dirty, self._signed = False, signature
                     await self._publish_changed(client, await self._build())
                 await self._publish_derived(client)
+                if unswept and self._settled():
+                    unswept = False
+                    topics = self._topics
+                    assert topics is not None  # noqa: S101 - publishing
+                    await self._sweep(client, keep=self._kept(topics))
+                    self._old.clear()
             await self._flush(client)
 
     async def _answer(self, client: aiomqtt.Client, payload: bytes) -> None:

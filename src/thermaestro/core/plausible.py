@@ -6,6 +6,8 @@ reports nonsense (a meter it doesn't have, a flipped bit) can't feed the plan:
 - each unit has a plausible range; a value outside it is `out_of_range`;
 - a counter (an energy meter) may not run backwards. A drop of more than half the span
   its plugin declares (`wraps_at`) is the counter starting over from 0, and accepted.
+  So is a drop that the next readings agree with, each at least the one before: the
+  reading before the drop was the wrong one (a torn read), or the counter was reset.
 
 A value that fails keeps its number, so it can be shown and investigated, but its
 quality says it isn't to be used.
@@ -43,6 +45,9 @@ true value never falls outside; only nonsense does."""
 
 COUNTERS = ("heat.produced", "elec.used")
 """Standard names of points that only count up."""
+AGREEING = 3
+"""Readings below the last good one, each at least the one before, that make the newest
+the counter's value from then on."""
 
 _NAME = re.compile(r"([^/{#]+)(?:\{[^}]*\})?(?:#\d+)?$")
 
@@ -57,6 +62,8 @@ def standard_name(path: str) -> str:
 class Plausibility:
     _last: dict[tuple[str, str], float] = field(default_factory=dict)
     """The last good reading of each counter, per instance and point."""
+    _behind: dict[tuple[str, str], list[float]] = field(default_factory=dict)
+    """Each counter's readings since it last ran backwards, while they agree."""
 
     def check(self, instance: str, envelope: Envelope, point: Point | None) -> Envelope:
         value = envelope.value
@@ -76,7 +83,13 @@ class Plausibility:
             if last is not None and value < last:
                 wraps_at = point.wraps_at if point is not None else None
                 if wraps_at is None or last - value <= wraps_at / 2:
-                    return _refused(envelope, f"the counter ran backwards, from {last:g}")
+                    behind = self._behind.setdefault(key, [])
+                    if behind and value < behind[-1]:
+                        behind.clear()
+                    behind.append(value)
+                    if len(behind) < AGREEING:
+                        return _refused(envelope, f"the counter ran backwards, from {last:g}")
+            self._behind.pop(key, None)
             self._last[key] = value
         return envelope
 

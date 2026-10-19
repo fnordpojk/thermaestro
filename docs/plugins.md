@@ -224,10 +224,10 @@ Once a plugin has said `hello`, the core:
 
 1. asks `describe`, waiting up to 60 seconds, since a plugin may first have to identify its device;
 2. subscribes to every described point, and keeps the values;
-3. for each series, asks `series.get` from a day back to two days ahead, then `series.subscribe`;
+3. for each series, asks `series.get` from a day back to two days ahead, then `series.subscribe`. A series that fails is logged and asked for again a minute later; the others go on;
 4. applies each partial `described` it receives, replacing changed items and dropping removed paths.
 
-If a plugin fails or its connection ends, the core restarts the instance after a pause that grows from 1 second to at most 60, and records the failure in the audit log. A session that lasted a minute resets the count. One plugin failing never stops the others.
+If a plugin fails or its connection ends, the core restarts the instance after a pause that grows from 1 second to at most 60, and records the failure in the audit log. A session that lasted a minute resets the count. One plugin failing never stops the others. The device events a plugin said were on end with its connection: started again, it tells what is still on.
 
 ### In process
 

@@ -1,13 +1,15 @@
 import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from capfake import FakePump
 
 from thermaestro.cap import Message, Send, pair, serve
-from thermaestro.cap.messages import Subscribe
+from thermaestro.cap.messages import DeviceEvent, Subscribe
 from thermaestro.core import AuditLog, Key, PluginContext, PluginHost, State, Values
 from thermaestro.store import Database, Plugin, SecretStore
 
@@ -192,3 +194,75 @@ async def test_a_plugin_nobody_waits_for_is_turned_away(db: Database, tmp_path: 
     await asyncio.wait_for(h.attach(core), 5)
     served.cancel()
     await h.stop()
+
+
+class FullDisk(AuditLog):
+    """An audit log that can't write a restart."""
+
+    async def record(self, who: str, what: str, **more: Any) -> None:
+        if what == "plugin.restart":
+            raise OSError("No space left on device")
+        await super().record(who, what, **more)
+
+
+async def test_a_failed_audit_doesnt_stop_the_restarts(db: Database, tmp_path: Path) -> None:
+    await db.put(Plugin(plugin="broken"), "bad")
+    attempts = 0
+
+    def broken(context: PluginContext) -> FakePump:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise RuntimeError("no gateway")
+        return FakePump()
+
+    h = PluginHost(
+        db=db,
+        secrets=SecretStore(tmp_path / "secrets.json"),
+        values=Values(db),
+        audit=FullDisk(tmp_path / "audit"),
+        factories={"broken": broken},
+        **FAST,  # type: ignore[arg-type]
+    )
+    await h.start()
+    try:
+        await until(lambda: state(h, "bad") is State.UP)
+        assert attempts == 3
+    finally:
+        await h.stop()
+
+
+class Warned(Dropped):
+    """A plugin that says a warning is on, then loses its device."""
+
+    async def events(self, send: Send) -> None:
+        warning = DeviceEvent(
+            t=datetime.now(UTC), unit="hp1", code="brine.out.low", text="Brine out is low"
+        )
+        await send(warning)
+        await super().events(send)
+
+
+async def test_a_plugin_started_again_tells_what_is_on(db: Database, tmp_path: Path) -> None:
+    """A warning the plugin raised isn't left on after it started again: the new one says
+    what is still on."""
+    await db.put(Plugin(plugin="warning"), "pump")
+    drop = asyncio.Event()
+    made: list[FakePump] = []
+
+    def factory(context: PluginContext) -> FakePump:
+        made.append(Warned(drop) if not made else FakePump())
+        return made[-1]
+
+    h = host(db, tmp_path, {"warning": factory})
+    came_up: list[str] = []
+    h.on_up.append(came_up.append)
+    await h.start()
+    try:
+        await until(lambda: bool(h.instances["pump"].active) and state(h, "pump") is State.UP)
+        drop.set()
+        await until(lambda: len(made) == 2 and state(h, "pump") is State.UP)
+        assert h.instances["pump"].active == {}
+        assert came_up == ["pump", "pump"]
+    finally:
+        await h.stop()

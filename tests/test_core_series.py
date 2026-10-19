@@ -1,12 +1,15 @@
 import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import cast
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from thermaestro.cap import Link, Message, Send, pair, serve
+from thermaestro.cap.client import CapError
 from thermaestro.cap.messages import (
     Describe,
     Described,
@@ -17,6 +20,7 @@ from thermaestro.cap.messages import (
     SeriesUpdate,
 )
 from thermaestro.cap.model import Interval, Knowledge, Publication, SeriesInfo
+from thermaestro.core import series as series_module
 from thermaestro.core.prices import assemble, estimate, slots
 from thermaestro.core.series import Key, Series
 from thermaestro.store import Database, PriceLayer, Vat
@@ -499,3 +503,62 @@ async def test_prices_not_published_yet_are_estimated_from_recent_weeks(db: Data
     empty = await assemble(layers, vat, series, ahead + timedelta(days=60), STOCKHOLM)
     assert empty.slots
     assert all(s.total is None for s in (await estimate(layers, vat, series, empty)).slots)
+
+
+class Subscription:
+    def __init__(self) -> None:
+        self.updates: asyncio.Queue[SeriesUpdate] = asyncio.Queue()
+
+    async def next(self, timeout: float) -> SeriesUpdate:
+        return await self.updates.get()
+
+
+class Flaky:
+    """A link with two series, the second of which can't be followed at first."""
+
+    def __init__(self) -> None:
+        self.subscriptions = {SPOT.id: Subscription(), "bad": Subscription()}
+        self.refusals = 1
+        self.followed: list[str] = []
+
+    async def series_get(
+        self, series: str, start: datetime, end: datetime, *, timeout: float
+    ) -> SeriesData:
+        return SeriesData(id=1, series=series, intervals=())
+
+    @contextlib.asynccontextmanager
+    async def series_subscribe(self, series: str) -> AsyncIterator[Subscription]:
+        if series == "bad" and self.refusals:
+            self.refusals -= 1
+            raise CapError(Error(id=1, code="invalid", detail="not now"))
+        self.followed.append(series)
+        yield self.subscriptions[series]
+
+
+async def test_one_failing_series_doesnt_stop_the_others(
+    db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(series_module, "RETRY_S", 0.01)
+    series = Series(db, Clock(local(2026, 10, 7, 10)))
+    heard: list[Key] = []
+    series.listeners.append(heard.append)
+    link = Flaky()
+    bad = SPOT.model_copy(update={"id": "bad"})
+    following = asyncio.create_task(series.follow("prices", cast(Link, link), [SPOT, bad]))
+    try:
+        async with asyncio.timeout(5):
+            while link.followed.count("bad") < 1:
+                await asyncio.sleep(0.01)
+        assert series.followed[Key("prices", "bad")].error == "CapError: invalid: not now"
+        start = local(2026, 10, 7)
+        update = SeriesUpdate(
+            id=1, series=SPOT.id, intervals=tuple(quarters(SPOT.id, start, 1, 0.6))
+        )
+        await link.subscriptions[SPOT.id].updates.put(update)
+        async with asyncio.timeout(5):
+            while not heard:
+                await asyncio.sleep(0.01)
+        assert heard == [Key("prices", SPOT.id)]
+    finally:
+        following.cancel()
+        await asyncio.gather(following, return_exceptions=True)

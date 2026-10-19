@@ -101,6 +101,7 @@ async def run(
             factories=factories if factories is not None else discover(),
         )
         sensors = SensorHub(db, values)
+        host.on_up.append(sensors.connected)
         mqtt = MqttClient(db, secrets, sensors)
         weather = Weather(db, series, values, host)
         discovery = Publisher(db, values, host, sensors, series, mqtt)

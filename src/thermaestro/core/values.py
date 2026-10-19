@@ -127,6 +127,28 @@ class Values:
 
         return await self._db.run(read)
 
+    async def last(self, keys: Iterable[Key]) -> dict[Key, Sample]:
+        """Each point's newest sample in the history, where it has one. It counts as the
+        last kept, so the same value isn't written again."""
+        wanted = list(keys)
+
+        def read(t: Transaction) -> dict[Key, Sample]:
+            found = {}
+            for key in wanted:
+                row = t.execute(
+                    "SELECT t, value, text, quality FROM history"
+                    " WHERE instance = ? AND point = ? ORDER BY t DESC LIMIT 1",
+                    (key.instance, key.point),
+                ).fetchone()
+                if row is not None:
+                    found[key] = Sample(*row)
+            return found
+
+        found = await self._db.run(read)
+        for key, kept in found.items():
+            self._kept.setdefault(key, kept)
+        return found
+
     async def first(self, key: Key) -> float | None:
         """When the point's history starts, or None where it has none."""
 

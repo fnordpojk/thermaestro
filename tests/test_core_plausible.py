@@ -60,3 +60,21 @@ def test_a_counter_that_wraps_starts_over() -> None:
     assert wrapped.quality == "good"
     # A small drop is still a counter running backwards, wrap or not.
     assert check.check("pump", envelope(COUNTER, 0.1, "kWh"), point).quality == "out_of_range"
+
+
+def test_a_drop_the_next_readings_agree_with_is_taken() -> None:
+    """A torn read makes one reading far too high: the readings after it, agreeing among
+    themselves, become the count again."""
+    check = Plausibility()
+    assert check.check("pump", envelope(COUNTER, 348.3, "kWh"), None).quality == "good"
+    assert check.check("pump", envelope(COUNTER, 9_000_000.0, "kWh"), None).quality == "good"
+    assert check.check("pump", envelope(COUNTER, 348.4, "kWh"), None).quality == "out_of_range"
+    assert check.check("pump", envelope(COUNTER, 348.5, "kWh"), None).quality == "out_of_range"
+    assert check.check("pump", envelope(COUNTER, 348.5, "kWh"), None).quality == "good"
+    assert check.check("pump", envelope(COUNTER, 348.6, "kWh"), None).quality == "good"
+    # Readings that don't agree among themselves start the count of them over.
+    check.check("pump", envelope(COUNTER, 9_000_000.0, "kWh"), None)
+    assert check.check("pump", envelope(COUNTER, 348.7, "kWh"), None).quality == "out_of_range"
+    assert check.check("pump", envelope(COUNTER, 348.8, "kWh"), None).quality == "out_of_range"
+    assert check.check("pump", envelope(COUNTER, 12.0, "kWh"), None).quality == "out_of_range"
+    assert check.check("pump", envelope(COUNTER, 348.9, "kWh"), None).quality == "out_of_range"

@@ -20,7 +20,6 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from ..cap import Closed, Link
-from ..cap.client import CapError
 from ..cap.model import Interval, SeriesInfo
 from ..store import Database, Transaction
 
@@ -30,6 +29,8 @@ PUBLICATION_GRACE = timedelta(hours=2)
 FORECAST_AHEAD = timedelta(hours=6)
 BACK = timedelta(days=1)
 AHEAD = timedelta(days=2)
+RETRY_S = 60.0
+"""How long a series that failed waits before it is fetched and followed again."""
 
 Freshness = Literal["fresh", "stale", "empty"]
 Row = tuple[float, float, float, str, str, str, int, float | None, str | None, str | None]
@@ -140,18 +141,15 @@ class Series:
                 current.info = info
 
     async def follow(self, instance: str, link: Link, infos: Iterable[SeriesInfo]) -> None:
-        """Fetch each series, then keep it current, until canceled or the link closes."""
+        """Fetch each series, then keep it current, until canceled or the link closes. A
+        series that fails says why, and is fetched and followed again a minute later;
+        the others go on."""
         infos = list(infos)
         self.describe(instance, infos)
         if not infos:
             return
-        now = datetime.fromtimestamp(self._clock(), UTC)
         for info in infos:
-            try:
-                data = await link.series_get(info.id, now - BACK, now + AHEAD, timeout=60)
-                await self.put(instance, data.intervals)
-            except (CapError, TimeoutError) as e:
-                self._failed(Key(instance, info.id), e)
+            await self._fetch(instance, link, info)
         tasks = [asyncio.create_task(self._updates(instance, link, info)) for info in infos]
         try:
             await asyncio.gather(*tasks)
@@ -160,15 +158,33 @@ class Series:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def _fetch(self, instance: str, link: Link, info: SeriesInfo) -> None:
+        now = datetime.fromtimestamp(self._clock(), UTC)
+        try:
+            data = await link.series_get(info.id, now - BACK, now + AHEAD, timeout=60)
+            await self.put(instance, data.intervals)
+        except Closed:
+            raise
+        except Exception as e:  # noqa: BLE001 - logged; one series failing stops no other
+            self._failed(Key(instance, info.id), e)
+
     async def _updates(self, instance: str, link: Link, info: SeriesInfo) -> None:
         with contextlib.suppress(Closed):
-            async with link.series_subscribe(info.id) as subscription:
-                while True:
-                    try:
-                        update = await subscription.next(timeout=3600)
-                    except TimeoutError:
-                        continue  # nothing new for an hour; staleness tells if that matters
-                    await self.put(instance, update.intervals)
+            while True:
+                try:
+                    async with link.series_subscribe(info.id) as subscription:
+                        while True:
+                            try:
+                                update = await subscription.next(timeout=3600)
+                            except TimeoutError:
+                                continue  # nothing new for an hour; staleness tells
+                            await self.put(instance, update.intervals)
+                except Closed:
+                    raise
+                except Exception as e:  # noqa: BLE001 - logged, and followed again
+                    self._failed(Key(instance, info.id), e)
+                await asyncio.sleep(RETRY_S)
+                await self._fetch(instance, link, info)
 
     def _failed(self, key: Key, error: Exception) -> None:
         followed = self.followed.get(key)

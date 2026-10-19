@@ -55,7 +55,8 @@ class Instance:
     """Device events and foreign writes, newest last."""
     active: dict[tuple[str, str], DeviceEvent] = field(default_factory=dict)
     """The device events that are on now, by unit and code: a warning stays until the
-    plugin says it's over, however many events came since."""
+    plugin says it's over, however many events came since, or its connection ends (a
+    plugin started again tells what is still on)."""
     link: Link | None = None
     """The connection while the instance is up: what the write path sends through."""
 
@@ -90,6 +91,8 @@ class PluginHost:
         self.listeners: list[Callable[[str, Message], None]] = []
         """Told of what plugins send unasked (health, device events, foreign writes),
         with the instance's id."""
+        self.on_up: list[Callable[[str], None]] = []
+        """Told when an instance has come up and described itself, with its id."""
         self._tasks: set[asyncio.Task[None]] = set()
         self._supervisors: dict[str, asyncio.Task[None]] = {}
 
@@ -150,6 +153,7 @@ class PluginHost:
             if instance is None:
                 log.warning("plugin %s connected, but no instance is waiting for it", hello.plugin)
                 return
+            instance.active.clear()
             matched.append(instance)
             instance.hello = hello
             try:
@@ -191,12 +195,15 @@ class PluginHost:
                 error,
                 durations.text(pause),
             )
-            await self._audit.record(
-                f"plugin:{instance.setting.plugin}",
-                "plugin.restart",
-                outcome="failed",
-                details={"instance": instance.id, "error": error},
-            )
+            try:
+                await self._audit.record(
+                    f"plugin:{instance.setting.plugin}",
+                    "plugin.restart",
+                    outcome="failed",
+                    details={"instance": instance.id, "error": error},
+                )
+            except Exception:
+                log.exception("the restart of %s couldn't be audited", instance.id)
             await asyncio.sleep(pause)
 
     async def _run_in_process(self, instance: Instance, factory: Factory) -> None:
@@ -207,6 +214,7 @@ class PluginHost:
             PluginStore(self._db, instance.id),
         )
         plugin = factory(context)
+        instance.active.clear()
         core, plugin_side = pair()
         served = asyncio.create_task(serve(plugin_side, plugin))
         link = Link(core, on_event=lambda m: self._event(instance, m))
@@ -237,6 +245,8 @@ class PluginHost:
         await self._keep(instance.id, instance.described)
         instance.state = State.UP
         instance.link = link
+        for listener in self.on_up:
+            listener(instance.id)
         await self._audit.record(
             f"plugin:{instance.setting.plugin}",
             "plugin.start",
