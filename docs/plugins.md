@@ -18,7 +18,7 @@ A plugin describes its devices as a tree of **nodes**. Each node has a path, a k
 
 A `unit` node (a heat pump, for example) also carries an **identity**: vendor, model, firmware, serial number, and the register map the plugin resolved for it. It may also carry the **promises** of its connection: whether a write's fate is known, what the device's acknowledgment means, whether other clients' writes can be seen, call limits, and whether the connection can restore settings by itself if the core goes silent.
 
-Any node may carry a **rating**: what its maker documents about it, and where. A hot-water tank's `liters`; a compressor's `heating` at standard conditions (EN 14511), each point its source and supply temperatures, heat and electricity in kW where given, and COP; and its `cop_dhw` making hot water (EN 16147). `basis` names the document. The core reckons what heat costs from them; where a plugin gives none, the household is asked under House.
+Any node may carry a **rating**: what its maker documents about it, and where. A hot-water tank's `liters`; a compressor's `heating` at standard conditions (EN 14511), each point its source and supply temperatures, heat and electricity in kW where given, and COP; and its `cop_dhw` making hot water (EN 16147); a climate system's `offset_step_k`, how many degrees one step of its heating offset moves the supply. `basis` names the document. The core reckons what heat costs from them; where a plugin gives none, the household is asked under House.
 
 A node may list **shared constraints** with its siblings, such as `one_demand_at_a_time` for demands that compete for one compressor.
 
@@ -162,8 +162,8 @@ A plugin answers a request it can't serve with `error`, with the code `version`,
 These lines were produced by the message types themselves:
 
 ```json
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.5","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write","notify"]}
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.5","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.6","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write","notify"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.6","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
 {"type":"read","id":3,"points":["hp1/dhw/temp.top"],"after":null}
 {"type":"values","id":3,"values":[{"point":"hp1/dhw/temp.top","value":52.3,"unit":"degC","raw":null,"t_observed":"2026-10-09T12:00:00Z","t_received":"2026-10-09T12:00:00Z","quality":"good","source":"measured","resolution":null,"why":null}]}
 {"type":"act","id":4,"lever":"hp1/dhw/block","op":"engage","params":{}}
@@ -181,7 +181,7 @@ Times are ISO 8601 with a time zone. Fields with defaults may be left out.
 
 ### The JSON Schema
 
-For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.5.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.5.schema.json). It is generated from the message types:
+For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.6.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.6.schema.json). It is generated from the message types:
 
 ```sh
 uv run python scripts/make-capschema.py          # write it
@@ -192,7 +192,7 @@ The test suite fails if the checked-in copy differs from the types.
 
 ### Versions
 
-The protocol is `thermaestro-cap`, version `0.4`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking an older minor version still talks to a newer core: `0.2` added the provider description and the forecast fields of `SeriesInfo`, `0.3` the `write` message, offered with the `write` feature, and `0.4` a node's `rating`.
+The protocol is `thermaestro-cap`, version `0.6`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking an older minor version still talks to a newer core: `0.2` added the provider description and the forecast fields of `SeriesInfo`, `0.3` the `write` message, offered with the `write` feature, `0.4` a node's `rating`, `0.5` the `notify.targets` and `notify` messages, offered with the `notify` feature, and `0.6` a climate system's `offset_step_k` in its rating.
 
 ## Running a plugin
 

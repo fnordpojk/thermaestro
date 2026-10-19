@@ -101,6 +101,8 @@ class SystemKeys:
     """The point the heating offset is read back by."""
     target: Key | None = None
     """The supply temperature the pump's curve calculates, where it reports one."""
+    step_k: float | None = None
+    """What one step of the offset does as the pump's maker documents it, where it does."""
 
 
 class Heating:
@@ -182,6 +184,7 @@ class Heating:
                         compressor,
                         Key(instance_id, point) if point else None,
                         Key(instance_id, target) if target in described_paths else None,
+                        step_k=_step(node),
                     )
                 )
         return out
@@ -374,7 +377,7 @@ class Heating:
                 await self._note(keys.scope, WHAT["room"])
             return
         # The pump's curve needs no room; the house does.
-        await self._pump(keys.scope, hours, now)
+        await self._pump(keys.scope, hours, now, keys.step_k)
         if not rooms:
             await self._note(keys.scope, WHAT["room"])
             return
@@ -446,10 +449,13 @@ class Heating:
                 )
             )
 
-    async def _pump(self, scope: str, hours: list[house.Hour], now: float) -> None:
-        """How the supply follows the outdoor temperature and the offset, and the water."""
+    async def _pump(
+        self, scope: str, hours: list[house.Hour], now: float, step: float | None = None
+    ) -> None:
+        """How the supply follows the outdoor temperature and the offset, and the water;
+        what a step does as documented (`step`) where the offset hasn't moved enough."""
         await self._water(scope, hours, now)
-        found, verdict, why, args = pump.judge(hours, now - pump.TEST_HOURS * 3600)
+        found, verdict, why, args = pump.judge(hours, now - pump.TEST_HOURS * 3600, step)
         before = self._learnings.get(PUMP, scope)
         if found is None:
             if before is not None and before.value is not None:
@@ -459,6 +465,10 @@ class Heating:
             )
             return
         state: State = "proved" if verdict is not None and verdict.proved else "learning"
+        why = verdict.why if verdict is not None else TESTING
+        args = dict(verdict.args) if verdict is not None else {}
+        if found.documented:
+            why, args = pump.DOCUMENTED, {**args, "step": found.c2}
         await self._learnings.put(
             Learned(
                 name=PUMP,
@@ -466,8 +476,8 @@ class Heating:
                 kind="model",
                 value=found.as_value(),
                 state=state,
-                why=verdict.why if verdict is not None else TESTING,
-                args=dict(verdict.args) if verdict is not None else {},
+                why=why,
+                args=args,
                 n=found.rows,
                 since=before.since if before and before.since else hours[0].t,
             )
@@ -618,3 +628,9 @@ def _keep(t: Transaction, scope: str, start: float, body: dict[str, Any]) -> Non
         "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, 'house_day', ?, ?)",
         (scope, start, json.dumps(body)),
     )
+
+
+def _step(node: Any) -> float | None:
+    """What one step of a climate system's offset does, where its rating documents it."""
+    rating = getattr(node, "rating", None)
+    return getattr(rating, "offset_step_k", None) if rating is not None else None

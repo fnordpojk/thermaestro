@@ -14,7 +14,9 @@ of a quarter of an hour leave hardly an hour heated for half of it.
 `c1` is the curve's slope (below 0: colder outside, warmer water), `c2` what one step of
 the offset adds. It needs the offset to have moved: at least two values, each held for
 `HELD_LEAST` hours. It is judged on the last four days against the curve alone (the same
-fit without the offset).
+fit without the offset). Where nothing has moved the offset, `c2` is taken as the pump's
+maker documents it, and only the curve is fitted, judged against a supply that doesn't
+follow the outdoor temperature.
 
 The water the house model is driven by (the mean of supply and return) is fitted too, over
 every hour the pump may heat, with how much of it carries over from one hour to the next:
@@ -25,6 +27,7 @@ It is judged the same way against the same fit without the offset.
 """
 
 import itertools
+import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -37,6 +40,10 @@ HELD_LEAST = 12
 TEST_HOURS = 96
 
 STILL = mark("The offset hasn't moved enough to learn what a step does.")
+DOCUMENTED = mark(
+    "What a step of the offset does as the maker documents it, %(step)s K: the offset"
+    " hasn't moved enough to learn it."
+)
 FEW = mark("%(hours)s usable hours of %(least)s.")
 LEAST = 48
 
@@ -47,6 +54,8 @@ class Response:
     c1: float
     c2: float
     rows: int
+    documented: bool = False
+    """Whether `c2` is the maker's figure rather than learned."""
 
     def supply(self, outdoor: float, offset: float) -> float:
         return self.c0 + self.c1 * outdoor + self.c2 * offset
@@ -88,7 +97,11 @@ def _solve(rows: Sequence[tuple[list[float], float]]) -> list[float] | None:
     return [m[i][n] / m[i][i] for i in range(n)]
 
 
-def fit(hours: Sequence[Hour]) -> tuple[Response | None, str | None, dict[str, float | int | str]]:
+def fit(
+    hours: Sequence[Hour], step: float | None = None
+) -> tuple[Response | None, str | None, dict[str, float | int | str]]:
+    """The curve; where the offset hasn't moved enough, with `step` (what a step does, as
+    documented) as its `c2`, if given."""
     rows = _rows(hours)
     if len(rows) < LEAST:
         return None, FEW, {"hours": len(rows), "least": LEAST}
@@ -96,7 +109,12 @@ def fit(hours: Sequence[Hour]) -> tuple[Response | None, str | None, dict[str, f
     for _, offset, _ in rows:
         held[round(offset)] = held.get(round(offset), 0) + 1
     if sum(1 for n in held.values() if n >= HELD_LEAST) < 2:
-        return None, STILL, {}
+        if step is None:
+            return None, STILL, {}
+        curve = _solve([([1.0, o], s - step * f) for o, f, s in rows])
+        if curve is None:
+            return None, STILL, {}
+        return Response(curve[0], curve[1], step, len(rows), documented=True), None, {}
     found = _solve([([1.0, o, f], s) for o, f, s in rows])
     if found is None or found[2] <= 0:
         return None, STILL, {}
@@ -104,22 +122,29 @@ def fit(hours: Sequence[Hour]) -> tuple[Response | None, str | None, dict[str, f
 
 
 def judge(
-    hours: Sequence[Hour], test_from: float
+    hours: Sequence[Hour], test_from: float, step: float | None = None
 ) -> tuple[Response | None, Verdict | None, str | None, dict[str, float | int | str]]:
-    """Fit on the hours before `test_from`, test on those after against the curve alone;
-    then fit on all."""
+    """Fit on the hours before `test_from`, test on those after against the curve alone
+    (with the documented step, against a supply that doesn't follow the outdoor
+    temperature); then fit on all."""
     train = [h for h in hours if h.t < test_from]
     test = _rows([h for h in hours if h.t >= test_from])
-    trained, why, args = fit(train)
+    trained, why, args = fit(train, step)
     verdict = None
     if trained is not None:
-        curve = _solve([([1.0, o], s) for o, _, s in _rows(train)])
-        if curve is not None:
+        baseline: list[float] | None = None
+        if trained.documented:
+            level = statistics.fmean(s - trained.c2 * f for _, f, s in _rows(train))
+            baseline = [level + trained.c2 * f for _, f, _ in test]
+        else:
+            curve = _solve([([1.0, o], s) for o, _, s in _rows(train)])
+            if curve is not None:
+                baseline = [curve[0] + curve[1] * o for o, _, _ in test]
+        if baseline is not None:
             predicted = [trained.supply(o, f) for o, f, _ in test]
-            baseline = [curve[0] + curve[1] * o for o, _, _ in test]
             actual = [s for _, _, s in test]
             verdict = held_out(predicted, baseline, actual)
-    whole, why_all, args_all = fit(hours)
+    whole, why_all, args_all = fit(hours, step)
     if whole is None:
         return None, verdict, why_all or why, args_all or args
     return whole, verdict, None, {}

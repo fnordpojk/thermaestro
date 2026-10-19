@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-19 03:57+0200\n"
+"POT-Creation-Date: 2026-10-19 19:55+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1952,6 +1952,11 @@ msgid ""
 " most %(limit)s an hour, the rest on the Events page."
 msgstr ""
 
+msgid ""
+"Nothing measures the heat of a pump without brine: its documented or "
+"entered figure is used."
+msgstr ""
+
 msgid "Nothing recorded in the last week."
 msgstr ""
 
@@ -3120,6 +3125,12 @@ msgid "What"
 msgstr ""
 
 msgid "What Thermaestro decides every 15 minutes, and why."
+msgstr ""
+
+#, python-format
+msgid ""
+"What a step of the offset does as the maker documents it, %(step)s K: the"
+" offset hasn't moved enough to learn it."
 msgstr ""
 
 msgid "What became of it"

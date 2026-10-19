@@ -2,7 +2,8 @@
 built into the general shape.
 
 Temporary intents always end: "warmer, please" at the next change of the pattern, at most a
-day later; a bath when met, at the latest an hour after its time; "hands off" after at most
+day later; a bath at its time if the water is hot by then, else when it is, at the
+latest an hour after its time; "hands off" after at most
 48 hours; a fireplace after 6 hours; a boost when its charge is done, at the latest after 4
 hours.
 """
@@ -309,7 +310,9 @@ def bath(
     created: datetime,
     strength: Strength = "must",
 ) -> Intent:
-    """The tank's top at least `at_least` °C by `by`; done when met, or an hour after."""
+    """The tank's top at least `at_least` °C by `by`: met at its time if it is hot by
+    then (until then the plan keeps it so), else when it gets there; missed an hour
+    after."""
     return _intent(
         "bath",
         scope,

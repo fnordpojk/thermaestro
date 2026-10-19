@@ -1276,7 +1276,7 @@ class NibePlugin:
         ]
         product = self._product.result() if self._product.done() else ""
         tank, compressor = profile.ratings(product)
-        rated = {"dhw_tank": tank, "compressor": compressor}
+        rated = {"dhw_tank": tank, "compressor": compressor, "climate_system": profile.OFFSET_STEP}
         for path, kind in layout.nodes.items():
             nodes.append(
                 Node(

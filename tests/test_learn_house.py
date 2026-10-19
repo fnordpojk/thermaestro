@@ -412,3 +412,32 @@ async def test_a_system_without_its_inputs_says_why(tmp_path: Path) -> None:
         found = learnings.get(MODEL, "dev:hp1/cs1")
         assert found is not None
         assert found.args == {"what": "a room temperature in this climate system"}
+
+
+def test_an_offset_that_never_moved_takes_the_documented_step() -> None:
+    """Nothing moves the offset: what a step does is the maker's figure, and the curve's
+    slope is learned and judged against a supply that doesn't follow the weather."""
+    hours = [
+        h.Hour(
+            START + i * 3600,
+            21.0,
+            outdoor,
+            30.0,
+            offset=1.0,
+            heating=0.25,
+            target=30.0 - 0.5 * outdoor + 2.5,
+        )
+        for i in range(200)
+        for outdoor in [5.0 + 6.0 * math.sin(i / 9)]
+    ]
+    assert pump.fit(hours)[1] == pump.STILL
+    found, why, _ = pump.fit(hours, step=2.5)
+    assert found is not None, why
+    assert found.documented
+    assert found.c0 == pytest.approx(30.0)
+    assert found.c1 == pytest.approx(-0.5)
+    assert found.c2 == 2.5
+    judged, verdict, _, _ = pump.judge(hours, hours[-pump.TEST_HOURS].t, step=2.5)
+    assert judged is not None
+    assert verdict is not None
+    assert verdict.proved, verdict

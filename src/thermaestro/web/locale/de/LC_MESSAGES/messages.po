@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 03:57+0200\n"
+"POT-Creation-Date: 2026-10-19 19:55+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -2086,6 +2086,11 @@ msgstr ""
 "wenn es vorbei ist; höchstens %(limit)s pro Stunde, der Rest auf der Seite "
 "Ereignisse."
 
+msgid ""
+"Nothing measures the heat of a pump without brine: its documented or entered figure "
+"is used."
+msgstr "Nichts misst die Wärme einer Pumpe ohne Sole: ihr dokumentierter oder eingegebener Wert wird verwendet."
+
 msgid "Nothing recorded in the last week."
 msgstr "In der letzten Woche nichts aufgezeichnet."
 
@@ -3342,6 +3347,12 @@ msgstr "Was"
 
 msgid "What Thermaestro decides every 15 minutes, and why."
 msgstr "Was Thermaestro alle 15 Minuten entscheidet, und warum."
+
+#, python-format
+msgid ""
+"What a step of the offset does as the maker documents it, %(step)s K: the offset "
+"hasn't moved enough to learn it."
+msgstr "Was ein Schritt der Verschiebung bewirkt, wie der Hersteller es angibt, %(step)s K: die Verschiebung hat sich nicht genug bewegt, um es zu lernen."
 
 msgid "What became of it"
 msgstr "Was daraus wurde"

@@ -31,6 +31,7 @@ POINTS = {
     "brine_in": "hp1/brine/brine.in.temp",
     "brine_out": "hp1/brine/brine.out.temp",
     "supply": "hp1/cs1/supply.temp",
+    "outdoor": "hp1/outdoor.temp",
 }
 
 
@@ -46,7 +47,14 @@ def _word(value: int) -> float:
     return (value - 0x10000 if value >= 0x8000 else value) / 10
 
 
-REGISTERS = {"top": 40013, "low": 40014, "brine_in": 40015, "brine_out": 40016, "supply": 40008}
+REGISTERS = {
+    "top": 40013,
+    "low": 40014,
+    "brine_in": 40015,
+    "brine_out": 40016,
+    "supply": 40008,
+    "outdoor": 40004,
+}
 
 
 @cache
@@ -234,3 +242,76 @@ def test_the_cop_is_shown_in_words() -> None:
     assert _shown(documented) == "COP 4.4 at 0/35 °C, as documented"
     brine = Learned(name=BRINE, scope="dev:hp1", kind="model", value=1224.0, unit="W/K")
     assert _shown(brine) == "1,224 W per kelvin: about 0.30 l/s of brine"
+
+
+def air_source(rating: Rating | None) -> Any:
+    """The same pump as an air-source one without a tank of its own: no brine, no tank."""
+    node = SimpleNamespace
+    kept = ("state", "demand", "supply", "outdoor")
+    described = node(
+        nodes=[
+            node(path="hp1", kind="unit", rating=None),
+            node(path="hp1/compressor.ep14", kind="compressor", rating=rating),
+            node(path="hp1/cs1", kind="climate_system", rating=None),
+        ],
+        points=[node(path=POINTS[name]) for name in kept],
+    )
+    return cast(Any, node(instances={"dev": node(described=described)}))
+
+
+async def test_a_pump_without_brine_or_tank_has_its_hours_read(tmp_path: Path) -> None:
+    """The outdoor air is its source; nothing measures its heat, so its heating COP stays as
+    documented, and its hours are there for what the radiators give."""
+    series, truth = recorded()
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.run(
+            lambda tr: tr.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    ("dev", POINTS[name], s.t, s.value, s.text, s.quality)
+                    for name in ("state", "demand", "supply", "outdoor")
+                    for s in series[name]
+                ],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        draws = {p: round(statistics.median(v), 3) for p, v in truth["drawn"].items()}
+        await learnings.put(
+            Learned(name=DRAW, scope="dev:hp1", kind="model", value=draws, state="proved")
+        )
+        efficiency = Efficiency(db, Values(db), air_source(RATED), learnings, lambda key: True)
+        await efficiency.run(truth["end"])
+        hours = await efficiency._events("dev:hp1", "cop_hour", 0.0)
+        assert len(hours) > 20
+        assert all(body["brine_ks"] == 0 for _, body in hours)
+        outdoor = statistics.median(s.value for s in series["outdoor"] if s.value is not None)
+        assert statistics.median(b["source_c"] for _, b in hours) == pytest.approx(outdoor, abs=4)
+        heating = learnings.get(HEATING, "dev:hp1")
+        assert heating is not None
+        assert heating.why == c.NO_SOURCE
+        assert heating.used == pytest.approx(0.502, abs=0.001)
+        assert learnings.get(DHW, "dev:hp1") is None
+        assert learnings.get(BRINE, "dev:hp1") is None
+
+
+async def test_a_climate_systems_documented_step_reaches_its_curve(tmp_path: Path) -> None:
+    from thermaestro.learn.heating import Heating
+
+    node = SimpleNamespace
+    step = Rating(offset_step_k=2.5, basis="the manual")
+    described = node(
+        nodes=[
+            node(path="hp1", kind="unit", rating=None),
+            node(path="hp1/cs1", kind="climate_system", rating=step),
+        ],
+        points=[],
+        levers=[],
+    )
+    host = cast(Any, node(instances={"dev": node(described=described)}))
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        [keys] = await Heating(db, Values(db), host, learnings, lambda key: True).systems()
+        assert keys.step_k == 2.5

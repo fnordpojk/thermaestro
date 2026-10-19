@@ -738,3 +738,11 @@ async def test_polling_that_fails_ends_the_connection(stocked: SimPump, gateway:
     with pytest.raises(RuntimeError, match="polling broke"):
         await asyncio.wait_for(p.events(send), 10)
     assert loop.time() - started < 5  # at once, not when the wait was given up
+
+
+async def test_what_a_step_of_the_offset_does_is_documented(plugin: NibePlugin) -> None:
+    nodes = {n.path: n for n in plugin.describe().nodes}
+    rating = nodes["hp1/cs1"].rating
+    assert rating is not None
+    assert rating.offset_step_k == 2.5
+    assert "+2 steps" in rating.basis

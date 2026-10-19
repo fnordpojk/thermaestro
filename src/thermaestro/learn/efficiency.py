@@ -6,9 +6,12 @@ brine in and the brine's drop, and for a charge the tank's rise. They are kept a
 so what is learned from them can be worked out again as the draw and the brine are.
 
 The starting shares come from what the pump's plugin documents, or what the household
-entered under House. A pump needs its tank's two temperatures, the demand, the compressor's
-state and the brine's two temperatures to have passed their checks, and its draw to have
-proved itself.
+entered under House. A pump needs the demand, the compressor's state and its source (the
+brine's two temperatures, or the outdoor air for a pump without brine) to have passed their
+checks, its tank's two temperatures to read charges or a climate system's supply to read
+heating, and its draw to have proved itself. A pump without brine has nothing that measures
+its heat: its heating share stays as documented, and its hours are kept for what the
+emitters give.
 """
 
 import json
@@ -61,6 +64,8 @@ class PumpKeys:
     compressor_ref: str
     meter: Key | None = None
     """An electricity meter on the pump's supply, in kWh, where one is set up."""
+    outdoor: Key | None = None
+    """The outdoor temperature: the source of a pump without brine."""
 
 
 class Efficiency:
@@ -112,6 +117,7 @@ class Efficiency:
                     liters=tank_rating.liters if tank_rating else None,
                     rating=nodes[compressors[0]].rating,
                     compressor_ref=f"{instance_id}:{compressors[0]}",
+                    outdoor=_point(instance_id, paths, unit, "outdoor.temp"),
                 )
 
     async def run(self, now: float | None = None) -> None:
@@ -144,20 +150,8 @@ class Efficiency:
         return rated.liters.get(keys.tank) if keys.tank else None
 
     async def _learn(self, keys: PumpKeys, rated: Rated, zone: Any, now: float) -> None:
-        needed = [
-            k
-            for k in (
-                keys.compressor,
-                keys.demand,
-                keys.top,
-                keys.low,
-                keys.brine_in,
-                keys.brine_out,
-            )
-            if k is not None
-        ]
         heating_start, dhw_start = self.starting(keys, rated)
-        if len(needed) < 6 or not all(self._usable(k) for k in needed):
+        if not self._readable(keys):
             await self._starting(keys.scope, heating_start, dhw_start)
             return
         first = await self._first_raw(keys.compressor)
@@ -169,18 +163,40 @@ class Efficiency:
             day += timedelta(days=1)
         await self._judge(keys, rated, now, heating_start, dhw_start)
 
+    def _readable(self, keys: PumpKeys) -> bool:
+        """Whether its runs can be read: the compressor, the demand and its source (the
+        brine in and out, or the outdoor air for a pump without brine), each usable; and a
+        tank to charge or a climate system to heat."""
+        brined = keys.brine_in is not None or keys.brine_out is not None
+        source = [keys.brine_in, keys.brine_out] if brined else [keys.outdoor]
+        needed = [keys.compressor, keys.demand, *source]
+        if any(k is None for k in needed) or not all(self._usable(k) for k in needed if k):
+            return False
+        return self._tank(keys) or (keys.supply is not None and self._usable(keys.supply))
+
+    def _tank(self, keys: PumpKeys) -> bool:
+        """Whether its tank's charges can be read."""
+        return (
+            keys.top is not None
+            and keys.low is not None
+            and self._usable(keys.top)
+            and self._usable(keys.low)
+        )
+
     async def _read(self, keys: PumpKeys, day: date, zone: Any) -> None:
-        if not (keys.top and keys.low and keys.brine_in and keys.brine_out):
-            return
         start, end = tank.bounds(day, zone)
         since, until = start - 3600, end + 3600
 
         async def history(key: Key) -> list[Sample]:
             return await self._values.history(key, since, until)
 
-        top, low = tank.Series(await history(keys.top)), tank.Series(await history(keys.low))
-        brine_in = tank.Series(await history(keys.brine_in))
-        brine_out = tank.Series(await history(keys.brine_out))
+        charged = self._tank(keys)
+        top = tank.Series(await history(keys.top) if charged and keys.top else [])
+        low = tank.Series(await history(keys.low) if charged and keys.low else [])
+        # A pump without brine takes its heat from the outdoor air.
+        inlet = keys.brine_in if keys.brine_in is not None else keys.outdoor
+        source = tank.Series(await history(inlet) if inlet is not None else [])
+        returning = tank.Series(await history(keys.brine_out)) if keys.brine_out else None
         supply = tank.Series(await history(keys.supply)) if keys.supply else None
         counter = (
             tank.Series(await history(keys.meter))
@@ -203,7 +219,7 @@ class Efficiency:
                 continue  # a draw would hide part of what the charge made
             before, after = tank._mean(top, low, c.start - 60), tank._mean(top, low, settled)
             stretch = intersect(on_dhw, [(c.start, c.end)])
-            run = _run(c.start, stretch, low, brine_in, brine_out, counter)
+            run = _run(c.start, stretch, low, source, returning, counter)
             if before is None or after is None or run is None:
                 continue
             # The loss is added when judged, as known then: one learned later still counts.
@@ -214,7 +230,7 @@ class Efficiency:
             t = start
             while t < end:
                 stretch = intersect(on_heat, [(t, t + 3600)])
-                run = _run(t, stretch, supply, brine_in, brine_out, counter)
+                run = _run(t, stretch, supply, source, returning, counter)
                 if run is not None and run.run_s >= cop.RUN_LEAST_S:
                     rows.append(("cop_hour", t, _body(run)))
                 t += 3600
@@ -246,21 +262,30 @@ class Efficiency:
             dhw_kw = dhw_kw or 0.0
         if hours and all(h.measured_kwh is not None for h in hours):
             heat_kw = heat_kw or 0.0
-        if dhw_kw is None:
-            await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_DRAW, {}, 0)
-            await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_DRAW, {}, 0)
-        elif liters is None:
-            await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_VOLUME, {}, 0)
-            await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_VOLUME, {}, 0)
-        else:
-            share = cop.learn_dhw(charges, liters, dhw_kw)
-            verdict = cop.judge_dhw(charges, liters, dhw_kw, dhw_start)
-            await self._verdict(DHW, keys.scope, share, dhw_start, verdict, len(charges))
-            w_k = cop.learn_brine(charges, liters, dhw_kw)
-            verdict = cop.judge_brine(charges, liters, dhw_kw, dhw_start)
-            await self._verdict(BRINE, keys.scope, w_k, None, verdict, len(charges))
+        brined = keys.brine_in is not None and keys.brine_out is not None
+        if keys.top is not None and keys.low is not None:  # a tank whose charges are read
+            if dhw_kw is None:
+                await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_DRAW, {}, 0)
+                if brined:
+                    await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_DRAW, {}, 0)
+            elif liters is None:
+                await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_VOLUME, {}, 0)
+                if brined:
+                    await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_VOLUME, {}, 0)
+            else:
+                share = cop.learn_dhw(charges, liters, dhw_kw)
+                verdict = cop.judge_dhw(charges, liters, dhw_kw, dhw_start)
+                await self._verdict(DHW, keys.scope, share, dhw_start, verdict, len(charges))
+                if brined:
+                    w_k = cop.learn_brine(charges, liters, dhw_kw)
+                    verdict = cop.judge_brine(charges, liters, dhw_kw, dhw_start)
+                    await self._verdict(BRINE, keys.scope, w_k, None, verdict, len(charges))
         brine = self._learnings.used(BRINE, keys.scope)
-        if heat_kw is None:
+        if not brined:
+            await self._put(
+                HEATING, keys.scope, None, heating_start, "learning", cop.NO_SOURCE, {}, 0
+            )
+        elif heat_kw is None:
             await self._put(
                 HEATING, keys.scope, None, heating_start, "learning", cop.NO_DRAW, {}, 0
             )
@@ -377,11 +402,12 @@ def _run(
     t: float,
     stretch: list[Span],
     water: tank.Series,
-    brine_in: tank.Series,
-    brine_out: tank.Series,
+    inlet: tank.Series,
+    returning: tank.Series | None,
     counter: tank.Series | None = None,
 ) -> cop.Run | None:
-    """A minute at a time over `stretch`: the water made, the brine in and its drop."""
+    """A minute at a time over `stretch`: the water made, the source (the brine in, or the
+    outdoor air), and the brine's drop where there is brine coming back."""
     made: list[float] = []
     source: list[float] = []
     drop = 0.0
@@ -389,11 +415,13 @@ def _run(
     for t0, t1 in stretch:
         at = t0 + SAMPLE_S / 2
         while at < t1:
-            w, b0, b1 = water.at(at), brine_in.at(at), brine_out.at(at)
-            if w is not None and b0 is not None and b1 is not None:
+            w, b0 = water.at(at), inlet.at(at)
+            b1 = returning.at(at) if returning is not None else None
+            if w is not None and b0 is not None and (returning is None or b1 is not None):
                 made.append(w)
                 source.append(b0)
-                drop += (b0 - b1) * SAMPLE_S
+                if b1 is not None:
+                    drop += (b0 - b1) * SAMPLE_S
                 run_s += SAMPLE_S
             at += SAMPLE_S
     if not made:

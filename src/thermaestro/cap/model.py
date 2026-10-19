@@ -192,6 +192,9 @@ class Rating(Model):
     """A compressor's heating at standard conditions."""
     cop_dhw: Annotated[float, Field(gt=0)] | None = None
     """A compressor's COP making hot water, over a standard tapping profile (EN 16147)."""
+    offset_step_k: Annotated[float, Field(gt=0)] | None = None
+    """A climate system's: how many degrees one step of its heating offset moves the supply,
+    at every outdoor temperature (protocol 0.6)."""
     basis: str
     """Where it is documented."""
 

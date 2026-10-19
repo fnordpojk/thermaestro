@@ -427,6 +427,12 @@ RATED: dict[str, tuple[tuple[tuple[float, float, float, float, float], ...], flo
 tapping profile XL)."""
 TANK_LITERS = {"copper": 178.0, "enamel": 178.0, "stainless": 176.0}
 """The F1245's built-in water heater, by its lining."""
+OFFSET_STEP = Rating(
+    offset_step_k=2.5,
+    basis="Nibe installer manuals (F1245, F1255, S1155, SMO 40, VVM 225, VVM 320, VVM S320),"
+    " curve offset: +2 steps raise the supply temperature by 5 °C at every outdoor temperature",
+)
+"""What one step of a climate system's heating offset does, as every Nibe manual states it."""
 
 
 def ratings(product: str) -> tuple[Rating | None, Rating | None]:

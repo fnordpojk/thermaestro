@@ -17,7 +17,9 @@ pump is that share.
   summed over the time the compressor ran. A ground-source pump's brine flow is seldom
   known; this measures it.
 - **Heating**, from hours the compressor heated the house: the brine's heat, once proved,
-  plus the draw, against the draw.
+  plus the draw, against the draw. A pump without brine has nothing that measures its
+  heat: its documented (or entered) share stands, and its hours, the outdoor air their
+  source, are kept for what its emitters give.
 
 Each is judged on data it wasn't fitted on, each charge or hour predicted from the ones
 before it only: hot water's share by the charge's COP, the brine by the charge's heat,
@@ -49,6 +51,9 @@ FEW = mark("%(seen)s of %(least)s charges or hours seen to learn from.")
 NO_DRAW = mark("Learned once the compressor's draw has proved itself.")
 NO_VOLUME = mark("Learned once the tank's volume is known: enter it under House.")
 NO_BRINE = mark("Learned once the brine's heat per kelvin has proved itself.")
+NO_SOURCE = mark(
+    "Nothing measures the heat of a pump without brine: its documented or entered figure is used."
+)
 
 
 def carnot(supply_c: float, source_c: float) -> float:
@@ -77,9 +82,9 @@ class Run:
     supply_c: float
     """The water made, on average while it ran."""
     source_c: float
-    """The brine in, on average while it ran."""
+    """The brine in, or the outdoor air for a pump without brine, on average while it ran."""
     brine_ks: float
-    """The brine's drop, summed over the time it ran: K·s."""
+    """The brine's drop, summed over the time it ran: K·s; 0 without brine."""
     rise_c: float = 0.0
     """A charge's rise in degrees of the tank, its standing loss added; 0 for an hour."""
     measured_kwh: float | None = None

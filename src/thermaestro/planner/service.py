@@ -1037,6 +1037,12 @@ class Planner:
                     await self._intents.report(intent.id, "met", "its charge has run")
                     self.memory.fired.pop(intent.id, None)
             elif intent.kind == "bath" and intent.state == "active":
+                by = next(
+                    (c.at for e in intent.expectations for c in e.contexts if c.at is not None),
+                    None,
+                )
+                if by is not None and now < by:
+                    continue  # open until its time, so the plan keeps the water hot for it
                 instance, path = split(intent.scope)
                 top = self._number(self._values.latest.get(Key(instance, f"{path}/temp.top")))
                 least = next(
