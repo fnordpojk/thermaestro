@@ -1,3 +1,4 @@
+import ssl
 import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -40,3 +41,17 @@ def test_a_key_others_can_read_is_replaced(tmp_path: Path) -> None:
     again = certificate.ensure(tmp_path)
     assert again.fingerprint != first.fingerprint
     assert stat.S_IMODE(again.key.stat().st_mode) == 0o600
+
+
+def test_renewed_while_running_for_new_connections(tmp_path: Path) -> None:
+    """A process may run longer than a month: the certificate due is made again and put in
+    the running server's context, without a restart."""
+    now = datetime.now(UTC)
+    first = certificate.ensure(tmp_path, now=now)
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(first.cert, first.key)
+    assert certificate.renew(tmp_path, context, first.fingerprint, now + timedelta(days=1)) is None
+    later = now + certificate.LIFETIME - timedelta(days=10)
+    renewed = certificate.renew(tmp_path, context, first.fingerprint, later)
+    assert renewed is not None
+    assert renewed.fingerprint != first.fingerprint

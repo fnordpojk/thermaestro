@@ -16,7 +16,7 @@ Whatever it can't plan yet stays with the rules, and so does everything when a p
 
 ## How it plans
 
-The horizon is 48 hours in 15-minute slots. Where tomorrow's prices aren't published yet, the price is estimated from the same quarter of the week over the last four weeks, and the plan firms up when they come.
+The horizon is 48 hours in 15-minute slots. Where tomorrow's prices aren't published yet, the price is estimated from the same quarter of the week, by the clock, over the last four weeks, and the plan firms up when they come.
 
 - **The house** follows its learned model hour by hour: the rooms pulled toward the heating water and the outdoor temperature, the building's mass behind them. The forecast's learned bias is taken off the outdoor temperature.
 - **The water** follows the heating offset, keeping a share of where it was an hour before: a slab in the floor takes hours. The pump gives the heat the water hands the house and what warms the radiators or floor themselves; a slab cooling heats the rooms with heat stored earlier.

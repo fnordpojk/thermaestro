@@ -218,3 +218,20 @@ async def test_the_pages_show_the_offer_and_the_profile(tmp_path: Path) -> None:
         assert "Ask for it" in learned
         nibepi = (await client.get("/setup/nibepi")).text
         assert "NibePi&#39;s hot-water profile" in nibepi or "NibePi's hot-water profile" in nibepi
+
+
+async def test_a_register_read_that_fails_leaves_the_others_read() -> None:
+    from types import SimpleNamespace as Stub
+
+    from thermaestro.migrate import review
+    from thermaestro.web.migrate_operations import MigrateOperations, Reading
+
+    async def read(id: str, register: int) -> review.Seen:
+        if register == 2:
+            raise RuntimeError("the link broke")
+        return review.Seen(1.0, 1)
+
+    reading = Reading([1, 2, 3])
+    await MigrateOperations._read_into(Stub(_read_register=read), "pump", reading)  # type: ignore[arg-type]
+    assert sorted(reading.seen) == [1, 2, 3]
+    assert reading.seen[2].why == "the read failed: the link broke"

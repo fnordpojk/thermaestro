@@ -562,3 +562,57 @@ async def test_one_failing_series_doesnt_stop_the_others(
     finally:
         following.cancel()
         await asyncio.gather(following, return_exceptions=True)
+
+
+async def test_estimates_keep_the_hour_across_a_clock_change(db: Database) -> None:
+    """The Monday after summer time ends is estimated from the same hours of the clock on
+    the Mondays before, not an hour off."""
+    series = Series(db)
+    series.describe("tibber", [SPOT])
+    ahead = date(2026, 10, 26)
+    for weeks in range(1, 5):
+        day = ahead - timedelta(days=7 * weeks)
+        for hour in range(24):
+            start = local(day.year, day.month, day.day, hour)
+            await series.put("tibber", quarters(SPOT.id, start, 4, float(hour)))
+    layers = {
+        "spot": PriceLayer(
+            role="energy.spot",
+            source="series",
+            plugin="tibber",
+            series=SPOT.id,
+            unit="SEK/kWh",
+            vat="excl",
+        ),
+        "tax": PriceLayer(role="tax.energy", source="fixed", value=0.4, unit="SEK/kWh", vat="incl"),
+    }
+    stack = await assemble(layers, None, series, ahead, STOCKHOLM)
+    found = await estimate(layers, None, series, stack, STOCKHOLM)
+    eight = next(s for s in found.slots if s.start == local(2026, 10, 26, 8))
+    assert eight.total == pytest.approx(8.4)
+
+
+async def test_a_plugin_started_again_can_correct_what_it_sent_before(db: Database) -> None:
+    """A plugin counts its revisions over when it starts again: a correction it sends then
+    isn't refused for a revision lower than the one kept."""
+    series = Series(db, Clock(local(2026, 10, 7, 10)))
+    start = local(2026, 10, 7)
+    await series.put("prices", quarters(SPOT.id, start, 1, 0.5, revision=3))
+    link = Flaky()
+
+    async def corrected(
+        series: str, start_: datetime, end: datetime, *, timeout: float
+    ) -> SeriesData:
+        return SeriesData(id=1, series=series, intervals=tuple(quarters(SPOT.id, start, 1, 0.6)))
+
+    link.series_get = corrected  # type: ignore[assignment]
+    following = asyncio.create_task(series.follow("prices", cast(Link, link), [SPOT]))
+    key = Key("prices", SPOT.id)
+    try:
+        async with asyncio.timeout(5):
+            first = start.timestamp()
+            while [i.value for i in await series.get(key, first, first + 900)] != [0.6]:
+                await asyncio.sleep(0.01)
+    finally:
+        following.cancel()
+        await asyncio.gather(following, return_exceptions=True)

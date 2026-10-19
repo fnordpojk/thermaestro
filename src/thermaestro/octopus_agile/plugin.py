@@ -5,8 +5,8 @@ Great Britain left the European day-ahead market in 2021, and no source gives it
 auction's price without an account. Agile is a household tariff that follows the
 wholesale price, so for a household on Agile its unit rate is the price to plan with.
 
-The current Agile product is found among Octopus' products (its code changes with each
-version, AGILE-24-10-01 when written); its unit rates come per half hour in pence per
+The current Agile product is found among Octopus' products each day (its code changes
+with each version, AGILE-24-10-01 when written); its unit rates come per half hour in pence per
 kWh, with and without VAT. Octopus publishes the next day's "between 4-8pm every day
 (usually nearer 4pm)", up to 23:00 the next evening. The unit rate is "capped at 100p/kWh
 (including VAT)". What the rate holds besides the wholesale price, network charges
@@ -74,6 +74,7 @@ class OctopusAgilePlugin(DayAheadPlugin):
         self.settings = settings
         self._url = url
         self.product: str | None = None
+        self._found_on: date | None = None
 
     # --- what Octopus supplies --------------------------------------------------------------
 
@@ -176,8 +177,10 @@ class OctopusAgilePlugin(DayAheadPlugin):
         return out
 
     async def _product(self, session: aiohttp.ClientSession) -> str:
-        """The current Agile product's code, found once."""
-        if self.product is None:
+        """The current Agile product's code, looked for again each day: Octopus brings
+        out a new one now and then."""
+        today = datetime.fromtimestamp(self._clock(), LONDON).date()
+        if self.product is None or self._found_on != today:
             products: list[Any] = []
             url: str | None = f"{self._url}/products/"
             params = {"brand": "OCTOPUS_ENERGY", "is_business": "false"}
@@ -198,6 +201,7 @@ class OctopusAgilePlugin(DayAheadPlugin):
             if not agile:
                 raise SourceError("Octopus offers no Agile tariff now")
             self.product = str(max(agile, key=lambda p: str(p.get("available_from")))["code"])
+            self._found_on = today
         return self.product
 
     async def _get(

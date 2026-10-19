@@ -63,6 +63,8 @@ class Instance:
     """The connection while the instance is up: what the write path sends through."""
     reshaped: asyncio.Event = field(default_factory=asyncio.Event)
     """Set when a partial description adds points: they are subscribed to then."""
+    following: set[asyncio.Future[None]] = field(default_factory=set)
+    """Series a partial description added, followed until the connection ends."""
 
 
 class PluginHost:
@@ -268,10 +270,11 @@ class PluginHost:
             await self._points(instance, link)
         finally:
             instance.link = None
-            if followed is not None:
-                followed.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Closed):
-                    await followed
+            for task in [followed, *instance.following]:
+                if task is not None:
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError, Closed):
+                        await task
 
     async def _points(self, instance: Instance, link: Link) -> None:
         """Subscribe to every described point, and again when a description adds some."""
@@ -314,10 +317,17 @@ class PluginHost:
                 else:
                     instance.active.pop(key, None)
         elif isinstance(message, Described) and instance.described is not None:
-            before = {p.path for p in instance.described.points}
-            instance.described = _merge(instance.described, message)
-            if {p.path for p in instance.described.points} - before:
+            before = instance.described
+            instance.described = _merge(before, message)
+            if {p.path for p in instance.described.points} - {p.path for p in before.points}:
                 instance.reshaped.set()
+            known = {s.id for s in before.series}
+            added = [s for s in instance.described.series if s.id not in known]
+            if added and instance.link is not None and self.series is not None:
+                follow = self.series.follow(instance.id, instance.link, added, adding=True)
+                task = asyncio.ensure_future(follow)
+                instance.following.add(task)
+                task.add_done_callback(instance.following.discard)
             task = asyncio.ensure_future(self._keep(instance.id, instance.described))
             self._keeping.add(task)
             task.add_done_callback(self._keeping.discard)
@@ -351,5 +361,6 @@ def _merge(old: Described, change: Described) -> Described:
             "points": merged(old.points, change.points, "path"),
             "levers": merged(old.levers, change.levers, "path"),
             "series": merged(old.series, change.series, "id"),
+            "provider": change.provider or old.provider,
         }
     )

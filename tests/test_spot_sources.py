@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import aiohttp
 import pytest
 from spotfake import CC_BY, PRIVATE, Fake, agile_rates, running
 
@@ -17,7 +18,7 @@ from thermaestro.cap import Link, pair, serve
 from thermaestro.cap.conformance import run
 from thermaestro.cap.messages import Health
 from thermaestro.cap.model import Interval
-from thermaestro.dayahead import DayAheadPlugin
+from thermaestro.dayahead import JITTER_S, DayAheadPlugin
 from thermaestro.ecb import Rates
 from thermaestro.energy_charts.plugin import EnergyChartsPlugin
 from thermaestro.nordic_sites.plugin import NordicSitesPlugin
@@ -332,3 +333,43 @@ def test_tokens_change_the_order() -> None:
     assert plugins("IT-SICI", entsoe=True) == [("entsoe", False), ("energy_charts", True)]
     assert plugins("NO1", entsoe=True)[-1] == ("entsoe", False)
     assert [c.token for c in choices("DE-LU", tibber=True)] == [True, False]
+
+
+async def test_octopus_agile_finds_a_new_product_the_next_day() -> None:
+    """Octopus brings out a new Agile product now and then: it is looked for again each day,
+    not only at the start."""
+    fake = Fake()
+    fake.products = [
+        {"code": "AGILE-24-10-01", "available_from": "2024-10-01", "available_to": None}
+    ]
+    fake.octopus["E-1R-AGILE-24-10-01-C"] = agile_rates(date(2026, 10, 8), 20.0)
+    fake.octopus["E-1R-AGILE-26-10-09-C"] = agile_rates(date(2026, 10, 9), 10.0)
+    clock = Clock(datetime(2026, 10, 8, 17, tzinfo=LONDON))
+    async with running(fake) as urls, aiohttp.ClientSession() as session:
+        p = OctopusAgilePlugin(OctopusAgile(region="C"), url=urls.octopus, **fast(clock))
+        await p.fetch(session, [date(2026, 10, 8)])
+        fake.products = [
+            {
+                "code": "AGILE-24-10-01",
+                "available_from": "2024-10-01",
+                "available_to": "2026-10-09",
+            },
+            {"code": "AGILE-26-10-09", "available_from": "2026-10-09", "available_to": None},
+        ]
+        clock.now = datetime(2026, 10, 9, 10, tzinfo=LONDON).timestamp()
+        await p.fetch(session, [date(2026, 10, 9)])
+    assert "octopus E-1R-AGILE-26-10-09-C" in fake.asked
+
+
+async def test_the_wait_for_prices_across_a_clock_change() -> None:
+    """The night summer time ends, the wait until the day's prices is an hour longer than
+    the clock's hands say."""
+    clock = Clock(datetime(2026, 10, 1, tzinfo=MADRID))
+    p = OmiePlugin(SpotZone(zone="ES"), **fast(clock))
+    publication = p.publication()
+    zone = ZoneInfo(publication.tz)
+    hour, minute = map(int, publication.daily_after.split(":"))
+    now = datetime(2026, 10, 25, 0, 30, tzinfo=zone)
+    clock.now = now.timestamp()
+    due = datetime(2026, 10, 25, hour, minute, tzinfo=zone).timestamp() - now.timestamp()
+    assert due <= p._wait() < due + JITTER_S

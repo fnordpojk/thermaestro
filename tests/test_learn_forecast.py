@@ -95,3 +95,27 @@ def test_shown_in_words() -> None:
         name=f.BIAS, scope="met:temperature", kind="model", value={"1": 0.1, "48": -1.24}
     )
     assert _shown(bias) == "1 h ahead: +0.1 K, 48 h ahead: -1.2 K"
+
+
+async def test_one_source_failing_stops_none_after_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = f.biases
+    calls: list[int] = []
+
+    def flaky(rows: list[f.Row]) -> dict[int, float]:
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("a bad row")
+        return real(rows)
+
+    monkeypatch.setattr(f, "biases", flaky)
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        await put(db, rows(bias=2.0, noise=0.3))
+        await put(db, rows(bias=0.0, noise=0.5, seed=2), source="smhi")
+        with pytest.raises(ExceptionGroup):
+            await f.Forecasts(db, learnings).run(NOW)
+        assert learnings.get(f.BIAS, "met:temperature") is None
+        assert learnings.get(f.BIAS, "smhi:temperature") is not None

@@ -7,10 +7,20 @@ from typing import Any
 
 import pytest
 from capfake import POINTS, FakePump
+from test_core_series import SPOT, local, quarters
 
 from thermaestro.cap import Message, Send, pair, serve
-from thermaestro.cap.messages import Described, DeviceEvent, Subscribe
+from thermaestro.cap.messages import (
+    Described,
+    DeviceEvent,
+    SeriesData,
+    SeriesGet,
+    SeriesSubscribe,
+    Subscribe,
+)
 from thermaestro.core import AuditLog, Key, PluginContext, PluginHost, State, Values
+from thermaestro.core.series import Key as SeriesKey
+from thermaestro.core.series import Series
 from thermaestro.store import Database, Plugin, SecretStore
 
 FAST = {"backoff_s": (0.01, 0.05), "timeout_s": 2.0}
@@ -290,5 +300,47 @@ async def test_a_point_described_later_is_followed(db: Database, tmp_path: Path)
     await h.start()
     try:
         await until(lambda: Key("pump", "hp1/outdoor.temp") in h.values.latest)
+    finally:
+        await h.stop()
+
+
+class LateSeries(FakePump):
+    """A plugin whose price series comes after it described itself."""
+
+    async def handle(self, request: Message, send: Send) -> None:
+        if isinstance(request, SeriesGet):
+            intervals = tuple(quarters(SPOT.id, local(2026, 10, 7), 4, 0.5))
+            await send(SeriesData(id=request.id, series=request.series, intervals=intervals))
+        elif isinstance(request, SeriesSubscribe):
+            await asyncio.Event().wait()
+        else:
+            await super().handle(request, send)
+
+    async def events(self, send: Send) -> None:
+        await super().events(send)
+        await asyncio.sleep(0.3)
+        await send(Described(complete=False, series=(SPOT,)))
+
+
+async def test_a_series_described_later_is_followed(db: Database, tmp_path: Path) -> None:
+    await db.put(Plugin(plugin="late"), "prices")
+    series = Series(db)
+    h = PluginHost(
+        db=db,
+        secrets=SecretStore(tmp_path / "secrets.json"),
+        values=Values(db),
+        audit=AuditLog(tmp_path / "audit"),
+        factories={"late": lambda c: LateSeries()},
+        series=series,
+        **FAST,  # type: ignore[arg-type]
+    )
+    await h.start()
+    try:
+        key = SeriesKey("prices", SPOT.id)
+        start = local(2026, 10, 7).timestamp()
+        async with asyncio.timeout(5):
+            while len(await series.get(key, start, start + 3600)) < 4:
+                await asyncio.sleep(0.02)
+        assert key in series.followed
     finally:
         await h.stop()

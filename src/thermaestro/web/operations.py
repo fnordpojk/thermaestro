@@ -538,6 +538,7 @@ class Services(
     async def set_location(self, caller: Caller, body: dict[str, Any]) -> Location:
         self._require(caller, "settings.write")
         location = _validated(Location, body, "location")
+        before = await self.db.get(Location)
         await self.db.put(location)
         self.zone = ZoneInfo(location.timezone)
         await self.audit.record(
@@ -547,6 +548,11 @@ class Services(
             details={"kind": "location"},
         )
         await self._weather_follows_location(caller, location)
+        if before is None or (before.latitude, before.longitude) != (
+            location.latitude,
+            location.longitude,
+        ):
+            await self._climate_follows_location(caller)
         return location
 
     async def plugins(self, caller: Caller) -> dict[str, Plugin]:

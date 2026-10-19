@@ -340,6 +340,7 @@ class HomeAssistantPlugin:
         self._send: Send | None = None
         self._described: set[str] | None = None
         """The points last described, once the core has asked."""
+        self._described_series: set[str] = set()
         self._sending: set[asyncio.Future[None]] = set()
 
     def _weather(self) -> list[str]:
@@ -528,15 +529,23 @@ class HomeAssistantPlugin:
 
     def _grown(self) -> None:
         """Points that came with their attributes after the plugin described itself (a
-        thermostat's demand or window, while Home Assistant was still starting) are
-        described then."""
+        thermostat's demand or window, while Home Assistant was still starting), and a
+        weather entity's forecast that came after it, are described then."""
         if self._described is None or self._send is None:
             return
-        new = [p for p in self._points() if p.path not in self._described]
-        if not new:
+        points = [p for p in self._points() if p.path not in self._described]
+        series = [s for s in self._series() if s.id not in self._described_series]
+        if not points and not series:
             return
-        self._described |= {p.path for p in new}
-        task = asyncio.ensure_future(self._send(Described(complete=False, points=tuple(new))))
+        self._described |= {p.path for p in points}
+        self._described_series |= {s.id for s in series}
+        grown = Described(
+            complete=False,
+            points=tuple(points),
+            series=tuple(series),
+            provider=_weather_provider() if series else None,
+        )
+        task = asyncio.ensure_future(self._send(grown))
         self._sending.add(task)
         task.add_done_callback(self._sending.discard)
 
@@ -560,6 +569,7 @@ class HomeAssistantPlugin:
             self._unconverted[entity] = entries
         self._waiting.discard(entity)
         self._maybe_ready()
+        self._grown()
 
     def _keep_forecast(self, entity: str, entries: list[dict[str, Any]]) -> None:
         now = time.time()
@@ -661,6 +671,7 @@ class HomeAssistantPlugin:
         points = self._points()
         self._described = {p.path for p in points}
         series = self._series()
+        self._described_series = {s.id for s in series}
         return Described(
             id=id,
             nodes=tuple(nodes),

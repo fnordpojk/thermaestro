@@ -6,6 +6,7 @@ A weather plugin forecasts for the location, so its settings are the location's
 coordinates, kept in step when the location changes.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
     from ..store import Database
     from .operations import Caller
+
+log = logging.getLogger(__name__)
 
 WEATHER_PLUGINS = ("met_norway", "smhi", "open_meteo")
 SHOWN = (
@@ -349,6 +352,17 @@ class WeatherOperations:
         )
         await self._put_climate(caller, climate)
         return climate
+
+    async def _climate_follows_location(self, caller: "Caller") -> None:
+        """A climate fetched for the old place is fetched again for the new one; one the
+        household entered stays as it is."""
+        climate = await self.db.get(Climate)
+        if climate is None or climate.source != "open_meteo":
+            return
+        try:
+            await self.fetch_climate(caller)
+        except AccountError as e:
+            log.warning("the climate couldn't be fetched for the new location: %s", e)
 
     async def _put_climate(self, caller: "Caller", climate: Climate) -> None:
         await self.db.put(climate)

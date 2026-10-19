@@ -296,3 +296,53 @@ async def test_a_day_not_seen_is_not_learned_as_one_without_use(tmp_path: Path) 
         week = learnings.get(DEMAND, "dev:hp1/dhw")
         assert week is not None
         assert week.n == len(days) - len(skipped)
+
+
+async def test_the_ceiling_leaves_out_the_periodic_increase_after_a_restart(
+    tmp_path: Path,
+) -> None:
+    """Just restarted, the tank's stop temperature isn't read again yet: the last one kept
+    tells the periodic increase from a charge."""
+    import json as json_
+    from types import SimpleNamespace
+    from typing import Any, cast
+
+    from thermaestro.core import AuditLog
+    from thermaestro.core.values import Key, Values
+    from thermaestro.learn import Learnings
+    from thermaestro.learn.hotwater import CEILING, HotWater, TankKeys
+    from thermaestro.store import Database
+
+    now = 2_000_000_000.0
+    keys = TankKeys(
+        "dev:hp1/dhw",
+        Key("dev", "hp1/dhw/temp.top"),
+        Key("dev", "hp1/dhw/temp.charge"),
+        Key("dev", "hp1/demand"),
+        Key("dev", "hp1/dhw/temp.stop"),
+    )
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+
+        def stock(t: Any) -> None:
+            t.execute(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES ('dev', 'hp1/dhw/temp.stop', ?, 50.0, NULL, 'good')",
+                (now - 7200,),
+            )
+            t.executemany(
+                "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, 'charge', ?, ?)",
+                [
+                    (keys.scope, now - 86_400, json_.dumps({"top1": 51.0})),
+                    (keys.scope, now - 3600, json_.dumps({"top1": 65.0})),  # periodic
+                ],
+            )
+
+        await db.run(stock)
+        host = cast(Any, SimpleNamespace(instances={}))
+        hot = HotWater(db, Values(db), host, learnings, lambda key: True)
+        await hot._ceiling(keys, now)
+        found = learnings.get(CEILING, keys.scope)
+        assert found is not None
+        assert found.value == 51.0

@@ -691,3 +691,50 @@ async def test_a_product_named_late_is_described(stocked: SimPump, gateway: Gate
         tank = renamed["hp1/dhw"].rating
         assert tank is not None
         assert tank.liters == 178.0
+
+
+async def test_a_register_no_longer_pushed_is_polled_again(
+    stocked: SimPump, gateway: Gateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pump's LOG.SET changed: what it stopped pushing is read again."""
+    monkeypatch.setattr(nibe_plugin, "PUSH_LAPSE_S", 1.0)
+    stocked.log_set = [40004]
+    stocked.log_set_interval_s = 0.1
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        poll_round_s=0.2,
+    )
+    async with running_plugin(p) as running:
+        await until(lambda: 40004 in running.pushed)
+        stocked.log_set = []
+        taken = len(stocked.taken_reads)
+        await until(lambda: 40004 in stocked.taken_reads[taken:])
+        assert 40004 not in running.pushed
+
+
+async def test_polling_that_fails_ends_the_connection(stocked: SimPump, gateway: Gateway) -> None:
+    """A poller that died would leave the values frozen behind a healthy plugin: its failure
+    ends the connection instead, and the core starts the plugin again."""
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.1,
+    )
+
+    async def broken(send: object) -> None:
+        raise RuntimeError("polling broke")
+
+    p._poll = broken  # type: ignore[method-assign]
+    sent: list[object] = []
+
+    async def send(message: object) -> None:
+        sent.append(message)
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    with pytest.raises(RuntimeError, match="polling broke"):
+        await asyncio.wait_for(p.events(send), 10)
+    assert loop.time() - started < 5  # at once, not when the wait was given up

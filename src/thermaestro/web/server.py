@@ -12,6 +12,7 @@ import logging
 import secrets
 import socket
 from collections.abc import Awaitable, Callable, Iterator
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import uvicorn
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 NOTIFY_DRAIN_S = 10.0
 """How long the way out waits for notifications still to be sent."""
 log = logging.getLogger(__name__)
+
+RENEW_CHECK_S = 86_400.0
 
 CSRF_KEY = "web.csrf-key"
 
@@ -161,11 +164,34 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         await asyncio.gather(sending, return_exceptions=True)
 
     core.shutdown_hooks.append(stop_notifying)
+    renewing = (
+        asyncio.create_task(_renew(core.layout.tls, listeners[-1][1], services))
+        if own is not None
+        else None
+    )
 
     async def stop() -> None:
+        if renewing is not None:
+            renewing.cancel()
+            await asyncio.gather(renewing, return_exceptions=True)
         await _stop(servers, tasks, listeners)
 
     return stop
+
+
+async def _renew(directory: Path, config: uvicorn.Config, services: Services) -> None:
+    """Every day while running, the certificate made again where it is due: a process
+    may run longer than the month before it expires."""
+    while True:
+        await asyncio.sleep(RENEW_CHECK_S)
+        try:
+            if config.ssl is not None and services.fingerprint is not None:
+                own = certificate.renew(directory, config.ssl, services.fingerprint)
+                if own is not None:
+                    services.fingerprint = own.fingerprint
+                    log.info("HTTPS certificate renewed, SHA-256 %s", own.fingerprint)
+        except Exception:
+            log.exception("the HTTPS certificate couldn't be renewed; trying again tomorrow")
 
 
 async def _stop(

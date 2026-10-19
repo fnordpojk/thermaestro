@@ -460,7 +460,10 @@ class MigrateOperations:
 
     async def _read_into(self, id: str, reading: Reading) -> None:
         for register in reading.registers:
-            reading.seen[register] = await self._read_register(id, register)
+            try:
+                reading.seen[register] = await self._read_register(id, register)
+            except Exception as e:  # noqa: BLE001 - shown with the register; the others go on
+                reading.seen[register] = review.Seen(None, None, f"the read failed: {e}")
 
     async def _read_register(self, id: str, register: int) -> review.Seen:
         instance = (self.host.instances if self.host else {}).get(id)

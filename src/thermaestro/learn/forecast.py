@@ -97,22 +97,27 @@ class Forecasts:
     async def run(self, now: float | None = None) -> None:
         now = clock.time() if now is None else now
         found = await self._rows(now - WINDOW_DAYS * 86_400)
+        failed: list[Exception] = []
         for source, rows in sorted(found.items()):
-            scope = f"{source}:{QUANTITY}"
-            bias = biases(rows)
-            if not bias:
-                continue
-            verdict = judge(rows, now - TEST_DAYS * 86_400)
-            state: State = "proved" if verdict.proved else "learning"
-            await self._put(
-                BIAS, scope, bias, "model", state, verdict.why, dict(verdict.args), rows
-            )
-            spread = spreads(rows, bias)
-            if spread:
-                args: dict[str, float | int | str] = {"days": WINDOW_DAYS}
-                await self._put(
-                    SPREAD, scope, spread, "observed", "learning", SPREAD_WHY, args, rows
-                )
+            try:
+                await self._learn(source, rows, now)
+            except Exception as e:  # noqa: BLE001 - raised below, once each source is done
+                failed.append(e)
+        if failed:
+            raise ExceptionGroup("forecast bias failed", failed)
+
+    async def _learn(self, source: str, rows: list[Row], now: float) -> None:
+        scope = f"{source}:{QUANTITY}"
+        bias = biases(rows)
+        if not bias:
+            return
+        verdict = judge(rows, now - TEST_DAYS * 86_400)
+        state: State = "proved" if verdict.proved else "learning"
+        await self._put(BIAS, scope, bias, "model", state, verdict.why, dict(verdict.args), rows)
+        spread = spreads(rows, bias)
+        if spread:
+            args: dict[str, float | int | str] = {"days": WINDOW_DAYS}
+            await self._put(SPREAD, scope, spread, "observed", "learning", SPREAD_WHY, args, rows)
 
     async def _put(
         self,

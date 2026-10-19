@@ -383,3 +383,36 @@ async def test_a_plugin_not_described_keeps_its_inputs_checks(
         instance.described = None  # the plugin restarting
         await learning.check_inputs()
         assert learning.usable(DEMAND)
+
+
+async def test_a_learner_failing_stops_none_after_it(tmp_path: Path) -> None:
+    host = cast(Any, SimpleNamespace(instances={}))
+    async with await Database.open(tmp_path / "t.db") as db:
+        learning = Learning(db, Values(db), host, AuditLog(tmp_path / "audit"))
+        await learning.load()
+        ran: list[str] = []
+
+        async def broken(now: float | None = None) -> None:
+            raise RuntimeError("a learner broke")
+
+        async def heard(now: float | None = None) -> None:
+            ran.append("forecasts")
+
+        learning.hot_water.run = broken  # type: ignore[method-assign]
+        learning.forecasts.run = heard  # type: ignore[method-assign]
+        with pytest.raises(ExceptionGroup) as failed:
+            await learning.learn()
+        assert ran == ["forecasts"]
+        assert [str(e) for e in failed.value.exceptions] == ["a learner broke"]
+
+
+def test_a_charges_loss_is_added_as_known_when_judged() -> None:
+    """The tank's standing loss during a charge is added when the COP is worked out, so a
+    loss learned after the charge was read still counts."""
+    from thermaestro.learn.efficiency import _unbody
+
+    body = {"run_s": 1800, "supply_c": 50.0, "source_c": 2.0, "brine_ks": 9000.0}
+    kept = _unbody(0.0, body | {"rise_c": 10.0, "loss_kh": 20.0}, 0.05)
+    assert kept.rise_c == 11.0
+    old = _unbody(0.0, body | {"rise_c": 10.5}, 0.05)  # kept before: its loss already in
+    assert old.rise_c == 10.5

@@ -113,14 +113,20 @@ class Emitters:
             instance, path = keys.scope.split(":", 1)
             unit = f"{instance}:{path.rpartition('/')[0]}"
             by_unit.setdefault(unit, []).append(keys)
+        failed: list[Exception] = []
         for unit, systems in by_unit.items():
             for keys in systems:
                 if not keys.rooms:
                     continue
-                if len(systems) > 1:
-                    await self._put(keys.scope, None, "learning", SEVERAL, {}, 0)
-                    continue
-                await self._learn(keys.scope, unit, now)
+                try:
+                    if len(systems) > 1:
+                        await self._put(keys.scope, None, "learning", SEVERAL, {}, 0)
+                    else:
+                        await self._learn(keys.scope, unit, now)
+                except Exception as e:  # noqa: BLE001 - raised below, once each is done
+                    failed.append(e)
+        if failed:
+            raise ExceptionGroup("emitters failed", failed)
 
     async def _learn(self, scope: str, unit: str, now: float) -> None:
         draw = self._learnings.used(DRAW, unit)

@@ -195,7 +195,6 @@ class Efficiency:
         rows: list[tuple[str, float, dict[str, Any]]] = [
             ("cop_day", start, {"day": day.isoformat()})
         ]
-        k = self._loss(keys.tank)
         for c in tank.charges(demand, until, top):
             if not start <= c.start < end:
                 continue
@@ -207,10 +206,10 @@ class Efficiency:
             run = _run(c.start, stretch, low, brine_in, brine_out, counter)
             if before is None or after is None or run is None:
                 continue
-            lost = k * ((before + after) / 2 - tank.ROOM_C) * (settled - c.start) / 3600
-            rows.append(
-                ("cop_charge", c.start, _body(run) | {"rise_c": round(after - before + lost, 3)})
-            )
+            # The loss is added when judged, as known then: one learned later still counts.
+            loss_kh = ((before + after) / 2 - tank.ROOM_C) * (settled - c.start) / 3600
+            extra = {"rise_c": round(after - before, 3), "loss_kh": round(loss_kh, 3)}
+            rows.append(("cop_charge", c.start, _body(run) | extra))
         if supply is not None:
             t = start
             while t < end:
@@ -231,8 +230,9 @@ class Efficiency:
     ) -> None:
         draw = self._learnings.used(DRAW, keys.scope)
         liters = self.volume(keys, rated)
+        k = self._loss(keys.tank)
         charges = [
-            _unbody(t, b)
+            _unbody(t, b, k)
             for t, b in await self._events(keys.scope, "cop_charge", now - DAYS * 86_400)
         ]
         hours = [
@@ -419,14 +419,17 @@ def _body(run: cop.Run) -> dict[str, Any]:
     }
 
 
-def _unbody(t: float, body: dict[str, Any]) -> cop.Run:
+def _unbody(t: float, body: dict[str, Any], loss: float = 0.0) -> cop.Run:
+    """A kept run; a charge's rise with the tank's standing loss (per hour, per degree
+    over the room) added as `loss` says. One kept before the loss was kept apart has it
+    in its rise already."""
     return cop.Run(
         t,
         body["run_s"],
         body["supply_c"],
         body["source_c"],
         body["brine_ks"],
-        body.get("rise_c", 0.0),
+        body.get("rise_c", 0.0) + loss * body.get("loss_kh", 0.0),
         body.get("kwh"),
     )
 

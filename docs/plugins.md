@@ -98,7 +98,7 @@ A **series** is a sequence of intervals over time. It is described by a `SeriesI
 - `resolution`, an ISO 8601 duration such as `PT15M`;
 - optionally the area, the daily publication time, the horizon, and for a forecast its quantity, time steps, weather models, update rate and percentiles.
 
-Each **interval** has a start, an end, a value, a unit, a status (`final`, `preliminary`, `estimate` or `forecast`) and a revision number. A changed value for the same interval is sent again with a higher revision.
+Each **interval** has a start, an end, a value, a unit, a status (`final`, `preliminary`, `estimate` or `forecast`) and a revision number. A changed value for the same interval is sent again with a higher revision. Revisions count within one connection: a plugin started again may count over, and what it sends then replaces what was kept.
 
 A plugin that offers series also describes its **provider**: who runs the source, what it covers, whether a key is needed, rate limits, and the license and attribution the user interface must show.
 
@@ -225,7 +225,7 @@ Once a plugin has said `hello`, the core:
 1. asks `describe`, waiting up to 60 seconds, since a plugin may first have to identify its device;
 2. subscribes to every described point, and keeps the values;
 3. for each series, asks `series.get` from a day back to two days ahead, then `series.subscribe`. A series that fails is logged and asked for again a minute later; the others go on;
-4. applies each partial `described` it receives, replacing changed items and dropping removed paths, and subscribes to the points it adds.
+4. applies each partial `described` it receives, replacing changed items and dropping removed paths, and subscribes to the points and series it adds.
 
 If a plugin fails or its connection ends, the core restarts the instance after a pause that grows from 1 second to at most 60, and records the failure in the audit log. A session that lasted a minute resets the count. One plugin failing never stops the others. The device events a plugin said were on end with its connection: started again, it tells what is still on.
 

@@ -39,7 +39,7 @@ price. A slot differs when the two are more than 1 % apart.
 import statistics
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
 from ..cap.model import Interval, SeriesInfo
@@ -430,17 +430,22 @@ ESTIMATE_WEEKS = 4
 
 
 async def estimate(
-    layers: Mapping[str, PriceLayer], vat: Vat | None, series: Series, stack: Stack
+    layers: Mapping[str, PriceLayer],
+    vat: Vat | None,
+    series: Series,
+    stack: Stack,
+    zone: tzinfo = UTC,
 ) -> Stack:
     """The stack with what isn't published yet estimated: a series layer with no price in a
-    slot gets the median of its prices in the same slot of the week over the last four
-    weeks, VAT added as it would be. The slots are marked as estimated. A total the
-    stack refused, or a layer that isn't a series of its own, isn't estimated."""
+    slot gets the median of its prices in the same slot of the week, by the house's clock
+    (`zone`), over the last four weeks, VAT added as it would be. The slots are marked as
+    estimated. A total the stack refused, or a layer that isn't a series of its own, isn't
+    estimated."""
     if stack.problems or not stack.slots:
         return stack
-    week = timedelta(days=7)
-    first = (stack.slots[0].start - ESTIMATE_WEEKS * week).timestamp()
-    last = (stack.slots[-1].end - week).timestamp()
+    week, hour = timedelta(days=7), timedelta(hours=1)  # an hour more for a clock change
+    first = (stack.slots[0].start - ESTIMATE_WEEKS * week - hour).timestamp()
+    last = (stack.slots[-1].end - week + hour).timestamp()
     held: dict[str, list[list[Interval]]] = {}
     split = splits(layers, series)
     for id, layer in layers.items():
@@ -459,9 +464,10 @@ async def estimate(
                 parts.append(part)
                 continue
             seen = []
+            here = slot.start.astimezone(zone)
             for k in range(1, ESTIMATE_WEEKS + 1):
                 for intervals in held[part.layer]:
-                    found = _at(intervals, slot.start - k * week)
+                    found = _at(intervals, here - k * week)  # the same time of the clock
                     if found is not None:
                         seen.append(found)
                         break

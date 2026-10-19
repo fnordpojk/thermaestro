@@ -129,6 +129,7 @@ def _table(forecast: list[dict[str, Any]], zone: Any) -> list[tuple[datetime, di
     if not starts:
         return []
     first = max(min(starts), datetime.now(zone).replace(minute=0, second=0, microsecond=0))
+    first = first.astimezone(UTC)  # steps of real hours, also the night the clock changes
     rows = []
     for n in range(0, 48, STEP_H):
         t = first + timedelta(hours=n)

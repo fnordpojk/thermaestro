@@ -120,9 +120,11 @@ class DayAheadPlugin(SeriesPlugin):
         jitter = secrets.randbelow(JITTER_S)
         if self._holds_tomorrow():
             target = due + timedelta(days=1) if now >= due else due
-            return max(self._poll, (target - now).total_seconds() + jitter)
+            # By the timestamps: two times of one zone subtract as the clock's hands do,
+            # an hour off across a change of the clock.
+            return max(self._poll, target.timestamp() - now.timestamp() + jitter)
         if now < due:
-            return (due - now).total_seconds() + jitter
+            return due.timestamp() - now.timestamp() + jitter
         return self._poll
 
     def market_end(self, today: date) -> datetime:

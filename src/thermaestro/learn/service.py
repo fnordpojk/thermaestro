@@ -139,15 +139,25 @@ class Learning:
     async def learn(self) -> None:
         """What the inputs allow: the tanks', the houses', the compressors' and the pools'
         days not yet read, the COP and the emitters' output from them, and how far the
-        forecasts miss."""
+        forecasts miss. One learner failing stops none after it: the failures are raised
+        together once all have run."""
+        failed: list[Exception] = []
         async with self._lock:
-            await self.hot_water.run()
-            await self.heating.run()
-            await self.energy.run()
-            await self.efficiency.run()
-            await self.emitters.run()
-            await self.pools.run()
-            await self.forecasts.run()
+            for learner in (
+                self.hot_water,
+                self.heating,
+                self.energy,
+                self.efficiency,
+                self.emitters,
+                self.pools,
+                self.forecasts,
+            ):
+                try:
+                    await learner.run()
+                except Exception as e:  # noqa: BLE001 - raised below, with the others'
+                    failed.append(e)
+        if failed:
+            raise ExceptionGroup("learning failed", failed)
 
     def responses(self, systems: frozenset[str]) -> dict[str, float]:
         """How long each climate system's heat takes to show, where learned and proved

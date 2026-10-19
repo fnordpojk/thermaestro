@@ -93,6 +93,9 @@ IDENTIFY_TRIES = 3
 one the pump hasn't got: a read lost on the bus mustn't shape the whole session (a
 climate system left out, or the word order of 32-bit values unknown)."""
 PUSHED_FRESHNESS_S = 30.0
+PUSH_LAPSE_S = 120.0
+"""A register the pump hasn't pushed for this long is polled again: its LOG.SET may
+have changed."""
 POLLED_FRESHNESS_S = 900.0
 STALE_CHECK_S = 15.0
 """How often a subscription looks again when nothing arrives: so values the bus stopped
@@ -243,6 +246,10 @@ class NibePlugin:
             self._identified.set_result(None)
             poller = asyncio.create_task(self._poll(send))
             while True:
+                if poller.done():
+                    # Polling stopped: the connection ends, and the core starts this again.
+                    poller.result()
+                    raise RuntimeError("polling the pump stopped")
                 await send(self._health())
                 if (event := self._brine_warning()) is not None:
                     await send(event)
@@ -255,8 +262,8 @@ class NibePlugin:
             stop()
             if poller is not None:
                 poller.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await poller
+                # A poller that failed has said so above: the connection is closed anyway.
+                await asyncio.gather(poller, return_exceptions=True)
             await self._transport.close()
 
     async def handle(self, request: Message, send: Send) -> None:
@@ -642,6 +649,7 @@ class NibePlugin:
         wanted = sorted({p.register for p in layout.points.values()} | watched)
         while True:
             started = clock.monotonic()
+            self._lapsed(started)
             polled = [r for r in wanted if r not in self.pushed and r not in self.absent]
             if not polled:
                 await asyncio.sleep(1.0)
@@ -650,6 +658,14 @@ class NibePlugin:
                     await self._read(register)
                     await self._drop_if_absent(register, send)
             await asyncio.sleep(max(0.0, self._poll_round - (clock.monotonic() - started)))
+
+    def _lapsed(self, now: float) -> None:
+        """Registers the pump stopped pushing are polled again."""
+        for register in sorted(self.pushed):
+            sample = self._samples.get(register)
+            if sample is None or now - sample.t > PUSH_LAPSE_S:
+                self.pushed.discard(register)
+                log.info("register %d isn't pushed any more: polled again", register)
 
     async def _drop_if_absent(self, register: int, send: Send) -> None:
         """A point whose register the pump refuses (an S-series pump without the accessory),

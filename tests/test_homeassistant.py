@@ -378,3 +378,27 @@ async def test_a_thermostats_points_come_with_its_attributes(tmp_path: Path) -> 
         added = next(e for e in events if isinstance(e, Described))
         assert {pt.path for pt in added.points} == {demand, window}
         assert not added.complete
+
+
+async def test_a_forecast_that_comes_late_is_described_then(tmp_path: Path) -> None:
+    """Home Assistant may send a weather entity's forecast only after the plugin described
+    itself: its series are described when it comes."""
+    fake = stocked()
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+    with_weather(fake, start)
+    entries = fake.forecasts[WEATHER]
+    fake.forecasts[WEATHER] = []
+    events: list[object] = []
+    entities = (*ENTITIES, WEATHER)
+    store = await secrets(tmp_path)
+    async with running(fake) as url, plugin(url, store, entities, events) as (_, link):
+        described = await link.describe(timeout=5)
+        assert described.series == ()
+        await fake.new_forecast(WEATHER, entries)
+        async with asyncio.timeout(5):
+            while not any(isinstance(e, Described) and e.series for e in events):
+                await asyncio.sleep(0.02)
+    added = next(e for e in events if isinstance(e, Described) and e.series)
+    assert f"{WEATHER}/temperature" in {s.id for s in added.series}
+    assert added.provider is not None
+    assert added.provider.name == "Home Assistant"

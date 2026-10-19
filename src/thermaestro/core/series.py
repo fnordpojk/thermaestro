@@ -33,6 +33,8 @@ RETRY_S = 60.0
 """How long a series that failed waits before it is fetched and followed again."""
 
 Freshness = Literal["fresh", "stale", "empty"]
+Seen = dict[tuple[str, float], int]
+"""The revision a plugin last sent for each interval in its connection now."""
 Row = tuple[float, float, float, str, str, str, int, float | None, str | None, str | None]
 
 
@@ -61,9 +63,11 @@ class Series:
 
     # --- keeping intervals ---------------------------------------------------------------
 
-    async def put(self, instance: str, intervals: Iterable[Interval]) -> int:
+    async def put(
+        self, instance: str, intervals: Iterable[Interval], *, replace: bool = False
+    ) -> int:
         """Keep intervals; an interval already held is replaced by a revision that isn't
-        older. Returns how many were kept."""
+        older, or with `replace` by whatever comes. Returns how many were kept."""
         rows = [
             (
                 instance,
@@ -84,15 +88,17 @@ class Series:
         if not rows:
             return 0
 
+        newer = "" if replace else " WHERE excluded.revision >= intervals.revision"
+
         def write(t: Transaction) -> None:
             t.executemany(
-                "INSERT INTO intervals (instance, series, start, end, value, unit, vat, status,"
+                "INSERT INTO intervals (instance, series, start, end, value, unit, vat, status,"  # noqa: S608 - a fixed clause, not input
                 " revision, published, source, why) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 " ON CONFLICT (instance, series, start) DO UPDATE SET end = excluded.end,"
                 " value = excluded.value, unit = excluded.unit, vat = excluded.vat,"
                 " status = excluded.status, revision = excluded.revision,"
                 " published = excluded.published, source = excluded.source, why = excluded.why"
-                " WHERE excluded.revision >= intervals.revision",
+                + newer,
                 rows,
             )
 
@@ -140,17 +146,25 @@ class Series:
             else:
                 current.info = info
 
-    async def follow(self, instance: str, link: Link, infos: Iterable[SeriesInfo]) -> None:
+    async def follow(
+        self, instance: str, link: Link, infos: Iterable[SeriesInfo], *, adding: bool = False
+    ) -> None:
         """Fetch each series, then keep it current, until canceled or the link closes. A
         series that fails says why, and is fetched and followed again a minute later;
-        the others go on."""
+        the others go on. `adding`: series offered beside those followed already, rather
+        than all the instance offers."""
         infos = list(infos)
-        self.describe(instance, infos)
+        if adding:
+            for info in infos:
+                self.followed.setdefault(Key(instance, info.id), Followed(info))
+        else:
+            self.describe(instance, infos)
         if not infos:
             return
+        seen: Seen = {}
         for info in infos:
-            await self._fetch(instance, link, info)
-        tasks = [asyncio.create_task(self._updates(instance, link, info)) for info in infos]
+            await self._fetch(instance, link, info, seen)
+        tasks = [asyncio.create_task(self._updates(instance, link, info, seen)) for info in infos]
         try:
             await asyncio.gather(*tasks)
         finally:
@@ -158,17 +172,29 @@ class Series:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _fetch(self, instance: str, link: Link, info: SeriesInfo) -> None:
+    async def _keep(self, instance: str, intervals: Iterable[Interval], seen: Seen) -> None:
+        """What the plugin sends in this connection. Its revisions count against what it
+        sent before in it, not against what was kept from an earlier one: a plugin started
+        again counts over, and a correction it sends then would be refused."""
+        fresh = []
+        for interval in intervals:
+            at = (interval.series, interval.start.timestamp())
+            if interval.revision >= seen.get(at, interval.revision):
+                seen[at] = interval.revision
+                fresh.append(interval)
+        await self.put(instance, fresh, replace=True)
+
+    async def _fetch(self, instance: str, link: Link, info: SeriesInfo, seen: Seen) -> None:
         now = datetime.fromtimestamp(self._clock(), UTC)
         try:
             data = await link.series_get(info.id, now - BACK, now + AHEAD, timeout=60)
-            await self.put(instance, data.intervals)
+            await self._keep(instance, data.intervals, seen)
         except Closed:
             raise
         except Exception as e:  # noqa: BLE001 - logged; one series failing stops no other
             self._failed(Key(instance, info.id), e)
 
-    async def _updates(self, instance: str, link: Link, info: SeriesInfo) -> None:
+    async def _updates(self, instance: str, link: Link, info: SeriesInfo, seen: Seen) -> None:
         with contextlib.suppress(Closed):
             while True:
                 try:
@@ -178,13 +204,13 @@ class Series:
                                 update = await subscription.next(timeout=3600)
                             except TimeoutError:
                                 continue  # nothing new for an hour; staleness tells
-                            await self.put(instance, update.intervals)
+                            await self._keep(instance, update.intervals, seen)
                 except Closed:
                     raise
                 except Exception as e:  # noqa: BLE001 - logged, and followed again
                     self._failed(Key(instance, info.id), e)
                 await asyncio.sleep(RETRY_S)
-                await self._fetch(instance, link, info)
+                await self._fetch(instance, link, info, seen)
 
     def _failed(self, key: Key, error: Exception) -> None:
         followed = self.followed.get(key)

@@ -6,8 +6,9 @@ import json
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -242,3 +243,48 @@ async def test_the_climate_needs_open_meteo_to_be_fetched(site: Site) -> None:
         refused = await call(client, "POST", "/api/v1/weather/climate/fetch")
     assert refused.status_code == 400
     assert "add Open-Meteo" in refused.json()["error"]
+
+
+async def test_a_fetched_climate_follows_the_location(site: Site) -> None:
+    """The climate fetched for the old place is fetched again for the new one."""
+    async with logged_in(site) as client:
+        fake = FakeOpenMeteo(datetime.now(UTC))
+        async with running(fake) as url:
+            site.services.archive_url = f"{url}/v1/archive"
+            await call(client, "POST", "/api/v1/weather/climate/fetch")
+            where = {"latitude": 57.7, "longitude": 11.97, "timezone": "Europe/Stockholm"}
+            moved = await call(client, "PUT", "/api/v1/settings/location", json=where)
+            assert moved.status_code == 200, moved.text
+    asked = fake.requests[-1].query
+    assert (asked["latitude"], asked["longitude"]) == ("57.7", "11.97")
+
+
+def test_the_weather_table_steps_three_hours_across_a_clock_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from itertools import pairwise
+    from zoneinfo import ZoneInfo
+
+    from thermaestro.web import weather_pages
+
+    stockholm = ZoneInfo("Europe/Stockholm")
+
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz: Any = None) -> "Frozen":
+            at = datetime(2026, 10, 24, 23, tzinfo=stockholm).astimezone(tz)
+            return cls(*at.timetuple()[:6], tzinfo=at.tzinfo)
+
+    monkeypatch.setattr(weather_pages, "datetime", Frozen)
+    start = datetime(2026, 10, 24, 18, tzinfo=UTC)
+    values = [
+        {
+            "start": (start + timedelta(hours=n)).isoformat(),
+            "end": (start + timedelta(hours=n + 1)).isoformat(),
+            "value": float(n),
+        }
+        for n in range(60)
+    ]
+    rows = weather_pages._table([{"quantity": "temperature", "values": values}], stockholm)
+    # By the timestamps: two times of one zone subtract as the clock's hands do.
+    assert {b[0].timestamp() - a[0].timestamp() for a, b in pairwise(rows)} == {3 * 3600.0}

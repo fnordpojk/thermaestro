@@ -265,8 +265,7 @@ class HotWater:
         )
 
     async def _ceiling(self, keys: TankKeys, now: float) -> None:
-        stop = self._values.latest.get(keys.stop)
-        stop_c = stop.value if stop is not None and isinstance(stop.value, int | float) else None
+        stop_c = await self._stop(keys.stop)
         found = await self._events(keys.scope, "charge", now - KEEP_S)
         ends = [
             b["top1"]
@@ -290,6 +289,17 @@ class HotWater:
                 since=before.since if before and before.since else found[0][0],
             )
         )
+
+    async def _stop(self, key: Key) -> float | None:
+        """The tank's stop temperature: as read now, or, just after a restart before it is
+        read again, the last one kept."""
+        stop = self._values.latest.get(key)
+        if stop is not None and isinstance(stop.value, int | float):
+            return float(stop.value)
+        kept = (await self._values.last([key])).get(key)
+        if kept is not None and kept.quality == "good" and kept.value is not None:
+            return kept.value
+        return None
 
     async def _note(self, scope: str, what: str) -> None:
         """Why the tank isn't learned, where nothing has been."""

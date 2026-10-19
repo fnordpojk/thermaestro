@@ -946,7 +946,7 @@ class Planner:
         rules, holiday = await household(self._db, zone)
         stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
         if estimated:
-            stack = await estimate(layers, vat, self._series, stack)
+            stack = await estimate(layers, vat, self._series, stack, zone)
         return [Price(s.start, s.total, s.estimated) for s in stack.slots if s.total is not None]
 
     async def _day_prices(self, day: date, zone: tzinfo) -> list[Price]:

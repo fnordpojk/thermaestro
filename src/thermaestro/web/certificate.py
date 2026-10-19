@@ -3,12 +3,14 @@
 A certificate for a LAN address can't come from a public authority, so each
 installation makes its own. It encrypts, but the browser warns about it; the web UI
 shows its SHA-256 fingerprint so a careful user can compare it with the browser's. It is
-made again a month before it expires, which changes the fingerprint.
+made again a month before it expires, which changes the fingerprint: checked at the
+start and every day while running.
 """
 
 import ipaddress
 import logging
 import socket
+import ssl
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -63,6 +65,18 @@ def ensure(directory: Path, now: datetime | None = None) -> Certificate:
     write_private(cert_path, certificate.public_bytes(serialization.Encoding.PEM))
     log.info("made a new HTTPS certificate, SHA-256 %s", fingerprint(certificate))
     return Certificate(cert_path, key_path, fingerprint(certificate))
+
+
+def renew(
+    directory: Path, context: ssl.SSLContext, current: str, now: datetime | None = None
+) -> Certificate | None:
+    """The certificate made again where it is due, and put in the running server's
+    `context` for the connections from then on; None where it isn't due."""
+    own = ensure(directory, now)
+    if own.fingerprint == current:
+        return None
+    context.load_cert_chain(own.cert, own.key)
+    return own
 
 
 def _make(now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
