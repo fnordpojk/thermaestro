@@ -162,3 +162,21 @@ async def test_a_clock_set_right_is_no_time_passed(tmp_path: Path) -> None:
             source.mono += 60
             await watch.look(later_by(situation([]), 2 * 3600))
         assert await keys(db) == []
+
+
+async def test_a_room_still_below_its_band_stays_told_after_a_restart(tmp_path: Path) -> None:
+    """Restarted with no timers kept (as the first start with them is): a comfort event
+    still open stays open while its room is still below its band, rather than cleared and
+    told again half an hour later."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        watch = watching(db)
+        await watch.look(situation([band()], temp=21.25))
+        reach = timedelta(hours=8)
+        cold = later_by(situation([band()], temp=20.0), reach.total_seconds())
+        await watch.look(cold)
+        await watch.look(later_by(cold, MISSED_S))
+        assert await keys(db) == [f"comfort.missed:{ROOM}"]
+        again = watching(db)
+        await again.resume()
+        await again.look(later_by(cold, MISSED_S + 600))
+        assert await keys(db) == [f"comfort.missed:{ROOM}"]

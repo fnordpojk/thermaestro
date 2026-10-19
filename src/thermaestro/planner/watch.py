@@ -13,6 +13,7 @@ What an event says holds still while its condition lasts (the floor, not the tem
 of the minute), so it is told once, and again only when it really changes.
 """
 
+import math
 from collections.abc import Mapping
 
 from .. import clock
@@ -56,9 +57,9 @@ class Watch:
         self._rose: dict[str, float] = {}
         """When each room's band last rose, or was first seen."""
         self._below: dict[str, float] = {}
+        """Since when each room has been below its band."""
         self._last: tuple[float, float] | None = None
         """The wall clock and the steady one at the last look."""
-        """Since when each room has been below its band."""
 
     def state(self) -> dict[str, dict[str, float | None]]:
         """The timers, to keep with the planner's memory."""
@@ -85,6 +86,9 @@ class Watch:
             self._since.setdefault(event.key, event.raised - MISSING_S)
         for event in await self._events.open("comfort.missed:"):
             self._below.setdefault(event.scope, event.raised - MISSED_S)
+            # Told, so its heat had had time to show: its band isn't taken as risen now.
+            self._rose.setdefault(event.scope, 0.0)
+            self._low.setdefault(event.scope, math.inf)
 
     async def look(self, sit: Situation) -> None:
         now = sit.now.timestamp()
