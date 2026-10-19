@@ -15,7 +15,7 @@ import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from .. import clock
@@ -163,10 +163,7 @@ class Efficiency:
         first = await self._first_raw(keys.compressor)
         if first is None:
             return
-        done = await self._last_day(keys.scope)
-        day = (done + timedelta(days=1)) if done else datetime.fromtimestamp(first, zone).date()
-        if tank.bounds(day, zone)[0] < first:
-            day += timedelta(days=1)
+        day = tank.first_day(first, await self._last_day(keys.scope), zone)
         while tank.bounds(day, zone)[1] <= now - 3600:
             await self._read(keys, day, zone)
             day += timedelta(days=1)

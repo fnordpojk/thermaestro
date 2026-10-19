@@ -16,7 +16,7 @@ import json
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from functools import partial
 from typing import Any
 
@@ -31,14 +31,13 @@ from .inputs import intersect, seconds, spans
 from .model import Learned, State, mark
 from .pump import _solve
 from .store import Learnings
-from .tank import bounds
+from .tank import bounds, first_day
 from .validate import held_out
 
 log = logging.getLogger(__name__)
 
 POOL = "pool.model"
 DAYS = 28
-RAW_S = 13 * 86_400.0
 LEAST = 48
 """Hour pairs a fit needs."""
 HEATED_LEAST = 6
@@ -207,9 +206,10 @@ class Pools:
         if outdoor is None:
             await self._note(keys.scope, WHAT["outdoor"])
             return
-        done = await self._last_day(keys.scope)
-        earliest = datetime.fromtimestamp(now - RAW_S, zone).date()
-        day = max(done + timedelta(days=1), earliest) if done else earliest
+        first = await self._first_raw(keys.temp)
+        if first is None:
+            return
+        day = first_day(first, await self._last_day(keys.scope), zone)
         read = False
         while bounds(day, zone)[1] <= now - 3600:
             hours = await self._day(keys, outdoor, keys.compressor, day, zone)
@@ -298,6 +298,16 @@ class Pools:
                 args={"what": what},
             )
         )
+
+    async def _first_raw(self, key: Key) -> float | None:
+        def read(t: Any) -> float | None:
+            row = t.execute(
+                "SELECT MIN(t) FROM history WHERE instance = ? AND point = ?",
+                (key.instance, key.point),
+            ).fetchone()
+            return None if row is None else row[0]
+
+        return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
         def read(t: Transaction) -> str | None:

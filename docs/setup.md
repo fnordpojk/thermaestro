@@ -239,7 +239,7 @@ Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Al
 - a **draw** is a fall faster than that, by more than the tank's own quiet noise. A draw that makes the pump start a charge counts up to the charge. Its size is in degrees of the tank: how far it takes the mean of the two temperatures down;
 - the **week**: what is drawn in each hour of the week, learned day by day. A public holiday counts as the weekday chosen under House. Where the location's climate is known (Weather), a draw is compared across seasons at the year's mean cold-water temperature, from the water source answered under House.
 
-Days already recorded are read at once, up to two weeks back. The tank is learned only once its top, its charge sensor and the pump's demand are usable.
+Days already recorded are read at once, as far back as the raw history goes (two weeks unless set otherwise). A day whose readings stop for more than an hour, Thermaestro or the pump's connection down, is passed over rather than learned as a day with nothing drawn; the compressor's days likewise. The tank is learned only once its top, its charge sensor and the pump's demand are usable.
 
 **The house**, per climate system, is learned too, once a day is over, from its rooms with a sensor, an outdoor temperature (the outdoor reference, else the pump's own sensor), the system's water (the mean of its supply and return) and the sun and wind as forecast. Hours with a fireplace on, a room aired (a window open, or a fall of a degree within ten minutes) or the pump's heating stop holding heating off are left out. A house is two parts: the air in its rooms, which follows quickly, and its walls and floors, which change slowly. What comes out:
 

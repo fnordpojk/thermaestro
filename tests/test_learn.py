@@ -349,3 +349,37 @@ async def test_the_inputs_are_found_judged_and_kept(
         again = Learning(db, values, host, audit)
         await again.load()
         assert {(k.point, c.verdict) for k, c in again.checks.items()} == found
+
+
+async def test_a_plugin_not_described_keeps_its_inputs_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Starting, or its device unreachable: what was found of it stands until it can be
+    judged again."""
+    audit = AuditLog(tmp_path / "audit")
+    node = SimpleNamespace
+    described = SimpleNamespace(
+        nodes=[node(path="hp1", kind="unit")], points=[node(path="hp1/demand")]
+    )
+    instance = SimpleNamespace(described=described)
+    host = cast(Any, SimpleNamespace(instances={"dev": instance}))
+    async with await Database.open(tmp_path / "t.db") as db:
+        values = Values(db)
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (DEMAND.instance, DEMAND.point, x.t, x.value, x.text, x.quality)
+                    for x in every(300, hourly_pattern, since=END - 3 * DAY)
+                ],
+            )
+        )
+        learning = Learning(db, values, host, audit)
+        await learning.load()
+        monkeypatch.setattr("thermaestro.clock.time", lambda: END)
+        await learning.check_inputs()
+        assert learning.usable(DEMAND)
+        instance.described = None  # the plugin restarting
+        await learning.check_inputs()
+        assert learning.usable(DEMAND)

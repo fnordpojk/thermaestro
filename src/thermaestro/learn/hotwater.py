@@ -122,10 +122,7 @@ class HotWater:
         first = await self._first_raw(keys.top)
         if first is None:
             return
-        done = await self._last_day(keys.scope)
-        day = (done + timedelta(days=1)) if done else datetime.fromtimestamp(first, zone).date()
-        if tank.bounds(day, zone)[0] < first:
-            day += timedelta(days=1)  # the first day recorded only in part
+        day = tank.first_day(first, await self._last_day(keys.scope), zone)
         end = now - 3600
         while tank.bounds(day, zone)[1] <= end:
             await self._read(keys, day, calendar, season)
@@ -140,6 +137,12 @@ class HotWater:
         since = end - LOSS_DAYS * 86_400
         top = tank.Series(await self._values.history(keys.top, since, end + 3600))
         low = tank.Series(await self._values.history(keys.low, since, end + 3600))
+        if not (tank.covers(top.samples, start, end) and tank.covers(low.samples, start, end)):
+            # Thermaestro or the pump's connection was down: what was drawn isn't known,
+            # which isn't the same as nothing drawn. Marked read, learned from nothing.
+            gap = {"day": day.isoformat(), "skipped": "gap"}
+            await self._db.run(lambda t: _events(t, keys.scope, [("day", start, gap)]))
+            return
         demand = await self._values.history(keys.demand, since - 3600, end + 3600)
         found = tank.charges(demand, end + 3600, top)
         hours = tank.steps(top, low, found, since, end, step=3600)

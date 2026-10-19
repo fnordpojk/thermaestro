@@ -61,6 +61,7 @@ EXPECT: dict[tuple[str, str], Expect] = {
     ("dhw_tank", "temp.top"): Expect(relation=warms_in_charges),
     ("dhw_tank", "temp.charge"): Expect(relation=warms_in_charges),
     ("climate_system", "supply.temp"): Expect(relation=warmer_when_heating),
+    ("climate_system", "supply.temp.target"): Expect(),
     ("climate_system", "return.temp"): Expect(),
     ("addition", "power"): Expect(moves=False, relation=runs_and_stops),
     ("brine_circuit", "brine.in.temp"): Expect(),
@@ -168,6 +169,15 @@ class Learning:
             for key, expect, context in self._inputs(meters):
                 judged = await judge(key, expect, recorded, context, now)
                 found.append(_kept_proof(judged, self.checks.get(key)))
+            # A plugin not described yet (starting, or its device unreachable) can't be
+            # judged now: what was found of it stands until it can.
+            unseen = {
+                id for id, instance in self._host.instances.items() if instance.described is None
+            }
+            judged_now = {Key(c.instance, c.point) for c in found}
+            found += [
+                c for k, c in self.checks.items() if k.instance in unseen and k not in judged_now
+            ]
             await self._db.run(lambda t: _keep(t, found))
             self.checks = {Key(c.instance, c.point): c for c in found}
             return found

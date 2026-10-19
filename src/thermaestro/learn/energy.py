@@ -17,7 +17,7 @@ import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from functools import partial
 from typing import Any
 
@@ -150,10 +150,7 @@ class Energy:
         first = await self._first_raw(keys.compressor)
         if first is None:
             return
-        done = await self._last_day(keys.scope)
-        day = (done + timedelta(days=1)) if done else datetime.fromtimestamp(first, zone).date()
-        if tank.bounds(day, zone)[0] < first:
-            day += timedelta(days=1)  # the first day recorded only in part
+        day = tank.first_day(first, await self._last_day(keys.scope), zone)
         read = False
         while tank.bounds(day, zone)[1] <= now - 3600:
             await self._read(keys, keys.compressor, house_, meter, day, zone)
@@ -173,6 +170,14 @@ class Energy:
     ) -> None:
         start, end = tank.bounds(day, zone)
         since, until = start - 3600, end + 3600
+        watched = meter if meter is not None else found[0] if found is not None else None
+        if watched is not None and not tank.covers(
+            await self._values.history(watched, since, until), start, end
+        ):
+            # Not seen whole: its starts and energy aren't known, not nought.
+            gap = {"day": day.isoformat(), "skipped": "gap"}
+            await self._db.run(lambda t: _events(t, keys.scope, [("compressor_day", start, gap)]))
+            return
         compressor = await self._values.history(state, since, until)
         demand = await self._values.history(keys.demand, since, until)
         addition: list[tuple[float, float]] = []
@@ -270,7 +275,7 @@ class Energy:
                 )
             )
         days = await self._events(scope, "compressor_day", now - (STARTS_DAYS + 1) * 86_400)
-        recent = days[-STARTS_DAYS:]
+        recent = [d for d in days if "starts" in d[1]][-STARTS_DAYS:]
         if recent:
             mean = sum(b["starts"] for _, b in recent) / len(recent)
             await self._learnings.put(

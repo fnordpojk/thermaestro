@@ -38,7 +38,7 @@ from .hygiene import intervals
 from .inputs import intersect, seconds, spans
 from .model import Learned, State, mark
 from .store import Learnings
-from .tank import bounds
+from .tank import bounds, first_day
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -52,8 +52,9 @@ PUMP = "pump.response"
 WATER = "pump.water"
 DAYS = 28
 """The days of hours fitted over."""
-RAW_S = 13 * 86_400.0
-"""How far back a day can still be read from the raw history."""
+POSTPONE_S = 2 * 86_400.0
+"""How long a day whose weather couldn't be read waits to be read again before it is kept
+without it."""
 FIREPLACE_S = 6 * 3600.0
 AIRED_DROP = 1.0
 AIRED_WITHIN_S = 600.0
@@ -207,13 +208,14 @@ class Heating:
             await self._note(keys.scope, WHAT[missing or "outdoor"])
             return
         zone = calendar.zone
-        done = await self._last_day(keys.scope)
-        earliest = datetime.fromtimestamp(now - RAW_S, zone).date()
-        day = max(done + timedelta(days=1), earliest) if done else earliest
+        first = await self._first_raw(keys.supply)
+        day = first_day(first if first is not None else now, await self._last_day(keys.scope), zone)
         read = False
-        while bounds(day, zone)[1] <= now - 3600:
+        while first is not None and bounds(day, zone)[1] <= now - 3600:
+            hours, weather = await self._day(keys, outdoor, rooms, day, calendar)
+            if not weather and now - bounds(day, zone)[1] < POSTPONE_S:
+                break  # the weather couldn't be read: read again later, not as no sun
             # Kept even with nothing in it, so it isn't read again.
-            hours = await self._day(keys, outdoor, rooms, day, calendar)
             body = {"day": day.isoformat(), "hours": [_hour_body(h) for h in hours]}
             start = bounds(day, zone)[0]
             await self._db.run(partial(_keep, scope=keys.scope, start=start, body=body))
@@ -225,7 +227,8 @@ class Heating:
 
     async def _day(
         self, keys: SystemKeys, outdoor: Key, rooms: list[Key], day: date, calendar: Calendar
-    ) -> list[house.Hour]:
+    ) -> tuple[list[house.Hour], bool]:
+        """The day's hours; and whether the weather could be read for them."""
         start, end = bounds(day, calendar.zone)
         count = int((end - start) // 3600)
         before = start - HOLD["room"]
@@ -239,11 +242,9 @@ class Heating:
         room = [_mean([r[i] for r in room_means]) for i in range(count)]
         out = await hourly(outdoor, HOLD["outdoor"])
         supply = await hourly(keys.supply, HOLD["water"], WATER_COVERED)
-        back = (
-            await hourly(keys.back, HOLD["water"], WATER_COVERED)
-            if self._usable(keys.back)
-            else [None] * count
-        )
+        # The return as read, usable yet or not: which water the house is learned from is
+        # decided when it is judged, the same for every day.
+        back = await hourly(keys.back, HOLD["water"], WATER_COVERED)
         water = [
             (s + b) / 2 if s is not None and b is not None else s
             for s, b in zip(supply, back, strict=True)
@@ -257,12 +258,15 @@ class Heating:
         )
         target = (
             await hourly(keys.target, HOLD["water"], WATER_COVERED)
-            if keys.target is not None
+            if keys.target is not None and self._usable(keys.target)
             else [None] * count
         )
         share = await self._heating_share(keys, start, count)
         sun = await self._forecast("irradiance.global", start, count)
         wind = await self._forecast("wind_speed", start, count)
+        weather = sun is not None and wind is not None
+        sun = sun if sun is not None else [None] * count
+        wind = wind if wind is not None else [None] * count
         fires = await self._fireplaces(start, end)
         aired = await self._aired(keys, rooms, start, end)
         hours = []
@@ -288,9 +292,10 @@ class Heating:
                     offset[i],
                     share[i],
                     target[i],
+                    back[i],
                 )
             )
-        return hours
+        return hours, weather
 
     async def _heating_share(
         self, keys: SystemKeys, start: float, count: int
@@ -312,7 +317,9 @@ class Heating:
             for i in range(count)
         ]
 
-    async def _forecast(self, quantity: str, start: float, count: int) -> list[float | None]:
+    async def _forecast(self, quantity: str, start: float, count: int) -> list[float | None] | None:
+        """The forecast hour by hour; None where it couldn't be read (as against there
+        being no weather to read: then it is all unknown)."""
         if self._weather is None:
             return [None] * count
         from ..core.weather import INSTANT, value_at
@@ -322,7 +329,7 @@ class Heating:
             found = await self._weather.forecast(quantity, first, first + timedelta(hours=count))
         except Exception:
             log.exception("the %s forecast couldn't be read for learning", quantity)
-            return [None] * count
+            return None
         return [
             value_at(found.spans, first + timedelta(hours=i, minutes=30), quantity in INSTANT)
             for i in range(count)
@@ -359,9 +366,12 @@ class Heating:
 
     async def _judge(self, keys: SystemKeys, home: Home, now: float, rooms: bool) -> None:
         days = await self._events(keys.scope, now - DAYS * 86_400)
-        hours = [_hour(h) for _, body in days for h in body["hours"]]
+        back = self._usable(keys.back)
+        hours = [_hour(h, back) for _, body in days for h in body["hours"]]
         hours.sort(key=lambda h: h.t)
         if not hours:
+            if not rooms:
+                await self._note(keys.scope, WHAT["room"])
             return
         # The pump's curve needs no room; the house does.
         await self._pump(keys.scope, hours, now)
@@ -505,6 +515,16 @@ class Heating:
             )
         )
 
+    async def _first_raw(self, key: Key) -> float | None:
+        def read(t: Any) -> float | None:
+            row = t.execute(
+                "SELECT MIN(t) FROM history WHERE instance = ? AND point = ?",
+                (key.instance, key.point),
+            ).fetchone()
+            return None if row is None else row[0]
+
+        return await self._db.run(read)
+
     async def _last_day(self, scope: str) -> date | None:
         found = await self._events(scope, 0.0)
         if not found:
@@ -558,15 +578,26 @@ def _hour_body(h: house.Hour) -> dict[str, Any]:
         "offset": _round(h.offset),
         "heating": _round(h.heating),
         "target": _round(h.target),
+        "back": _round(h.back),
     }
 
 
-def _hour(body: dict[str, Any]) -> house.Hour:
+def _hour(body: dict[str, Any], back: bool = True) -> house.Hour:
+    """An hour as kept. Where its return was kept too, its water is the mean of supply and
+    return while the return is usable (an hour without a return isn't used then), and the
+    supply alone while it isn't: every day the same."""
+    water = body.get("water")
+    if "back" in body:
+        supply, ret = body.get("supply"), body.get("back")
+        if not back:
+            water = supply
+        else:
+            water = (supply + ret) / 2 if supply is not None and ret is not None else None
     return house.Hour(
         float(body["t"]),
         body.get("room"),
         body.get("outdoor"),
-        body.get("water"),
+        water,
         body.get("sun"),
         body.get("wind"),
         body.get("skip"),
@@ -574,6 +605,7 @@ def _hour(body: dict[str, Any]) -> house.Hour:
         body.get("offset"),
         body.get("heating"),
         body.get("target"),
+        body.get("back"),
     )
 
 

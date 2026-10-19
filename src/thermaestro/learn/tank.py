@@ -25,6 +25,7 @@ against a flat guess (the mean hour so far). That is the demand's proof.
 """
 
 import bisect
+import itertools
 import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -240,6 +241,33 @@ def draws(
 
 
 # --- the days ---------------------------------------------------------------------------------
+
+
+COVER_GAP_S = 3600.0
+"""The longest a day's readings may pause and still count as having covered it."""
+
+
+def first_day(first: float, done: date | None, zone: tzinfo) -> date:
+    """The first day to read: the one after the last read, but never one that began before
+    the first raw reading kept (pruned, or recorded only in part)."""
+    day = done + timedelta(days=1) if done else datetime.fromtimestamp(first, zone).date()
+    while bounds(day, zone)[0] < first:
+        day += timedelta(days=1)
+    return day
+
+
+def covers(samples: Sequence[Sample], start: float, end: float, gap_s: float = COVER_GAP_S) -> bool:
+    """Whether a frequently kept point's good readings cover a day: from near its start to
+    near its end, never pausing longer than `gap_s`. A day without is a day not seen, not
+    a day with nothing in it."""
+    times = [
+        s.t
+        for s in samples
+        if s.quality == "good" and s.value is not None and start - gap_s <= s.t <= end
+    ]
+    if not times or times[0] > start + gap_s or end - times[-1] > gap_s:
+        return False
+    return all(b - a <= gap_s for a, b in itertools.pairwise(times))
 
 
 def bounds(day: date, zone: tzinfo) -> tuple[float, float]:

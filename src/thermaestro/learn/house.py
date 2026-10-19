@@ -91,6 +91,8 @@ class Hour:
     """The share of the hour the compressor heated the house."""
     target: float | None = None
     """The supply temperature the pump's curve calculated, where the pump reports it."""
+    back: float | None = None
+    """The return as read: whether the water is learned with it is decided when judged."""
 
 
 @dataclass(frozen=True, slots=True)

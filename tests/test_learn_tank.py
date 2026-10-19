@@ -256,3 +256,43 @@ async def test_a_tank_without_usable_inputs_says_why(tmp_path: Path) -> None:
 def test_a_learned_value_carries_its_reasons_values() -> None:
     x = Learned(name="tank.demand", scope="s", kind="model", why="%(n)s days", args={"n": 3})
     assert x.args == {"n": 3}
+
+
+async def test_a_day_not_seen_is_not_learned_as_one_without_use(tmp_path: Path) -> None:
+    """Thermaestro down for a day: that day is marked read, not learned as no hot water."""
+    _, series = recorded()
+    node = SimpleNamespace
+    described = node(
+        nodes=[node(path="hp1", kind="unit"), node(path="hp1/dhw", kind="dhw_tank")],
+        points=[],
+    )
+    host = cast(Any, node(instances={"dev": node(described=described)}))
+    keys = {
+        "top": Key("dev", "hp1/dhw/temp.top"),
+        "low": Key("dev", "hp1/dhw/temp.charge"),
+        "demand": Key("dev", "hp1/demand"),
+    }
+    gone = series["top"][0].t + 5 * 86_400  # the sixth day, give or take its edges
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.run(
+            lambda tr: tr.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (k.instance, k.point, s.t, s.value, s.text, s.quality)
+                    for name, k in keys.items()
+                    for s in series[name]
+                    if name == "demand" or not gone <= s.t < gone + 86_400
+                ],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        hot = HotWater(db, Values(db), host, learnings, lambda key: True)
+        await hot.run(series["top"][-1].t)
+        days = await hot.events("dev:hp1/dhw", "day", 0.0)
+        skipped = [b for _, b in days if b.get("skipped")]
+        assert 1 <= len(skipped) <= 2  # the day the readings stopped in, and any after
+        week = learnings.get(DEMAND, "dev:hp1/dhw")
+        assert week is not None
+        assert week.n == len(days) - len(skipped)
