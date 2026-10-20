@@ -21,10 +21,10 @@ The checks:
 |---|---|
 | `offset` | Sets climate system 1's heating offset one step up (down at +10), reads it back, and puts it back. `--system N` for another climate system. |
 | `mode` | Changes the hot-water mode, reads it back, and puts it back. By default it goes one mode lower (Luxury to Normal, Normal to Economy), or from Economy to Normal; `--mode eco`, `normal` or `lux` names one. |
-| `block` | Holds off the pump's own hot-water charges by lowering the current mode's start temperature to 25 °C. It waits until the charge sensor falls below the real start temperature, where the pump would have started a charge, and watches 15 minutes more for one. Then it puts the start temperature back and watches for the charge that should follow. |
+| `block` | Holds off the pump's own hot-water charges by lowering the current mode's start temperature to 35 °C. It waits until the charge sensor falls below the real start temperature, where the pump would have started a charge, and watches 15 minutes more for one. Then it puts the start temperature back and watches for the charge that should follow. |
 | `boost` | Starts one extra charge of hot water and watches it until it ends. |
 | `addition` | Waits for the electric addition to run, then sets its stop temperature as low as it goes, which keeps it off, and watches it stop. Then it puts the setting back. `--setting max_power` tries the addition's most power instead, set to 0. |
-| `pool` | A pool's start and stop temperatures, each changed and put back, and its heating switched off while it heats. `--pool 2` for the second pool. |
+| `pool` | A pool's start and stop temperatures, each changed and put back. `--pool 2` for the second pool. |
 | `restore` | Puts back what a run that was stopped left changed (see below). |
 
 `--minutes` (240 by default) is the longest a check waits for the pump to do something by itself: the tank to cool, the addition to start. Ctrl-C ends a check at any time and puts everything back.

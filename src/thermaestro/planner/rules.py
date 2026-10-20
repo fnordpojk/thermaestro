@@ -10,8 +10,11 @@
 - **Hot water:** the floor first (a hold released, a charge started below it); a charge in
   the cheapest window before a deadline the tank won't make by itself, or at once when
   late; the pump's own charges held off in expensive hours while the tank is well above its
-  floor and no deadline is near.
-- **The addition, the pool:** as the household's policy says.
+  floor and no deadline is near, three hours at most, then not again until the pump has
+  charged.
+- **The addition, the pool:** as the household's policy says. The addition is kept off by
+  its stop temperature at -15 °C, no lower; a pool is held by its start temperature,
+  never switched off.
 - Between slots, only hot water: the rest changes at most once a slot.
 - Quiet hours, a fireplace and a power limit keep the heat from being raised, unless a
   room is below its band or the floor needs it; hands off asks for nothing; without a cost
@@ -29,6 +32,7 @@ from datetime import datetime, timedelta
 
 from ..intents.entry import RESPONSE_H
 from .model import (
+    ADDITION_OFF_C,
     RANK_SLIDER,
     SLOT,
     Decision,
@@ -77,10 +81,12 @@ within the band: less would flip it back and forth."""
 WEAR_RANK = 3
 """With the day's write budget spent, only decisions up to this rank are sent."""
 BOOST_KW = 2.0
-BLOCK_MOST = timedelta(hours=3)
-"""The longest price holds the hot water's charges off: the charge that follows takes the
-heat from the rooms for a while, and a long hold makes it longer."""
 """What a charge adds to the house's power, until it is learned."""
+BLOCK_MOST = timedelta(hours=3)
+"""The longest either planner holds the hot water's charges off: the charge that follows
+takes the heat from the rooms for a while, and a long hold makes it longer, and the tank
+stands cooler. Once a block has held this long, it is let go, and no new hold begins
+until the pump has charged."""
 
 
 def plan(sit: Situation) -> list[Decision]:
@@ -471,7 +477,7 @@ def hot_water(sit: Situation) -> list[Decision]:
         safe = top is not None and (least is None or top >= least + HOLD_MARGIN)
         near = need is not None and (need.t - sit.now).total_seconds() <= 2 * charge_s
         since = sit.memory.blocked_since.get(scope)
-        long = since is not None and sit.now - since >= BLOCK_MOST
+        long = (since is not None and sit.now - since >= BLOCK_MOST) or scope in sit.memory.spent
         want = expensive and safe and not near and boosting is None and not long
         sit.memory.blocked[scope] = want
         if want and since is None:
@@ -527,7 +533,8 @@ def addition(sit: Situation) -> list[Decision]:
         if (expensive or peak) and not cold and stop.low is not None:
             why = "expensive hours" if expensive else "the house is near its power limit"
             reason = f"{why}: the addition kept off"
-            out.append(Decision(stop.ref, "set", {"value": stop.low}, RANK_SLIDER, reason))
+            value = stop.fit(max(stop.low, ADDITION_OFF_C))
+            out.append(Decision(stop.ref, "set", {"value": value}, RANK_SLIDER, reason))
         else:
             reason = (
                 "a room is below its band: the addition may help"
@@ -540,16 +547,15 @@ def addition(sit: Situation) -> list[Decision]:
 
 def pools(sit: Situation) -> list[Decision]:
     out: list[Decision] = []
-    for scope, temp in sorted(sit.pools.items()):
+    for scope in sorted(sit.pools):
         start = sit.levers.get(f"{scope}/start_temp")
         stop = sit.levers.get(f"{scope}/stop_temp")
-        block = sit.levers.get(f"{scope}/block")
         bound = sit.force.bound("pool_temp", scope)
         s = signal(sit.prices, sit.now)
         if bound is None or bound.low is None or bound.high is None:
             continue
         if sit.force.slider is None or s is None:
-            for lever in (start, stop, block):
+            for lever in (start, stop):
                 if lever is not None:
                     out += _restore(lever, "no shifting by price: the pool as the pump has it")
             continue
@@ -568,12 +574,4 @@ def pools(sit: Situation) -> list[Decision]:
         if stop is not None:
             value = stop.fit(high)
             out.append(Decision(stop.ref, "set", {"value": value}, RANK_SLIDER, "its band's top"))
-        if block is not None:
-            want = s < -0.5 and temp is not None and temp >= low
-            if want and not block.held:
-                reason = "the most expensive hours: the pool's heating held off"
-                out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
-            elif not want and block.held:
-                reason = "the pool may heat again"
-                out.append(Decision(block.ref, "release", rank=RANK_SLIDER, reason=reason))
     return out

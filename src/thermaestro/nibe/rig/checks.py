@@ -336,9 +336,7 @@ async def addition(bench: Bench, o: Options) -> None:
 
 async def pool(bench: Bench, o: Options) -> None:
     node = f"pool{o.pool}"
-    start_path, stop_path, block_path = (
-        f"{node}/{n}" for n in ("start_temp", "stop_temp", "block")
-    )
+    start_path, stop_path = (f"{node}/{n}" for n in ("start_temp", "stop_temp"))
     start, stop = bench.setting(start_path), bench.setting(stop_path)
     if not isinstance(start, int | float) or not isinstance(stop, int | float):
         raise RigError(f"{node}'s start and stop can't be read now")
@@ -346,50 +344,21 @@ async def pool(bench: Bench, o: Options) -> None:
     new_stop = stop + 1 if stop + 1 <= 80 else stop - 1
     if not new_start < stop or not start < new_stop:
         raise RigError(f"{node}'s start ({start:g}) and stop ({stop:g}) are too close to try")
-    activated = _register(block_path, bench)
     await bench.consent(
         [
             f"{node}'s start temperature ({_register(start_path, bench)}): from {start:g} to"
             f" {new_start:g}, then back",
             f"{node}'s stop temperature ({_register(stop_path, bench)}): from {stop:g} to"
             f" {new_stop:g}, then back",
-            f"{node}'s heating switched off ({activated} = 0), then on again",
         ],
-        [start_path, stop_path, block_path],
+        [start_path, stop_path],
     )
     for path, value in ((start_path, new_start), (stop_path, new_stop)):
         result = await bench.act(path, "set", {"value": value}, why="the rig: a new pool setting")
         if result.outcome not in FINE:
             return
         await bench.put_back([path])
-    was = bench.value(f"{node}/x.nibe.{activated}")
-    heating = bench.value("demand") == "pool"
-    engaged = await bench.act(block_path, "engage", why="the rig: hold off the pool's heating")
-    if engaged.outcome not in FINE:
-        return
-    if not bench.write:
-        await bench.put_back([block_path])
-        return
-    off = await bench.fresh(f"{node}/x.nibe.{activated}")
-    bench.step(f"{activated} reads 0", "seen", f"it reads {off}", same(off, 0))
-    if heating:
-        show = {"pool": f"{node}/temp", "demand": "demand"}
-        took = await bench.watch(
-            lambda: bench.value("demand") != "pool", minutes=EFFECT_S / 60, show=show
-        )
-        if took is None:
-            bench.step(
-                f"the pool still heated after {durations.text(EFFECT_S)}", "seen", passed=False
-            )
-        else:
-            stopped = f"the pool's heating stopped {durations.text(took)} after"
-            bench.step(stopped, "seen", passed=True)
-    else:
-        bench.step("the pool wasn't heating: nothing to hold off", "not seen")
-    await bench.put_back([block_path])
-    on = await bench.fresh(f"{node}/x.nibe.{activated}")
-    bench.step(f"{activated} is back at {was}", "seen", f"it reads {on}", same(on, was))
-    await bench.judge(f"{node}'s start, stop and heating, each changed and put back.")
+    await bench.judge(f"{node}'s start and stop, each changed and put back.")
 
 
 CHECKS: dict[str, Check] = {
@@ -429,9 +398,9 @@ CHECKS: dict[str, Check] = {
         addition,
     ),
     "pool": Check(
-        "a pool's start, stop and heating, each changed and put back",
-        lambda o: tuple(f"pool{o.pool}/{n}" for n in ("start_temp", "stop_temp", "block")),
-        lambda o: ("demand", f"pool{o.pool}/temp"),
+        "a pool's start and stop, each changed and put back",
+        lambda o: tuple(f"pool{o.pool}/{n}" for n in ("start_temp", "stop_temp")),
+        lambda o: (f"pool{o.pool}/temp",),
         pool,
     ),
 }

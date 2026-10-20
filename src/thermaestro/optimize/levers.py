@@ -14,13 +14,16 @@ deadline and the pump isn't charging, and at once where the household asked for 
 now: the plan doesn't plan that charge, it only follows it. For price, its own charges are
 held off by a block while the plan charges it no sooner than an hour on, and let go once
 the plan charges it within the slot after (only with a cost stance and prices: otherwise
-the pump's own thermostat stands). A charge isn't started for price alone: the rooms keep
+the pump's own thermostat stands); three hours at most, as the rules, and then not again
+until the pump has charged. A charge isn't started for price alone: the rooms keep
 the compressor. Near its floor every hold is let go, and below it a charge is started,
 whatever the plan.
 
 **A pool** heats now where the plan heats it now: its start temperature set just above
-where it is; else it is left to its band's bottom. **The addition** is kept off where the
-plan doesn't use it in the hour, unless the household leaves it to the pump.
+where it is; else it is left to its band's bottom, where the pump heats it again by
+itself. **The addition** is kept off where the plan doesn't use it in the hour, unless the
+household leaves it to the pump: its stop temperature at -15 °C, no lower, so with the
+mean outdoor temperature below that the pump may still use it.
 
 **Compressor starts** stay at the pump's own pace: a charge that would start a standing
 compressor waits for it to run while today's starts are ahead of the pace the pump kept
@@ -33,7 +36,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 
-from ..planner.model import RANK_SLIDER, Decision, LeverState
+from ..planner.model import ADDITION_OFF_C, RANK_SLIDER, Decision, LeverState
 from .problem import Plan, Problem
 
 AHEAD = 16
@@ -64,6 +67,9 @@ class TankNow:
     top: float | None
     floor: float | None
     charging: bool
+    spent: bool = False
+    """Its block has held the longest: let go, and not held again until the pump has
+    charged."""
 
 
 @dataclass(frozen=True)
@@ -282,7 +288,9 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
             continue
         later = next((j for j, s in enumerate(share) if s >= CHARGE_SHARE), None)
         safe = top is not None and (floor is None or top >= floor + FLOOR_MARGIN)
-        if block.held:
+        if state.spent:
+            want = False  # held the longest: not again until the pump has charged
+        elif block.held:
             # Held until the plan charges within the next slot.
             want = now.shifting and safe and (later is None or later > 1)
         else:
@@ -297,7 +305,8 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
             reason = f"the plan: the pump's own charges held off; {when}"
             out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
         elif not want and block.held:
-            reason = "the plan charges soon: the pump may charge again"
+            why = "held long enough" if state.spent else "the plan charges soon"
+            reason = f"{why}: the pump may charge again"
             out.append(Decision(block.ref, "release", rank=min(rank, RANK_SLIDER), reason=reason))
     return out
 
@@ -313,13 +322,12 @@ def _pools(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
         planned = plan.pools.get(pool.scope)
         start = now.levers.get(f"{pool.scope}/start_temp")
         stop = now.levers.get(f"{pool.scope}/stop_temp")
-        block = now.levers.get(f"{pool.scope}/block")
         temp = now.pools.get(pool.scope)
         band = pool.bands[0] if pool.bands else None
         if planned is None or band is None or band.low is None or band.high is None:
             continue
         if not now.shifting:
-            for lever in (start, stop, block):
+            for lever in (start, stop):
                 if lever is not None and _changed(lever):
                     why = "no shifting by price: the pool as the pump has it"
                     out.append(Decision(lever.ref, "restore", rank=RANK_SLIDER, reason=why))
@@ -340,15 +348,6 @@ def _pools(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
                 out.append(
                     Decision(stop.ref, "set", {"value": value}, RANK_SLIDER, "its band's top")
                 )
-        if block is not None:
-            soon = any(s >= CHARGE_SHARE for s in planned.share[:2])
-            want = not soon and temp is not None and temp >= band.low
-            if want and not block.held:
-                reason = "the plan heats the pool later: its heating held off"
-                out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
-            elif not want and block.held:
-                reason = "the plan heats the pool now"
-                out.append(Decision(block.ref, "release", rank=RANK_SLIDER, reason=reason))
     return out
 
 
@@ -385,8 +384,9 @@ def _addition(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
     cold = bool(now.rooms_below)
     if policy != "pump" and used < 0.05 and not cold and stop.low is not None:
         reason = "the plan needs no addition this hour: kept off"
-        if _number(stop.current, stop.low + 1) != stop.low:
-            out.append(Decision(stop.ref, "set", {"value": stop.low}, RANK_SLIDER, reason))
+        off = stop.fit(max(stop.low, ADDITION_OFF_C))
+        if _number(stop.current, off + 1) != off:
+            out.append(Decision(stop.ref, "set", {"value": off}, RANK_SLIDER, reason))
     elif _changed(stop):
         reason = (
             "a room is below its band: the addition may help"

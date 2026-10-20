@@ -353,7 +353,7 @@ class Optimizer:
                 notes.append((scope, why))
                 continue
             pools.append(found_pool)
-            covered |= {f"{scope}/start_temp", f"{scope}/stop_temp", f"{scope}/block"}
+            covered |= {f"{scope}/start_temp", f"{scope}/stop_temp"}
         addition = self._addition(sit)
         if addition is not None and systems:
             covered |= {
@@ -760,7 +760,11 @@ class Optimizer:
                 float(share),
                 draw,
                 floor=floor.low if floor is not None else None,
-                least=tank.start if block is None else None,
+                # A spent block, let go, can't hold it off: the pump charges at its own start.
+                # While still held, the start read is the lowered one: not counted on.
+                least=tank.start
+                if block is None or (scope in sit.memory.spent and not block.held)
+                else None,
                 deadlines=tuple(deadlines),
                 room_c=rules.TANK_ROOM_C,
             ),
@@ -773,7 +777,7 @@ class Optimizer:
         temp = sit.pools.get(scope)
         model = self._learnings.used(POOL, scope)
         bound = sit.force.bound("pool_temp", scope)
-        if not any(f"{scope}/{n}" in sit.levers for n in ("start_temp", "stop_temp", "block")):
+        if not any(f"{scope}/{n}" in sit.levers for n in ("start_temp", "stop_temp")):
             return None, NO_POOL_LEVER
         if not isinstance(model, dict) or temp is None:
             return None, POOL_UNPROVED
@@ -841,7 +845,10 @@ class Optimizer:
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
             tanks[scope] = levers.TankNow(
-                tank.top, floor.low if floor is not None else None, sit.demand == "dhw"
+                tank.top,
+                floor.low if floor is not None else None,
+                sit.demand == "dhw",
+                spent=scope in sit.memory.spent,
             )
         below: dict[str, str] = {}
         above: dict[str, str] = {}

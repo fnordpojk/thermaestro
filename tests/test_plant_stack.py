@@ -100,16 +100,16 @@ async def test_the_plant_drives_the_simulated_pump_in_real_time(
 
 
 def test_the_block_holds_off_charges_for_hours(tmp_path: Path) -> None:
-    """Engaged at midnight, the evening's draws take the tank below its start, and no
-    charge comes until the block is released at 08:00; then one does."""
-    s = scenario(draws=(Draw(hour=1.0, liters=60.0, minutes=8.0),)).set({47050: 0})
+    """Engaged at midnight, a draw takes the tank below its start, and no charge comes
+    until the block is released at 08:00; then one does."""
+    s = scenario(draws=(Draw(hour=1.0, liters=30.0, minutes=4.0),)).set({47050: 0})
 
     async def body() -> None:
         sim = Sim(s, tmp_path, levers={"dhw/block": "control"})
         async with running(sim):
             engaged = await sim.act("dhw/block", "engage")
             assert engaged.outcome == "awaiting_effect"
-            assert sim.plant.registers[47044] == s16(25.0)
+            assert sim.plant.registers[47044] == s16(35.0)
             await sim.run(8 / 24)
             assert all(row["demand"] != "dhw" for row in sim.trace)
             assert min(float(row["bottom"]) for row in sim.trace) < 45
@@ -152,7 +152,7 @@ def test_a_restart_mid_hold_puts_it_back(tmp_path: Path) -> None:
             await sim.act("dhw/block", "engage")
             await sim.stop(restore=False)
             await sim.advance(3600)
-            assert sim.plant.registers[47044] == s16(25.0)
+            assert sim.plant.registers[47044] == s16(35.0)
             await sim.start()
             await sim.advance(300)
             assert sim.plant.registers[47044] == s16(45.0)

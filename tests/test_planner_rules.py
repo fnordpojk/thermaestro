@@ -334,6 +334,22 @@ def test_a_hold_is_released_once_prices_ease() -> None:
     assert [(d.lever, d.op) for d in found] == [(BLOCK, "release")]
 
 
+def test_a_block_held_the_longest_is_let_go_until_the_pump_has_charged() -> None:
+    expensive = prices(cheap_now=False)
+    intents = [floor(40.0), stance()]
+    held = {BLOCK: LeverState(BLOCK, "hold", held=True), BOOST: LeverState(BOOST, "trigger")}
+    spent = Memory(blocked={TANK: True}, spent={TANK: NOW})
+    found = rules.plan(situation(intents, levers=held, memory=spent, price=expensive))
+    assert [(d.lever, d.op, d.reason) for d in found] == [
+        (BLOCK, "release", "held long enough: the pump may charge again")
+    ]
+    free = {BLOCK: LeverState(BLOCK, "hold"), BOOST: LeverState(BOOST, "trigger")}
+    again = rules.plan(
+        situation(intents, levers=free, memory=Memory(spent={TANK: NOW}), price=expensive)
+    )
+    assert all(d.lever != BLOCK for d in again)
+
+
 def test_boost_now() -> None:
     found = rules.plan(situation([], boost_scopes=frozenset({TANK})))
     assert [(d.lever, d.op) for d in found] == [(BOOST, "fire")]
@@ -365,7 +381,8 @@ def test_the_addition_by_policy() -> None:
     expensive = prices(cheap_now=False)
     not_expensive = kinds.addition_policy("not_when_expensive", **who())  # type: ignore[arg-type]
     found = rules.plan(situation([not_expensive], levers=levers, price=expensive))
-    assert [(d.lever, d.params) for d in found] == [(stop, {"value": -25})]
+    # Kept off at -15 °C, not the lever's -25: left there, it still helps in real cold.
+    assert [(d.lever, d.params) for d in found] == [(stop, {"value": -15})]
     cold = rules.plan(situation([not_expensive, band()], temp=19.0, levers=levers, price=expensive))
     assert all(d.lever != stop for d in cold)
     limit = kinds.addition_policy("limit", kw=3.0, **who())  # type: ignore[arg-type]
@@ -384,11 +401,10 @@ def test_a_pool_by_price() -> None:
     pool = "pump:hp1/pool1"
     levels = {**LEVELS, "warm": Level(id="warm", name="Warm", scope=pool, low=26.0, high=29.0)}
     intent = kinds.pool(pool, "warm", **who())  # type: ignore[arg-type]
-    start, stop, block = f"{pool}/start_temp", f"{pool}/stop_temp", f"{pool}/block"
+    start, stop = f"{pool}/start_temp", f"{pool}/stop_temp"
     levers = {
         start: LeverState(start, "setting", 5, 80, 0.5, current=26, baseline=26),
         stop: LeverState(stop, "setting", 5, 80, 0.5, current=29, baseline=29),
-        block: LeverState(block, "hold"),
     }
     resolver = Resolver([intent, stance()], levels, Calendar("UTC"))
 
@@ -399,5 +415,4 @@ def test_a_pool_by_price() -> None:
 
     cheap, expensive = at(True), at(False)
     assert cheap[start] == ("set", 28.5)  # warmed toward the top
-    assert expensive[start] == ("set", 26.0)
-    assert expensive[block] == ("engage", None)
+    assert expensive[start] == ("set", 26.0)  # held at the band's bottom, never switched off

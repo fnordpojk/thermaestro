@@ -101,8 +101,7 @@ async def test_the_levers_on_offer(stocked: SimPump, gateway: Gateway) -> None:
         *profile.LEVERS,
         "pool1/start_temp",
         "pool1/stop_temp",
-        "pool1/block",
-    }
+    }  # a pool has no block: switched off and left so, it would stay off
     offset = levers["cs1/heating.offset"]
     assert offset.preconditions.value == ("hp1/cs1/x.nibe.47394 == 0",)
     assert [f.name for f in offset.competing_features] == [PRICED]
@@ -110,12 +109,10 @@ async def test_the_levers_on_offer(stocked: SimPump, gateway: Gateway) -> None:
     assert mode.params["value"].enum.value == {"eco": 0, "normal": 1, "lux": 2}
     assert [f.name for f in mode.competing_features] == [SCHEDULE, PRICED]
     block = levers["dhw/block"]
-    assert block.implementation.how == "Normal's start temperature (47044) lowered to 25.0 °C"
+    assert block.implementation.how == "Normal's start temperature (47044) lowered to 35.0 °C"
     assert [f.name for f in block.competing_features] == [SCHEDULE, PRICED]
-    assert [f.name for f in levers["pool1/block"].competing_features] == [PRICED]
     assert levers["addition/stop_temp"].competing_features == ()
     assert levers["addition/stop_temp"].preconditions.value == ("hp1/x.nibe.47137 == 0",)
-    assert levers["pool1/block"].kind == "hold"
     nodes = {n.path: n for n in described.nodes}
     assert nodes["hp1/pool1"].kind == "pool"
     assert nodes["hp1/pool1"].presence.rule == "48088 = 1 and pool sensor 40042 connected"
@@ -209,7 +206,7 @@ async def routed(
         ("cs1/heating.offset", "set", {"value": 2}, 47011, 2),
         ("cs1/heating.offset", "set", {"value": -7}, 47011, -7),
         ("dhw/mode", "set", {"value": "eco"}, 47041, 0),
-        ("dhw/block", "engage", {}, 47044, 250),
+        ("dhw/block", "engage", {}, 47044, 350),
         ("dhw/boost_once", "fire", {}, 48132, 4),
         ("dhw/boost_once", "cancel", {}, 48132, 0),
         ("alarm.reset", "fire", {}, 45171, 1),
@@ -217,7 +214,6 @@ async def routed(
         ("addition/max_power", "set", {"value": 3.5}, 47212, 350),
         ("pool1/start_temp", "set", {"value": 21.5}, 48090, 215),
         ("pool1/stop_temp", "set", {"value": 29}, 48092, 290),
-        ("pool1/block", "engage", {}, 48094, 0),
     ],
 )
 async def test_each_lever_over_each_route(
@@ -246,7 +242,7 @@ async def test_over_the_gateway_protocol(
             "device_accepted"
         )
         assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
-        assert stocked.registers[47044] == 250
+        assert stocked.registers[47044] == 350
         assert (await act(link, "dhw/block", "release")).stage == "device_accepted"
         stocked.refuse.add(47041)
         assert (await act(link, "dhw/mode", "set", {"value": "lux"})).stage == "device_refused"
@@ -291,17 +287,17 @@ async def test_the_hot_water_block(stocked: SimPump, gateway: Gateway) -> None:
     p = plugin(gateway)
     async with served(p) as link:
         assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
-        assert stocked.registers[47044] == 250
+        assert stocked.registers[47044] == 350
         assert p.holds == {"hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}}
         assert (await act(link, "dhw/block", "release")).stage == "device_accepted"
         assert stocked.registers[47044] == 450
         assert p.holds == {}
         # A start already as low as the block's: what to put back isn't known.
-        stocked.registers[47045] = 250
+        stocked.registers[47045] = 350
         stocked.registers[47041] = 0
         fate = await act(link, "dhw/block", "engage")
         assert fate.stage == "dropped"
-        assert "already reads 25 °C" in (fate.detail or "")
+        assert "already reads 35 °C" in (fate.detail or "")
         # Smart Control has no start of its own.
         stocked.registers[47041] = 4
         fate = await act(link, "dhw/block", "engage")
@@ -327,7 +323,7 @@ async def test_the_start_and_stop_under_standard_names(stocked: SimPump, gateway
         points = {pt.path for pt in p.describe().points}
         assert {"hp1/dhw/temp.start", "hp1/dhw/temp.stop", "hp1/pool1/temp.start"} <= points
         assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
-        await until(lambda: p.envelope("hp1/dhw/x.nibe.47044").value == 25.0)
+        await until(lambda: p.envelope("hp1/dhw/x.nibe.47044").value == 35.0)
         assert edges() == (45.0, 50.0)
         stocked.registers[47041] = 0
         await until(lambda: edges() == (42.0, 47.0))
@@ -339,15 +335,6 @@ async def test_the_start_and_stop_under_standard_names(stocked: SimPump, gateway
         await act(link, "dhw/block", "release")
 
 
-async def test_the_pool_block(stocked: SimPump, gateway: Gateway) -> None:
-    p = plugin(gateway)
-    async with served(p) as link:
-        assert (await act(link, "pool1/block", "engage")).stage == "device_accepted"
-        assert stocked.registers[48094] == 0
-        assert (await act(link, "pool1/block", "release")).stage == "device_accepted"
-    assert stocked.registers[48094] == 1
-
-
 async def test_a_blocks_release_outlives_a_restart(
     stocked: SimPump, gateway: Gateway, tmp_path: Path
 ) -> None:
@@ -355,7 +342,7 @@ async def test_a_blocks_release_outlives_a_restart(
         state = PluginStore(db, "pump")
         async with served(plugin(gateway, state)) as link:
             assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
-        assert stocked.registers[47044] == 250
+        assert stocked.registers[47044] == 350
         assert (await state.load())["holds"] == {
             "hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}
         }
@@ -377,11 +364,11 @@ async def test_the_block_moves_with_the_mode(stocked: SimPump, gateway: Gateway)
         anew = next(e for e in events if isinstance(e, Described))
         assert not anew.complete
         assert [lv.implementation.how for lv in anew.levers] == [
-            "Economy's start temperature (47045) lowered to 25.0 °C"
+            "Economy's start temperature (47045) lowered to 35.0 °C"
         ]
         await act(link, "dhw/block", "release")
         await act(link, "dhw/block", "engage")
-    assert (stocked.registers[47044], stocked.registers[47045]) == (450, 250)
+    assert (stocked.registers[47044], stocked.registers[47045]) == (450, 350)
 
 
 async def test_an_engage_puts_a_stray_block_back_first(stocked: SimPump, gateway: Gateway) -> None:
@@ -391,7 +378,7 @@ async def test_an_engage_puts_a_stray_block_back_first(stocked: SimPump, gateway
         await act(link, "dhw/block", "engage")
         stocked.registers[47041] = 0
         assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
-    assert (stocked.registers[47044], stocked.registers[47045]) == (450, 250)
+    assert (stocked.registers[47044], stocked.registers[47045]) == (450, 350)
     assert p.holds == {"hp1/dhw/block": {"register": 47045, "value": 42.0, "mode": 0}}
 
 
@@ -552,7 +539,7 @@ async def test_the_executor_in_control_and_putting_back(
             outcomes[name] = f"{result.outcome}: {result.detail}"
         # The mode changed under the block: it moves to Economy's start.
         async with asyncio.timeout(20):
-            while stocked.registers[47045] != 250 or stocked.registers[47044] != 450:
+            while stocked.registers[47045] != 350 or stocked.registers[47044] != 450:
                 await asyncio.sleep(0.1)
 
     await daemon(
@@ -604,13 +591,19 @@ async def test_shadow_sends_nothing(stocked: SimPump, gateway: Gateway, tmp_path
             ("dhw/block", "engage", {}),
             ("dhw/mode", "set", {"value": "eco"}),
             ("addition/stop_temp", "set", {"value": -20}),
-            ("pool1/block", "engage", {}),
+            ("addition/max_power", "set", {"value": 3.5}),
         ]
         for lever, op, params in requests:
             result = await core.executor.act(f"pump:hp1/{lever}", op, params, who="planner")
             outcomes.append(result.outcome)
 
-    shadow = ("cs1/heating.offset", "dhw/block", "dhw/mode", "addition/stop_temp", "pool1/block")
+    shadow = (
+        "cs1/heating.offset",
+        "dhw/block",
+        "dhw/mode",
+        "addition/stop_temp",
+        "addition/max_power",
+    )
     await daemon(tmp_path, gateway, dict.fromkeys(shadow, "shadow"), started)
     assert outcomes == ["shadowed"] * 5
     assert stocked.taken_writes == []

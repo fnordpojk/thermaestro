@@ -1102,9 +1102,19 @@ class Planner:
 
     async def _observe(self, sit: Situation) -> None:
         """Learn from what the pump does: how long its charges take, and when it runs its
-        periodic increase."""
+        periodic increase. And keep how long each tank's block has held, for both planners'
+        longest hold."""
         for scope, tank in sit.tanks.items():
             charging = sit.demand == "dhw"
+            block = sit.levers.get(f"{scope}/block")
+            if charging:
+                self.memory.spent.pop(scope, None)
+            if block is not None and block.held:
+                held = self.memory.held_since.setdefault(scope, sit.now)
+                if sit.now - held >= rules.BLOCK_MOST:
+                    self.memory.spent.setdefault(scope, sit.now)
+            else:
+                self.memory.held_since.pop(scope, None)
             since = self.memory.charging_since.get(f"{scope}#on")
             if charging and since is None:
                 self.memory.charging_since[f"{scope}#on"] = sit.now

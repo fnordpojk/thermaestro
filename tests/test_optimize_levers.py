@@ -89,6 +89,17 @@ def test_the_pumps_own_charges_are_held_off_until_the_plan_charges() -> None:
     assert decide(planned([0.0] * 16), problem(tank()), now(shifting=False)) == []
 
 
+def test_a_block_held_the_longest_is_let_go_and_not_held_again_until_a_charge() -> None:
+    spent = {TANK: TankNow(48.0, 40.0, False, spent=True)}
+    held = now(levers={BLOCK.ref: replace(BLOCK, held=True), BOOST.ref: BOOST}, tanks=spent)
+    # The plan would hold on: nothing is planned for hours.
+    found = decide(planned([0.0] * 16), problem(tank()), held)
+    assert [(d.lever, d.op, d.reason) for d in found] == [
+        (BLOCK.ref, "release", "held long enough: the pump may charge again")
+    ]
+    assert decide(planned([0.0] * 16), problem(tank()), now(tanks=spent)) == []
+
+
 def test_near_its_floor_every_hold_goes_whatever_the_plan() -> None:
     held = now(
         levers={BLOCK.ref: replace(BLOCK, held=True), BOOST.ref: BOOST},
@@ -149,9 +160,11 @@ def test_the_addition_is_kept_off_where_the_plan_needs_none() -> None:
     )
     plan = Plan(True, systems={"pump:hp1/cs1": SystemPlan("pump:hp1/cs1", addition_kw=[0.0])})
     [d] = decide(plan, p, now(levers={stop.ref: stop}))
-    assert (d.op, d.params) == ("set", {"value": -30})
+    # At -15 °C, not the lever's lowest: left there, it still helps in real cold.
+    assert (d.op, d.params) == ("set", {"value": -15})
+    assert decide(plan, p, now(levers={stop.ref: replace(stop, current=-15)})) == []
     used = Plan(True, systems={"pump:hp1/cs1": SystemPlan("pump:hp1/cs1", addition_kw=[2.0])})
-    off = replace(stop, current=-30)
+    off = replace(stop, current=-15)
     [d] = decide(used, p, now(levers={stop.ref: off}))
     assert d.op == "restore"
     # Left to the pump, as the household chose.

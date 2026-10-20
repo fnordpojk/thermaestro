@@ -741,9 +741,10 @@ UNIT_SETTINGS = (
     ),
 )
 """The heating stop of the auto mode, menu 4.9.2, under a standard name."""
-BLOCK_START = 25.0
+BLOCK_START = 35.0
 """What the hot-water block lowers the start temperature to: a charge waits until the
-charge sensor reaches it, so it is also a floor."""
+charge sensor reaches it, so it is also a floor. Not lower: a block left held by a
+Thermaestro that stopped lets the tank fall only this far before the pump charges again."""
 BOOST = 48132
 BOOST_ONCE = 4
 """48132's "one time increase": a charge until the need is met, from firmware 7740R2."""
@@ -1047,30 +1048,8 @@ def levers(
                         competing_features=priced,
                     )
                 )
-        if f"{node}/x.nibe.{pool.activated}" in points:
-            out.append(
-                Spec(
-                    Lever(
-                        path=f"{UNIT}/{node}/block",
-                        kind="hold",
-                        implementation=Implementation(
-                            kind="emulated",
-                            how=f"pool heating switched off ({pool.activated} = 0)",
-                            side_effects=("a setting write each to engage and release",),
-                        ),
-                        works=_documented(untried),
-                        persistence=STORED,
-                        wear=FLASH,
-                        verify=Verify(
-                            kind="effect", point=f"{UNIT}/demand", expectation="no pool demand"
-                        ),
-                        competing_features=priced,
-                        touches=(f"x.nibe.{pool.activated}",),
-                    ),
-                    register=pool.activated,
-                    held=0,
-                )
-            )
+        # No block for a pool: switched off and left so by a Thermaestro that stopped, it
+        # would stay off. Its start temperature at the band's bottom holds it instead.
     return out
 
 

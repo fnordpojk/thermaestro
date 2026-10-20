@@ -175,19 +175,29 @@ def test_mode(tmp_path: Path) -> None:
 def test_block(tmp_path: Path) -> None:
     """A draw at 01:00 takes the charge sensor below the start: the block holds the charge
     off, puts the start back, and the pump charges then."""
-    s = scenario(draws=(Draw(hour=1.0, liters=60.0, minutes=8.0),)).set({47050: 0})
+    s = scenario(draws=(Draw(hour=1.0, liters=30.0, minutes=4.0),)).set({47050: 0})
     r = rig(tmp_path, s, "block", options=Options(minutes=6 * 60))
     held = r.step("held off")
     assert held.passed is True
-    assert r.step("the start temperature (47044) reads 25.0").passed is True
+    assert r.step("the start temperature (47044) reads 35.0").passed is True
     assert r.step("the start temperature (47044) is back at 45").passed is True
     assert r.step("a charge started").what.endswith("after the release")
     assert r.report.judged is True
     assert r.plant.registers[47044] == s16(45.0)
-    assert written(r.bus) == [(47044, s16(25.0)), (47044, s16(45.0))]
+    assert written(r.bus) == [(47044, s16(35.0)), (47044, s16(45.0))]
     assert r.report.evidence is not None
     assert r.report.timeline
     assert "charge sensor" in r.report.timeline[0]
+
+
+def test_a_block_is_a_floor_too(tmp_path: Path) -> None:
+    """A big draw takes the charge sensor below the start the block sets: the pump charges
+    anyway, so a block left held can't let the tank fall further."""
+    s = scenario(draws=(Draw(hour=1.0, liters=120.0, minutes=10.0),)).set({47050: 0})
+    r = rig(tmp_path, s, "block", options=Options(minutes=6 * 60))
+    # The periodic increase is off: only the block's own start can have started it.
+    assert r.step("a charge started while the block held").passed is False
+    assert r.plant.registers[47044] == s16(45.0)
 
 
 def test_block_with_nothing_to_hold_off(tmp_path: Path) -> None:
@@ -249,8 +259,6 @@ def test_pool(tmp_path: Path) -> None:
     r = rig(tmp_path, s, "pool")
     assert r.step("set pool1/start_temp to 21").outcome == "verified"
     assert r.step("set pool1/stop_temp to 29").outcome == "verified"
-    assert r.step("48094 reads 0").passed is True
-    assert r.step("48094 is back at").passed is True
     for register, word in ((48090, 220), (48092, 280), (48094, 1)):
         assert r.plant.registers[register] == word
     assert not r.report.failed
@@ -265,7 +273,7 @@ def test_stopped_by_the_person_puts_back(tmp_path: Path) -> None:
     s = scenario().set({47050: 0})
 
     async def stop(plant: Plant, bus: SimBus, interrupt: asyncio.Event) -> None:
-        while plant.registers[47044] != s16(25.0):
+        while plant.registers[47044] != s16(35.0):
             await asyncio.sleep(10)
         await asyncio.sleep(1800)
         interrupt.set()
@@ -282,7 +290,7 @@ def test_another_clients_change_is_let_go_not_written_over(tmp_path: Path) -> No
     s = scenario().set({47050: 0})
 
     async def nibepi(plant: Plant, bus: SimBus, interrupt: asyncio.Event) -> None:
-        while plant.registers[47044] != s16(25.0):
+        while plant.registers[47044] != s16(35.0):
             await asyncio.sleep(10)
         await asyncio.sleep(600)
         bus.foreign_write(47044, s16(40.0))
@@ -293,7 +301,7 @@ def test_another_clients_change_is_let_go_not_written_over(tmp_path: Path) -> No
     assert "47044" in let_go.detail
     assert r.report.failed
     assert r.plant.registers[47044] == s16(40.0)
-    assert written(r.bus) == [(47044, s16(25.0)), (47044, s16(40.0))]  # the rig's, NibePi's
+    assert written(r.bus) == [(47044, s16(35.0)), (47044, s16(40.0))]  # the rig's, NibePi's
 
 
 def test_a_killed_run_is_put_back_by_restore(tmp_path: Path) -> None:
@@ -327,7 +335,7 @@ def test_a_killed_run_is_put_back_by_restore(tmp_path: Path) -> None:
         bench._tmp.cleanup()
 
     simulate(dies, s.start_time)
-    assert plant.registers[47044] == s16(25.0)
+    assert plant.registers[47044] == s16(35.0)
 
     def again(check: str, write: bool) -> Rigged:
         return rig(

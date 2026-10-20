@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Any, cast
 
 from thermaestro.core import AuditLog, Values
+from thermaestro.intents import Calendar, Capabilities, Resolver
 from thermaestro.learn import Learnings
-from thermaestro.planner import Planner
+from thermaestro.planner import LeverState, Planner, Situation, Tank
 from thermaestro.planner.model import FRESH_S, Effect, Memory
+from thermaestro.planner.rules import BLOCK_MOST
 from thermaestro.store import Database
 
 NOW = datetime(2026, 10, 16, 0, 20, tzinfo=UTC)
@@ -29,6 +31,8 @@ def remembered() -> Memory:
         charge_s={TANK: 846.0},
         blocked={TANK: True},
         blocked_since={TANK: NOW - timedelta(hours=2)},
+        held_since={TANK: NOW - timedelta(hours=2)},
+        spent={f"{TANK}2": NOW - timedelta(hours=1)},
         fired={"in-boost": NOW - timedelta(minutes=5)},
         charging_since={TANK: NOW - timedelta(minutes=4), f"{TANK}#on": NOW},
         drift={CS: 0.4},
@@ -58,8 +62,43 @@ async def test_after_a_long_stop_the_price_holds_are_over(tmp_path: Path) -> Non
         assert kept.charge_s == {TANK: 846.0}
         assert kept.drift == {CS: 0.4}
         assert kept.fired == remembered().fired  # a boost asked for isn't asked for again
+        # A block held through the stop counts its time from before it: let go once it has
+        # held the longest, not held that long again.
+        assert (kept.held_since, kept.spent) == (remembered().held_since, remembered().spent)
         assert (kept.blocked, kept.blocked_since, kept.last_round) == ({}, {}, None)
         assert kept.charging_since == {}
+
+
+async def test_how_long_a_block_holds_is_kept_whichever_planner_holds_it(tmp_path: Path) -> None:
+    block = f"{TANK}/block"
+
+    def sit(at: datetime, *, held: bool, demand: str | None = None) -> Situation:
+        return Situation(
+            now=at,
+            zone=UTC,
+            force=Resolver([], {}, Calendar("UTC")).in_force(at),
+            ahead={},
+            deadlines=[],
+            caps=Capabilities(tanks=frozenset({TANK})),
+            prices=[],
+            rooms=[],
+            tanks={TANK: Tank(TANK, 48.0, 35.0, 45.0)},
+            levers={block: LeverState(block, "hold", held=held)},
+            demand=demand,
+        )
+
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        await p._observe(sit(NOW, held=True))
+        await p._observe(sit(NOW + timedelta(hours=2), held=True))
+        assert p.memory.held_since == {TANK: NOW}
+        assert p.memory.spent == {}
+        await p._observe(sit(NOW + BLOCK_MOST, held=True))
+        assert p.memory.spent == {TANK: NOW + BLOCK_MOST}
+        await p._observe(sit(NOW + BLOCK_MOST + timedelta(minutes=15), held=False))
+        assert (p.memory.held_since, TANK in p.memory.spent) == ({}, True)  # until a charge
+        await p._observe(sit(NOW + BLOCK_MOST + timedelta(minutes=30), held=False, demand="dhw"))
+        assert p.memory.spent == {}
 
 
 async def test_nothing_kept_starts_afresh(tmp_path: Path) -> None:

@@ -19,6 +19,9 @@ SLOT = timedelta(minutes=15)
 
 RANK_SLIDER = 7
 """What price shifting serves: the last stage, after every ranked goal."""
+ADDITION_OFF_C = -15.0
+"""The addition's stop temperature the planners set to keep it off, and no lower: left
+there by a Thermaestro that stopped, it still lets the addition help in real cold."""
 
 
 @dataclass(frozen=True)
@@ -118,9 +121,9 @@ class Memory:
     """What the planner keeps between rounds. Kept in the database too, so a restart
     carries on from it: all of it within `FRESH_S`; after a longer stop, what still holds
     (the loop's integral, the optimizer's drift, the periodic increase last seen, how long
-    charges take, the boosts asked for, when the compressor stopped, rooms aired, changes
-    not kept), not the price holds, a charge under way or effects waited for, which a stop
-    has ended."""
+    charges take, how long a block has been held, the boosts asked for, when the compressor
+    stopped, rooms aired, changes not kept), not the price holds, a charge under way or
+    effects waited for, which a stop has ended."""
 
     integral: dict[str, float] = field(default_factory=dict)
     """Per climate system: the PI loop's integral, in offset steps."""
@@ -133,6 +136,12 @@ class Memory:
     """Per tank: whether price holds its charges off, for the hysteresis."""
     blocked_since: dict[str, datetime] = field(default_factory=dict)
     """Per tank: since when price has held its charges off, for the longest hold."""
+    held_since: dict[str, datetime] = field(default_factory=dict)
+    """Per tank: since when its block has been seen held, whichever planner holds it. Kept
+    through a stop of any length: a block a stopped Thermaestro left held is let go once
+    it has held the longest, not held that long again."""
+    spent: dict[str, datetime] = field(default_factory=dict)
+    """Per tank: when its block had held the longest. No new hold until a charge is seen."""
     fired: dict[str, datetime] = field(default_factory=dict)
     """Boost-now intents whose charge was asked for, by id: so a restart doesn't ask again."""
     charging_since: dict[str, datetime] = field(default_factory=dict)
@@ -160,6 +169,8 @@ class Memory:
             "charge_s": self.charge_s,
             "blocked": self.blocked,
             "blocked_since": {k: v.isoformat() for k, v in self.blocked_since.items()},
+            "held_since": {k: v.isoformat() for k, v in self.held_since.items()},
+            "spent": {k: v.isoformat() for k, v in self.spent.items()},
             "fired": {k: v.isoformat() for k, v in self.fired.items()},
             "charging_since": {k: v.isoformat() for k, v in self.charging_since.items()},
             "drift": self.drift,
@@ -195,6 +206,10 @@ class Memory:
             }
             if fresh
             else {},
+            held_since={
+                k: datetime.fromisoformat(v) for k, v in (body.get("held_since") or {}).items()
+            },
+            spent={k: datetime.fromisoformat(v) for k, v in (body.get("spent") or {}).items()},
             fired={k: datetime.fromisoformat(v) for k, v in (body.get("fired") or {}).items()},
             charging_since={
                 k: datetime.fromisoformat(v) for k, v in (body.get("charging_since") or {}).items()

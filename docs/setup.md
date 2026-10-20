@@ -218,6 +218,12 @@ Switching needs the password again. A setting the pump has its own feature for (
 
 **Put back to** is what a setting is put back to: at first what Thermaestro found it at, or a value you choose, such as your usual heating offset rather than whatever another program last left it at. It needs the password again too.
 
+**Only what can be left behind.** The pump keeps each setting as it was last set, also while Thermaestro is stopped, so the planners keep to values the house can live with until someone puts them back:
+
+- Holding hot-water charges off lowers the start temperature to 35 °C, no lower: the pump still charges once the tank has fallen that far. A hold lasts three hours at most, also across a restart, and none begins again until the pump has charged.
+- The addition is kept off by its stop temperature at −15 °C, no lower: in real cold it still helps.
+- A pool is held by its start temperature at the bottom of its band, never by switching its heating off.
+
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. To close it, use a gateway that speaks the Thermaestro gateway protocol, give it a key, and turn its plain write port off: Thermaestro's writes then need the key. A key alone doesn't close the plain port; `thermaestro-gateway` turns it off when it has a key, other gateways may not.
 
 The page shows the day's changes against the planner's budget (about 50 a day).
