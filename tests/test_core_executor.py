@@ -568,12 +568,10 @@ async def test_a_lever_taken_out_of_control_while_its_plugin_is_down(tmp_path: P
         refused = await r.executor.act(CURVE, "set", {"value": 10}, who="planner")
         assert (refused.outcome, refused.detail) == ("refused", "it isn't put back yet")
         await r.host.start()
-        await until(
-            lambda: (
-                (r.device.registers["x.fake.offset"], r.device.registers["x.fake.curve"]) == (-4, 7)
-            )
-        )
-        assert await left_changed(r.db) == []
+        async with asyncio.timeout(5):  # kept once read back, after the device has it
+            while await left_changed(r.db):
+                await asyncio.sleep(0.02)
+        assert (r.device.registers["x.fake.offset"], r.device.registers["x.fake.curve"]) == (-4, 7)
         shadowed = await r.executor.act(CURVE, "set", {"value": 10}, who="planner")
         assert shadowed.outcome == "shadowed"
         assert r.device.registers["x.fake.curve"] == 7
@@ -589,8 +587,8 @@ async def test_a_lever_taken_out_of_control_while_its_plugin_is_down_then_a_rest
         await r.executor.set_mode(OFFSET, "off", who="anna")
         await r.executor.stop()
     async with rig(tmp_path, {}, device) as r:
-        await until(lambda: device.registers["x.fake.offset"] == -4)
-        assert not r.executor.claims[OFFSET].changed
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        assert device.registers["x.fake.offset"] == -4
 
 
 async def test_a_watchdog_restore_that_failed_is_tried_again(tmp_path: Path) -> None:
@@ -637,9 +635,9 @@ async def test_a_change_cut_off_after_the_device_took_it_is_put_back_after_a_res
             await acting
         await r.executor.stop()
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
-        await until(lambda: device.registers["x.fake.offset"] == -4)
-        claim = r.executor.claims[OFFSET]
-        assert (claim.changed, claim.drift) == (False, None)
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        assert device.registers["x.fake.offset"] == -4
+        assert r.executor.claims[OFFSET].drift is None
 
 
 async def test_a_change_in_flight_that_never_came_isnt_taken_for_someone_elses(
@@ -657,6 +655,7 @@ async def test_a_change_in_flight_that_never_came_isnt_taken_for_someone_elses(
             (OFFSET, json.dumps({"value": 3})),
         )
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
-        await until(lambda: device.registers["x.fake.offset"] == -4)
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        assert device.registers["x.fake.offset"] == -4
         claim = r.executor.claims[OFFSET]
-        assert (claim.changed, claim.drift, claim.pending) == (False, None, None)
+        assert (claim.drift, claim.pending) == (None, None)
