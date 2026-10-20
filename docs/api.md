@@ -7,7 +7,8 @@ Thermaestro's web UI and its JSON API run in the same server, over the same oper
 - The API is under `/api/v1/`; paths below are relative to it.
 - The server listens on port 8080 (HTTP) and, unless HTTPS is turned off, on 8443 (HTTPS, with the installation's own self-signed certificate). Both serve the same API. The ports and the address are set in the start-up file's `web` section (`listen`, `port`, `https`, `https_port`).
 - `GET /api/v1/openapi.json` gives the OpenAPI description to anyone logged in. It also lists the HTML pages' routes. There are no built-in docs pages.
-- `GET /health` answers `{"status": "ok"}` without a login.
+- `GET /health` answers `{"status": "ok"}` without a login: the web UI is alive.
+- `GET /ready`, without a login, says whether Thermaestro can control: `200` when its planner has checked in within the watchdog's 5 minutes, every device plugin (one with settings to change, or not described yet) is up, and every setting that was to be put back is; `503` otherwise. The body says which: `{"ready": true, "planner": "checking in", "devices_down": 0, "not_put_back": 0, "in_flight": 0}`; `planner` is `not yet`, `checking in`, `silent` or `none`, and `in_flight` counts changes sent whose fate isn't known yet. Counts only, no names.
 
 ## Logging in
 

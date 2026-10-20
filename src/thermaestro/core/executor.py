@@ -199,6 +199,8 @@ class Executor:
         self._generation: dict[str, int] = {}
         self._writing: set[str] = set()
         self._beat: float | None = None
+        self.checked_in: float | None = None
+        """When the planner last checked in."""
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
         self._tasks: set[asyncio.Task[None]] = set()
@@ -232,7 +234,23 @@ class Executor:
     def heartbeat(self) -> None:
         """The planner checks in after each round. From the first, a planner silent for
         `watchdog_s` has everything put back."""
-        self._beat = self._clock()
+        self._beat = self.checked_in = self._clock()
+
+    def readiness(self) -> dict[str, Any]:
+        """How the write path stands: whether the planner checks in (`not yet`, `checking
+        in`, or `silent` for over the watchdog's period), how many levers couldn't be put
+        back, and how many changes are in flight, their fate not known yet."""
+        if self.checked_in is None:
+            planner = "not yet"
+        elif self._clock() - self.checked_in > self._watchdog_s:
+            planner = "silent"
+        else:
+            planner = "checking in"
+        return {
+            "planner": planner,
+            "not_put_back": len(self._owed),
+            "in_flight": sum(1 for c in self.claims.values() if c.pending is not None),
+        }
 
     # --- Asking for a change ------------------------------------------------------------
 

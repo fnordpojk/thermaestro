@@ -1,7 +1,7 @@
 """The web application: the HTML pages and the JSON API, over the same operations.
 
-Every endpoint but the login and setup pages, the static files and `/health` needs a
-logged-in user or a token. Unsafe requests from a browser need the CSRF token and must
+Every endpoint but the login and setup pages, the static files, `/health` and `/ready`
+needs a logged-in user or a token. Unsafe requests from a browser need the CSRF token and must
 come from this site's own origin.
 """
 
@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from ..auth import AccountError, Forbidden, User
+from ..core.host import State
 from . import i18n
 from .operations import Caller, NeedsConfirmation, NotFound, Services
 from .security import (
@@ -299,7 +300,31 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
+        """Alive: the web UI answers."""
         return {"status": "ok"}
+
+    @app.get("/ready", include_in_schema=False)
+    async def ready() -> Response:
+        """Whether Thermaestro can control: its planner checking in, every device up, and
+        every lever put back that was to be. Counts only, without a login."""
+        executor = services.executor
+        state = (
+            executor.readiness()
+            if executor is not None
+            else {"planner": "none", "not_put_back": 0, "in_flight": 0}
+        )
+        instances = services.host.instances.values() if services.host is not None else ()
+        down = len(
+            [
+                i
+                for i in instances
+                if i.state is not State.UP and (i.described is None or bool(i.described.levers))
+            ]
+        )
+        ok = state["planner"] == "checking in" and not down and not state["not_put_back"]
+        body = {"ready": ok, "planner": state["planner"], "devices_down": down}
+        body |= {"not_put_back": state["not_put_back"], "in_flight": state["in_flight"]}
+        return JSONResponse(body, status_code=200 if ok else 503)
 
     from . import (
         api,

@@ -247,6 +247,10 @@ The factory takes a `PluginContext` ([`core/plugins.py`](../src/thermaestro/core
 
 The core connects to an in-process plugin through a pair of in-memory endpoints (`cap.pair()`), with the same messages as over a socket.
 
+### A plugin is trusted
+
+A plugin is software you trust with the whole installation. An in-process plugin runs in Thermaestro's own process, as its user: it is handed the whole secret store, not only the secrets its settings name, and can reach whatever the core can. An out-of-process plugin gets no settings or secrets from the core, but by default it runs as the core's own user, so it can read what the core can. What a plugin describes is checked against this interface and values against what is plausible, which gives structure, not isolation: a plugin can describe any lever, and send any value. Install only plugins you would trust as you trust Thermaestro.
+
 ### Out of process
 
 A plugin with no factory runs as its own process and connects to the core. The core listens only if the start-up file names a socket:

@@ -155,6 +155,7 @@ async def test_everything_else_needs_a_login(site: Site) -> None:
                 "/login",
                 "/setup",
                 "/health",
+                "/ready",
                 "/lang/x",
                 "/theme/x",
                 "/api/v1/login",
@@ -1133,3 +1134,20 @@ async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> N
     assert "hp1/x.fake.prio" not in everyday
     assert "hp1/x.fake.prio" in settings
     assert "Outdoor temperature" not in settings
+
+
+async def test_ready_is_apart_from_alive(site: Site) -> None:
+    """`/health` says the web UI answers; `/ready` whether Thermaestro can control: here,
+    with no planner, it can't."""
+    async with site.client() as client:
+        alive = await client.get("/health")
+        ready = await client.get("/ready")
+    assert alive.status_code == 200
+    assert ready.status_code == 503
+    assert ready.json() == {
+        "ready": False,
+        "planner": "none",
+        "devices_down": 0,
+        "not_put_back": 0,
+        "in_flight": 0,
+    }

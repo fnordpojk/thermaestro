@@ -659,3 +659,18 @@ async def test_a_change_in_flight_that_never_came_isnt_taken_for_someone_elses(
         assert device.registers["x.fake.offset"] == -4
         claim = r.executor.claims[OFFSET]
         assert (claim.drift, claim.pending) == (None, None)
+
+
+async def test_how_the_write_path_stands(tmp_path: Path) -> None:
+    """For a readiness check: whether the planner checks in, and what is still owed."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        assert r.executor.readiness() == {"planner": "not yet", "not_put_back": 0, "in_flight": 0}
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.executor.heartbeat()
+        assert r.executor.readiness()["planner"] == "checking in"
+        await r.host.stop()
+        await until(
+            lambda: (
+                r.executor.readiness() == {"planner": "silent", "not_put_back": 1, "in_flight": 0}
+            )
+        )
