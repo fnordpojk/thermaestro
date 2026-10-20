@@ -608,6 +608,10 @@ async def test_a_watchdog_restore_that_failed_is_tried_again(tmp_path: Path) -> 
         assert owed.args == {"lever": OFFSET, "why": "its plugin isn't running"}
         await r.host.start()
         await until(lambda: r.device.registers["x.fake.offset"] == -4)
+        # Recorded once the event is cleared.
+        await until(
+            lambda: any(e["what"] == "lever.restore" and e["outcome"] == "ok" for e in audited(r))
+        )
         assert not r.executor.claims[OFFSET].changed
         assert await events.open("lever.not_back:") == []
 
