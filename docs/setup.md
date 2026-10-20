@@ -215,7 +215,7 @@ Switching needs the password again. A setting the pump has its own feature for (
 
 **Put back to** is what a setting is put back to: at first what Thermaestro found it at, or a value you choose, such as your usual heating offset rather than whatever another program last left it at. It needs the password again too.
 
-On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. The Thermaestro gateway protocol, with its key, closes that.
+On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. To close it, use a gateway that speaks the Thermaestro gateway protocol, give it a key, and turn its plain write port off: Thermaestro's writes then need the key. A key alone doesn't close the plain port; `thermaestro-gateway` turns it off when it has a key, other gateways may not.
 
 The page shows the day's changes against the planner's budget (about 50 a day).
 

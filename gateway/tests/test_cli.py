@@ -51,3 +51,14 @@ def test_a_short_psk_is_refused(tmp_path: Path) -> None:
     key.write_text("abcd")
     with pytest.raises(SystemExit):
         parse(["/dev/ttyUSB0", "--psk-file", str(key)])
+
+
+def test_a_key_turns_the_plain_write_port_off(tmp_path: Path) -> None:
+    """Else the key would guard the control port while anyone writes through the plain one;
+    asked for, it opens again."""
+    key = tmp_path / "psk"
+    key.write_text(bytes(range(32)).hex())
+    config, _ = parse(["/dev/ttyUSB0", "--psk-file", str(key)])
+    assert (config.read_port, config.write_port, config.control_port) == (9999, None, 10090)
+    opened, _ = parse(["/dev/ttyUSB0", "--psk-file", str(key), "--write-port", "10000"])
+    assert opened.write_port == 10000

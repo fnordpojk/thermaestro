@@ -300,7 +300,7 @@ Without a key, the control port works unauthenticated, like plain NibeGW. With o
 - With a key configured, a HELLO without `CLIENT_NONCE`, or unsigned, gets `auth_required`.
 - **A client can insist on authentication** by sending `CLIENT_NONCE` with the critical bit set. A gateway without a key then refuses it (`unsupported_option`) rather than open an unauthenticated session, so the client knows the gateway is unprotected.
 
-**What a key doesn't cover:** the plain NibeGW ports stay unauthenticated. To make every write to the pump need the key, turn the plain write port off on the gateway.
+**What a key doesn't cover:** the plain NibeGW ports stay unauthenticated. To make every write to the pump need the key, turn the plain write port off on the gateway. `thermaestro-gateway` does so by itself when it has a key, unless `--write-port` opens it.
 
 ## 12. Sessions and subscriptions
 

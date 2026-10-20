@@ -2,12 +2,15 @@
 
 import asyncio
 from collections.abc import AsyncIterator
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from simpump import TIMEOUT_S
 from simpump import PtyEnd as Pump
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
+from thermaestro_gateway.__main__ import parse
 from thermaestro_gateway.server import Config, Gateway
 
 READ_TOKEN = bytes.fromhex("5c0020690049")
@@ -134,3 +137,17 @@ async def test_a_failing_serial_port_ends_the_gateway() -> None:
     pump.close()
     with pytest.raises(OSError, match="Input/output error"):
         await asyncio.wait_for(running, TIMEOUT_S)
+
+
+async def test_a_keyed_gateway_from_its_command_line_takes_no_plain_write(
+    pump: Pump, client: Client, tmp_path: Path
+) -> None:
+    key = tmp_path / "psk"
+    key.write_text(bytes(range(32)).hex())
+    config, _ = parse([pump.path, "--psk-file", str(key)])
+    gw = Gateway(replace(config, listen="127.0.0.1", read_port=0, control_port=0))
+    await gw.start()
+    try:
+        assert set(gw.ports) == {"read", "control"}
+    finally:
+        await gw.close()

@@ -40,7 +40,12 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
     ap.add_argument("serial_port", help="the RS485 adapter, e.g. /dev/ttyUSB0 or /dev/serial0")
     ap.add_argument("--listen", default="0.0.0.0", help="address to listen on")  # noqa: S104
     ap.add_argument("--read-port", type=int, default=9999, help="plain NibeGW read port, 0 = off")
-    ap.add_argument("--write-port", type=int, default=10000, help="plain write port, 0 = off")
+    ap.add_argument(
+        "--write-port",
+        type=int,
+        help="plain write port, 0 = off (default 10000; off with --psk-file, whose key it would"
+        " bypass)",
+    )
     ap.add_argument("--control-port", type=int, default=10090, help="control port, 0 = off")
     ap.add_argument(
         "--acknowledge",
@@ -97,7 +102,7 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
         serial_port=args.serial_port,
         listen=args.listen,
         read_port=_port(args.read_port),
-        write_port=_port(args.write_port),
+        write_port=_port(args.write_port if args.write_port is not None else 0 if psk else 10000),
         control_port=_port(args.control_port),
         acknowledged=frozenset(args.acknowledge or [nibe.MODBUS40]),
         constants=constants,

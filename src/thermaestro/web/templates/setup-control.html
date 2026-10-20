@@ -4,7 +4,7 @@
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
 
 {% for id, host, port in open_ports %}
-<p class="notice">{{ _("The pump's gateway at %(host)s takes plain NibeGW writes on port %(port)s: anyone on your network can change the pump's settings through it, not only Thermaestro. The Thermaestro gateway protocol, with its key, closes that.", host=host, port=port) }} <a href="/setup/pump">{{ _("Pump") }}</a></p>
+<p class="notice">{{ _("The pump's gateway at %(host)s takes plain NibeGW writes on port %(port)s: anyone on your network can change the pump's settings through it, not only Thermaestro. To close it, use a gateway that speaks the Thermaestro gateway protocol, give it a key, and turn its plain write port off.", host=host, port=port) }} <a href="/setup/pump">{{ _("Pump") }}</a></p>
 {% endfor %}
 
 {% if budgets %}

@@ -129,6 +129,8 @@ class Gateway:
             self._udp[name] = protocol
             self.ports[name] = transport.get_extra_info("sockname")[1]
         _warn_about_latency(self.config.serial_port)
+        if self.config.psk is not None and "write" in self.ports:
+            log.warning("the plain write port %s takes writes without the key", self.ports["write"])
         loop.add_reader(self._serial.fileno(), self._serial_readable, self._serial)
         self._ticker = asyncio.create_task(self._tick())
         log.info("gateway on %s, ports %s", self.config.serial_port, self.ports)
