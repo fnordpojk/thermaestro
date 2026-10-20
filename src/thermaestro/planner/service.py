@@ -60,6 +60,7 @@ from . import optimizer as optimizing
 from .assurance import Finding, judge
 from .model import (
     FRESH_S,
+    OFFSET_REACH,
     SLOT,
     Decision,
     Effect,
@@ -871,11 +872,22 @@ class Planner:
             if lever.min_interval_s.trusted:
                 hold = max(hold, lever.min_interval_s.value or 0.0)
             hold_until = datetime.fromtimestamp(claim.last_t + hold, UTC)
+        low = limits.min if limits else None
+        high = limits.max if limits else None
+        around = (
+            float(baseline)
+            if isinstance(baseline, int | float) and not isinstance(baseline, bool)
+            else None
+        )
+        if lever.path.rpartition("/")[2] == "heating.offset" and around is not None:
+            # Left behind by a Thermaestro that stopped, an offset stays near the household's.
+            low = around - OFFSET_REACH if low is None else max(low, around - OFFSET_REACH)
+            high = around + OFFSET_REACH if high is None else min(high, around + OFFSET_REACH)
         return LeverState(
             ref,
             lever.kind,
-            low=limits.min if limits else None,
-            high=limits.max if limits else None,
+            low=low,
+            high=high,
             step=limits.step if limits else None,
             current=current,
             baseline=baseline,

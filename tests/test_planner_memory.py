@@ -182,3 +182,42 @@ async def test_an_ordinary_charge_isnt_taken_for_the_periodic_increase(tmp_path:
         periodic = Tank(TANK, 59.5, 41.0, 45.0, charge=54.5, periodic_stop=55.0)
         await p._observe(sit(NOW + timedelta(hours=1), periodic))
         assert p.memory.periodic == {TANK: NOW + timedelta(hours=1)}
+
+
+async def test_the_offset_stays_within_three_steps_of_the_households(tmp_path: Path) -> None:
+    """Both planners see the offset's range as the household's own offset, what it is put
+    back to, give or take three steps, within the lever's own: a value left behind is a few
+    degrees of water."""
+    from types import SimpleNamespace
+
+    from leverfake import LEVERS
+
+    from thermaestro.cap.model import Envelope
+    from thermaestro.core.executor import Claim
+    from thermaestro.store import Control
+
+    offset = LEVERS[0].model_copy(update={"path": "hp1/cs1/heating.offset"})
+    ref = "dev:hp1/cs1/heating.offset"
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        p._values.add(
+            "dev",
+            Envelope(
+                point="hp1/x.fake.offset",
+                value=-8,
+                t_observed=NOW,
+                t_received=NOW,
+                quality="good",
+                source="measured",
+            ),
+        )
+        p._executor = cast(Any, SimpleNamespace(claims={}))
+        found = p._lever_state("dev", ref, offset, Control())
+        assert (found.low, found.high) == (-10, -5)  # found at -8: no lower than the lever's
+        claimed = Claim(ref, NOW.timestamp(), -4, "control", last=-6)
+        p._executor = cast(Any, SimpleNamespace(claims={ref: claimed}))
+        found = p._lever_state("dev", ref, offset, Control())
+        assert (found.low, found.high, found.current) == (-7, -1, -6)
+        other = LEVERS[0]  # not a heating offset: its own range
+        found = p._lever_state("dev", "dev:hp1/offset", other, Control())
+        assert (found.low, found.high) == (-10, 10)

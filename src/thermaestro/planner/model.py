@@ -19,6 +19,9 @@ SLOT = timedelta(minutes=15)
 
 RANK_SLIDER = 7
 """What price shifting serves: the last stage, after every ranked goal."""
+OFFSET_REACH = 3.0
+"""How far from the household's own heating offset (what Thermaestro puts back to) either
+planner moves it: left there by a Thermaestro that stopped, it is a few degrees of water."""
 ADDITION_OFF_C = -15.0
 """The addition's stop temperature the planners set to keep it off, and no lower: left
 there by a Thermaestro that stopped, it still lets the addition help in real cold."""

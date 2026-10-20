@@ -220,10 +220,25 @@ Switching needs the password again. A setting the pump has its own feature for (
 
 **Only what can be left behind.** The pump keeps each setting as it was last set, also while Thermaestro is stopped, so the planners keep to values the house can live with until someone puts them back:
 
+- The heating offset moves at most three steps either way from what it is put back to. Left behind, it is a few degrees of water from what the house runs on. A house that needs more to stay in its comfort range has its heating curve set too low or too high (menu 1.9.1).
 - Holding hot-water charges off lowers the start temperature to 35 °C, no lower: the pump still charges once the tank has fallen that far. A hold lasts three hours at most, also across a restart, and none begins again until the pump has charged.
 - The addition is kept off by its stop temperature at −15 °C, no lower: in real cold it still helps.
 - A pool is held by its start temperature at the bottom of its band, never by switching its heating off.
 - However far the heating offset is raised, a climate system's supply stays at or below its own highest supply temperature (menu 5.1.2), and at or above its lowest (menu 1.9.3). Thermaestro reads both, shown with the pump's values, and never writes them. Set the highest for what the floor takes: underfloor heating is usually 35 to 45 °C, and laminate on boards about 35 °C.
+
+**If Thermaestro stops.** Nothing puts a setting back while it is stopped: the pump keeps each as Thermaestro last set it, within the limits above. Once Thermaestro starts again, it checks every setting it had changed against the pump and puts it back. A setting someone changed meanwhile is let go instead.
+
+To put the settings back by hand, use the pump's menus. They are listed here as on an F1145 or F1245; other models' manuals name them alike. Note the values while Thermaestro runs, since its pages are gone while it is stopped:
+
+| Setting | Menu | Put back to |
+|---|---|---|
+| Heating offset | 1.1, temperature | What the Control page shows as "put back to" |
+| Holding hot-water charges off | 5.1.1, the current mode's start temperature | The hot water's start temperature among the pump's values: while charges are held off, it shows the one to put back |
+| The addition's stop temperature | 4.9.2, stop additional heat | "Put back to" |
+| The addition's most power | 5.1.12 | "Put back to" |
+| A pool's start and stop temperatures | 4.1.1 or 4.1.2, pool | "Put back to" |
+
+A setting put back by hand is a change made elsewhere: Thermaestro lets it go, and **Keep the change** takes it over again.
 
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. To close it, use a gateway that speaks the Thermaestro gateway protocol, give it a key, and turn its plain write port off: Thermaestro's writes then need the key. A key alone doesn't close the plain port; `thermaestro-gateway` turns it off when it has a key, other gateways may not.
 

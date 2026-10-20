@@ -4,7 +4,8 @@
   the room furthest below its target. The target sits mid-band; with a cost stance it
   moves toward the band's top in cheap hours and its bottom in expensive ones, as far as the
   slider allows. A band that rises later is aimed for one response time early; one that
-  falls is kept until it does. An old reading counts less, a stale one not at all.
+  falls is kept until it does. An old reading counts less, a stale one not at all. Never
+  more than three steps from the household's own offset (the lever's range says so).
 - **Heating without:** the offset raised in the cheapest hours and cut in the most expensive, at
   most the household's bound, ranked so it nets out over the window.
 - **Hot water:** the floor first (a hold released, a charge started below it); a charge in
