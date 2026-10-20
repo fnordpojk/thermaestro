@@ -443,6 +443,11 @@ MIGRATIONS: tuple[str, ...] = (
         identity TEXT NOT NULL CHECK (json_valid(identity))
     ) STRICT;
     """,
+    # 30: the periodic increase as seen by its top against the mode's stop, which ordinary
+    # charges reach once the mode changes: seen again from its own stop
+    """
+    DELETE FROM learned WHERE key LIKE 'tank.periodic@%';
+    """,
 )
 VERSION = len(MIGRATIONS)
 

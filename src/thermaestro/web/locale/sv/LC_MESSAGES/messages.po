@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 11:46+0200\n"
+"POT-Creation-Date: 2026-10-20 17:04+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -3401,8 +3401,8 @@ msgstr "När inte allt kan uppfyllas ger dessa vika sist till först"
 msgid "When power counts"
 msgstr "När effekten räknas"
 
-msgid "When the tank was last seen well above its stop temperature."
-msgstr "När beredaren senast sågs väl över sin stopptemperatur."
+msgid "When the charge sensor was last seen at the periodic increase's stop."
+msgstr "När laddgivaren senast sågs nå den periodiska höjningens stopptemperatur."
 
 msgid "Where"
 msgstr "Var"
@@ -4581,4 +4581,7 @@ msgstr "°C i timmen vid 50 °C"
 
 #~ msgid "%(hours)s hours of heating of %(least)s."
 #~ msgstr "%(hours)s timmar med värmedrift av %(least)s."
+
+#~ msgid "When the tank was last seen well above its stop temperature."
+#~ msgstr "När beredaren senast sågs väl över sin stopptemperatur."
 

@@ -346,3 +346,57 @@ async def test_the_ceiling_leaves_out_the_periodic_increase_after_a_restart(
         found = learnings.get(CEILING, keys.scope)
         assert found is not None
         assert found.value == 51.0
+
+
+async def test_the_ceiling_tells_the_periodic_increase_by_its_own_stop(tmp_path: Path) -> None:
+    """The mode is economy now, its stop 45 °C, after charges in luxury that ended near
+    55 °C at the top: those count. Only the periodic increase, above its own stop of 55 °C,
+    is left out."""
+    import json as json_
+    from types import SimpleNamespace
+    from typing import Any, cast
+
+    from thermaestro.core import AuditLog
+    from thermaestro.core.values import Key, Values
+    from thermaestro.learn import Learnings
+    from thermaestro.learn.hotwater import CEILING, HotWater, TankKeys
+    from thermaestro.store import Database
+
+    now = 2_000_000_000.0
+    keys = TankKeys(
+        "dev:hp1/dhw",
+        Key("dev", "hp1/dhw/temp.top"),
+        Key("dev", "hp1/dhw/temp.charge"),
+        Key("dev", "hp1/demand"),
+        Key("dev", "hp1/dhw/temp.stop"),
+        Key("dev", "hp1/dhw/temp.stop.periodic"),
+    )
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+
+        def stock(t: Any) -> None:
+            t.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES ('dev', ?, ?, ?, NULL, 'good')",
+                [
+                    ("hp1/dhw/temp.stop", now - 7200, 45.0),
+                    ("hp1/dhw/temp.stop.periodic", now - 7200, 55.0),
+                ],
+            )
+            t.executemany(
+                "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, 'charge', ?, ?)",
+                [
+                    (keys.scope, now - 86_400, json_.dumps({"top1": 55.6})),  # luxury
+                    (keys.scope, now - 7200, json_.dumps({"top1": 52.1})),  # normal
+                    (keys.scope, now - 3600, json_.dumps({"top1": 60.2})),  # periodic
+                ],
+            )
+
+        await db.run(stock)
+        host = cast(Any, SimpleNamespace(instances={}))
+        hot = HotWater(db, Values(db), host, learnings, lambda key: True)
+        await hot._ceiling(keys, now)
+        found = learnings.get(CEILING, keys.scope)
+        assert found is not None
+        assert found.value == 55.6

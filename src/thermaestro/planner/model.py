@@ -104,6 +104,10 @@ class Tank:
     draws: tuple[float, ...] = ()
     """What the household is expected to draw in each hour from now's, in degrees of the
     tank: with `loss_per_h`, from the learned week."""
+    charge: float | None = None
+    """The charge sensor's temperature (BT6), where the stop temperatures apply."""
+    periodic_stop: float | None = None
+    """The periodic increase's own stop temperature, where the pump says."""
 
 
 @dataclass

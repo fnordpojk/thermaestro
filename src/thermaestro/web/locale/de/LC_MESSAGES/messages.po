@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 11:46+0200\n"
+"POT-Creation-Date: 2026-10-20 17:04+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -3460,8 +3460,8 @@ msgstr "Wenn nicht alles erfüllt werden kann, geben diese vom letzten zum erste
 msgid "When power counts"
 msgstr "Wann die Leistung zählt"
 
-msgid "When the tank was last seen well above its stop temperature."
-msgstr "Wann der Speicher zuletzt deutlich über seiner Stopptemperatur gesehen wurde."
+msgid "When the charge sensor was last seen at the periodic increase's stop."
+msgstr "Wann der Ladefühler zuletzt die Stopptemperatur der periodischen Erhöhung erreichte."
 
 msgid "Where"
 msgstr "Wo"
@@ -4661,4 +4661,7 @@ msgstr "°C pro Stunde bei 50 °C"
 
 #~ msgid "%(hours)s hours of heating of %(least)s."
 #~ msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
+
+#~ msgid "When the tank was last seen well above its stop temperature."
+#~ msgstr "Wann der Speicher zuletzt deutlich über seiner Stopptemperatur gesehen wurde."
 

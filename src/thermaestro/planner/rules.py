@@ -62,6 +62,9 @@ TANK_ROOM_C = 20.0
 """Where a tank stands, about, as the learned standing loss is reckoned."""
 CHARGE_S = 3600.0
 """How long a charge is assumed to take until one has been seen."""
+PERIODIC_MARGIN = 1.0
+"""How close below the periodic increase's own stop the charge sensor must come for it to
+count as running."""
 KP = {
     "radiators": 1.5,
     "fan_coils": 2.0,
@@ -381,6 +384,20 @@ def _shift(sit: Situation, system: str, lever: LeverState) -> list[Decision]:
 
 
 # --- hot water ----------------------------------------------------------------------------
+
+
+def periodic_seen(tank: Tank) -> bool:
+    """Whether the pump's periodic increase is running: the charge sensor, where the stop
+    temperatures apply, at the periodic increase's own stop, less a margin. Not the top
+    against the current mode's stop: the top runs warmer than the charge sensor, and the
+    mode may have changed since the charge. Only where the periodic stop is far enough above
+    the mode's for an ordinary charge not to reach it."""
+    charge, periodic, stop = tank.charge, tank.periodic_stop, tank.stop
+    if charge is None or periodic is None:
+        return False
+    if stop is not None and periodic - PERIODIC_MARGIN <= stop + PERIODIC_MARGIN:
+        return False
+    return charge >= periodic - PERIODIC_MARGIN
 
 
 def next_periodic(memory: Memory, scope: str) -> datetime | None:

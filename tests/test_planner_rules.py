@@ -304,6 +304,18 @@ def test_no_charge_where_the_tank_will_make_it() -> None:
     assert all(d.op != "fire" for d in rules.plan(situation([by], top=52.0)))
 
 
+def test_the_periodic_increase_is_told_by_its_own_stop_at_the_charge_sensor() -> None:
+    # As on a pump whose mode changes in the day: after a charge in a warmer mode, economy's
+    # stop of 45 °C and the top at 48.5 °C. That is no periodic increase.
+    economy = Tank(TANK, 48.5, 41.0, 45.0, charge=44.0, periodic_stop=55.0)
+    assert not rules.periodic_seen(economy)
+    assert not rules.periodic_seen(replace(economy, charge=51.0))  # a luxury charge's end
+    assert rules.periodic_seen(replace(economy, top=59.5, charge=54.5))
+    # Without its own stop, or with one an ordinary charge reaches, it isn't told at all.
+    assert not rules.periodic_seen(replace(economy, charge=56.0, periodic_stop=None))
+    assert not rules.periodic_seen(replace(economy, stop=54.0, charge=56.0))
+
+
 def test_the_periodic_increase_makes_a_charge_needless() -> None:
     by = kinds.hot_water_by(TANK, [(50.0, (), time(12, 45))], **who())  # type: ignore[arg-type]
     memory = Memory(

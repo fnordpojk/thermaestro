@@ -154,3 +154,31 @@ async def test_the_short_cycle_guard_airing_and_waits_outlast_a_restart(tmp_path
         assert later.memory.effects == []  # a wait a stop ended isn't judged
         assert later.memory.stopped == t - 300
         assert later.memory.aired == kept.aired
+
+
+async def test_an_ordinary_charge_isnt_taken_for_the_periodic_increase(tmp_path: Path) -> None:
+    """After a charge in a warmer mode, the top stands well above economy's stop: the
+    periodic increase is seen only from the charge sensor at its own stop."""
+
+    def sit(at: datetime, tank: Tank) -> Situation:
+        return Situation(
+            now=at,
+            zone=UTC,
+            force=Resolver([], {}, Calendar("UTC")).in_force(at),
+            ahead={},
+            deadlines=[],
+            caps=Capabilities(tanks=frozenset({TANK})),
+            prices=[],
+            rooms=[],
+            tanks={TANK: tank},
+            levers={},
+        )
+
+    economy = Tank(TANK, 48.5, 41.0, 45.0, charge=44.0, periodic_stop=55.0)
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        await p._observe(sit(NOW, economy))
+        assert p.memory.periodic == {}
+        periodic = Tank(TANK, 59.5, 41.0, 45.0, charge=54.5, periodic_stop=55.0)
+        await p._observe(sit(NOW + timedelta(hours=1), periodic))
+        assert p.memory.periodic == {TANK: NOW + timedelta(hours=1)}

@@ -61,6 +61,8 @@ class TankKeys:
     low: Key
     demand: Key
     stop: Key
+    periodic: Key | None = None
+    """The periodic increase's own stop temperature, where the pump has one."""
 
 
 class HotWater:
@@ -96,6 +98,7 @@ class HotWater:
                     Key(instance_id, f"{node.path}/temp.charge"),
                     Key(instance_id, f"{unit}/demand"),
                     Key(instance_id, f"{node.path}/temp.stop"),
+                    Key(instance_id, f"{node.path}/temp.stop.periodic"),
                 )
 
     async def run(self, now: float | None = None) -> None:
@@ -265,13 +268,16 @@ class HotWater:
         )
 
     async def _ceiling(self, keys: TankKeys, now: float) -> None:
-        stop_c = await self._stop(keys.stop)
+        # The periodic increase is told by its own stop, where the pump has one: the mode's
+        # stop changes with the mode, so a charge in a warmer mode would look like one.
+        periodic_c = await self._stop(keys.periodic) if keys.periodic is not None else None
+        bar = periodic_c if periodic_c is not None else await self._stop(keys.stop)
         found = await self._events(keys.scope, "charge", now - KEEP_S)
         ends = [
             b["top1"]
             for _, b in found
             if isinstance(b.get("top1"), int | float)
-            and (stop_c is None or b["top1"] < stop_c + tank.PERIODIC_ABOVE)
+            and (bar is None or b["top1"] < bar + tank.PERIODIC_ABOVE)
         ]
         if not ends:
             return

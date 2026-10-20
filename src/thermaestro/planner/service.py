@@ -103,10 +103,6 @@ heated harder for it."""
 SMOOTH_S = 1800.0
 """A room's temperature is steered on by its mean over this long: the air swings with
 each run of the compressor, the room doesn't."""
-PERIODIC_ABOVE = 3.0
-"""How far above its stop temperature the tank's top must rise to count as the pump's
-periodic increase."""
-
 LEAD_LEAST_H = 2.0
 """A system that answers faster isn't led by the forecast: the pump's curve keeps up."""
 LEAD_MOST = 3
@@ -683,6 +679,10 @@ class Planner:
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.stop"))),
                 loss_per_h=learned[0] if learned else None,
                 draws=learned[1] if learned else (),
+                charge=self._number(self._values.latest.get(Key(instance, f"{path}/temp.charge"))),
+                periodic_stop=self._number(
+                    self._values.latest.get(Key(instance, f"{path}/temp.stop.periodic"))
+                ),
             )
         pools = {}
         for scope in sorted(caps.pools):
@@ -1124,8 +1124,7 @@ class Planner:
                 took = (sit.now - since).total_seconds()
                 if 600 <= took <= 4 * 3600:
                     await self._charged(scope, took, since)
-            top, stop = tank.top, tank.stop
-            if top is not None and stop is not None and top >= stop + PERIODIC_ABOVE:
+            if rules.periodic_seen(tank):
                 last = self.memory.periodic.get(scope)
                 if last is None or (sit.now - last) > timedelta(days=1):
                     if last is not None:
@@ -1177,7 +1176,7 @@ class Planner:
                 kind="observed",
                 value=seen,
                 state="learning",
-                why=mark("When the tank was last seen well above its stop temperature."),
+                why=mark("When the charge sensor was last seen at the periodic increase's stop."),
                 n=len(seen),
                 since=min(seen.values()),
             )

@@ -716,6 +716,10 @@ MODE_STARTS = {0: 47045, 1: 47044, 2: 47043}
 """Each mode's start temperature. Smart Control has none of its own."""
 MODE_STOPS = {0: 47049, 1: 47048, 2: 47047}
 """Each mode's stop temperature."""
+PERIODIC_STOP = 47046
+"""The periodic increase's stop temperature, menu 5.1.1."""
+PERIODIC_ON = 47050
+"""The periodic increase on or off, menu 2.9.1."""
 TANK_SETTINGS = (
     setting_derived(
         "dhw/temp.start",
@@ -730,8 +734,14 @@ TANK_SETTINGS = (
         "the current mode's stop temperature, at the charge sensor",
         HOT_WATER_MODE,
     ),
+    setting_derived(
+        "dhw/temp.stop.periodic",
+        PERIODIC_STOP,
+        "the periodic increase's stop temperature, at the charge sensor",
+    ),
 )
-"""The tank's start and stop as the household has them, where the pump has a mode."""
+"""The tank's start and stop as the household has them, where the pump has a mode, and
+the periodic increase's stop."""
 HEATING_STOP = 47375
 UNIT_SETTINGS = (
     setting_derived(

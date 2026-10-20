@@ -273,3 +273,24 @@ async def test_the_device_a_lever_was_taken_over_on_is_kept(tmp_path: Path) -> N
             ]
         )
     assert "claim_unit" in tables
+
+
+async def test_periodic_increases_seen_from_the_modes_stop_are_forgotten(tmp_path: Path) -> None:
+    """Ordinary charges counted as the periodic increase once the mode changed: forgotten,
+    to be seen again from its own stop. Other learned values stay."""
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path) as db:
+        rows = [
+            ("tank.periodic@pump:hp1/dhw", '{"value": {"last": 1}}', 1.0),
+            ("tank.ceiling@pump:hp1/dhw", '{"value": 47.8}', 1.0),
+        ]
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO learned (key, body, updated) VALUES (?, ?, ?)", rows
+            )
+        )
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 29")
+    async with await Database.open(path) as db:
+        left = await db.run(lambda t: [k for (k,) in t.execute("SELECT key FROM learned")])
+    assert left == ["tank.ceiling@pump:hp1/dhw"]
