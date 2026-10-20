@@ -12,8 +12,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 
+from .. import clock
 from ..auth import AccountError, Forbidden, User
-from ..core.host import State
+from ..core.readiness import readiness
 from . import i18n
 from .operations import Caller, NeedsConfirmation, NotFound, Services
 from .security import (
@@ -305,26 +306,15 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
 
     @app.get("/ready", include_in_schema=False)
     async def ready() -> Response:
-        """Whether Thermaestro can control: its planner checking in, every device up, and
-        every lever put back that was to be. Counts only, without a login."""
-        executor = services.executor
-        state = (
-            executor.readiness()
-            if executor is not None
-            else {"planner": "none", "not_put_back": 0, "in_flight": 0}
+        """Whether Thermaestro can control (`core.readiness`). Counts only, without a login."""
+        body = readiness(
+            executor=services.executor,
+            planner=services.planner,
+            values=services.values,
+            host=services.host,
+            now=clock.time(),
         )
-        instances = services.host.instances.values() if services.host is not None else ()
-        down = len(
-            [
-                i
-                for i in instances
-                if i.state is not State.UP and (i.described is None or bool(i.described.levers))
-            ]
-        )
-        ok = state["planner"] == "checking in" and not down and not state["not_put_back"]
-        body = {"ready": ok, "planner": state["planner"], "devices_down": down}
-        body |= {"not_put_back": state["not_put_back"], "in_flight": state["in_flight"]}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        return JSONResponse(body, status_code=200 if body["ready"] else 503)
 
     from . import (
         api,

@@ -1147,7 +1147,11 @@ async def test_ready_is_apart_from_alive(site: Site) -> None:
     assert ready.json() == {
         "ready": False,
         "planner": "none",
+        "round_age_s": None,
         "devices_down": 0,
+        "inputs_stale": 0,
+        "history": "not running",
+        "tasks_down": 0,
         "not_put_back": 0,
         "in_flight": 0,
     }

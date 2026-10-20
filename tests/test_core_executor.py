@@ -670,14 +670,20 @@ async def test_a_change_in_flight_that_never_came_isnt_taken_for_someone_elses(
 async def test_how_the_write_path_stands(tmp_path: Path) -> None:
     """For a readiness check: whether the planner checks in, and what is still owed."""
     async with rig(tmp_path, {OFFSET: "control"}) as r:
-        assert r.executor.readiness() == {"planner": "not yet", "not_put_back": 0, "in_flight": 0}
+        assert r.executor.readiness() == {
+            "planner": "not yet",
+            "not_put_back": 0,
+            "in_flight": 0,
+            "tasks_down": 0,
+        }
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         r.executor.heartbeat()
         assert r.executor.readiness()["planner"] == "checking in"
         await r.host.stop()
         await until(
             lambda: (
-                r.executor.readiness() == {"planner": "silent", "not_put_back": 1, "in_flight": 0}
+                r.executor.readiness()
+                == {"planner": "silent", "not_put_back": 1, "in_flight": 0, "tasks_down": 0}
             )
         )
 
@@ -745,7 +751,12 @@ async def test_a_restore_done_but_unanswered_is_settled_by_reading(tmp_path: Pat
         results = await r.executor.restore("Thermaestro is stopping")
         assert results[OFFSET].outcome == "timeout"
         assert r.device.registers["x.fake.offset"] == -4
-        assert r.executor.readiness() == {"planner": "not yet", "not_put_back": 1, "in_flight": 1}
+        assert r.executor.readiness() == {
+            "planner": "not yet",
+            "not_put_back": 1,
+            "in_flight": 1,
+            "tasks_down": 0,
+        }
         r.device.quiet = False
         await until(lambda: r.executor.readiness()["not_put_back"] == 0)
         claim = r.executor.claims[OFFSET]
@@ -956,3 +967,11 @@ async def test_a_value_read_before_the_last_change_doesnt_make_a_request_unchang
         again = await r.executor.act(OFFSET, "set", {"value": 2}, who="p")
         assert again.outcome == "verified"
         assert r.device.registers["x.fake.offset"] == 2
+
+
+async def test_a_loop_of_the_write_path_that_ended_is_told(tmp_path: Path) -> None:
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        assert r.executor.loops_down() == []
+        r.executor._loops["leases"].cancel()
+        await until(lambda: r.executor.loops_down() == ["leases"])
+        assert r.executor.readiness()["tasks_down"] == 1

@@ -23,6 +23,7 @@ import json
 import logging
 from collections import deque
 from collections.abc import Awaitable, Callable, Iterable, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any
@@ -68,7 +69,7 @@ from .model import (
     Situation,
     Tank,
 )
-from .optimizer import TIME_LIMIT_S, Optimized, Optimizer
+from .optimizer import TIME_LIMIT_S, Optimized, Optimizer, retrieved
 from .summary import Pump, Summaries
 from .watch import MISSED_S, Watch
 
@@ -76,6 +77,10 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
+EXPLAIN_BUDGET_S = 30.0
+"""The longest judging the intents in a plan may take, its solves again included."""
+JUDGE = ThreadPoolExecutor(max_workers=1, thread_name_prefix="thermaestro-judge")
+"""Judged one plan at a time, on a thread of its own, apart from the plans' solves."""
 
 READY_S = 300.0
 """The longest a start waits for the plugins before it plans with what there is."""
@@ -216,6 +221,7 @@ class Planner:
         """Whether the last round saw the tank near it."""
         self._priced: tuple[float, list[Price]] | None = None
         self._task: asyncio.Task[None] | None = None
+        self._judging: asyncio.Future[Any] | None = None
         self._situation_levers: dict[str, LeverState] = {}
         self._recent: dict[str, deque[tuple[float, float]]] = {}
         self._grid = GridLimits(db, values)
@@ -237,6 +243,15 @@ class Planner:
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.run())
+
+    def readiness(self, now: float) -> dict[str, Any]:
+        """How planning stands: the seconds since its last whole round (None before one),
+        and whether it runs."""
+        last = self.memory.last_round
+        return {
+            "round_age_s": None if last is None else now - last.timestamp(),
+            "running": self._task is not None and not self._task.done(),
+        }
 
     async def stop(self) -> None:
         if self._task is not None:
@@ -431,14 +446,25 @@ class Planner:
         move every slot, and an intent isn't told again for that."""
         if not optimized.ok or optimized.problem is None or optimized.plan is None:
             return  # no plan says anything new: every intent stays as it stands
+        if self._judging is not None and not self._judging.done():
+            log.info("the intents weren't judged in this plan: the judging before still runs")
+            return
+        deadline = clock.monotonic() + EXPLAIN_BUDGET_S
 
         def again(problem: Problem) -> Any:
-            return solve(problem, TIME_LIMIT_S)
+            left = deadline - clock.monotonic()
+            if left <= 0:
+                raise TimeoutError("judging the intents took too long")
+            return solve(problem, min(TIME_LIMIT_S, max(1.0, left)))
 
         watched = optimized.watched
-        found: dict[str, Finding] = await asyncio.to_thread(
-            judge, watched, optimized.problem, optimized.plan, sit.zone, again
+        loop = asyncio.get_running_loop()
+        self._judging = loop.run_in_executor(
+            JUDGE, judge, watched, optimized.problem, optimized.plan, sit.zone, again
         )
+        self._judging.add_done_callback(retrieved)
+        async with asyncio.timeout(EXPLAIN_BUDGET_S):
+            found: dict[str, Finding] = await asyncio.shield(self._judging)
         judged = {d.by for d in watched.deadlines} | {
             i for goal in watched.rooms.values() for hour in goal.by for i in hour
         }

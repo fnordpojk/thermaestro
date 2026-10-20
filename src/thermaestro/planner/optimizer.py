@@ -19,6 +19,7 @@ import logging
 import math
 import statistics
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -66,6 +67,12 @@ log = logging.getLogger(__name__)
 HORIZON_H = 48
 SLOTS = 4 * HORIZON_H
 TIME_LIMIT_S = 30.0
+PLAN_BUDGET_S = 30.0
+"""The longest a plan may take, its problem made and solved together: past it, the plan
+has failed and the rules drive."""
+SOLVER = ThreadPoolExecutor(max_workers=1, thread_name_prefix="thermaestro-solve")
+"""Plans are solved one at a time, on a thread of their own. A solve the budget cut off goes
+on there until its own limit, and holds the next one off rather than run beside it."""
 WATER_KJ_L_K = 4.186
 MUST_MARGIN = 1.0
 """A `must` hot-water deadline is planned this much warmer: what is drawn isn't known."""
@@ -97,10 +104,19 @@ NO_DRAW = mark("the compressor's draw isn't known")
 HEATING_OFF = mark("the pump's heating stop has heating off")
 EMITTERS_UNPROVED = mark("what its emitters give hasn't proved itself")
 NOTHING = mark("nothing it could plan yet: every goal is with the rules")
+OVER = mark("it took over 30 seconds")
+BUSY = mark("the solve before it was still running")
 
 
 def _numeric(s: Sample) -> float | None:
     return s.value
+
+
+def retrieved(future: "asyncio.Future[Any]") -> None:
+    """Its outcome taken, so a solve no one awaits any more (cut off by a budget) isn't
+    reported as an exception never retrieved."""
+    if not future.cancelled():
+        future.exception()
 
 
 def held_mean(
@@ -204,10 +220,22 @@ class Optimizer:
         """Per climate system: the learned correction of the house model; the planner's
         memory, kept across a restart."""
         self._watched = Watched()
+        self._solving: asyncio.Future[Any] | None = None
 
     # --- a round ---------------------------------------------------------------------------
 
     async def run(self, sit: Situation, resolver: Resolver) -> Optimized:
+        """The plan, within `PLAN_BUDGET_S`: past it, a failed one, and the rules drive."""
+        deadline = asyncio.get_running_loop().time() + PLAN_BUDGET_S
+        try:
+            async with asyncio.timeout_at(deadline):
+                return await self._run(sit, resolver, deadline)
+        except TimeoutError:
+            log.warning("the optimizer's plan took over %s s: the rules drive", PLAN_BUDGET_S)
+            self.last = Optimized(False, OVER)
+            return self.last
+
+    async def _run(self, sit: Situation, resolver: Resolver, deadline: float) -> Optimized:
         try:
             problem, covered, notes = await self.problem(sit, resolver)
         except Exception as e:
@@ -219,10 +247,13 @@ class Optimizer:
             self.last = Optimized(False, NOTHING, problem, notes=notes, watched=watched)
             return self.last
         try:
-            found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
+            found = await self._solve(problem, deadline)
         except Exception as e:
             log.exception("the optimizer's solve failed")
             self.last = Optimized(False, f"{e}", problem, notes=notes, watched=watched)
+            return self.last
+        if found is None:
+            self.last = Optimized(False, BUSY, problem, notes=notes, watched=watched)
             return self.last
         if found.ok:
             for scope, planned in found.systems.items():
@@ -241,17 +272,37 @@ class Optimizer:
 
     async def preview(self, sit: Situation, resolver: Resolver) -> Optimized:
         """The plan as it would be now, kept nowhere: for an answer as something is asked.
-        What the plans an hour ago expected isn't checked off by it, nor the drift moved."""
+        What the plans an hour ago expected isn't checked off by it, nor the drift moved.
+        Within the same budget as a plan."""
+        deadline = asyncio.get_running_loop().time() + PLAN_BUDGET_S
         try:
-            problem, covered, notes = await self.problem(sit, resolver, preview=True)
-        except Exception as e:
-            log.exception("the optimizer's problem couldn't be made")
-            return Optimized(False, f"{e}")
-        watched = self._watched
-        if not covered:
-            return Optimized(False, NOTHING, problem, notes=notes, watched=watched)
-        found = await asyncio.to_thread(solve, problem, TIME_LIMIT_S)
+            async with asyncio.timeout_at(deadline):
+                try:
+                    problem, covered, notes = await self.problem(sit, resolver, preview=True)
+                except Exception as e:
+                    log.exception("the optimizer's problem couldn't be made")
+                    return Optimized(False, f"{e}")
+                watched = self._watched
+                if not covered:
+                    return Optimized(False, NOTHING, problem, notes=notes, watched=watched)
+                found = await self._solve(problem, deadline)
+        except TimeoutError:
+            return Optimized(False, OVER)
+        if found is None:
+            return Optimized(False, BUSY, problem, notes=notes, watched=watched)
         return Optimized(found.ok, found.why, problem, found, notes=notes, watched=watched)
+
+    async def _solve(self, problem: Problem, deadline: float) -> Any:
+        """The plan, solved on the solver's thread within what is left of the budget; None
+        while a solve before it still runs there."""
+        if self._solving is not None and not self._solving.done():
+            return None
+        loop = asyncio.get_running_loop()
+        limit = max(1.0, min(TIME_LIMIT_S, deadline - loop.time()))
+        self._solving = loop.run_in_executor(SOLVER, solve, problem, limit)
+        self._solving.add_done_callback(retrieved)
+        # Shielded: cut off, the solve goes on, and `_solving` says so until it ends.
+        return await asyncio.shield(self._solving)
 
     async def between(self, sit: Situation) -> list[Decision]:
         """Between slots, only hot water: from the slot's plan, with what is seen now."""

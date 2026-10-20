@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 06:57+0200\n"
+"POT-Creation-Date: 2026-10-20 11:46+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -3942,6 +3942,9 @@ msgstr ""
 msgid "it has no band"
 msgstr "den har inget intervall"
 
+msgid "it took over 30 seconds"
+msgstr "det tog över 30 sekunder"
+
 msgid "it would already have ended"
 msgstr "det skulle redan ha tagit slut"
 
@@ -4415,6 +4418,9 @@ msgstr "inställningarna"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "installationskoden stämmer inte, eller har gått ut"
+
+msgid "the solve before it was still running"
+msgstr "beräkningen före den pågick fortfarande"
 
 msgid "the tank's charge sensor"
 msgstr "beredarens laddgivare"

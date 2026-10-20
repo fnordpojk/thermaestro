@@ -80,6 +80,17 @@ class Values:
         self._plausibility = Plausibility()
         self.listeners: list[Callable[[str, Envelope], None]] = []
         """Told of every value as it is kept, after the plausibility check."""
+        self.flush_s: float | None = None
+        """How often the history is written, while it is (`run`)."""
+        self.flushed: float | None = None
+        """When the history was last written, or its writing began."""
+
+    def writing(self, now: float) -> str:
+        """Whether the history is being written: `writing`; `stalled`, nothing written for
+        three of its periods; or `not running`."""
+        if self.flush_s is None or self.flushed is None:
+            return "not running"
+        return "writing" if now - self.flushed <= 3 * self.flush_s else "stalled"
 
     def add(self, instance: str, envelope: Envelope, point: Point | None = None) -> None:
         """Keep a value, after the core's own plausibility check (`point`, where known,
@@ -251,6 +262,7 @@ class Values:
         """Flush every `flush_s`, prune every `prune_s`, until canceled; flush once more
         on the way out."""
         last_prune = 0.0
+        self.flush_s, self.flushed = flush_s, clock.time()
         try:
             while True:
                 await asyncio.sleep(flush_s)
@@ -259,9 +271,11 @@ class Values:
                     if clock.monotonic() - last_prune >= prune_s:
                         await self.prune(raw_days, aggregate_days)
                         last_prune = clock.monotonic()
+                    self.flushed = clock.time()
                 except Exception:
                     log.exception("writing the value history failed; trying again later")
         finally:
+            self.flush_s = None
             await self.flush()
 
 

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 06:57+0200\n"
+"POT-Creation-Date: 2026-10-20 11:46+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -4018,6 +4018,9 @@ msgstr ""
 msgid "it has no band"
 msgstr "er hat keinen Bereich"
 
+msgid "it took over 30 seconds"
+msgstr "es dauerte über 30 Sekunden"
+
 msgid "it would already have ended"
 msgstr "es wäre schon vorbei"
 
@@ -4495,6 +4498,9 @@ msgstr "den Einstellungen"
 
 msgid "the setup code isn't right, or has expired"
 msgstr "der Einrichtungscode ist falsch oder abgelaufen"
+
+msgid "the solve before it was still running"
+msgstr "die Berechnung davor lief noch"
 
 msgid "the tank's charge sensor"
 msgstr "der Ladefühler des Speichers"

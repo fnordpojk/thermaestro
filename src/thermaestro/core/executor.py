@@ -226,6 +226,8 @@ class Executor:
         """When the planner last checked in."""
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
+        self._loops: dict[str, asyncio.Task[None]] = {}
+        """The loops the write path runs while it does, by name."""
         self._unsettled: dict[str, float] = {}
         self._born = self._clock()
         """A change in flight from an earlier run is settled by any reading since this."""
@@ -243,9 +245,11 @@ class Executor:
         for ref, claim in self.claims.items():
             if claim.mode == "control" and claim.changed and claim.drift is None:
                 self._spawn(self._reconcile(ref))
-        self._spawn(self._watch())
-        self._spawn(self._leases())
-        self._spawn(self._retry())
+        self._loops = {
+            "watchdog": self._spawn(self._watch()),
+            "leases": self._spawn(self._leases()),
+            "retries": self._spawn(self._retry()),
+        }
 
     async def stop(self) -> None:
         with contextlib.suppress(ValueError):
@@ -254,6 +258,7 @@ class Executor:
             self._host.listeners.remove(self._on_event)
         with contextlib.suppress(ValueError):
             self._host.on_up.remove(self._on_up)
+        self._loops = {}
         for task in list(self._tasks):
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -277,7 +282,13 @@ class Executor:
             "planner": planner,
             "not_put_back": len(self._owed),
             "in_flight": sum(1 for c in self.claims.values() if c.pending is not None),
+            "tasks_down": len(self.loops_down()),
         }
+
+    def loops_down(self) -> list[str]:
+        """The loops of the write path that ended while it runs: the watchdog, the leases'
+        renewal, the retries of what couldn't be put back."""
+        return sorted(name for name, task in self._loops.items() if task.done())
 
     # --- Asking for a change ------------------------------------------------------------
 
@@ -1347,10 +1358,11 @@ class Executor:
     async def _save(self, claim: Claim) -> None:
         await self._db.run(lambda t: _store_claim(t, claim))
 
-    def _spawn(self, coro: Coroutine[Any, Any, None]) -> None:
+    def _spawn(self, coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+        return task
 
 
 async def left_changed(db: Database) -> list[str]:

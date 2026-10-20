@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-20 06:57+0200\n"
+"POT-Creation-Date: 2026-10-20 11:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3754,6 +3754,9 @@ msgstr ""
 msgid "it has no band"
 msgstr ""
 
+msgid "it took over 30 seconds"
+msgstr ""
+
 msgid "it would already have ended"
 msgstr ""
 
@@ -4224,6 +4227,9 @@ msgid "the settings"
 msgstr ""
 
 msgid "the setup code isn't right, or has expired"
+msgstr ""
+
+msgid "the solve before it was still running"
 msgstr ""
 
 msgid "the tank's charge sensor"

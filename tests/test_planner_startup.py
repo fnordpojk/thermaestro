@@ -2,6 +2,8 @@
 the watch's timers carry on; a failed solve changes no intent; and one failing step
 doesn't end a round."""
 
+import asyncio
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -123,3 +125,66 @@ async def test_a_failing_solve_is_a_failed_plan(
         found = await opt.run(cast(Any, SimpleNamespace(now=NOW + timedelta(0))), cast(Any, None))
         assert not found.ok
         assert "the solver crashed" in found.why
+
+
+async def test_a_plan_over_its_budget_leaves_it_to_the_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Past its budget, the problem made and solved together, a plan has failed and the
+    rules drive. The solve it cut off goes on on the solver's thread, so the next plan
+    waits for none and runs no second solve beside it."""
+    release = threading.Event()
+
+    def slow(problem: Problem, limit: float) -> Any:
+        release.wait(3)
+        raise RuntimeError("the slow solve ended")
+
+    monkeypatch.setattr(optimizing, "solve", slow)
+    monkeypatch.setattr(optimizing, "PLAN_BUDGET_S", 0.2)
+    async with await Database.open(tmp_path / "t.db") as db:
+        opt = Optimizer(db, Values(db), cast(Any, None), cast(Any, None))
+        problem = Problem((Slot(NOW.timestamp(), price=0.5),))
+
+        async def made(sit: Any, resolver: Any, **kw: Any) -> Any:
+            return problem, frozenset({"pump:hp1/cs1/heating.offset"}), []
+
+        opt.problem = made  # type: ignore[method-assign]
+        sit = cast(Any, SimpleNamespace(now=NOW))
+        first = await opt.run(sit, cast(Any, None))
+        assert (first.ok, first.why) == (False, optimizing.OVER)
+        second = await opt.run(sit, cast(Any, None))
+        assert (second.ok, second.why) == (False, optimizing.BUSY)
+        release.set()
+        async with asyncio.timeout(3):
+            while True:  # the cut-off solve ends; the thread is free again
+                third = await opt.run(sit, cast(Any, None))
+                if third.why != optimizing.BUSY:
+                    break
+                await asyncio.sleep(0.02)
+        assert third.why == "the slow solve ended"
+
+
+async def test_judging_the_intents_has_its_own_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Judging the plan's intents solves again: past its budget, the round goes on without
+    it, and while the judging cut off still runs, the next round doesn't start another."""
+    release = threading.Event()
+    calls: list[int] = []
+
+    def slow(*args: Any) -> Any:
+        calls.append(1)
+        release.wait(3)
+        return {}
+
+    monkeypatch.setattr(service, "judge", slow)
+    monkeypatch.setattr(service, "EXPLAIN_BUDGET_S", 0.2)
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path, cast(Any, None))
+        planned = Optimized(True, "", cast(Any, object()), cast(Any, object()))
+        sit = cast(Any, SimpleNamespace(zone=UTC))
+        with pytest.raises(TimeoutError):
+            await p._assure(planned, sit)
+        await p._assure(planned, sit)  # still judging: not again
+        assert calls == [1]
+        release.set()
