@@ -209,7 +209,7 @@ Each setting Thermaestro could change, by part of the pump: the heating offset o
 
 - **Off** (the start): Thermaestro reads and plans, and changes nothing.
 - **Shadow:** it decides as it would in control, shows what it would have done at the bottom of the page, and changes nothing. **Shadow vs the pump** (linked there and from the Plan page) sets each decision beside what the pump showed at that moment, to compare with what the pump did meanwhile, by itself or as another program such as NibePi set it: a chart per setting over the last day, week or 30 days (the pump's line and shadow's steps; a hold or a start as bands), the decisions in a table by setting and day, and a CSV download of the same.
-- **Control:** it makes the change, reads it back, limits how often it changes, and puts it back when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering.
+- **Control:** it makes the change, reads it back, limits how often it changes, and puts it back when Thermaestro stops, when the room sensor a setting rests on goes quiet, or when the planner stops answering. A setting it can't put back yet, with the pump out of reach or refusing, is tried again until it is, even with the planner stopped or the setting switched to off or shadow meanwhile (shadow decides on it again once it is back), and it is an event until then. A change cut off before Thermaestro knew whether the pump took it, by a crash or a power cut, is checked against the pump on the next start and put back.
 
 Switching needs the password again. A setting the pump has its own feature for (its hot-water schedule, Smart Price Adaption) asks you to confirm the feature is off first: two controllers on one setting fight. The heating offset also needs the pump's own room control off, which Thermaestro reads from the pump itself. A setting someone changed elsewhere (the pump's menu, NibePi) is let go and never written over; **Keep the change** takes it over again from there.
 
@@ -317,6 +317,7 @@ Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it
 - a climate system whose rooms have no fresh temperature, so its offset is the pump's own meanwhile;
 - a setting let go after a change Thermaestro didn't make;
 - every setting put back because the planner stopped answering;
+- a setting Thermaestro couldn't put back, until it is;
 - a plugin, a device or a feed of prices or weather missing for over an hour, or asking for something;
 - a device's own warnings, such as the brine near the pump's alarm limit.
 

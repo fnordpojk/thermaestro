@@ -426,6 +426,15 @@ MIGRATIONS: tuple[str, ...] = (
     DELETE FROM learn_events
     WHERE kind = 'house_day' AND t >= CAST(strftime('%s', 'now') AS REAL) - 14 * 86400;
     """,
+    # 28: a change sent whose fate isn't known yet, kept with its lever's claim until it
+    # is: a process that stops meanwhile knows the device may have taken it
+    """
+    CREATE TABLE IF NOT EXISTS claim_inflight (
+        lever TEXT PRIMARY KEY,
+        op TEXT NOT NULL,
+        params TEXT NOT NULL CHECK (json_valid(params))
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

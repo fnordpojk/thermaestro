@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import sqlite3
 import time
@@ -13,6 +14,7 @@ from thermaestro.cap import Closed
 from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
+from thermaestro.core.events import Events
 from thermaestro.core.executor import left_changed
 from thermaestro.store import Control, Database, LeverMode, Plugin, SecretStore
 
@@ -533,3 +535,124 @@ async def test_one_lever_failing_to_go_back_leaves_the_others_put_back(tmp_path:
         assert results[OFFSET].outcome == "dropped"
         assert results[BLOCK].outcome == "awaiting_effect"
         assert r.device.held == set()
+
+
+# --- Putting back, when it doesn't go as it should -----------------------------------------
+
+
+async def test_a_baseline_changed_after_the_lever_was_taken_over_outlasts_a_restart(
+    tmp_path: Path,
+) -> None:
+    device = LeverDevice()
+    async with rig(tmp_path, {CURVE: "control"}, device) as r:
+        assert (await r.executor.act(CURVE, "set", {"value": 10}, who="planner")).outcome == (
+            "verified"
+        )
+        assert await r.executor.set_baseline(CURVE, 8, who="admin") is None
+        await r.executor.stop()  # no restore: as if the process died
+    async with rig(tmp_path, {CURVE: "control"}, device) as r:
+        assert r.executor.claims[CURVE].baseline == 8
+        await until(lambda: device.registers["x.fake.curve"] == 8)
+
+
+async def test_a_lever_taken_out_of_control_while_its_plugin_is_down(tmp_path: Path) -> None:
+    """Off or in shadow, a lever not put back is still owed: tried again once its plugin is
+    back, and until then not decided on in shadow, so what it was found at isn't lost."""
+    async with rig(tmp_path, {OFFSET: "control", CURVE: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(CURVE, "set", {"value": 9}, who="planner")
+        await r.host.stop()
+        await r.executor.set_mode(OFFSET, "off", who="anna")
+        await r.executor.set_mode(CURVE, "shadow", who="anna")
+        assert await left_changed(r.db) == [CURVE, OFFSET]
+        refused = await r.executor.act(CURVE, "set", {"value": 10}, who="planner")
+        assert (refused.outcome, refused.detail) == ("refused", "it isn't put back yet")
+        await r.host.start()
+        await until(
+            lambda: (
+                (r.device.registers["x.fake.offset"], r.device.registers["x.fake.curve"]) == (-4, 7)
+            )
+        )
+        assert await left_changed(r.db) == []
+        shadowed = await r.executor.act(CURVE, "set", {"value": 10}, who="planner")
+        assert shadowed.outcome == "shadowed"
+        assert r.device.registers["x.fake.curve"] == 7
+
+
+async def test_a_lever_taken_out_of_control_while_its_plugin_is_down_then_a_restart(
+    tmp_path: Path,
+) -> None:
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.host.stop()
+        await r.executor.set_mode(OFFSET, "off", who="anna")
+        await r.executor.stop()
+    async with rig(tmp_path, {}, device) as r:
+        await until(lambda: device.registers["x.fake.offset"] == -4)
+        assert not r.executor.claims[OFFSET].changed
+
+
+async def test_a_watchdog_restore_that_failed_is_tried_again(tmp_path: Path) -> None:
+    """The planner stopped while the plugin was down: once the plugin is back, the lever is
+    put back, the planner still stopped; meanwhile it is an event."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        events = r.executor.events = Events(r.db)
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.host.stop()
+        r.executor.heartbeat()
+        await until(lambda: any(e["what"] == "lever.restore" for e in audited(r)))
+        await asyncio.sleep(1.0)  # several of the watchdog's periods
+        assert r.device.registers["x.fake.offset"] == 2
+        [owed] = await events.open("lever.not_back:")
+        assert owed.args == {"lever": OFFSET, "why": "its plugin isn't running"}
+        await r.host.start()
+        await until(lambda: r.device.registers["x.fake.offset"] == -4)
+        assert not r.executor.claims[OFFSET].changed
+        assert await events.open("lever.not_back:") == []
+
+
+async def test_a_change_cut_off_after_the_device_took_it_is_put_back_after_a_restart(
+    tmp_path: Path,
+) -> None:
+    """The process stopped after the device took a change and before its fate was kept:
+    kept as in flight before it was sent, it is put back on the next start."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        link = r.host.instances["dev"].link
+        assert link is not None
+
+        async def never(*args: object, **kwargs: object) -> None:
+            await asyncio.Event().wait()
+
+        link.read = never  # type: ignore[method-assign, assignment]
+        acting = asyncio.create_task(r.executor.act(OFFSET, "set", {"value": 2}, who="planner"))
+        await until(lambda: device.registers["x.fake.offset"] == 2)
+        acting.cancel()  # the process stops here
+        with contextlib.suppress(asyncio.CancelledError):
+            await acting
+        await r.executor.stop()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await until(lambda: device.registers["x.fake.offset"] == -4)
+        claim = r.executor.claims[OFFSET]
+        assert (claim.changed, claim.drift) == (False, None)
+
+
+async def test_a_change_in_flight_that_never_came_isnt_taken_for_someone_elses(
+    tmp_path: Path,
+) -> None:
+    """The device still reads what Thermaestro set before: the change in flight didn't
+    reach it, and nobody else changed anything."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.stop()
+    with closing(sqlite3.connect(tmp_path / "t.db", autocommit=True)) as raw:
+        raw.execute(
+            "INSERT INTO claim_inflight (lever, op, params) VALUES (?, 'set', ?)",
+            (OFFSET, json.dumps({"value": 3})),
+        )
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await until(lambda: device.registers["x.fake.offset"] == -4)
+        claim = r.executor.claims[OFFSET]
+        assert (claim.changed, claim.drift, claim.pending) == (False, None, None)
