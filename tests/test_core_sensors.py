@@ -366,3 +366,38 @@ async def test_an_outage_is_no_sensors_silence(db: Database) -> None:
     values.add("ha", at("sensor.porch", 5.0, clock.now))
     assert hub.freshness("hall") == (4 * 3600, True)
     assert hub.freshness("porch") == (4 * 3600, True)
+
+
+async def test_a_room_whose_sources_times_go_back_still_changes(db: Database) -> None:
+    """A sensor dropping out leaves the mean to one that reported before it: the room's
+    change is kept as it happened, not dropped as older than the value before."""
+    clock = Clock()
+    await db.put(Room(name="Living room"), "living")
+    await db.put(Sensor(name="Shelf", source="point", point="ha:a", room="living"), "a")
+    await db.put(Sensor(name="Sofa", source="point", point="ha:b", room="living"), "b")
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock)
+    await hub.load()
+
+    def at(point: str, value: float | None, ago: float, quality: str = "good") -> Envelope:
+        when = datetime.fromtimestamp(clock.now - ago, UTC)
+        return Envelope.model_validate(
+            {
+                "point": point,
+                "value": value,
+                "unit": "degC" if value is not None else None,
+                "t_observed": when,
+                "t_received": when,
+                "quality": quality,
+                "source": "measured",
+            }
+        )
+
+    values.add("ha", at("a", 21.0, 120))
+    values.add("ha", at("b", 22.0, 60))
+    assert site(values, "room.living/temperature")[:2] == (21.5, "good")
+    values.add("ha", at("b", None, 30, "unknown"))
+    assert site(values, "room.living/temperature")[:2] == (21.0, "good")
+    await values.flush()
+    kept = await values.history(Key(SITE, "room.living/temperature"), 0, 3e9)
+    assert [k.value for k in kept if k.quality == "good"] == [21.0, 21.5, 21.0]

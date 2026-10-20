@@ -40,7 +40,7 @@ Every value arrives in an **envelope**:
 | `value` | the value, or null |
 | `unit` | its unit |
 | `raw` | the device's value before scaling, for tracing; never planned on |
-| `t_observed` | when the device sampled it, as close to the source as the connection allows; null if unknown |
+| `t_observed` | when the device sampled it, as close to the source as the connection allows; null if unknown. A value observed before the one the core shows for its point came late and is dropped; one at the same time replaces it (its quality, say) |
 | `t_received` | when the plugin got it |
 | `quality` | see below |
 | `source` | `measured`, `calculated`, `estimated` or `assumed` |

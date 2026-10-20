@@ -13,7 +13,9 @@ From them the core derives, under the instance `site`:
 - dew point and absolute humidity wherever temperature and relative humidity meet.
 
 A derived value is never better than its inputs: with none good, it is `unknown`, and
-says why.
+says why. It takes its inputs' time, which can go back (a sensor dropping out of a mean,
+a good reading after none): a value observed before the one shown would be dropped, so a
+change that would be is placed when it is made.
 """
 
 import json
@@ -339,15 +341,19 @@ class SensorHub:
         reading = self._current(id)
         if reading is None:
             return
+        path = f"{id}/{sensor.quantity}"
+        t = self._in_order(
+            Key(SENSORS, path), reading.value, reading.quality, reading.why, reading.t
+        )
         self._values.add(
             SENSORS,
             _envelope(
-                f"{id}/{sensor.quantity}",
+                path,
                 reading.value,
                 _unit(sensor.quantity),
                 reading.quality,
                 reading.why,
-                reading.t,
+                t,
                 "measured",
             ),
         )
@@ -466,7 +472,21 @@ class SensorHub:
         t: float,
         source: str = "calculated",
     ) -> None:
+        t = self._in_order(Key(SITE, path), value, quality, why, t)
         self._values.add(SITE, _envelope(path, value, _unit(quantity), quality, why, t, source))
+
+    def _in_order(
+        self, key: Key, value: Value, quality: Quality, why: str | None, t: float
+    ) -> float:
+        """`t`, or where that is before the value shown and this one differs from it, now:
+        at the same time, it is a later word on the same reading, as a value's own is."""
+        shown = self._values.latest.get(key)
+        if shown is None or shown.t_observed is None:
+            return t
+        before = shown.t_observed.timestamp()
+        if t >= before or (shown.value, shown.quality, shown.why) == (value, quality, why):
+            return t
+        return max(self._clock(), before + 0.001)
 
     # --- for the pages ---------------------------------------------------------------------
 

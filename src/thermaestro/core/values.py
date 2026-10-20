@@ -5,6 +5,12 @@ a value goes into the history only when it changes, when its quality changes, or
 `heartbeat_s` has passed since the last one kept; and the history is written in batches.
 Old samples are folded into 15-minute aggregates, which are kept far longer.
 
+Values are in the order they were observed. One observed before the value shown came late
+(a plugin's reconnect sends what it had again): it is dropped, before it is shown, told
+or checked as a counter. One observed at the same time is a later word on the same
+reading, such as its going stale: shown and told, while the history keeps the reading as
+it was. A value with no time of its own (a plugin's "not read yet") orders nothing.
+
 Means are over time, not over samples: a value counts for as long as it held, until the
 next sample, for at most `HELD_MAX_S`. A sensor that reports every few minutes while the
 temperature moves and once in hours while it doesn't would otherwise pull the mean toward
@@ -77,9 +83,17 @@ class Values:
 
     def add(self, instance: str, envelope: Envelope, point: Point | None = None) -> None:
         """Keep a value, after the core's own plausibility check (`point`, where known,
-        says how its counter wraps)."""
-        envelope = self._plausibility.check(instance, envelope, point)
+        says how its counter wraps). One observed before the value shown is dropped."""
         key = Key(instance, envelope.point)
+        shown = self.latest.get(key)
+        if (
+            shown is not None
+            and shown.t_observed is not None
+            and envelope.t_observed is not None
+            and envelope.t_observed < shown.t_observed
+        ):
+            return
+        envelope = self._plausibility.check(instance, envelope, point)
         self.latest[key] = envelope
         for listener in self.listeners:
             listener(instance, envelope)

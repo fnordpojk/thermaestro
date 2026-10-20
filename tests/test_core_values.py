@@ -175,3 +175,64 @@ async def test_each_days_lowest_mean_and_highest(db: Database) -> None:
         ("2026-02-04", 2.0, 2.0, 2.0),
         ("2026-02-05", -6.0, -5.68, 2.0),  # 2 until 00:30, then -6
     ]
+
+
+async def test_a_value_observed_before_the_one_shown_is_dropped(db: Database) -> None:
+    """Came late, out of order: neither shown, told nor kept."""
+    values = Values(db)
+    told: list[object] = []
+    values.listeners.append(lambda instance, e: told.append(e.value))
+    values.add("pump", env(22.0, s(30)))
+    values.add("pump", env(18.0, s(0)))
+    assert values.latest[KEY].value == 22.0
+    assert told == [22.0]
+    await values.flush()
+    kept = await values.history(KEY, 0, 2e9)
+    assert [k.value for k in kept] == [22.0]
+
+
+async def test_a_counter_sent_again_out_of_order_isnt_taken_for_running_backwards(
+    db: Database,
+) -> None:
+    values = Values(db)
+    point = "hp1/elec.used"
+    values.add("pump", env(100.0, s(10), point=point))
+    values.add("pump", env(90.0, s(5), point=point))  # an older reading, sent again
+    shown = values.latest[Key("pump", point)]
+    assert (shown.value, shown.quality) == (100.0, "good")
+    values.add("pump", env(101.0, s(20), point=point))
+    assert values.latest[Key("pump", point)].quality == "good"
+
+
+async def test_the_same_reading_said_again_at_its_time(db: Database) -> None:
+    """A later word on the same reading (it went stale): shown and told, while the history
+    keeps the reading as it was."""
+    values = Values(db)
+    told: list[str] = []
+    values.listeners.append(lambda instance, e: told.append(e.quality))
+    values.add("pump", env(4.5, s(10)))
+    values.add("pump", env(4.5, s(10), quality="stale"))
+    assert values.latest[KEY].quality == "stale"
+    assert told == ["good", "stale"]
+    await values.flush()
+    kept = await values.history(KEY, 0, 2e9)
+    assert [(k.value, k.quality) for k in kept] == [(4.5, "good")]
+
+
+async def test_a_value_without_an_observation_time_orders_nothing(db: Database) -> None:
+    """A plugin's placeholder ("not read yet") is stamped when sent: the first reading,
+    observed before it, is still shown."""
+    values = Values(db)
+    values.add(
+        "pump",
+        Envelope(
+            point="hp1/outdoor.temp",
+            value=None,
+            t_observed=None,
+            t_received=T0 + s(60),
+            quality="unknown",
+            source="measured",
+        ),
+    )
+    values.add("pump", env(4.5, s(30)))
+    assert (values.latest[KEY].value, values.latest[KEY].quality) == (4.5, "good")
