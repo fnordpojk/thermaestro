@@ -129,7 +129,7 @@ def test_no_lever_writes_what_is_never_written() -> None:
     for name in maps.models:
         model = maps.model(name)
         layout = profile.BUS.layout(model, list(range(1, 9)), [1, 2])
-        for spec in profile.levers(model, layout.points, {}):
+        for spec in profile.levers(model, layout.points, {}, None):
             registers = {int(t.removeprefix("x.nibe.")) for t in spec.lever.touches}
             assert not registers & profile.NEVER_WRITTEN, (name, spec.path)
             assert all(model.register(r).writable for r in registers), (name, spec.path)
@@ -162,7 +162,7 @@ def test_every_lever_fits_its_register_on_every_model() -> None:
     for name in maps.models:
         model = maps.model(name)
         layout = profile.BUS.layout(model, list(range(1, 9)), [1, 2])
-        for spec in profile.levers(model, layout.points, {}):
+        for spec in profile.levers(model, layout.points, {}, None):
             param = spec.lever.params.get("value")
             if param is None or param.type != "number" or spec.register is None:
                 continue
@@ -617,16 +617,19 @@ async def test_shadow_sends_nothing(stocked: SimPump, gateway: Gateway, tmp_path
     assert stocked.taken_writes == []
 
 
-def test_levers_tried_on_a_pump_are_verified_on_that_model_only() -> None:
-    """What the rig showed on a real pump counts for that model; elsewhere, as documented."""
+def test_levers_tried_on_a_pump_are_verified_on_that_model_and_firmware_only() -> None:
+    """What the rig showed on a real pump counts for that model on that firmware; elsewhere,
+    and where the firmware isn't known, as documented."""
     maps = load("bus")
     f1245, f1155 = maps.model("F1245"), maps.model("F1155")
     documented = Knowledge[bool](value=True, known="documented", basis="a manual")
     for path in ("cs1/heating.offset", "dhw/mode", "dhw/block", "dhw/boost_once"):
-        found = profile.tried(path, f1245, documented)
+        found = profile.tried(path, f1245, "9721R4", documented)
         assert (found.known, found.value) == ("verified", True)
         assert "F1245, firmware 9721R4" in str(found.basis)
-        assert profile.tried(path, f1155, documented) == documented
+        assert profile.tried(path, f1155, "9721R4", documented) == documented
+        assert profile.tried(path, f1245, "9800R1", documented) == documented
+        assert profile.tried(path, f1245, None, documented) == documented
     # Only climate system 1's offset was tried.
-    assert profile.tried("cs2/heating.offset", f1245, documented) == documented
-    assert profile.tried("addition/stop_temp", f1245, documented) == documented
+    assert profile.tried("cs2/heating.offset", f1245, "9721R4", documented) == documented
+    assert profile.tried("addition/stop_temp", f1245, "9721R4", documented) == documented

@@ -275,7 +275,9 @@ def shadow_equals_control(path: Path, s: Scenario, days: float) -> None:
     # Writes stay inside the claims: only the levers' own registers, never one that is
     # never written, never an alarm reset.
     model = load("bus").model("F1245")
-    specs = {x.path: x for x in profile.levers(model, profile.BUS.layout(model, [1]).points, {})}
+    specs = {
+        x.path: x for x in profile.levers(model, profile.BUS.layout(model, [1]).points, {}, None)
+    }
     claimed = {
         int(touched.removeprefix("x.nibe."))
         for lever in LEVERS

@@ -187,7 +187,10 @@ UNAVAILABLE = "not yet read on a real S-series pump"
 
 
 def levers(
-    model: ModelMap, points: Mapping[str, PointDef], values: Mapping[int, float | int | None]
+    model: ModelMap,
+    points: Mapping[str, PointDef],
+    values: Mapping[int, float | int | None],
+    firmware: str | None,
 ) -> list[Spec]:
     """Described, and unavailable: what the S-series takes is to be read on a real pump
     first."""

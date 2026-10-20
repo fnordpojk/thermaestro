@@ -1021,7 +1021,7 @@ class NibePlugin:
 
     def _specs(self) -> dict[str, profile.Spec]:
         model, layout = self._pump()
-        specs = self.family.levers(model, layout.points, self._snapshot().values)
+        specs = self.family.levers(model, layout.points, self._snapshot().values, self.firmware)
         return {spec.path: spec for spec in specs}
 
     async def _act(self, request: Act, send: Send) -> None:
@@ -1234,7 +1234,9 @@ class NibePlugin:
             mode = values.get(self.family.hot_water_mode)
             self._described_mode = None if mode is None else int(mode)
             self._block_described = True
-        levers = [spec.lever for spec in self.family.levers(model, layout.points, values)]
+        levers = [
+            spec.lever for spec in self.family.levers(model, layout.points, values, self.firmware)
+        ]
         return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
 
     def _named(self) -> None:

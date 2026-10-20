@@ -588,9 +588,11 @@ Groups = Callable[
 ]
 """A family's points by node, with the given climate systems and pools."""
 Levers = Callable[
-    [ModelMap, Mapping[str, PointDef], Mapping[int, float | int | None]], list["Spec"]
+    [ModelMap, Mapping[str, PointDef], Mapping[int, float | int | None], str | None],
+    list["Spec"],
 ]
-"""A family's levers, from the model, the points it has and the values last read."""
+"""A family's levers, from the model, the points it has, the values last read and its
+firmware, where known."""
 
 
 @dataclass(frozen=True)
@@ -807,30 +809,27 @@ def _documented(basis: str | tuple[str, ...]) -> Knowledge[bool]:
     return Knowledge(value=True, known="documented", basis=basis)
 
 
-TRIED: Mapping[str, Mapping[str, str]] = {
-    "cs1/heating.offset": {
-        "F1245": "tried on an F1245, firmware 9721R4: set, read back and put back",
-    },
-    "dhw/mode": {
-        "F1245": "tried on an F1245, firmware 9721R4: set, read back and put back",
-    },
-    "dhw/block": {
-        "F1245": "tried on an F1245, firmware 9721R4: no charge while the start was lowered",
-    },
-    "dhw/boost_once": {
-        "F1245": "tried on an F1245, firmware 9721R4: a charge started, and ended by itself",
-    },
+TRIED: Mapping[str, Mapping[str, tuple[str, str]]] = {
+    "cs1/heating.offset": {"F1245": ("9721R4", "set, read back and put back")},
+    "dhw/mode": {"F1245": ("9721R4", "set, read back and put back")},
+    "dhw/block": {"F1245": ("9721R4", "no charge while the start was lowered")},
+    "dhw/boost_once": {"F1245": ("9721R4", "a charge started, and ended by itself")},
 }
-"""Levers tried on a real pump (`thermaestro rig`), by model: there, verified; on other
-models, as documented."""
+"""Levers tried on a real pump (`thermaestro rig`), by model, with the firmware it ran and
+what was seen: on that model and firmware, verified; elsewhere, as documented. A firmware
+update can change what a register does."""
 
 
-def tried(path: str, model: ModelMap, documented: Knowledge[bool]) -> Knowledge[bool]:
-    """Whether the lever works: verified on a model it was tried on, else as documented."""
-    tried = TRIED.get(path, {}).get(model.name)
-    if tried is None:
+def tried(
+    path: str, model: ModelMap, firmware: str | None, documented: Knowledge[bool]
+) -> Knowledge[bool]:
+    """Whether the lever works: verified on a model and firmware it was tried on, else as
+    documented."""
+    found = TRIED.get(path, {}).get(model.name)
+    if found is None or found[0] != firmware:
         return documented
-    return Knowledge(value=True, known="verified", basis=tried)
+    basis = f"tried on an {model.name}, firmware {found[0]}: {found[1]}"
+    return Knowledge(value=True, known="verified", basis=basis)
 
 
 STORED = Knowledge[Persistence](
@@ -878,10 +877,14 @@ def _setting(
 
 
 def levers(
-    model: ModelMap, points: Mapping[str, PointDef], values: Mapping[int, float | int | None]
+    model: ModelMap,
+    points: Mapping[str, PointDef],
+    values: Mapping[int, float | int | None],
+    firmware: str | None,
 ) -> list[Spec]:
     """The levers this pump offers, and how each is carried out. `values` are the values
-    last read: the hot-water block's description names the mode it would block."""
+    last read: the hot-water block's description names the mode it would block. Whether
+    each works is verified on the model and `firmware` it was tried on (`TRIED`)."""
     out = []
     priced = (PRICE_ADAPTION,) if PRICE_ADAPTION_STATE in model else ()
     for system in SYSTEMS:
@@ -902,7 +905,7 @@ def levers(
                 system.offset,
                 f"{cs}/x.nibe.{system.offset}",
                 _number(-10, 10, 1, None, DATABASE),
-                tried(f"{cs}/heating.offset", model, _documented("installer manual")),
+                tried(f"{cs}/heating.offset", model, firmware, _documented("installer manual")),
                 preconditions=conditions,
                 competing_features=priced,
             )
@@ -923,7 +926,7 @@ def levers(
                         basis=(DATABASE, "Smart Control isn't offered"),
                     ),
                 ),
-                tried("dhw/mode", model, _documented(DATABASE)),
+                tried("dhw/mode", model, firmware, _documented(DATABASE)),
                 competing_features=(SCHEDULE, *priced),
                 names=MODES,
             )
@@ -948,6 +951,7 @@ def levers(
                     works=tried(
                         "dhw/block",
                         model,
+                        firmware,
                         _documented(
                             (DATABASE, "a low start holds charges off, as tried on an F1245")
                         ),
@@ -972,7 +976,9 @@ def levers(
                 Lever(
                     path=f"{UNIT}/dhw/boost_once",
                     kind="trigger",
-                    works=tried("dhw/boost_once", model, _documented("firmware history, 7740R2")),
+                    works=tried(
+                        "dhw/boost_once", model, firmware, _documented("firmware history, 7740R2")
+                    ),
                     verify=Verify(kind="effect", point=f"{UNIT}/demand", expectation="demand: dhw"),
                     touches=(f"x.nibe.{BOOST}",),
                 ),
