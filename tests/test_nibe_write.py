@@ -145,7 +145,6 @@ async def over_the_protocol(gateway: Gateway, tmp_path: Path) -> NibePlugin:
             protocol="thermaestro-gw",
             control_port=gateway.ports["control"],
             read_port=gateway.ports["read"],
-            write_port=gateway.ports["write"],
             psk="nibe.psk",
         ),
         secrets=secrets,

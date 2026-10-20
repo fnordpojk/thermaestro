@@ -45,7 +45,8 @@ def config(gateway: Gateway, control_port: int | None, psk: bytes | None = None)
     return GatewayConfig(
         host="127.0.0.1",
         read_port=gateway.ports["read"],
-        write_port=gateway.ports["write"],
+        # A gateway with a key has no plain write port; with a key, none is used.
+        write_port=gateway.ports.get("write", 10000),
         control_port=control_port,
         psk=psk,
     )

@@ -502,7 +502,6 @@ async def test_the_gateway_protocol_with_its_key(
             protocol="thermaestro-gw",
             control_port=gateway_with_psk.ports["control"],
             read_port=gateway_with_psk.ports["read"],
-            write_port=gateway_with_psk.ports["write"],
             psk="nibe.psk",
         ),
         secrets=secrets,
