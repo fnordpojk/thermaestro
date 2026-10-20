@@ -1,5 +1,7 @@
 """Serving the web UI inside the running core: HTTP, and HTTPS with the installation's
-own certificate.
+own certificate. While HTTPS is on, plain HTTP sends everything to it but `/health`,
+`/ready` and requests from this machine (the container's health check, `thermaestro
+status`), unless the start-up file says to serve it all.
 
 uvicorn replaces the SIGINT and SIGTERM handlers while it serves; here it doesn't, so
 the core keeps them and stops in its own order. The sockets are bound before uvicorn
@@ -8,6 +10,7 @@ starts, so a port in use is an error at start that names the port.
 
 import asyncio
 import contextlib
+import ipaddress
 import logging
 import secrets
 import socket
@@ -16,6 +19,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import uvicorn
+from starlette.datastructures import URL
+from starlette.responses import RedirectResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..auth import Accounts, SetupCode
 from ..store import StoreError
@@ -35,6 +41,32 @@ log = logging.getLogger(__name__)
 RENEW_CHECK_S = 86_400.0
 
 CSRF_KEY = "web.csrf-key"
+
+
+SERVED_PLAIN = ("/health", "/ready")
+"""What plain HTTP serves to anyone while HTTPS is on."""
+
+
+def to_https(app: ASGIApp, https_port: int) -> ASGIApp:
+    """`app` over plain HTTP: `SERVED_PLAIN` and requests from this machine as they are,
+    everything else sent to the same address over HTTPS."""
+
+    async def plain(scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["path"] in SERVED_PLAIN or _here(scope):
+            await app(scope, receive, send)
+            return
+        url = URL(scope=scope).replace(scheme="https", port=https_port)
+        await RedirectResponse(str(url), status_code=308)(scope, receive, send)
+
+    return plain
+
+
+def _here(scope: Scope) -> bool:
+    client = scope.get("client")
+    try:
+        return client is not None and ipaddress.ip_address(client[0]).is_loopback
+    except ValueError:
+        return False
 
 
 class _Server(uvicorn.Server):
@@ -123,7 +155,10 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
             "timeout_graceful_shutdown": 5,
         }
         plain = _bind(web.listen, web.port)
-        listeners.append((plain, uvicorn.Config(app, **common)))  # type: ignore[arg-type]
+        served = (
+            to_https(app, web.https_port) if own is not None and web.http == "redirect" else app
+        )
+        listeners.append((plain, uvicorn.Config(served, **common)))  # type: ignore[arg-type]
         if own is not None:
             tls = _bind(web.listen, web.https_port)
             config = uvicorn.Config(

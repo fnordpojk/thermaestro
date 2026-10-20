@@ -8,6 +8,7 @@ file that upgrades keep. A missing file means every default.
     port = 8080           # HTTP
     https = true          # also HTTPS, with a certificate of its own
     https_port = 8443
+    http = "redirect"     # while HTTPS is on, plain HTTP sends to it; "serve" serves
 
     [paths]
     state = "/var/lib/thermaestro"
@@ -22,7 +23,7 @@ file that upgrades keep. A missing file means every default.
 
 import tomllib
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -41,6 +42,10 @@ class Web(_Model):
     port: Port = 8080
     https: bool = True
     https_port: Port = 8443
+    http: Literal["redirect", "serve"] = "redirect"
+    """While HTTPS is on: plain HTTP sends pages and the API to HTTPS, serving only
+    `/health`, `/ready` and requests from this machine; or, for a setup that needs it
+    (a proxy in front), serves everything."""
 
 
 class Paths(_Model):

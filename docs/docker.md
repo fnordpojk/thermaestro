@@ -24,8 +24,8 @@
    ```
 
    shows "No administrator yet. Create one in the web UI with the setup code …". `docker compose exec thermaestro thermaestro setup-code` shows it again, or a new one.
-3. Open `http://<the machine's address>:8080`, and enter the setup code, a user name and a password of at least 15 characters.
-4. HTTPS is on port 8443. The browser warns about the certificate, which is the installation's own. Its SHA-256 fingerprint is under System → Health, to compare with the one the browser shows.
+3. Open `https://<the machine's address>:8443` (plain `http://…:8080` sends you there). The browser warns about the certificate, which is the installation's own: compare its SHA-256 fingerprint with the one `docker compose logs thermaestro` shows at start (later also under System → Health).
+4. Enter the setup code, a user name and a password of at least 15 characters.
 
 ## Updating
 

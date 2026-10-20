@@ -5,7 +5,7 @@ Thermaestro's web UI and its JSON API run in the same server, over the same oper
 ## Where it is
 
 - The API is under `/api/v1/`; paths below are relative to it.
-- The server listens on port 8080 (HTTP) and, unless HTTPS is turned off, on 8443 (HTTPS, with the installation's own self-signed certificate). Both serve the same API. The ports and the address are set in the start-up file's `web` section (`listen`, `port`, `https`, `https_port`).
+- The server listens on port 8080 (HTTP) and, unless HTTPS is turned off, on 8443 (HTTPS, with the installation's own self-signed certificate). While HTTPS is on, plain HTTP answers the API with a `308` to HTTPS, except from the machine itself, unless the start-up file's `http = "serve"` says to serve it. The ports and the address are set in the start-up file's `web` section (`listen`, `port`, `https`, `https_port`).
 - `GET /api/v1/openapi.json` gives the OpenAPI description to anyone logged in. It also lists the HTML pages' routes. There are no built-in docs pages.
 - `GET /health` answers `{"status": "ok"}` without a login: the web UI is alive.
 - `GET /ready`, without a login, says whether Thermaestro can control: `200` when its planner has checked in within the watchdog's 5 minutes, every device plugin (one with settings to change, or not described yet) is up, and every setting that was to be put back is; `503` otherwise. The body says which: `{"ready": true, "planner": "checking in", "devices_down": 0, "not_put_back": 0, "in_flight": 0}`; `planner` is `not yet`, `checking in`, `silent` or `none`, and `in_flight` counts changes sent whose fate isn't known yet. Counts only, no names.
@@ -28,7 +28,7 @@ Authorization: Bearer thm_...
 - It stops working when it expires, is revoked, or its user is disabled or removed.
 - A request with a token needs no CSRF token. Its cookies are ignored: a request with an `Authorization` header is never also taken as a session, and a header that isn't a valid bearer token means not logged in.
 
-`thermaestro status --url http://HOST:8080` reads `/api/v1/status` with the token in the `THERMAESTRO_TOKEN` environment variable.
+`thermaestro status`, on the machine itself, reads `/api/v1/status` with the token in the `THERMAESTRO_TOKEN` environment variable.
 
 ### Sessions
 

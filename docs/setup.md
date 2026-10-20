@@ -48,6 +48,7 @@ listen = "0.0.0.0"
 port = 8080           # HTTP
 https = true          # also HTTPS, with a certificate of its own
 https_port = 8443
+http = "redirect"     # while HTTPS is on, plain HTTP sends to it; "serve" serves
 
 [paths]
 state = "/var/lib/thermaestro"
@@ -80,13 +81,15 @@ No administrator yet. Create one in the web UI with the setup code …; it works
 
 `thermaestro setup-code` on the host prints it again, or a new one (`docker compose exec thermaestro thermaestro setup-code` in Docker).
 
-Open the web UI at `http://<the machine's address>:8080`. The **First administrator** page asks for the setup code, a user name, and a password of at least 15 characters. Saving creates the user in the Administrators group and logs you in.
+Open the web UI at `https://<the machine's address>:8443` (plain `http://…:8080` sends you there). The **First administrator** page asks for the setup code, a user name, and a password of at least 15 characters. Saving creates the user in the Administrators group and logs you in.
 
 A user can also be made on the host, without the web UI: `thermaestro admin create <name>` asks for the password. `thermaestro admin reset-password <name>` sets a new one, and enables the user if it was disabled.
 
 ### HTTPS
 
-HTTPS is on port 8443, with a certificate the installation makes for itself. It names the host, `<host>.local` and `localhost`, but not the machine's LAN address. It lasts 825 days, and a start within its last 30 days makes a new one. No authority signed it, so the browser warns. Compare its SHA-256 fingerprint with the one under **System → Health**, or the one in the log at start.
+HTTPS is on port 8443, with a certificate the installation makes for itself. It names the host, `<host>.local` and `localhost`, but not the machine's LAN address. It lasts 825 days, and a start within its last 30 days makes a new one. No authority signed it, so the browser warns. Compare its SHA-256 fingerprint with the one in the log at start (the first time, before you log in), or under **System → Health**.
+
+Plain HTTP on port 8080 sends pages and the API to HTTPS, so a password or a login cookie never crosses the network unencrypted. It still answers `/health` and `/ready`, and every request from the machine itself (the container's health check, `thermaestro status` run there). A setup that needs plain HTTP, such as a proxy in front of Thermaestro on another machine, sets `http = "serve"` in the start-up file; the login cookie is then sent over HTTP too, so the network between must be trusted. `https = false` turns HTTPS off, and plain HTTP serves everything.
 
 Everyone logs in, also on the home network. Changes under some rights (users, secrets, plugins) ask for your password again if you last entered it more than 15 minutes ago.
 
@@ -344,10 +347,10 @@ Nothing is sent to anyone until they turn it on, each on their own page (under t
 
 Groups can be changed and added, with rights named after what they allow. The page lists them.
 
-Each user's own page, under their name in the menu, has the language and formats, where they are logged in, and API tokens. A token carries only the rights given to it, never more than its user's. With one, `thermaestro status` prints what Thermaestro reads:
+Each user's own page, under their name in the menu, has the language and formats, where they are logged in, and API tokens. A token carries only the rights given to it, never more than its user's. With one, `thermaestro status` prints what Thermaestro reads, on the machine itself (`docker compose exec -e THERMAESTRO_TOKEN thermaestro thermaestro status` in Docker):
 
 ```
-THERMAESTRO_TOKEN=<token> thermaestro status --url http://<address>:8080
+THERMAESTRO_TOKEN=<token> thermaestro status
 ```
 
 The pages that show how things stand (the overview, the pump, prices, weather, intents, the plan, events and System → Health) keep themselves current: every minute while they are in view, and at once when you come back to them. A form being filled in isn't touched. A page left open still logs out after 12 hours unused.
