@@ -15,7 +15,9 @@ it back. A change whose fate stays unknown (the connection ended after it was se
 answer came in time, or it couldn't be read back) stays in flight until a fresh reading
 says: the new value, taken; the value from before, it didn't arrive; anything else,
 someone else changed it, which lets go of the lever. Where the lever can't be read, it is
-taken as the state from which putting back is still needed.
+taken as the state from which putting back is still needed. Nothing is decided on such a
+lever from a value read before: acting on it, putting it back included, first reads the
+device anew, and waits while it can't be.
 
 A lever is put back only once it is as found: a setting read back so, a hold released as
 the device accepted. One that isn't (its plugin down, the device refusing, an answer that
@@ -48,7 +50,7 @@ import logging
 import re
 from collections.abc import Callable, Collection, Coroutine
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from .. import clock as clocks
@@ -121,6 +123,7 @@ TAKEN: frozenset[str] = frozenset(
 """Outcomes after which the device may hold the new value, so a restore must undo it."""
 GONE = "the plugin's connection ended before it could be read back"
 LOST = "the plugin's connection ended before it said what became of it"
+UNSETTLED = "what became of its last change isn't known yet"
 
 AUTOMATIC = frozenset({"planner", "core", "mqtt"})
 """Principals that aren't a person acting: a lever kept for people is refused to them."""
@@ -224,6 +227,8 @@ class Executor:
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
         self._unsettled: dict[str, float] = {}
+        self._born = self._clock()
+        """A change in flight from an earlier run is settled by any reading since this."""
         """Changes whose fate isn't known, by when that was found: a reading after it says."""
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -499,6 +504,13 @@ class Executor:
                 return await self._record(ref, op, params, who, why, mode, refused)
             claim.mode = mode
             claim.held, claim.last, claim.last_t = False, None, None
+        if claim.pending is not None:
+            # Its fate first: a value read before it can't say whether it is back.
+            unsettled = await self._settle_now(ref, claim, lever)
+            if unsettled is not None:
+                return await self._record(
+                    ref, op, params, who, why, mode, Result("refused", unsettled)
+                )
         if self._unchanged(claim, lever, op, params):
             return Result("unchanged")
         if not restoring:
@@ -897,8 +909,9 @@ class Executor:
             return
         self._took(claim, op, params)
 
-    def _settle(self, ref: str, claim: Claim, now: Value | None, param: Param | None) -> None:
-        """A change whose fate wasn't known, settled by a fresh reading."""
+    def _settle(self, ref: str, claim: Claim, now: Value | None, param: Param | None) -> str | None:
+        """A change whose fate wasn't known, settled by a fresh reading; why to let go of
+        the lever (someone else changed it), or None."""
         assert claim.pending is not None  # noqa: S101 - the caller checks
         sent = claim.pending["params"].get("value")
         before = claim.last if claim.last is not None else claim.baseline
@@ -909,9 +922,43 @@ class Executor:
             claim.last_t = self._clock()
             self._renewed[ref] = claim.last_t
         elif not same(now, before, param):
-            self._spawn(self._let_go(ref, f"it reads {now}, neither {sent} as sent nor {before}"))
-            return
-        self._spawn(self._save(claim))
+            return f"it reads {now}, neither {sent} as sent nor {before}"
+        return None
+
+    async def _settle_now(self, ref: str, claim: Claim, lever: Lever) -> str | None:
+        """Settle a change in flight before acting on its lever: by reading the device
+        anew, since a value read before the change says nothing of it. Why it can't be
+        yet (its plugin down, no fresh value), or None."""
+        assert claim.pending is not None  # noqa: S101 - the caller checks
+        pending = claim.pending
+        if not _readable(lever, pending["op"]):
+            claim.pending = None
+            self._unsettled.pop(ref, None)
+            self._assume(claim, pending["op"], pending["params"])
+            await self._save(claim)
+            return None
+        instance, _ = split(ref)
+        found = self._host.instances.get(instance)
+        link = found.link if found is not None and found.state is State.UP else None
+        point = lever.verify.point
+        if link is None or point is None:
+            return UNSETTLED
+        since = datetime.fromtimestamp(self._unsettled.get(ref, self._born), UTC)
+        try:
+            answer = await link.read([point], after=since, timeout=self._verify_s)
+        except (TimeoutError, CapError, Closed):
+            return UNSETTLED
+        param = lever.params.get("value")
+        for envelope in answer.values:
+            if envelope.quality != "good" or not _after(envelope, since):
+                continue
+            drift = self._settle(ref, claim, reading(envelope, param), param)
+            if drift is not None:
+                await self._let_go(ref, drift)
+                return drift
+            await self._save(claim)
+            return None
+        return UNSETTLED
 
     async def _record(
         self,
@@ -998,7 +1045,11 @@ class Executor:
             if claim.pending is not None:
                 since = self._unsettled.get(ref)
                 if since is not None and observed > since:
-                    self._settle(ref, claim, now, param)
+                    drift = self._settle(ref, claim, now, param)
+                    if drift is not None:
+                        self._spawn(self._let_go(ref, drift))
+                    else:
+                        self._spawn(self._save(claim))
                 continue
             if claim.last is None:
                 continue

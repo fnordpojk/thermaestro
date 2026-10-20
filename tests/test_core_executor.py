@@ -793,3 +793,72 @@ async def test_a_retry_long_failing_waits_no_more_than_the_watchdog(tmp_path: Pa
         before = time.time() + r.clock[0]
         await r.executor._owe(OFFSET, "stopping", "its plugin isn't running")
         assert r.executor._owed[OFFSET].due - before <= 0.3 + 0.05
+
+
+# --- A change in flight, and a value read before it ----------------------------------------
+
+
+async def test_a_restore_right_after_a_lost_change_reads_the_device_afresh(
+    tmp_path: Path,
+) -> None:
+    """The device took the change and the connection ended; the value read before it is
+    all there is. Putting back reads the device anew, rather than take that value for it."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        r.device.quiet = True  # nothing new comes by itself
+        r.device.cut_off.add("hp1/offset")
+        cut = r.host.instances["dev"].link
+        lost = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        assert lost.outcome == "lost"
+        assert r.host.values.latest[Key("dev", "hp1/x.fake.offset")].value == -4
+        await until(lambda: r.host.instances["dev"].link not in (None, cut))  # back
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "verified"
+        assert r.device.registers["x.fake.offset"] == -4
+        assert r.executor.put_back([OFFSET])
+
+
+async def test_a_lost_change_with_no_way_to_the_device_stays_owed(tmp_path: Path) -> None:
+    """Put back, or taken out of control, before anything says what became of it, with the
+    plugin down: it stays in flight and owed, and a restart puts it back."""
+    device = LeverDevice()
+    for leave in ("restore", "off"):
+        path = tmp_path / leave
+        path.mkdir()
+        device.registers["x.fake.offset"] = -4
+        async with rig(path, {OFFSET: "control"}, device) as r:
+            device.quiet = True
+            device.cut_off.add("hp1/offset")
+            assert (await r.executor.act(OFFSET, "set", {"value": 2}, who="p")).outcome == "lost"
+            await r.host.stop()
+            if leave == "restore":
+                results = await r.executor.restore("Thermaestro is stopping")
+                assert results[OFFSET].outcome == "refused"
+            else:
+                await r.executor.set_mode(OFFSET, "off", who="anna")
+            assert device.registers["x.fake.offset"] == 2
+            assert r.executor.claims[OFFSET].pending == {"op": "set", "params": {"value": 2}}
+            assert not r.executor.put_back([OFFSET])
+            assert await left_changed(r.db) == [OFFSET]
+            await r.executor.stop()
+        device.quiet = False
+        async with rig(path, {}, device) as r:
+            await until(lambda: not r.executor.claims[OFFSET].changed)
+            assert device.registers["x.fake.offset"] == -4
+            assert r.executor.claims[OFFSET].drift is None
+
+
+async def test_a_restore_right_after_an_unanswered_change_reads_the_device_afresh(
+    tmp_path: Path,
+) -> None:
+    """No answer in time, the device having taken it; the value read before is stale."""
+    async with rig(tmp_path, {OFFSET: "control"}, act_timeout_s=0.3) as r:
+        r.device.quiet = True
+        r.device.unanswered.add("hp1/offset")
+        late = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        assert late.outcome == "timeout"
+        assert r.host.values.latest[Key("dev", "hp1/x.fake.offset")].value == -4
+        r.device.unanswered.clear()
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "verified"
+        assert r.device.registers["x.fake.offset"] == -4
+        assert r.executor.put_back([OFFSET])
