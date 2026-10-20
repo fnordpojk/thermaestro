@@ -315,3 +315,39 @@ async def test_a_climate_systems_documented_step_reaches_its_curve(tmp_path: Pat
         await learnings.load()
         [keys] = await Heating(db, Values(db), host, learnings, lambda key: True).systems()
         assert keys.step_k == 2.5
+
+
+def test_a_run_lasts_as_long_as_the_compressor_ran() -> None:
+    """The charge sensor shows tank-bottom water for its first minutes, so it isn't good
+    then: the water's temperature leaves those minutes out, the run's time doesn't."""
+    from thermaestro.learn import tank
+    from thermaestro.learn.efficiency import _run
+
+    start = 1_000_000.0
+    water = tank.Series(
+        [Sample(start, 48.3, None, "transitional"), Sample(start + 480, 50.0, None, "good")]
+    )
+    inlet = tank.Series([Sample(start - 60, 4.0, None, "good")])
+    back = tank.Series([Sample(start - 60, 2.0, None, "good")])
+    run = _run(start, [(start, start + 840)], water, inlet, back)
+    assert run is not None
+    assert run.run_s == 840
+    assert run.supply_c == 50.0  # from the good readings only
+    assert run.brine_ks == pytest.approx(2.0 * 840)  # the drop over the whole run
+
+
+def test_a_charge_a_draw_ran_into_is_left_out() -> None:
+    """A heat pump gives at least the heat of its electricity: a charge whose tank warmed by
+    less had hot water drawn while it ran, which the tank's sensors can't tell from it."""
+    good = [
+        c.Run(float(i), 840.0, 50.0, 4.0, 1500.0, rise_c=3.6, measured_kwh=0.35)
+        for i in range(c.LEAST + c.WARM)
+    ]
+    drawn = [
+        c.Run(100.0 + i, 1700.0, 40.0, 5.0, 3900.0, rise_c=2.0, measured_kwh=0.8)
+        for i in range(2 * (c.LEAST + c.WARM))
+    ]
+    alone = c.learn_dhw(good, 178.0, 1.57)
+    assert alone is not None
+    assert c.learn_dhw(good + drawn, 178.0, 1.57) == alone
+    assert c.learn_brine(good + drawn, 178.0, 1.57) == c.learn_brine(good, 178.0, 1.57)

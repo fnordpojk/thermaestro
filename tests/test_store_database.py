@@ -204,3 +204,27 @@ async def test_a_bad_stored_setting_names_the_field(tmp_path: Path) -> None:
     async with await Database.open(path) as db:
         with pytest.raises(StoreError, match=r"setting location: latitude: "):
             await db.get(Location)
+
+
+async def test_the_cops_runs_are_read_again(tmp_path: Path) -> None:
+    """The COP's runs kept before their whole run time was counted go, so the days still in
+    the raw history are read again; what other learners kept stays."""
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path) as db:
+        rows = [
+            ("pump:hp1", kind, 1.0 + i, "{}")
+            for i, kind in enumerate(("cop_day", "cop_charge", "cop_hour", "charge"))
+        ]
+        rows.append(("pump:hp1/cs1", "house_day", 9.0, "{}"))
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, ?, ?, ?)", rows
+            )
+        )
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 25")
+    async with await Database.open(path) as db:
+        kinds = await db.run(
+            lambda t: sorted(k for (k,) in t.execute("SELECT kind FROM learn_events"))
+        )
+    assert kinds == ["charge", "house_day"]

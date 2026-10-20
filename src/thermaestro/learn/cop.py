@@ -7,8 +7,10 @@ Nibe's own figures for the F1245 give a share of about half at both 35 and 45 °
 share per purpose, heating and making hot water, describes them; what is learned on a
 pump is that share.
 
-- **Hot water**, from charges with no draw: the tank's rise in degrees (the mean of its two
-  sensors) times its heat per degree, plus its standing loss over the charge, against the
+- **Hot water**, from charges with no draw (a charge whose tank got less heat than its
+  electricity had one, unseen while the charge warmed the tank): the tank's rise in degrees
+  (the mean of its two sensors) times its heat per degree, plus its standing loss over the
+  charge, against the
   electricity a meter on the pump's supply counted, or where there is none, the compressor's
   learned draw times how long it ran on hot water. The water made is the
   charge sensor's, which shows the charge while it runs.
@@ -119,6 +121,13 @@ def brine_w_k(run: Run, liters: float, draw_kw: float) -> float | None:
     return ground * 3.6e6 / run.brine_ks
 
 
+def drawn(run: Run, liters: float, draw_kw: float) -> bool:
+    """Whether hot water was drawn while a charge ran: a heat pump gives at least the heat
+    of its electricity, so a tank that warmed by less lost some of it to a tap, and the
+    tank's sensors can't tell that from the charge."""
+    return tank_kwh(run, liters) < run.kwh(draw_kw)
+
+
 def _median(values: Sequence[float | None]) -> float | None:
     found = [v for v in values if v is not None]
     return statistics.median(found) if found else None
@@ -126,13 +135,21 @@ def _median(values: Sequence[float | None]) -> float | None:
 
 def learn_dhw(charges: Sequence[Run], liters: float, draw_kw: float) -> float | None:
     """Hot water's share of the ideal: the median over the charges."""
-    found = [(ch, charge_cop(ch, liters, draw_kw)) for ch in charges if ch.run_s >= RUN_LEAST_S]
+    found = [
+        (ch, charge_cop(ch, liters, draw_kw))
+        for ch in charges
+        if ch.run_s >= RUN_LEAST_S and not drawn(ch, liters, draw_kw)
+    ]
     shares = [cop / ch.ideal for ch, cop in found if cop is not None]
     return round(statistics.median(shares), 4) if len(shares) >= WARM else None
 
 
 def learn_brine(charges: Sequence[Run], liters: float, draw_kw: float) -> float | None:
-    found = [brine_w_k(ch, liters, draw_kw) for ch in charges if ch.run_s >= RUN_LEAST_S]
+    found = [
+        brine_w_k(ch, liters, draw_kw)
+        for ch in charges
+        if ch.run_s >= RUN_LEAST_S and not drawn(ch, liters, draw_kw)
+    ]
     kept = [w for w in found if w is not None]
     return round(statistics.median(kept), 1) if len(kept) >= WARM else None
 
@@ -190,7 +207,7 @@ def judge_dhw(
         return _median([charge_cop(b, liters, draw_kw) for b in before])
 
     return _rolling(
-        charges,
+        [ch for ch in charges if not drawn(ch, liters, draw_kw)],
         lambda before: learn_dhw(before, liters, draw_kw),
         lambda run, share_: share_ * run.ideal,
         baseline,
@@ -210,7 +227,7 @@ def judge_brine(
         return _median([tank_kwh(b, liters) for b in before])
 
     return _rolling(
-        charges,
+        [ch for ch in charges if not drawn(ch, liters, draw_kw)],
         lambda before: learn_brine(before, liters, draw_kw),
         lambda run, w_k: run.kwh(draw_kw) + w_k * run.brine_ks / 3.6e6,
         baseline,

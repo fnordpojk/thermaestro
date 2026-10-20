@@ -30,7 +30,7 @@ from . import cop, tank
 from .electric import counter_kwh
 from .energy import DRAW
 from .hotwater import KEEP_S, LOSS, house
-from .inputs import Span, intersect, spans
+from .inputs import Span, intersect, seconds, spans
 from .meters import pump_meters
 from .model import Learned, State
 from .store import Learnings
@@ -406,26 +406,30 @@ def _run(
     returning: tank.Series | None,
     counter: tank.Series | None = None,
 ) -> cop.Run | None:
-    """A minute at a time over `stretch`: the water made, the source (the brine in, or the
-    outdoor air), and the brine's drop where there is brine coming back."""
+    """The time the compressor ran over `stretch`; the water made and the source (the brine
+    in, or the outdoor air) on average a minute at a time where each was good; and the
+    brine's drop over the whole run, where there is brine coming back. A reading not good for
+    a while (the charge sensor while tank-bottom water passes it, the supply as the
+    compressor starts) shortens neither the run nor the drop."""
     made: list[float] = []
     source: list[float] = []
-    drop = 0.0
-    run_s = 0.0
+    drops: list[float] = []
     for t0, t1 in stretch:
         at = t0 + SAMPLE_S / 2
         while at < t1:
             w, b0 = water.at(at), inlet.at(at)
             b1 = returning.at(at) if returning is not None else None
-            if w is not None and b0 is not None and (returning is None or b1 is not None):
+            if w is not None:
                 made.append(w)
+            if b0 is not None:
                 source.append(b0)
                 if b1 is not None:
-                    drop += (b0 - b1) * SAMPLE_S
-                run_s += SAMPLE_S
+                    drops.append(b0 - b1)
             at += SAMPLE_S
-    if not made:
+    if not made or not source:
         return None
+    run_s = seconds(stretch)
+    drop = sum(drops) / len(drops) * run_s if drops else 0.0
     measured = None
     if counter is not None:
         parts = [counter_kwh(counter, t0, t1) for t0, t1 in stretch]

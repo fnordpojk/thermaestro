@@ -415,6 +415,11 @@ MIGRATIONS: tuple[str, ...] = (
         body TEXT NOT NULL CHECK (json_valid(body))
     ) STRICT;
     """,
+    # 26: the COP's runs, kept with only the minutes the water's reading was good: a charge
+    # counted as half its length. Read again from the raw history.
+    """
+    DELETE FROM learn_events WHERE kind IN ('cop_day', 'cop_charge', 'cop_hour');
+    """,
 )
 VERSION = len(MIGRATIONS)
 
