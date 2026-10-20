@@ -5,6 +5,11 @@ raising a power charge.
 A rule's times are local: civil time with summer time, or, where the grid company says so,
 normal time all year. A kind of day is that of the moment's own date, also for a time span
 that runs past midnight.
+
+The house's power in an interval is its mean over time, as its energy would be billed:
+each reading holds until the next, for at most two of the history's heartbeats (a reading
+is kept at least that often while its plugin runs), and an interval counts where readings
+cover at least half of its time so far.
 """
 
 from collections.abc import Callable, Iterable, Mapping
@@ -15,7 +20,7 @@ from zoneinfo import ZoneInfo
 from ..intents.calendar import Calendar
 from ..store import Database, GridRule, Home
 from ..store.settings import When
-from .values import Key, Values
+from .values import SLOT_S, Key, Values
 
 Holiday = Callable[[date], bool]
 
@@ -80,16 +85,59 @@ async def household(db: Database, zone: ZoneInfo) -> tuple[dict[str, GridRule], 
     return await db.all(GridRule), Calendar(zone, home.holidays, home.holidays_as).holiday
 
 
-def interval_means(samples: Iterable[tuple[float, float]], minutes: int) -> dict[float, float]:
-    """The mean of the power samples (seconds since the epoch, kW) in each interval of
-    `minutes`, by the interval's start."""
-    sums: dict[float, tuple[float, int]] = {}
-    width = minutes * 60
-    for t, kw in samples:
-        start = t - t % width
-        total, n = sums.get(start, (0.0, 0))
-        sums[start] = (total + kw, n + 1)
-    return {start: total / n for start, (total, n) in sums.items()}
+COVERED = 0.5
+"""The share of an interval's time so far that readings must cover for it to count."""
+
+Spread = dict[float, list[float]]
+"""Per interval's start: its kW-seconds and the seconds readings cover."""
+
+
+def interval_means(
+    samples: Iterable[tuple[float, float | None]],
+    minutes: int,
+    start: float,
+    end: float,
+    *,
+    hold_s: float,
+) -> dict[float, float]:
+    """The mean power in each interval of `minutes` from `start` to `end`, by the
+    interval's start: over time, each reading (seconds since the epoch, and kW, or None
+    where it wasn't good) holding until the next, for at most `hold_s`. Only intervals
+    readings cover at least `COVERED` of, up to `end`."""
+    width = minutes * 60.0
+    return _means(_spread(samples, width, start, end, hold_s, {}), width, end)
+
+
+def _spread(
+    samples: Iterable[tuple[float, float | None]],
+    width: float,
+    start: float,
+    end: float,
+    hold_s: float,
+    into: Spread,
+) -> Spread:
+    rows = sorted(samples, key=lambda r: r[0])
+    for i, (t, kw) in enumerate(rows):
+        if kw is None:
+            continue
+        until = rows[i + 1][0] if i + 1 < len(rows) else end
+        t0, t1 = max(t, start), min(until, t + hold_s, end)
+        while t0 < t1:
+            at = t0 - t0 % width
+            stop = min(t1, at + width)
+            found = into.setdefault(at, [0.0, 0.0])
+            found[0] += kw * (stop - t0)
+            found[1] += stop - t0
+            t0 = stop
+    return into
+
+
+def _means(spread: Spread, width: float, end: float) -> dict[float, float]:
+    return {
+        at: energy / seconds
+        for at, (energy, seconds) in spread.items()
+        if seconds >= COVERED * (min(at + width, end) - at)
+    }
 
 
 def peak_limit(
@@ -183,17 +231,22 @@ class GridLimits:
         local = now.astimezone(zone)
         first = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
         today = local.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        hold = 2 * self._values.heartbeat_s
+        width = minutes * 60.0
 
         async def means(start: float, end: float) -> dict[float, float]:
+            # The 15-minute means each hold their slot; the samples since, with the one
+            # before them that may hold on into them.
             slots, folded_until = await self._values.folded(key, start, end)
-            samples = await self._values.history(key, folded_until, end)
+            samples = await self._values.history(key, folded_until - hold, end)
+            spread = _spread(
+                ((t, mean * factor) for t, mean in slots), width, start, folded_until, SLOT_S, {}
+            )
             good = [
-                (s.t, s.value * factor)
+                (s.t, s.value * factor if s.quality == "good" and s.value is not None else None)
                 for s in samples
-                if s.quality == "good" and s.value is not None
             ]
-            folded = interval_means(((t, mean * factor) for t, mean in slots), minutes)
-            return {**folded, **interval_means(good, minutes)}
+            return _means(_spread(good, width, folded_until, end, hold, spread), width, end)
 
         kept = self._months.get((key, minutes))
         if kept is None or kept[:2] != (first, today):

@@ -142,11 +142,21 @@ def hourly(*found: tuple[datetime, float]) -> dict[float, float]:
     return {t.timestamp(): kw for t, kw in found}
 
 
-def test_interval_means() -> None:
+def test_an_interval_is_its_mean_over_time() -> None:
+    """Fourteen minutes at 1 kW and one at 10: 1.6 kW over the quarter, not the 5.5 of its
+    two readings. A reading holds into the next interval; one not good holds nothing."""
     t0 = local(2026, 12, 1, 10).timestamp()
-    samples = [(t0, 2.0), (t0 + 900, 4.0), (t0 + 3600, 6.0)]
-    assert interval_means(samples, 60) == {t0: 3.0, t0 + 3600: 6.0}
-    assert interval_means(samples, 15) == {t0: 2.0, t0 + 900: 4.0, t0 + 3600: 6.0}
+    samples: list[tuple[float, float | None]] = [(t0, 1.0), (t0 + 840, 10.0), (t0 + 900, 1.0)]
+    means = interval_means(samples, 15, t0, t0 + 1800, hold_s=900)
+    assert means == pytest.approx({t0: 1.6, t0 + 900: 1.0})
+    held = interval_means(samples, 15, t0, t0 + 1800, hold_s=600)
+    assert held[t0] == pytest.approx((600 * 1.0 + 60 * 10.0) / 660)  # 1 kW held 10 of its 14 min
+    carried = interval_means([(t0 + 600, 2.0)], 15, t0, t0 + 1800, hold_s=900)
+    assert carried == pytest.approx({t0 + 900: 2.0})  # the first quarter only a third covered
+    cut = interval_means([(t0, 3.0), (t0 + 300, None)], 15, t0, t0 + 900, hold_s=600)
+    assert cut == {}  # 5 of 15 min covered
+    hourly = [(t0 + i * 300.0, 2.0 if i < 6 else 4.0) for i in range(12)]
+    assert interval_means(hourly, 60, t0, t0 + 3600, hold_s=600) == pytest.approx({t0: 3.0})
 
 
 def test_a_power_charge_lets_the_house_up_to_its_counted_peaks() -> None:
@@ -183,7 +193,9 @@ async def test_the_grid_limit_from_the_rules_and_the_house_power(db: Database) -
     await db.put(Home(holidays="SE"))
     values = Values(db)
     for day, kw in ((1, 5.0), (2, 4.0), (3, 7.0)):
-        values.add("ha", power(local(2026, 12, day, 8), kw))
+        for minute in range(0, 61, 5):  # as kept: a reading at least every 5 minutes
+            hour, minute = divmod(8 * 60 + minute, 60)
+            values.add("ha", power(local(2026, 12, day, hour, minute), kw if hour == 8 else 0.0))
     values.add("ha", power(local(2026, 12, 4, 9, 50), 3.0))
     await values.flush()
     limits = GridLimits(db, values)
