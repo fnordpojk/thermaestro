@@ -50,7 +50,7 @@ import logging
 import re
 from collections.abc import Callable, Collection, Coroutine
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from .. import clock as clocks
@@ -815,7 +815,13 @@ class Executor:
         if claim.last is not None:
             return same(claim.last, target, param)
         found = self._readback(claim.lever, lever)
-        return found is not None and same(reading(found, param), target, param)
+        if found is None:
+            return False
+        observed = (found.t_observed or found.t_received).timestamp()
+        if claim.last_t is not None and observed <= claim.last_t:
+            # Read before Thermaestro last set it, back to its baseline: that stands.
+            return same(claim.baseline, target, param)
+        return same(reading(found, param), target, param)
 
     async def _send(self, ref: str, lever: Lever, op: Op, params: dict[str, Value]) -> Result:
         instance, path = split(ref)
@@ -966,7 +972,7 @@ class Executor:
         point = lever.verify.point
         if link is None or point is None:
             return None
-        after = datetime.fromtimestamp(since, UTC)
+        after = _not_before(since)
         try:
             answer = await link.read([point], after=after, timeout=self._verify_s)
         except (TimeoutError, CapError, Closed):
@@ -1389,6 +1395,12 @@ def reading(envelope: Envelope, param: Param | None) -> Value | None:
 def _after(envelope: Envelope, accepted: datetime) -> bool:
     t = envelope.t_observed or envelope.t_received
     return t >= accepted
+
+
+def _not_before(t: float) -> datetime:
+    """`t` as a datetime no earlier than it: one rounded to the microsecond may fall short."""
+    at = datetime.fromtimestamp(t, UTC)
+    return at if at.timestamp() >= t else at + timedelta(microseconds=1)
 
 
 def _readable(lever: Lever, op: Op) -> bool:

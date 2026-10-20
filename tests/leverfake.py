@@ -171,6 +171,8 @@ class LeverDevice:
         self.push_before_read = False
         """Whether a read is answered only after a fresh push on every subscription."""
         self._subscriptions: dict[int, tuple[Send, tuple[str, ...]]] = {}
+        self.read_after: list[datetime] = []
+        """The `after` of each read asked for one."""
         self._send: Send | None = None
         self._cut = asyncio.Event()
 
@@ -191,6 +193,8 @@ class LeverDevice:
                 )
                 await send(Described(id=request.id, nodes=nodes, points=points, levers=LEVERS))
             case Read():
+                if request.after is not None:
+                    self.read_after.append(request.after)
                 if self.push_before_read:
                     for sub, (pushed, paths) in list(self._subscriptions.items()):
                         await pushed(Update(id=sub, values=tuple(map(self.envelope, paths))))

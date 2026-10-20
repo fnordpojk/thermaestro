@@ -6,6 +6,7 @@ import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, closing
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from leverfake import LeverDevice
@@ -15,7 +16,7 @@ from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
 from thermaestro.core.events import Events
-from thermaestro.core.executor import _Owed, left_changed
+from thermaestro.core.executor import _not_before, _Owed, left_changed
 from thermaestro.store import Control, Database, LeverMode, Plugin, SecretStore
 
 OFFSET = "dev:hp1/offset"
@@ -914,3 +915,44 @@ async def test_a_reading_pushed_while_the_device_is_read_anew(tmp_path: Path) ->
                 assert results[OFFSET].outcome == "refused"
                 assert r.executor.claims[OFFSET].drift == "it reads 0, neither 2 as sent nor -4"
                 assert r.device.registers["x.fake.offset"] == 0
+
+
+async def test_a_fresh_reading_is_asked_for_from_no_earlier_than_the_start(
+    tmp_path: Path,
+) -> None:
+    """A time as a datetime is rounded to the microsecond, at times down: the fence asked
+    of the device is never earlier than the moment it stands for."""
+    device = LeverDevice()
+    for start in range(6):  # each start a new moment, and a new rounding
+        async with rig(tmp_path, {OFFSET: "control"}, device, min_hold_s=0) as r:
+            if start:
+                await until(lambda: not r.executor.claims[OFFSET].changed)  # put back
+                assert device.read_after
+                assert all(a.timestamp() >= r.executor._born for a in device.read_after)
+            result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+            assert result.outcome == "verified"
+            device.read_after.clear()
+            await r.executor.stop()  # no restore: the next start finds it changed
+    t = next(
+        x
+        for x in (1_800_000_000 + i * 1e-7 for i in range(100))
+        if (datetime.fromtimestamp(x, UTC).timestamp() < x)
+    )  # one a plain conversion rounds down
+    assert _not_before(t).timestamp() >= t
+    assert _not_before(t) - datetime.fromtimestamp(t, UTC) == timedelta(microseconds=1)
+
+
+async def test_a_value_read_before_the_last_change_doesnt_make_a_request_unchanged(
+    tmp_path: Path,
+) -> None:
+    """Put back, the device reads as found; what was read just before still says the
+    value Thermaestro had set. Asked for that value again, it is sent."""
+    async with rig(tmp_path, {OFFSET: "control"}, min_hold_s=0) as r:
+        assert (await r.executor.act(OFFSET, "set", {"value": 2}, who="p")).outcome == "verified"
+        await until(lambda: r.host.values.latest[Key("dev", "hp1/x.fake.offset")].value == 2)
+        r.device.quiet = True  # nothing new comes by itself
+        assert (await r.executor.restore("done"))[OFFSET].outcome == "verified"
+        assert r.host.values.latest[Key("dev", "hp1/x.fake.offset")].value == 2
+        again = await r.executor.act(OFFSET, "set", {"value": 2}, who="p")
+        assert again.outcome == "verified"
+        assert r.device.registers["x.fake.offset"] == 2
