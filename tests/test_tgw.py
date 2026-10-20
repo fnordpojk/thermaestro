@@ -1,6 +1,7 @@
 import asyncio
 import socket
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import pytest
 from simpump import TEST_PSK as PSK
@@ -193,3 +194,15 @@ def test_the_clock_keeps_the_smallest_recent_offset() -> None:
     # A minute later the old samples are forgotten.
     clock.sample(80_000_000, 180.003)
     assert clock.to_local(80_000_000) == pytest.approx(180.003)
+
+
+async def test_a_closed_client_frees_its_port(gateway: Gateway) -> None:
+    """Closed, its socket is: a plugin started again binds the same port at once."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.bind(("0.0.0.0", 0))  # noqa: S104
+        port = probe.getsockname()[1]
+    c = TgwClient("127.0.0.1", gateway.ports["control"], settings=replace(FAST, local_port=port))
+    await c.start()
+    await c.close()
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as again:
+        again.bind(("0.0.0.0", port))  # noqa: S104

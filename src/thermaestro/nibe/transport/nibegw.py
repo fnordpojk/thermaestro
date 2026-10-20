@@ -102,6 +102,12 @@ class _TakenWrite:
 class _Socket(asyncio.DatagramProtocol):
     def __init__(self, client: "PlainClient") -> None:
         self.client = client
+        self.closed = asyncio.Event()
+        """Set once the socket is closed: a datagram transport closes it on the loop's
+        next pass, not when told to."""
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        self.closed.set()
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         self.client._datagram(data, addr)
@@ -154,13 +160,14 @@ class PlainClient:
         loop = asyncio.get_running_loop()
         infos = await loop.getaddrinfo(self.host, None, family=socket.AF_INET)
         self._ip = str(infos[0][4][0])
-        transport, _ = await loop.create_datagram_endpoint(
+        transport, protocol = await loop.create_datagram_endpoint(
             lambda: _Socket(self),
             local_addr=("0.0.0.0", self.settings.local_port),  # noqa: S104  # replies come from the gateway
         )
         if not isinstance(transport, asyncio.DatagramTransport):
             raise TypeError(f"expected a datagram transport, got {type(transport).__name__}")
         self._transport = transport
+        self._socket = protocol
         self._ticker = asyncio.create_task(self._tick())
 
     async def close(self) -> None:
@@ -170,6 +177,7 @@ class PlainClient:
                 await self._ticker
         if self._transport is not None:
             self._transport.close()
+            await self._socket.closed.wait()  # its port is free again: a restart binds it
 
     def observe(self, callback: Callable[[Observed], None]) -> Callable[[], None]:
         return self._observers.add(callback)

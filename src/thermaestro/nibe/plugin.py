@@ -260,11 +260,14 @@ class NibePlugin:
             raise
         finally:
             stop()
-            if poller is not None:
-                poller.cancel()
-                # A poller that failed has said so above: the connection is closed anyway.
-                await asyncio.gather(poller, return_exceptions=True)
-            await self._transport.close()
+            try:
+                if poller is not None:
+                    poller.cancel()
+                    # A poller that failed has said so above: the connection is closed anyway.
+                    await asyncio.gather(poller, return_exceptions=True)
+            finally:
+                # Also when canceled again while the poller stops.
+                await self._transport.close()
 
     async def handle(self, request: Message, send: Send) -> None:
         offered = isinstance(request, Describe | Read | Subscribe | Act) or (

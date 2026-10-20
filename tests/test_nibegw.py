@@ -135,3 +135,16 @@ async def test_it_stays_a_target_without_requests(gateway: Gateway, pump: SimPum
         assert c.health().up
     finally:
         await c.close()
+
+
+async def test_a_closed_client_frees_its_port(gateway: Gateway) -> None:
+    """Closed, its socket is: a plugin started again binds the same port at once."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.bind(("0.0.0.0", 0))  # noqa: S104
+        port = probe.getsockname()[1]
+    settings = PlainSettings(resend_s=0.5, answer_s=0.5, silent_s=1.0, tick_s=0.05, local_port=port)
+    c = PlainClient("127.0.0.1", gateway.ports["read"], gateway.ports["write"], settings=settings)
+    await c.start()
+    await c.close()
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as again:
+        again.bind(("0.0.0.0", port))  # noqa: S104
