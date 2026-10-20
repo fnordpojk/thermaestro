@@ -435,6 +435,14 @@ MIGRATIONS: tuple[str, ...] = (
         params TEXT NOT NULL CHECK (json_valid(params))
     ) STRICT;
     """,
+    # 29: the identity of the device each lever was taken over on, so a lever isn't put
+    # back to a value found on another device
+    """
+    CREATE TABLE IF NOT EXISTS claim_unit (
+        lever TEXT PRIMARY KEY,
+        identity TEXT NOT NULL CHECK (json_valid(identity))
+    ) STRICT;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

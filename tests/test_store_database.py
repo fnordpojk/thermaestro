@@ -258,3 +258,18 @@ async def test_the_houses_recent_days_are_read_again(tmp_path: Path) -> None:
             )
         )
     assert left == [("day", 3), ("house_day", 20)]
+
+
+async def test_the_device_a_lever_was_taken_over_on_is_kept(tmp_path: Path) -> None:
+    path = tmp_path / "thermaestro.db"
+    async with await Database.open(path):
+        pass
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 28")
+    async with await Database.open(path) as db:
+        tables = await db.run(
+            lambda t: [
+                n for (n,) in t.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+            ]
+        )
+    assert "claim_unit" in tables

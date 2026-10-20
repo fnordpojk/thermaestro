@@ -45,7 +45,6 @@ SAY_S = 600.0
 POLL_S = 2.0
 FINE = frozenset({"verified", "awaiting_effect", "shadowed", "unchanged"})
 """What a request may come to for a check to go on."""
-PUT_BACK = TAKEN | {"unchanged"}
 
 Ask = Callable[[str], Awaitable[bool | None]]
 """A yes-or-no question to the person at the rig; None when it wasn't answered."""
@@ -449,7 +448,7 @@ class Bench:
         path = ref.removeprefix(f"{PUMP}:{profile.UNIT}/")
         # A hold's release awaits no effect of its own: the expectation is the engage's.
         detail = None if result.outcome == "awaiting_effect" else result.detail
-        self.step(f"put back {path}", result.outcome, detail, result.outcome in PUT_BACK)
+        self.step(f"put back {path}", result.outcome, detail, self.executor.put_back([ref]))
 
     async def watch(
         self, until: Callable[[], bool], *, minutes: float, show: Mapping[str, str]

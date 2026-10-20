@@ -15,7 +15,7 @@ from thermaestro.cap.messages import Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
 from thermaestro.core.events import Events
-from thermaestro.core.executor import left_changed
+from thermaestro.core.executor import _Owed, left_changed
 from thermaestro.store import Control, Database, LeverMode, Plugin, SecretStore
 
 OFFSET = "dev:hp1/offset"
@@ -44,6 +44,7 @@ async def rig(
     tmp_path: Path,
     modes: dict[str, LeverMode] | None = None,
     device: LeverDevice | None = None,
+    act_timeout_s: float = 60.0,
     **control: object,
 ) -> AsyncIterator[Rig]:
     device = device or LeverDevice()
@@ -69,6 +70,7 @@ async def rig(
             audit,
             clock=lambda: time.time() + offset[0],
             verify_s=0.5,
+            act_timeout_s=act_timeout_s,
             watchdog_s=0.3,
             poll_s=0.05,
         )
@@ -515,8 +517,11 @@ async def test_a_connection_ending_during_the_read_back(tmp_path: Path) -> None:
         result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         assert result.outcome == "unverifiable"
         claim = r.executor.claims[OFFSET]
-        assert (claim.last, claim.changed) == (2, True)
+        assert claim.changed
         assert acts(tmp_path / "t.db")[-1][3] == "unverifiable"
+        # The device's next reading says it was taken.
+        await until(lambda: claim.pending is None)
+        assert (claim.last, claim.drift) == (2, None)
 
 
 async def test_one_lever_failing_to_go_back_leaves_the_others_put_back(tmp_path: Path) -> None:
@@ -674,3 +679,117 @@ async def test_how_the_write_path_stands(tmp_path: Path) -> None:
                 r.executor.readiness() == {"planner": "silent", "not_put_back": 1, "in_flight": 0}
             )
         )
+
+
+# --- Changes whose fate isn't known ------------------------------------------------------
+
+
+async def test_a_change_whose_connection_ends_is_settled_by_the_next_reading(
+    tmp_path: Path,
+) -> None:
+    """The plugin took the change, then its connection ended before it said so: not taken
+    for undelivered. Back, the device's reading says it was taken."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        r.device.cut_off.add("hp1/offset")
+        result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        assert result.outcome == "lost"
+        claim = r.executor.claims[OFFSET]
+        assert claim.pending == {"op": "set", "params": {"value": 2}}
+        assert await left_changed(r.db) == [OFFSET]
+        await until(lambda: claim.pending is None)
+        assert (claim.last, claim.drift, r.device.registers["x.fake.offset"]) == (2, None, 2)
+
+
+async def test_a_change_whose_connection_ends_is_put_back_after_a_restart(
+    tmp_path: Path,
+) -> None:
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        device.cut_off.add("hp1/offset")
+        assert (await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")).outcome == (
+            "lost"
+        )
+        await r.executor.stop()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        assert device.registers["x.fake.offset"] == -4
+        assert r.executor.claims[OFFSET].drift is None
+
+
+async def test_a_restore_queued_and_never_done_stays_owed(tmp_path: Path) -> None:
+    """No answer in time isn't put back: the lever stays owed, and goes back once the
+    device takes it."""
+    async with rig(tmp_path, {OFFSET: "control"}, act_timeout_s=0.3) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.device.stalled.add("hp1/offset")
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "timeout"
+        assert r.device.registers["x.fake.offset"] == 2
+        assert await left_changed(r.db) == [OFFSET]
+        assert r.executor.readiness()["not_put_back"] == 1
+        assert audited(r)[-1]["outcome"] == "failed"
+        r.device.stalled.clear()
+        await until(lambda: r.executor.readiness()["not_put_back"] == 0, timeout=10)
+        assert r.device.registers["x.fake.offset"] == -4
+        assert not r.executor.claims[OFFSET].changed
+
+
+async def test_a_restore_done_but_unanswered_is_settled_by_reading(tmp_path: Path) -> None:
+    """The device put it back and the answer was lost: owed until a reading shows it back,
+    and not taken for someone else's change."""
+    async with rig(tmp_path, {OFFSET: "control"}, act_timeout_s=0.3) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.device.unanswered.add("hp1/offset")
+        r.device.quiet = True  # no reading yet to say what became of it
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "timeout"
+        assert r.device.registers["x.fake.offset"] == -4
+        assert r.executor.readiness() == {"planner": "not yet", "not_put_back": 1, "in_flight": 1}
+        r.device.quiet = False
+        await until(lambda: r.executor.readiness()["not_put_back"] == 0)
+        claim = r.executor.claims[OFFSET]
+        assert (claim.changed, claim.drift, claim.pending) == (False, None, None)
+        assert r.device.registers["x.fake.offset"] == -4
+
+
+async def test_someone_changing_a_lever_still_owed_lets_go_of_it(tmp_path: Path) -> None:
+    """Put back by hand while Thermaestro couldn't: never written over, no longer owed."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        events = r.executor.events = Events(r.db)
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.device.refused.add("hp1/offset")
+        await r.executor.restore("Thermaestro is stopping")
+        assert len(await events.open("lever.not_back:")) == 1
+        await r.device.someone_writes("x.fake.offset", 0, tell=False)
+        await until(lambda: r.executor.readiness()["not_put_back"] == 0)
+        assert r.executor.claims[OFFSET].drift == "it reads 0, not 2 as set"
+        r.device.refused.clear()
+        await asyncio.sleep(0.5)
+        assert await events.open("lever.not_back:") == []
+        assert r.device.registers["x.fake.offset"] == 0
+
+
+async def test_a_lever_on_another_device_by_now_is_let_go_not_put_back(tmp_path: Path) -> None:
+    """The pump was replaced while its plugin was down: its old value isn't written to the
+    new one."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.host.stop()
+        await r.executor.set_mode(OFFSET, "off", who="anna")
+        r.device.identity = r.device.identity.model_copy(update={"serial": "B2"})
+        await r.host.start()
+        await until(lambda: r.executor.claims[OFFSET].drift is not None)
+        assert r.executor.claims[OFFSET].drift == (
+            "the device isn't the one it was taken over on: serial A1 is now B2"
+        )
+        await asyncio.sleep(0.3)
+        assert r.device.registers["x.fake.offset"] == 2
+        assert r.executor.readiness()["not_put_back"] == 0
+
+
+async def test_a_retry_long_failing_waits_no_more_than_the_watchdog(tmp_path: Path) -> None:
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        r.executor._owed[OFFSET] = _Owed("stopping", tries=1024)
+        before = time.time() + r.clock[0]
+        await r.executor._owe(OFFSET, "stopping", "its plugin isn't running")
+        assert r.executor._owed[OFFSET].due - before <= 0.3 + 0.05

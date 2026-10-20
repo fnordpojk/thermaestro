@@ -526,6 +526,7 @@ OUTCOMES = {
     "unverifiable": mark("sent; it can't be checked"),
     "awaiting_effect": mark("sent; its effect is awaited"),
     "timeout": mark("no answer in time"),
+    "lost": mark("sent; the connection ended before its fate was known"),
     "shadowed": mark("shadow: nothing was changed"),
     "dropped": mark("not delivered"),
     "device_refused": mark("the pump refused it"),

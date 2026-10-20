@@ -11,10 +11,21 @@ didn't make lets go of the lever: it is reported, and never written over.
 
 A change is kept as in flight before it is sent, so a process that stops before its fate is
 known still knows the device may have taken it: the next start reads the device, and puts
-it back. A lever that couldn't be put back (its plugin down, the device refusing) is owed:
-in whatever mode it is now, and with the planner stopped too, it is tried again, at once
-when its plugin comes back, until it is put back or someone changes it, which lets go of
-it. Meanwhile it is an event, and it isn't decided on in shadow.
+it back. A change whose fate stays unknown (the connection ended after it was sent, no
+answer came in time, or it couldn't be read back) stays in flight until a fresh reading
+says: the new value, taken; the value from before, it didn't arrive; anything else,
+someone else changed it, which lets go of the lever. Where the lever can't be read, it is
+taken as the state from which putting back is still needed.
+
+A lever is put back only once it is as found: a setting read back so, a hold released as
+the device accepted. One that isn't (its plugin down, the device refusing, an answer that
+didn't come) is owed: in whatever mode it is now, and with the planner stopped too, it is
+tried again, at once when its plugin comes back, until it is put back or someone changes
+it, which lets go of it. Meanwhile it is an event, and it isn't decided on in shadow.
+
+The device's identity (vendor, model, firmware, serial, as its plugin gives them) is kept
+when a lever is taken over. Should the device be another when the lever is put back, the
+lever is let go rather than given a value found on a different device.
 
 A hold's release is the plugin's to know (what an emulated block puts back), and a plugin
 keeps it across its own restarts. When a plugin describes an engaged hold anew, what it
@@ -69,6 +80,8 @@ the last write took on its way: the hold is one change per slot, not to the seco
 RETRY_S = 10.0
 """How long a lever that couldn't be put back waits to be tried again; each try that fails
 doubles it, up to the watchdog's period. Its plugin coming back tries it at once."""
+RETRY_DOUBLINGS = 16
+"""Doubled no more often than this: far past the watchdog's period, and finite."""
 
 NOT_BACK = mark("%(lever)s couldn't be put back as found (%(why)s): it is tried again")
 
@@ -78,6 +91,7 @@ Outcome = Literal[
     "unverifiable",
     "awaiting_effect",
     "timeout",
+    "lost",
     "shadowed",
     "dropped",
     "device_refused",
@@ -93,6 +107,7 @@ COUNTED: frozenset[str] = frozenset(
         "unverifiable",
         "awaiting_effect",
         "timeout",
+        "lost",
         "shadowed",
         "device_refused",
     }
@@ -100,9 +115,12 @@ COUNTED: frozenset[str] = frozenset(
 """Requests that reached the device, or in shadow would have: what the budget and the
 guard count. Shadow counts too, so it decides as control would."""
 
-TAKEN: frozenset[str] = frozenset({"verified", "unverifiable", "awaiting_effect", "timeout"})
-GONE = "the plugin's connection ended before it could be read back"
+TAKEN: frozenset[str] = frozenset(
+    {"verified", "unverifiable", "awaiting_effect", "timeout", "lost"}
+)
 """Outcomes after which the device may hold the new value, so a restore must undo it."""
+GONE = "the plugin's connection ended before it could be read back"
+LOST = "the plugin's connection ended before it said what became of it"
 
 AUTOMATIC = frozenset({"planner", "core", "mqtt"})
 """Principals that aren't a person acting: a lever kept for people is refused to them."""
@@ -144,6 +162,8 @@ class Claim:
     pending: dict[str, Any] | None = None
     """A change sent whose fate isn't known yet, its `op` and `params`: until it is, the
     device may have taken it."""
+    unit: dict[str, str] | None = None
+    """The identity of the device it was taken over on, where its plugin gives one."""
 
     @property
     def changed(self) -> bool:
@@ -203,6 +223,8 @@ class Executor:
         """When the planner last checked in."""
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
+        self._unsettled: dict[str, float] = {}
+        """Changes whose fate isn't known, by when that was found: a reading after it says."""
         self._tasks: set[asyncio.Task[None]] = set()
 
     # --- Running ------------------------------------------------------------------------
@@ -392,6 +414,12 @@ class Executor:
                 await self._save(claim)
                 continue
             async with self._lock(ref):
+                other = self._other_device(claim)
+                if other is not None:
+                    await self._let_go(ref, other)
+                    results[ref] = Result("refused", other)
+                    await self._paid(ref)
+                    continue
                 try:
                     if claim.held:
                         result = await self._act(ref, "release", {}, "core", why, restoring=True)
@@ -414,15 +442,23 @@ class Executor:
             else:
                 await self._paid(ref)
         if results:
-            done = TAKEN | {"unchanged"}
             await self._audit.record(
                 "core",
                 "lever.restore",
                 why=why,
-                outcome="ok" if all(r.outcome in done for r in results.values()) else "failed",
+                outcome="ok" if self.put_back(results) else "failed",
                 details={ref: r.outcome for ref, r in results.items()},
             )
         return results
+
+    def put_back(self, refs: Collection[str]) -> bool:
+        """Whether every one of these levers is as found: none still changed by
+        Thermaestro, none let go instead."""
+        for ref in refs:
+            claim = self.claims.get(ref)
+            if claim is not None and (claim.changed or claim.drift is not None):
+                return False
+        return True
 
     # --- The steps ----------------------------------------------------------------------
 
@@ -474,6 +510,8 @@ class Executor:
                     ref, op, params, who, why, mode, Result("refused", refusal)
                 )
         found = self._found(ref, lever)
+        if mode == "control" and claim.unit is None:
+            claim.unit = self._unit(ref)
         if mode == "shadow":
             self._took(claim, op, params)
             await self._save(claim)
@@ -483,13 +521,24 @@ class Executor:
         # Kept before it is sent: a process that stops before its fate is known still
         # knows the device may have taken it.
         claim.pending = {"op": op, "params": params}
+        self._unsettled.pop(ref, None)
         await self._save(claim)
         result = await self._send(ref, lever, op, params)
-        claim.pending = None
-        if result.outcome in TAKEN:
-            self._took(claim, op, params)
+        unknown = result.outcome in ("lost", "timeout") or (
+            result.outcome == "unverifiable" and result.detail == GONE
+        )
+        if unknown and _readable(lever, op):
+            # A reading after now says what became of it (`_on_value`), or the next start.
+            self._unsettled[ref] = self._clock()
+        else:
+            claim.pending = None
+            if unknown:
+                self._assume(claim, op, params)
+            elif result.outcome in TAKEN:
+                self._took(claim, op, params)
         await self._save(claim)
-        if result.outcome in TAKEN and not restoring and ref in self._owed:
+        settled = claim.pending is None and result.outcome in TAKEN
+        if settled and not restoring and ref in self._owed:
             await self._paid(ref)  # the planner has it again
         return await self._record(ref, op, params, who, why, mode, result, found)
 
@@ -770,8 +819,11 @@ class Executor:
                     final = fate
             except TimeoutError:
                 return Result("timeout", "the plugin didn't say what became of it")
-            except (Closed, CapError) as e:
-                return Result("dropped", f"the plugin's connection: {e}")
+            except Closed:
+                # Sent, maybe taken: a connection ending says nothing of the device.
+                return Result("lost", LOST)
+            except CapError as e:
+                return Result("dropped", f"the plugin refused it: {e}")
             if final is None or final.stage == "dropped":
                 return Result("dropped", final.detail if final else None)
             if final.stage == "device_refused":
@@ -834,6 +886,32 @@ class Executor:
             claim.last = None if same(value, claim.baseline) else value
         claim.last_t = self._clock()
         self._renewed[claim.lever] = claim.last_t
+
+    def _assume(self, claim: Claim, op: Op, params: dict[str, Value]) -> None:
+        """A change whose fate isn't known, on a lever that can't be read: taken as the
+        state from which putting back is still needed. A release leaves it held; a setting
+        set back to its baseline leaves it as it was."""
+        if op == "release":
+            return
+        if op in ("set", "feed") and same(params.get("value"), claim.baseline):
+            return
+        self._took(claim, op, params)
+
+    def _settle(self, ref: str, claim: Claim, now: Value | None, param: Param | None) -> None:
+        """A change whose fate wasn't known, settled by a fresh reading."""
+        assert claim.pending is not None  # noqa: S101 - the caller checks
+        sent = claim.pending["params"].get("value")
+        before = claim.last if claim.last is not None else claim.baseline
+        claim.pending = None
+        self._unsettled.pop(ref, None)
+        if same(now, sent, param):
+            claim.last = None if same(sent, claim.baseline, param) else sent
+            claim.last_t = self._clock()
+            self._renewed[ref] = claim.last_t
+        elif not same(now, before, param):
+            self._spawn(self._let_go(ref, f"it reads {now}, neither {sent} as sent nor {before}"))
+            return
+        self._spawn(self._save(claim))
 
     async def _record(
         self,
@@ -901,12 +979,11 @@ class Executor:
         it."""
         if envelope.quality != "good":
             return
-        for ref, claim in self.claims.items():
+        for ref, claim in list(self.claims.items()):
             if (
                 split(ref)[0] != instance
                 or claim.mode != "control"
                 or claim.drift is not None
-                or claim.last is None
                 or ref in self._writing
             ):
                 continue
@@ -916,12 +993,17 @@ class Executor:
             if lever.verify.point != envelope.point:
                 continue
             observed = (envelope.t_observed or envelope.t_received).timestamp()
-            if claim.last_t is not None and observed <= claim.last_t:
-                continue
             param = lever.params.get("value")
             now = reading(envelope, param)
-            if claim.pending is not None and same(now, claim.pending["params"].get("value"), param):
-                continue  # the change in flight, taken
+            if claim.pending is not None:
+                since = self._unsettled.get(ref)
+                if since is not None and observed > since:
+                    self._settle(ref, claim, now, param)
+                continue
+            if claim.last is None:
+                continue
+            if claim.last_t is not None and observed <= claim.last_t:
+                continue
             if not same(now, claim.last, param):
                 self._spawn(self._let_go(ref, f"it reads {now}, not {claim.last} as set"))
 
@@ -982,6 +1064,10 @@ class Executor:
             found = self._host.instances.get(instance)
             if lever is None or found is None or found.link is None:
                 continue
+            other = self._other_device(claim)
+            if other is not None:
+                await self._let_go(ref, other)
+                return
             pending, param = claim.pending, lever.params.get("value")
             if lever.kind != "hold" and lever.verify.kind == "readback":
                 back = self._readback(ref, lever)
@@ -1001,11 +1087,7 @@ class Executor:
                     return
             elif pending is not None:
                 claim.pending = None
-                if pending["op"] == "engage":
-                    claim.held = True
-                elif pending["op"] in ("set", "feed"):
-                    value = pending["params"].get("value")
-                    claim.last = None if same(value, claim.baseline, param) else value
+                self._assume(claim, pending["op"], pending["params"])
             await self.restore("Thermaestro restarted without putting this back", [ref])
             return
 
@@ -1019,8 +1101,7 @@ class Executor:
                 try:
                     # What can't be put back now is owed, and tried again (`_retry`).
                     results = await self.restore("the planner stopped answering")
-                    done = all(r.outcome in TAKEN | {"unchanged"} for r in results.values())
-                    if self.events is not None and done:
+                    if self.events is not None and self.put_back(results):
                         put_back = Raise("restore.watchdog", "house", PUT_BACK)
                         await self.events.moment("restore.watchdog", put_back)
                 except Exception:
@@ -1053,7 +1134,8 @@ class Executor:
     async def _owe(self, ref: str, why: str, detail: str) -> None:
         owed = self._owed.setdefault(ref, _Owed(why))
         owed.tries += 1
-        owed.due = self._clock() + min(self._watchdog_s, RETRY_S * 2 ** (owed.tries - 1))
+        doublings = min(owed.tries - 1, RETRY_DOUBLINGS)
+        owed.due = self._clock() + min(self._watchdog_s, RETRY_S * 2**doublings)
         log.warning("%s couldn't be put back (%s): it is tried again", ref, detail)
         if self.events is not None:
             args = {"lever": ref, "why": detail}
@@ -1102,6 +1184,38 @@ class Executor:
         instance, _ = split(ref)
         found = self._values.latest.get(Key(instance, lever.verify.point))
         return found if found is not None and found.quality == "good" else None
+
+    def _unit(self, ref: str) -> dict[str, str] | None:
+        """The identity of the device a lever is on, as its plugin describes it: the
+        nearest node above the lever that has one."""
+        instance, path = split(ref)
+        found = self._host.instances.get(instance)
+        if found is None or found.described is None:
+            return None
+        nodes = {n.path: n for n in found.described.nodes}
+        node = path.rpartition("/")[0]
+        while node:
+            identity = nodes[node].identity if node in nodes else None
+            if identity is not None:
+                fields = ("vendor", "model", "firmware", "serial")
+                return {f: v for f in fields if (v := getattr(identity, f))}
+            node = node.rpartition("/")[0]
+        return None
+
+    def _other_device(self, claim: Claim) -> str | None:
+        """Why the device isn't the one the lever was taken over on, or None: a field
+        known then and now that differs. One unknown either time isn't a difference."""
+        now = self._unit(claim.lever)
+        if claim.unit is None or now is None:
+            return None
+        changed = [
+            f"{field} {claim.unit[field]} is now {now[field]}"
+            for field in claim.unit
+            if field in now and now[field] != claim.unit[field]
+        ]
+        if not changed:
+            return None
+        return "the device isn't the one it was taken over on: " + ", ".join(changed)
 
     def _holds(self, instance: str, condition: str) -> bool:
         """`<point> == <value>` or `!=`, on the point's latest good value."""
@@ -1187,6 +1301,16 @@ def _after(envelope: Envelope, accepted: datetime) -> bool:
     return t >= accepted
 
 
+def _readable(lever: Lever, op: Op) -> bool:
+    """Whether a fresh reading can tell what became of this change."""
+    return (
+        lever.kind != "hold"
+        and lever.verify.kind == "readback"
+        and lever.verify.point is not None
+        and op in ("set", "feed")
+    )
+
+
 def _owing(claim: Claim) -> bool:
     """Whether a lever is still to be put back from control."""
     return claim.mode == "control" and claim.changed and claim.drift is None
@@ -1194,9 +1318,11 @@ def _owing(claim: Claim) -> bool:
 
 def _load_claims(t: Transaction) -> dict[str, Claim]:
     claims = {}
-    for lever, claimed, baseline, mode, held, last, last_t, drift, op, params in t.execute(
-        "SELECT claims.lever, claimed, baseline, mode, held, last, last_t, drift, op, params"
-        " FROM claims LEFT JOIN claim_inflight ON claim_inflight.lever = claims.lever"
+    for lever, claimed, baseline, mode, held, last, last_t, drift, op, params, unit in t.execute(
+        "SELECT claims.lever, claimed, baseline, mode, held, last, last_t, drift, op, params,"
+        " claim_unit.identity FROM claims"
+        " LEFT JOIN claim_inflight ON claim_inflight.lever = claims.lever"
+        " LEFT JOIN claim_unit ON claim_unit.lever = claims.lever"
     ):
         claims[lever] = Claim(
             lever,
@@ -1208,6 +1334,7 @@ def _load_claims(t: Transaction) -> dict[str, Claim]:
             last_t,
             drift,
             None if op is None else {"op": op, "params": json.loads(params)},
+            None if unit is None else json.loads(unit),
         )
     return claims
 
@@ -1237,10 +1364,18 @@ def _store_claim(t: Transaction, claim: Claim) -> None:
             " ON CONFLICT (lever) DO UPDATE SET op = excluded.op, params = excluded.params",
             (claim.lever, claim.pending["op"], json.dumps(claim.pending["params"])),
         )
+    if claim.unit is None:
+        t.execute("DELETE FROM claim_unit WHERE lever = ?", (claim.lever,))
+    else:
+        t.execute(
+            "INSERT INTO claim_unit (lever, identity) VALUES (?, ?)"
+            " ON CONFLICT (lever) DO UPDATE SET identity = excluded.identity",
+            (claim.lever, json.dumps(claim.unit, sort_keys=True)),
+        )
 
 
 def _drop_claims(t: Transaction, refs: Collection[str]) -> None:
-    for table in ("claims", "claim_inflight"):
+    for table in ("claims", "claim_inflight", "claim_unit"):
         t.executemany(f"DELETE FROM {table} WHERE lever = ?", [(r,) for r in refs])  # noqa: S608
 
 

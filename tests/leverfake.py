@@ -1,7 +1,8 @@
 """An invented device with one lever of each kind, for the write path's tests.
 
 Its registers are plain numbers. Switches make it misbehave one way at a time: a write
-accepted but not kept, a refused one, a slow one, a change made by someone else.
+accepted but not kept, a refused one, a slow one, a change made by someone else, one taken
+whose connection then ends, one queued and never done, one done and never answered.
 """
 
 import asyncio
@@ -155,7 +156,17 @@ class LeverDevice:
         self.refused: set[str] = set()
         self.delay_s = 0.0
         self.held: set[str] = set()
+        self.cut_off: set[str] = set()
+        """Lever paths whose next write is taken, and then the connection ends."""
+        self.stalled: set[str] = set()
+        """Lever paths whose writes are queued and never done."""
+        self.unanswered: set[str] = set()
+        """Lever paths whose writes are done, and never answered."""
+        self.identity = Identity(vendor="Fake", model="LF-1", firmware="1.0", serial="A1")
+        self.quiet = False
+        """Whether its subscriptions send nothing for now."""
         self._send: Send | None = None
+        self._cut = asyncio.Event()
 
     async def handle(self, request: Message, send: Send) -> None:
         match request:
@@ -169,7 +180,7 @@ class LeverDevice:
                         path="hp1",
                         kind="unit",
                         presence=Presence(how="configured"),
-                        identity=Identity(vendor="Fake", model="LF-1"),
+                        identity=self.identity,
                     ),
                 )
                 await send(Described(id=request.id, nodes=nodes, points=points, levers=LEVERS))
@@ -178,6 +189,8 @@ class LeverDevice:
             case Subscribe():
                 while True:
                     await asyncio.sleep(PUSH_S)
+                    if self.quiet:
+                        continue
                     await send(
                         Update(id=request.id, values=tuple(map(self.envelope, request.points)))
                     )
@@ -190,7 +203,10 @@ class LeverDevice:
 
     async def events(self, send: Send) -> None:
         self._send = send
+        self._cut = asyncio.Event()
         await send(Health(t=now(), unit="hp1", state="up", last_traffic=now()))
+        await self._cut.wait()
+        raise ConnectionError("the connection was cut")  # ends it
 
     def envelope(self, point: str) -> Envelope:
         register = point.removeprefix("hp1/")
@@ -220,12 +236,23 @@ class LeverDevice:
             return
         await send(Fate(id=request.id, stage="queued", t=now()))
         await asyncio.sleep(self.delay_s)
+        if request.lever in self.stalled:
+            await asyncio.Event().wait()
+        if request.lever in self.cut_off or request.lever in self.unanswered:
+            self._apply(lever, request)
+            if request.lever in self.cut_off:
+                self.cut_off.discard(request.lever)
+                self._cut.set()
+            await asyncio.Event().wait()
         if request.lever in self.refused:
             await send(Fate(id=request.id, stage="device_refused", t=now()))
             return
         await send(Fate(id=request.id, stage="device_accepted", t=now()))
         if request.lever in self.not_kept:
             return
+        self._apply(lever, request)
+
+    def _apply(self, lever: Lever, request: Act) -> None:
         register = lever.touches[0]
         if request.op == "set":
             value = request.params["value"]

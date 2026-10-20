@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 05:06+0200\n"
+"POT-Creation-Date: 2026-10-20 06:57+0200\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -4319,6 +4319,9 @@ msgstr "gesendet; kann nicht geprüft werden"
 
 msgid "sent; its effect is awaited"
 msgstr "gesendet; ihre Wirkung wird erwartet"
+
+msgid "sent; the connection ended before its fate was known"
+msgstr "gesendet; die Verbindung endete, bevor bekannt war, was daraus wurde"
 
 #, python-format
 msgid "set aside: %(why)s"
