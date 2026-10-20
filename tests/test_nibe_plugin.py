@@ -61,6 +61,10 @@ PUMP = {
     48852: 0,  # 32-bit values high word first
     47011: 0xFFFC,  # offset -4
     47041: 1,
+    47015: 150,  # climate system 1's lowest supply, 15.0 °C
+    47019: 350,  # and its highest, 35.0 °C: an underfloor system
+    47388: 1,  # alarm action: lower the room temperature
+    47389: 0,
 }
 
 
@@ -192,6 +196,10 @@ async def test_values_and_their_quality(plugin: NibePlugin, stocked: SimPump) ->
     )
     assert value(plugin, "heat.produced{purpose=dhw,by=total}") == (1234.5, "good", None)
     assert value(plugin, "cs1/x.nibe.47011") == (-4, "good", None)
+    # The limits that keep a floor safe whatever the offset, read, never written.
+    assert value(plugin, "cs1/x.nibe.47015") == (15.0, "good", None)
+    assert value(plugin, "cs1/x.nibe.47019") == (35.0, "good", None)
+    assert value(plugin, "x.nibe.47388")[1:] == ("good", None)
     assert plugin.envelope("hp1/outdoor.temp").unit == "degC"
 
 

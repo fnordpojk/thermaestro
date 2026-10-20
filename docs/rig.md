@@ -25,6 +25,7 @@ The checks:
 | `boost` | Starts one extra charge of hot water and watches it until it ends. |
 | `addition` | Waits for the electric addition to run, then sets its stop temperature as low as it goes, which keeps it off, and watches it stop. Then it puts the setting back. `--setting max_power` tries the addition's most power instead, set to 0. |
 | `pool` | A pool's start and stop temperatures, each changed and put back. `--pool 2` for the second pool. |
+| `periodic` | Whether the pump runs its periodic hot-water increase while the block holds its charges off. `--due` says when the next one is due, as menu 2.9.1 shows it (`03:30`, or `2026-10-27 03:30`): the pump keeps that date in no register the rig can read. Half an hour before then it engages the block and holds it until the charge sensor reaches the periodic increase's stop temperature, less a degree, or an hour after it was due. Then it puts the start temperature back, and if the increase wasn't seen, watches an hour more for it. Run it with any other program that sets the hot-water mode (NibePi) stopped: the block lowers only the current mode's start temperature. |
 | `restore` | Puts back what a run that was stopped left changed (see below). |
 
 `--minutes` (240 by default) is the longest a check waits for the pump to do something by itself: the tank to cool, the addition to start. Ctrl-C ends a check at any time and puts everything back.

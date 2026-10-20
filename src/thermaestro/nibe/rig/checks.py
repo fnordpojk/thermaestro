@@ -9,10 +9,11 @@ import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ... import durations
+from ... import clock, durations
 from ...cap.defaults import assume
 from ...core.executor import same
 from ...store import NibeGateway
@@ -361,6 +362,106 @@ async def pool(bench: Bench, o: Options) -> None:
     await bench.judge(f"{node}'s start and stop, each changed and put back.")
 
 
+# --- periodic -------------------------------------------------------------------------------
+
+
+LEAD_S = 1800.0
+"""How long before the periodic increase is due the block is engaged."""
+PERIODIC_WAIT_S = 3600.0
+"""How long after it is due the check waits for the periodic increase, and after the
+release, for one that was held off."""
+PERIODIC_MARGIN = 1.0
+"""How close below its stop the charge sensor must come for the periodic increase to count."""
+
+
+def due_at(text: str, now: datetime) -> datetime:
+    """When the periodic increase is due, as menu 2.9.1 shows it: `YYYY-MM-DD HH:MM`, or
+    `HH:MM` for the next time the clock shows it, in the time zone of `now`."""
+    try:
+        if " " in text.strip():
+            found = datetime.strptime(text.strip(), "%Y-%m-%d %H:%M")
+            return found.replace(tzinfo=now.tzinfo)
+        clock_time = datetime.strptime(text.strip(), "%H:%M").time()
+    except ValueError:
+        raise RigError(f"--due {text!r}: give it as HH:MM or YYYY-MM-DD HH:MM") from None
+    at = datetime.combine(now.date(), clock_time, now.tzinfo)
+    return at if at > now else at + timedelta(days=1)
+
+
+async def periodic(bench: Bench, o: Options) -> None:
+    """Whether the pump runs its periodic increase while the block holds its charges off."""
+    if o.due is None:
+        raise RigError("--due is needed: when the periodic increase is due, as menu 2.9.1 shows")
+    if not bench.value(f"dhw/x.nibe.{profile.PERIODIC_ON}"):
+        raise RigError("the periodic increase is off on this pump (menu 2.9.1)")
+    stop = bench.value(f"dhw/x.nibe.{profile.PERIODIC_STOP}")
+    if not isinstance(stop, int | float):
+        raise RigError(f"the periodic increase's stop ({profile.PERIODIC_STOP}) can't be read now")
+    path = "dhw/block"
+    lever = bench.need(path)
+    now = clock.now().astimezone()
+    due = due_at(o.due, now)
+    engage_at = due - timedelta(seconds=LEAD_S)
+    until = due + timedelta(seconds=PERIODIC_WAIT_S)
+    if until <= now:
+        raise RigError(f"the periodic increase was due at {due:%Y-%m-%d %H:%M}: give the next one")
+    start = max(engage_at, now)
+    await bench.consent(
+        [
+            f"{lever.implementation.how} at {start:%Y-%m-%d %H:%M}, until the periodic increase"
+            f" due at {due:%H:%M} is seen or {until:%H:%M} has passed, then put back"
+        ],
+        [path],
+    )
+    if engage_at > now:
+        wait = (engage_at - now).total_seconds()
+        bench.say(f"Waiting {durations.text(wait)}, until {engage_at:%H:%M}. Ctrl-C ends it.")
+        await bench.watch(lambda: clock.now() >= engage_at, minutes=wait / 60 + 1, show=HOT_WATER)
+    if not await _no_charge_running(bench, o):
+        return
+    engaged = await bench.act(path, "engage", why="the rig: the periodic increase under a block")
+    if engaged.outcome not in FINE:
+        return
+    if not bench.write:
+        await bench.put_back([path])
+        return
+
+    def reached() -> bool:
+        charge = bench.value("dhw/temp.charge")
+        return isinstance(charge, int | float) and charge >= stop - PERIODIC_MARGIN
+
+    left = (until - clock.now()).total_seconds()
+    bench.say(
+        f"Watching until {until:%H:%M} for the charge sensor to reach {stop - PERIODIC_MARGIN:g}"
+        f" °C, the periodic increase's stop less {PERIODIC_MARGIN:g}."
+    )
+    took = await bench.watch(reached, minutes=max(0.0, left) / 60, show=HOT_WATER)
+    if took is not None:
+        charge = bench.value("dhw/temp.charge")
+        bench.step(
+            f"the periodic increase ran while the block held: the charge sensor at {charge} °C",
+            "seen",
+            passed=True,
+        )
+    else:
+        bench.step(
+            f"no periodic increase while the block held, up to {PERIODIC_WAIT_S / 60:g} minutes"
+            " after it was due",
+            "not seen",
+        )
+    await bench.put_back([path])
+    summary = "The periodic increase ran while the block held its charges off."
+    if took is None:
+        after = await bench.watch(reached, minutes=PERIODIC_WAIT_S / 60, show=HOT_WATER)
+        if after is None:
+            bench.step(f"nor within {durations.text(PERIODIC_WAIT_S)} of the release", "not seen")
+            summary = "No periodic increase was seen, held or after."
+        else:
+            bench.step(f"it ran {durations.text(after)} after the release", "seen")
+            summary = "The block held the periodic increase off; it ran once the block was let go."
+    await bench.judge(summary)
+
+
 CHECKS: dict[str, Check] = {
     "offset": Check(
         "the heating offset: +1 (or -1 at the top), read back, put back",
@@ -402,6 +503,19 @@ CHECKS: dict[str, Check] = {
         lambda o: tuple(f"pool{o.pool}/{n}" for n in ("start_temp", "stop_temp")),
         lambda o: (f"pool{o.pool}/temp",),
         pool,
+    ),
+    "periodic": Check(
+        "whether the periodic increase runs while the block holds: the block engaged before it"
+        " is due (--due), until it is seen or an hour after, then released",
+        lambda o: ("dhw/block",),
+        lambda o: (
+            *HOT_WATER.values(),
+            f"dhw/x.nibe.{profile.HOT_WATER_MODE}",
+            *(f"dhw/x.nibe.{r}" for r in profile.MODE_STARTS.values()),
+            f"dhw/x.nibe.{profile.PERIODIC_STOP}",
+            f"dhw/x.nibe.{profile.PERIODIC_ON}",
+        ),
+        periodic,
     ),
 }
 

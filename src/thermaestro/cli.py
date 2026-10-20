@@ -278,6 +278,11 @@ def _rig_arguments(commands: Any) -> None:
         help="addition: the setting to try",
     )
     rig.add_argument("--pool", type=int, default=1, help="pool: which pool")
+    rig.add_argument(
+        "--due",
+        help="periodic: when the periodic increase is due, as menu 2.9.1 shows it"
+        " (HH:MM, or YYYY-MM-DD HH:MM)",
+    )
 
 
 def _pump(args: argparse.Namespace) -> tuple[Any, bytes | None] | None:
@@ -338,6 +343,7 @@ def _rig(args: argparse.Namespace) -> int:
         mode=args.mode,
         setting=args.setting,
         pool=args.pool,
+        due=args.due,
     )
 
     async def main() -> Any:

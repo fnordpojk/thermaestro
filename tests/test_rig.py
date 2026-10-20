@@ -7,6 +7,7 @@ import inspect
 import json
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -364,7 +365,45 @@ def test_the_rig_writes_only_through_the_executor() -> None:
 
 
 def test_every_check_is_listed() -> None:
-    assert set(CHECKS) == {"offset", "mode", "block", "boost", "addition", "pool"}
+    assert set(CHECKS) == {"offset", "mode", "block", "boost", "addition", "pool", "periodic"}
+
+
+def due_in_an_hour(plant: Plant) -> None:
+    plant.last_periodic = plant.t - plant.word(47051) * 86_400 + 3600
+
+
+def test_periodic(tmp_path: Path) -> None:
+    """The block is engaged half an hour before the periodic increase is due, held until
+    the charge sensor reaches its stop, and put back. The simulated pump runs it whatever
+    the start temperature: whether a real one does is what the check is for."""
+    s = scenario()
+    due = datetime.fromtimestamp(s.start_time.timestamp() + 3600, UTC).astimezone()
+    options = Options(due=f"{due:%Y-%m-%d %H:%M}")
+    r = rig(tmp_path, s, "periodic", options=options, prepare=due_in_an_hour)
+    assert r.step("engage dhw/block").outcome == "awaiting_effect"
+    ran = r.step("the periodic increase ran while the block held")
+    assert ran.passed is True
+    assert r.report.judged is True
+    assert r.plant.registers[47044] == s16(45.0)
+    assert written(r.bus) == [(47044, s16(35.0)), (47044, s16(45.0))]
+
+
+def test_periodic_needs_to_know_when_it_is_due(tmp_path: Path) -> None:
+    with pytest.raises(RigError, match="--due is needed"):
+        rig(tmp_path, scenario(), "periodic")
+    with pytest.raises(RigError, match="the periodic increase is off"):
+        rig(tmp_path, scenario().set({47050: 0}), "periodic", options=Options(due="03:30"))
+
+
+def test_when_the_periodic_increase_is_due() -> None:
+    now = datetime(2026, 10, 20, 17, 0, tzinfo=UTC)
+    assert checks_module.due_at("03:30", now) == datetime(2026, 10, 21, 3, 30, tzinfo=UTC)
+    assert checks_module.due_at("18:00", now) == datetime(2026, 10, 20, 18, 0, tzinfo=UTC)
+    assert checks_module.due_at("2026-10-27 03:30", now) == datetime(
+        2026, 10, 27, 3, 30, tzinfo=UTC
+    )
+    with pytest.raises(RigError, match="HH:MM"):
+        checks_module.due_at("half past three", now)
 
 
 async def test_the_command(

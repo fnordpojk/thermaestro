@@ -70,6 +70,8 @@ class Options:
     setting: Literal["stop_temp", "max_power"] = "stop_temp"
     """The addition's setting `addition` tries."""
     pool: int = 1
+    due: str | None = None
+    """When the periodic increase is due, as menu 2.9.1 shows it: for `periodic`."""
 
 
 @dataclass

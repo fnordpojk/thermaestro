@@ -223,6 +223,7 @@ Switching needs the password again. A setting the pump has its own feature for (
 - Holding hot-water charges off lowers the start temperature to 35 °C, no lower: the pump still charges once the tank has fallen that far. A hold lasts three hours at most, also across a restart, and none begins again until the pump has charged.
 - The addition is kept off by its stop temperature at −15 °C, no lower: in real cold it still helps.
 - A pool is held by its start temperature at the bottom of its band, never by switching its heating off.
+- However far the heating offset is raised, a climate system's supply stays at or below its own highest supply temperature (menu 5.1.2), and at or above its lowest (menu 1.9.3). Thermaestro reads both, shown with the pump's values, and never writes them. Set the highest for what the floor takes: underfloor heating is usually 35 to 45 °C, and laminate on boards about 35 °C.
 
 On a plain NibeGW gateway, the page also says that the gateway's write port lets anyone on the network change the pump's settings. To close it, use a gateway that speaks the Thermaestro gateway protocol, give it a key, and turn its plain write port off: Thermaestro's writes then need the key. A key alone doesn't close the plain port; `thermaestro-gateway` turns it off when it has a key, other gateways may not.
 

@@ -223,17 +223,22 @@ class System:
     room_control: int | None = None
     target: int | None = None
     """The supply temperature the pump's curve calculates."""
+    min_supply: int | None = None
+    """Its lowest supply temperature, menu 1.9.3."""
+    max_supply: int | None = None
+    """Its highest supply temperature, menu 5.1.2: what keeps a floor from more than it may
+    take, whatever the offset."""
 
 
 SYSTEMS = (
-    System(1, 40008, None, offset=47011, room_control=47394, target=43009),
-    System(2, 40007, 47302, offset=47010, room_control=47393, target=43008),
-    System(3, 40006, 47303, offset=47009, room_control=47392, target=43007),
-    System(4, 40005, 47304, offset=47008, room_control=47391, target=43006),
-    System(5, 40162, 48569, offset=48494, room_control=48678),
-    System(6, 40161, 48570, offset=48493, room_control=48677),
-    System(7, 40160, 48571, offset=48492, room_control=48676),
-    System(8, 40159, 48572, offset=48491, room_control=48675),
+    System(1, 40008, None, 47011, 47394, 43009, min_supply=47015, max_supply=47019),
+    System(2, 40007, 47302, 47010, 47393, 43008, min_supply=47014, max_supply=47018),
+    System(3, 40006, 47303, 47009, 47392, 43007, min_supply=47013, max_supply=47017),
+    System(4, 40005, 47304, 47008, 47391, 43006, min_supply=47012, max_supply=47016),
+    System(5, 40162, 48569, 48494, 48678, min_supply=48498, max_supply=48502),
+    System(6, 40161, 48570, 48493, 48677, min_supply=48497, max_supply=48501),
+    System(7, 40160, 48571, 48492, 48676, min_supply=48496, max_supply=48500),
+    System(8, 40159, 48572, 48491, 48675, min_supply=48495, max_supply=48499),
 )
 
 
@@ -298,6 +303,9 @@ def system_points(system: System) -> list[PointDef]:
         points.append(PointDef(f"{cs}/x.nibe.{system.offset}", system.offset))
     if system.room_control is not None:
         points.append(PointDef(f"{cs}/x.nibe.{system.room_control}", system.room_control))
+    for limit in (system.min_supply, system.max_supply):
+        if limit is not None:
+            points.append(PointDef(f"{cs}/x.nibe.{limit}", limit))
     return points
 
 
@@ -336,6 +344,8 @@ UNIT_POINTS = (
     PointDef("x.nibe.47134", 47134),  # operating priority, hot water
     PointDef("x.nibe.47137", 47137),  # operating mode
     PointDef("x.nibe.47370", 47370),  # addition allowed
+    PointDef("x.nibe.47388", 47388),  # alarm action: lower the room temperature
+    PointDef("x.nibe.47389", 47389),  # alarm action: lower the hot water's
 )
 
 CS1_POINTS = (
