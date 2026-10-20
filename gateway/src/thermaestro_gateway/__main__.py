@@ -109,6 +109,8 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
         sources=frozenset(args.source) if args.source else None,
         static_targets=tuple(args.target),
         psk=psk,
+        # Asked for by name: plain writes with a key, for a client that can't sign.
+        plain_writes=True if psk and args.write_port else None,
         max_clients=args.max_clients,
     )
     return config, args.log_level

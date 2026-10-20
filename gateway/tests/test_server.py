@@ -151,3 +151,17 @@ async def test_a_keyed_gateway_from_its_command_line_takes_no_plain_write(
         assert set(gw.ports) == {"read", "control"}
     finally:
         await gw.close()
+
+
+def test_a_gateway_with_a_key_takes_no_unsigned_write() -> None:
+    """Whatever port it was given: a plain write would bypass the key. Asked for by name,
+    it takes them."""
+    request = nibe.write_request(47011, 2)
+    keyed = Gateway(Config(serial_port="unused", psk=b"x" * 32))
+    keyed.datagram("write", request, ("192.0.2.200", 54321))
+    assert keyed.engine.reply_for(nibe.MODBUS40, nibe.WRITE_TOKEN, 10**15) is None
+    allowed = Gateway(Config(serial_port="unused", psk=b"x" * 32, plain_writes=True))
+    allowed.datagram("write", request, ("192.0.2.200", 54321))
+    reply = allowed.engine.reply_for(nibe.MODBUS40, nibe.WRITE_TOKEN, 10**15)
+    assert reply is not None
+    assert reply.frame == request

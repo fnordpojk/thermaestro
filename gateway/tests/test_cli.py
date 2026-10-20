@@ -60,5 +60,8 @@ def test_a_key_turns_the_plain_write_port_off(tmp_path: Path) -> None:
     key.write_text(bytes(range(32)).hex())
     config, _ = parse(["/dev/ttyUSB0", "--psk-file", str(key)])
     assert (config.read_port, config.write_port, config.control_port) == (9999, None, 10090)
+    assert not config.takes_plain_writes
     opened, _ = parse(["/dev/ttyUSB0", "--psk-file", str(key), "--write-port", "10000"])
-    assert opened.write_port == 10000
+    assert (opened.write_port, opened.takes_plain_writes) == (10000, True)
+    plain, _ = parse(["/dev/ttyUSB0"])
+    assert plain.takes_plain_writes

@@ -40,8 +40,15 @@ class Config:
     sources: frozenset[str] | None = None
     static_targets: tuple[Address, ...] = ()
     psk: bytes | None = None
+    plain_writes: bool | None = None
+    """Whether the plain write port takes writes: by default only without a key, which
+    those writes would bypass."""
     max_clients: int = 4
     queue_cap: int = 3
+
+    @property
+    def takes_plain_writes(self) -> bool:
+        return self.plain_writes if self.plain_writes is not None else self.psk is None
 
 
 def now_us() -> int:
@@ -85,7 +92,10 @@ class Gateway:
             self.bus.stats,
             Settings(
                 psk=config.psk,
-                plain_ports=(config.read_port or 0, config.write_port or 0),
+                plain_ports=(
+                    config.read_port or 0,
+                    (config.write_port or 0) if config.takes_plain_writes else 0,
+                ),
                 max_clients=config.max_clients,
                 sources=config.sources,
                 acknowledged=config.acknowledged,
@@ -118,7 +128,7 @@ class Gateway:
         self._serial = serial.Serial(self.config.serial_port, BAUD, timeout=0, write_timeout=1)
         for name, port in (
             ("read", self.config.read_port),
-            ("write", self.config.write_port),
+            ("write", self.config.write_port if self.config.takes_plain_writes else None),
             ("control", self.config.control_port),
         ):
             if port is None:
@@ -192,6 +202,9 @@ class Gateway:
     def datagram(self, port: str, data: bytes, addr: Address) -> None:
         if port == "control":
             self._send_control(self.control.handle(data, addr, now_us()))
+            return
+        if port == "write" and not self.config.takes_plain_writes:
+            log.debug("plain write from %s refused: with a key, writes need it", addr)
             return
         sources = self.config.sources
         if sources is not None and addr[0] not in sources:
