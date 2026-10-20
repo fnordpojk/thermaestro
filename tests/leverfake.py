@@ -6,7 +6,7 @@ whose connection then ends, one queued and never done, one done and never answer
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from thermaestro.cap import Message, Send
 from thermaestro.cap.messages import (
@@ -165,6 +165,12 @@ class LeverDevice:
         self.identity = Identity(vendor="Fake", model="LF-1", firmware="1.0", serial="A1")
         self.quiet = False
         """Whether its subscriptions send nothing for now."""
+        self.stale: dict[str, float] = {}
+        """Registers it reports as read an hour ago, with these values: what a plugin may
+        send after a restart."""
+        self.push_before_read = False
+        """Whether a read is answered only after a fresh push on every subscription."""
+        self._subscriptions: dict[int, tuple[Send, tuple[str, ...]]] = {}
         self._send: Send | None = None
         self._cut = asyncio.Event()
 
@@ -185,15 +191,23 @@ class LeverDevice:
                 )
                 await send(Described(id=request.id, nodes=nodes, points=points, levers=LEVERS))
             case Read():
+                if self.push_before_read:
+                    for sub, (pushed, paths) in list(self._subscriptions.items()):
+                        await pushed(Update(id=sub, values=tuple(map(self.envelope, paths))))
+                    await asyncio.sleep(3 * PUSH_S)  # the core takes the push in first
                 await send(Values(id=request.id, values=tuple(map(self.envelope, request.points))))
             case Subscribe():
-                while True:
-                    await asyncio.sleep(PUSH_S)
-                    if self.quiet:
-                        continue
-                    await send(
-                        Update(id=request.id, values=tuple(map(self.envelope, request.points)))
-                    )
+                self._subscriptions[request.id] = (send, tuple(request.points))
+                try:
+                    while True:
+                        await asyncio.sleep(PUSH_S)
+                        if self.quiet:
+                            continue
+                        await send(
+                            Update(id=request.id, values=tuple(map(self.envelope, request.points)))
+                        )
+                finally:
+                    self._subscriptions.pop(request.id, None)
             case Act():
                 await self.act(request, send)
             case Write():
@@ -217,6 +231,15 @@ class LeverDevice:
                 t_observed=None,
                 t_received=now(),
                 quality="unknown",
+                source="measured",
+            )
+        if register in self.stale:
+            return Envelope(
+                point=point,
+                value=self.stale[register],
+                t_observed=now() - timedelta(hours=1),
+                t_received=now(),
+                quality="good",
                 source="measured",
             )
         return Envelope(

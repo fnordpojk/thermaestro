@@ -910,8 +910,9 @@ class Executor:
         self._took(claim, op, params)
 
     def _settle(self, ref: str, claim: Claim, now: Value | None, param: Param | None) -> str | None:
-        """A change whose fate wasn't known, settled by a fresh reading; why to let go of
-        the lever (someone else changed it), or None."""
+        """A change whose fate wasn't known, settled by a fresh reading; why the lever was
+        let go (someone else changed it), or None. Let go at once, so nothing writes over
+        that change before it is kept (`_told_let_go`)."""
         assert claim.pending is not None  # noqa: S101 - the caller checks
         sent = claim.pending["params"].get("value")
         before = claim.last if claim.last is not None else claim.baseline
@@ -922,7 +923,8 @@ class Executor:
             claim.last_t = self._clock()
             self._renewed[ref] = claim.last_t
         elif not same(now, before, param):
-            return f"it reads {now}, neither {sent} as sent nor {before}"
+            claim.drift = f"it reads {now}, neither {sent} as sent nor {before}"
+            return claim.drift
         return None
 
     async def _settle_now(self, ref: str, claim: Claim, lever: Lever) -> str | None:
@@ -937,28 +939,39 @@ class Executor:
             self._assume(claim, pending["op"], pending["params"])
             await self._save(claim)
             return None
+        back = await self._read_since(ref, lever, self._unsettled.get(ref, self._born))
+        # Meanwhile a reading the device pushed may have settled it, or let go: that stands.
+        if self.claims.get(ref) is not claim:
+            return UNSETTLED
+        if claim.drift is not None:
+            return claim.drift
+        if claim.pending is not pending:
+            return None
+        if back is None:
+            return UNSETTLED
+        param = lever.params.get("value")
+        drift = self._settle(ref, claim, reading(back, param), param)
+        if drift is not None:
+            await self._told_let_go(ref, claim)
+            return drift
+        await self._save(claim)
+        return None
+
+    async def _read_since(self, ref: str, lever: Lever, since: float) -> Envelope | None:
+        """A good reading of the lever's point taken after `since`, asked of the device;
+        None where there is none (its plugin down, no answer, only older readings)."""
         instance, _ = split(ref)
         found = self._host.instances.get(instance)
         link = found.link if found is not None and found.state is State.UP else None
         point = lever.verify.point
         if link is None or point is None:
-            return UNSETTLED
-        since = datetime.fromtimestamp(self._unsettled.get(ref, self._born), UTC)
-        try:
-            answer = await link.read([point], after=since, timeout=self._verify_s)
-        except (TimeoutError, CapError, Closed):
-            return UNSETTLED
-        param = lever.params.get("value")
-        for envelope in answer.values:
-            if envelope.quality != "good" or not _after(envelope, since):
-                continue
-            drift = self._settle(ref, claim, reading(envelope, param), param)
-            if drift is not None:
-                await self._let_go(ref, drift)
-                return drift
-            await self._save(claim)
             return None
-        return UNSETTLED
+        after = datetime.fromtimestamp(since, UTC)
+        try:
+            answer = await link.read([point], after=after, timeout=self._verify_s)
+        except (TimeoutError, CapError, Closed):
+            return None
+        return next((e for e in answer.values if e.quality == "good" and _after(e, after)), None)
 
     async def _record(
         self,
@@ -1047,7 +1060,7 @@ class Executor:
                 if since is not None and observed > since:
                     drift = self._settle(ref, claim, now, param)
                     if drift is not None:
-                        self._spawn(self._let_go(ref, drift))
+                        self._spawn(self._told_let_go(ref, claim))
                     else:
                         self._spawn(self._save(claim))
                 continue
@@ -1080,9 +1093,13 @@ class Executor:
         if claim is None or claim.drift is not None:
             return
         claim.drift = why
+        await self._told_let_go(ref, claim)
+
+    async def _told_let_go(self, ref: str, claim: Claim) -> None:
+        """Keep, log and record a lever let go (`claim.drift` set)."""
         await self._save(claim)
-        log.warning("%s was changed by something else (%s): let go", ref, why)
-        await self._audit.record("core", "lever.drift", why=why, details={"lever": ref})
+        log.warning("%s was changed by something else (%s): let go", ref, claim.drift)
+        await self._audit.record("core", "lever.drift", why=claim.drift, details={"lever": ref})
 
     async def _move(self, ref: str) -> None:
         """An engaged hold its plugin describes anew acts on something else now: release it
@@ -1102,9 +1119,11 @@ class Executor:
 
     async def _reconcile(self, ref: str) -> None:
         """A lever left changed by an earlier run that didn't end cleanly: once its plugin
-        is up, put it back, unless someone changed it since. A change that was in flight
-        was taken if the device reads it; where it can't be read, it is taken as taken, so
-        it is put back either way. The planner then sets what it wants again."""
+        is up, put it back, unless someone changed it since. Only a reading taken in this
+        run says so: a plugin may send one taken before, which says nothing of what the
+        earlier run changed. A change that was in flight was taken if the device reads it;
+        where it can't be read, it is taken as taken, so it is put back either way. The
+        planner then sets what it wants again."""
         while True:
             await asyncio.sleep(self._poll_s)
             claim = self.claims.get(ref)
@@ -1119,28 +1138,48 @@ class Executor:
             if other is not None:
                 await self._let_go(ref, other)
                 return
-            pending, param = claim.pending, lever.params.get("value")
+            pending = claim.pending
             if lever.kind != "hold" and lever.verify.kind == "readback":
-                back = self._readback(ref, lever)
-                if back is None:
-                    continue
-                now = reading(back, param)
-                claim.pending = None
-                if pending is not None and same(now, pending["params"].get("value"), param):
-                    claim.last = None if same(now, claim.baseline, param) else now
-                if same(now, claim.baseline, param):
-                    claim.last, claim.last_t = None, None
-                    await self._save(claim)
-                    return
-                if not same(now, claim.last, param):
-                    was = claim.last if claim.last is not None else claim.baseline
-                    await self._let_go(ref, f"after a restart it reads {now}, not {was}")
+                done = await self._since_restart(ref, claim, lever)
+                if done is None:
+                    continue  # no reading taken in this run yet
+                if done:
                     return
             elif pending is not None:
                 claim.pending = None
                 self._assume(claim, pending["op"], pending["params"])
             await self.restore("Thermaestro restarted without putting this back", [ref])
             return
+
+    async def _since_restart(self, ref: str, claim: Claim, lever: Lever) -> bool | None:
+        """What a reading taken in this run says of a lever an earlier run left changed:
+        True when it is as found, or someone else changed it (let go); False when it is
+        still to be put back; None while there is no such reading."""
+        param = lever.params.get("value")
+        async with self._lock(ref):
+            back = await self._read_since(ref, lever, self._born)
+            if self.claims.get(ref) is not claim or claim.drift is not None:
+                return True
+            if not claim.changed:
+                return True
+            if back is None:
+                return None
+            now = reading(back, param)
+            pending, claim.pending = claim.pending, None
+            self._unsettled.pop(ref, None)
+            if pending is not None and same(now, pending["params"].get("value"), param):
+                claim.last = None if same(now, claim.baseline, param) else now
+            if same(now, claim.baseline, param):
+                claim.last, claim.last_t = None, None
+                await self._save(claim)
+                return True
+            if not same(now, claim.last, param):
+                was = claim.last if claim.last is not None else claim.baseline
+                claim.drift = f"after a restart it reads {now}, not {was}"
+                await self._told_let_go(ref, claim)
+                return True
+            await self._save(claim)
+            return False
 
     async def _watch(self) -> None:
         while True:

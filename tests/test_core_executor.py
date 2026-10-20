@@ -862,3 +862,55 @@ async def test_a_restore_right_after_an_unanswered_change_reads_the_device_afres
         assert results[OFFSET].outcome == "verified"
         assert r.device.registers["x.fake.offset"] == -4
         assert r.executor.put_back([OFFSET])
+
+
+async def test_after_a_restart_only_a_reading_taken_since_counts(tmp_path: Path) -> None:
+    """A plugin may send a reading taken before the restart: it says nothing of what the
+    earlier run left changed, with a change in flight or one read back as set."""
+    for how in ("lost", "verified"):
+        path = tmp_path / how
+        path.mkdir()
+        device = LeverDevice()
+        async with rig(path, {OFFSET: "control"}, device) as r:
+            if how == "lost":
+                device.cut_off.add("hp1/offset")
+            result = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+            assert result.outcome == how
+            await r.executor.stop()
+        device.stale["x.fake.offset"] = -4  # as it read before the change
+        async with rig(path, {OFFSET: "control"}, device) as r:
+            assert r.host.values.latest[Key("dev", "hp1/x.fake.offset")].value == -4
+            await asyncio.sleep(0.5)  # rounds of putting back that find no reading since
+            assert r.executor.claims[OFFSET].changed
+            assert device.registers["x.fake.offset"] == 2
+            device.stale.clear()
+            await until(lambda: not r.executor.claims[OFFSET].changed)
+            assert device.registers["x.fake.offset"] == -4
+            assert r.executor.claims[OFFSET].drift is None
+
+
+async def test_a_reading_pushed_while_the_device_is_read_anew(tmp_path: Path) -> None:
+    """The device pushes a reading that settles the change in flight before it answers
+    the read asked for it: the push stands, and the request goes on from there; a value
+    someone else set lets go, unwritten."""
+    for other in (None, 0):
+        path = tmp_path / str(other)
+        path.mkdir()
+        async with rig(path, {OFFSET: "control"}, act_timeout_s=0.3) as r:
+            r.device.quiet = True
+            r.device.unanswered.add("hp1/offset")
+            late = await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+            assert late.outcome == "timeout"
+            r.device.unanswered.clear()
+            if other is not None:
+                r.device.registers["x.fake.offset"] = other  # the pump's menu
+            r.device.push_before_read = True
+            results = await r.executor.restore("Thermaestro is stopping")
+            if other is None:
+                assert results[OFFSET].outcome == "verified"
+                assert r.device.registers["x.fake.offset"] == -4
+                assert r.executor.put_back([OFFSET])
+            else:
+                assert results[OFFSET].outcome == "refused"
+                assert r.executor.claims[OFFSET].drift == "it reads 0, neither 2 as sent nor -4"
+                assert r.device.registers["x.fake.offset"] == 0
