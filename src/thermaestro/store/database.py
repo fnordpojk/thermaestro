@@ -420,6 +420,12 @@ MIGRATIONS: tuple[str, ...] = (
     """
     DELETE FROM learn_events WHERE kind IN ('cop_day', 'cop_charge', 'cop_hour');
     """,
+    # 27: the house's days still in the raw history (14 days), kept with hours the outdoor
+    # reference missed though the pump's own sensor had them: read again
+    """
+    DELETE FROM learn_events
+    WHERE kind = 'house_day' AND t >= CAST(strftime('%s', 'now') AS REAL) - 14 * 86400;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

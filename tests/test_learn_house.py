@@ -441,3 +441,47 @@ def test_an_offset_that_never_moved_takes_the_documented_step() -> None:
     assert judged is not None
     assert verdict is not None
     assert verdict.proved, verdict
+
+
+async def test_an_hour_without_the_outdoor_reference_takes_the_pumps_sensor(
+    tmp_path: Path,
+) -> None:
+    """The outdoor reference away for days (its Home Assistant down): those hours take the
+    pump's own outdoor sensor rather than being lost."""
+    _, hours = plant_hours()
+    node = SimpleNamespace
+    described = node(
+        nodes=[node(path="hp1", kind="unit"), node(path="hp1/cs1", kind="climate_system")],
+        points=[],
+    )
+    host = cast(Any, node(instances={"dev": node(described=described)}))
+    half = hours[len(hours) // 2].t
+    rows: list[tuple[Key, Sample]] = []
+    for x in hours:
+        for m in range(0, 60, 10):
+            t = x.t + m * 60
+            rows.append((Key(SITE, "room.living/temperature"), Sample(t, x.room, None, "good")))
+            rows.append((Key("dev", "hp1/cs1/supply.temp"), Sample(t, x.water, None, "good")))
+            rows.append((Key("dev", "hp1/outdoor.temp"), Sample(t, x.outdoor, None, "good")))
+            if x.t < half:
+                rows.append((Key(SITE, "outdoor/temperature"), Sample(t, x.outdoor, None, "good")))
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.put(Room(name="Living room", climate_system="dev:hp1/cs1"), "living")
+        await db.put(Sensor(name="Living", source="mqtt", topic="l/t", room="living"), "living")
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [(k.instance, k.point, s.t, s.value, s.text, s.quality) for k, s in rows],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        heating = Heating(
+            db, Values(db), host, learnings, lambda key: key.point != "hp1/cs1/return.temp"
+        )
+        await heating.run(hours[-1].t + 3600)
+        kept = [h for _, body in await heating._events("dev:hp1/cs1", 0.0) for h in body["hours"]]
+        late = [h for h in kept if h["t"] >= half + 3 * 3600]
+        assert late
+        assert all(h["outdoor"] is not None for h in late)

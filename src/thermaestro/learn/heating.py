@@ -2,11 +2,11 @@
 
 Once a day is over, its hours are read and kept as events: the rooms' mean temperature
 (the rooms with a sensor in the climate system), the outdoor temperature (the outdoor
-reference, else the pump's own sensor), the water (the mean of the system's supply and
-return), the sun and the wind as forecast for the house, and why an hour is left out: a
-fireplace on, a room aired (a window open, or a fall of a degree within ten minutes), or
-the pump's heating stop holding heating off. Kept as hours, they outlive the raw history
-and the forecasts (a week).
+reference, else, hour by hour, the pump's own sensor), the water (the mean of the
+system's supply and return), the sun and the wind as forecast for the house, and why an
+hour is left out: a fireplace on, a room aired (a window open, or a fall of a degree
+within ten minutes), or the pump's heating stop holding heating off. Kept as hours, they
+outlive the raw history and the forecasts (a week).
 
 Then the house is fitted again over the last four weeks of hours, and judged on its last
 two days (`learn.house`). While heating is stopped, nothing new can be learned: what was
@@ -199,15 +199,17 @@ class Heating:
             except Exception:
                 log.exception("learning the house of %s failed; trying again later", keys.scope)
 
-    def _inputs(self, keys: SystemKeys) -> tuple[Key | None, list[Key], str | None]:
-        outdoor = next((k for k in keys.outdoor if self._usable(k)), None)
+    def _inputs(self, keys: SystemKeys) -> tuple[list[Key], list[Key], str | None]:
+        """The usable outdoor temperatures, in order (the outdoor reference first), the
+        usable rooms, and what is missing."""
+        outdoor = [k for k in keys.outdoor if self._usable(k)]
         rooms = [k for id in keys.rooms if self._usable(k := Key(SITE, f"room.{id}/temperature"))]
         missing = "water" if not self._usable(keys.supply) else None
-        return outdoor, rooms, missing or ("outdoor" if outdoor is None else None)
+        return outdoor, rooms, missing or ("outdoor" if not outdoor else None)
 
     async def _learn(self, keys: SystemKeys, calendar: Calendar, home: Home, now: float) -> None:
         outdoor, rooms, missing = self._inputs(keys)
-        if missing is not None or outdoor is None:
+        if missing is not None or not outdoor:
             await self._note(keys.scope, WHAT[missing or "outdoor"])
             return
         zone = calendar.zone
@@ -229,7 +231,12 @@ class Heating:
             await self._judge(keys, home, now, bool(rooms))
 
     async def _day(
-        self, keys: SystemKeys, outdoor: Key, rooms: list[Key], day: date, calendar: Calendar
+        self,
+        keys: SystemKeys,
+        outdoor: list[Key],
+        rooms: list[Key],
+        day: date,
+        calendar: Calendar,
     ) -> tuple[list[house.Hour], bool]:
         """The day's hours; and whether the weather could be read for them."""
         start, end = bounds(day, calendar.zone)
@@ -243,7 +250,9 @@ class Heating:
 
         room_means = [await hourly(k, HOLD["room"]) for k in rooms]
         room = [_mean([r[i] for r in room_means]) for i in range(count)]
-        out = await hourly(outdoor, HOLD["outdoor"])
+        # The first that has the hour: the outdoor reference, else the pump's own sensor.
+        outdoors = [await hourly(k, HOLD["outdoor"]) for k in outdoor]
+        out = [next((o[i] for o in outdoors if o[i] is not None), None) for i in range(count)]
         supply = await hourly(keys.supply, HOLD["water"], WATER_COVERED)
         # The return as read, usable yet or not: which water the house is learned from is
         # decided when it is judged, the same for every day.

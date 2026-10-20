@@ -228,3 +228,33 @@ async def test_the_cops_runs_are_read_again(tmp_path: Path) -> None:
             lambda t: sorted(k for (k,) in t.execute("SELECT kind FROM learn_events"))
         )
     assert kinds == ["charge", "house_day"]
+
+
+async def test_the_houses_recent_days_are_read_again(tmp_path: Path) -> None:
+    """Days still in the raw history are read again, with the outdoor sensor to fall back
+    on; older ones, which can't be, stay."""
+    import time as clock_
+
+    path = tmp_path / "thermaestro.db"
+    now = clock_.time()
+    async with await Database.open(path) as db:
+        rows = [
+            ("pump:hp1/cs1", "house_day", now - 3 * 86_400, "{}"),
+            ("pump:hp1/cs1", "house_day", now - 20 * 86_400, "{}"),
+            ("pump:hp1/dhw", "day", now - 3 * 86_400, "{}"),
+        ]
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, ?, ?, ?)", rows
+            )
+        )
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 26")
+    async with await Database.open(path) as db:
+        left = await db.run(
+            lambda t: sorted(
+                (k, round((now - at) / 86_400))
+                for k, at in t.execute("SELECT kind, t FROM learn_events")
+            )
+        )
+    assert left == [("day", 3), ("house_day", 20)]
