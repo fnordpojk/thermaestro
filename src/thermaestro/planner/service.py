@@ -56,6 +56,7 @@ from ..optimize import Problem
 from ..optimize import plan as solve
 from ..store import Control, Database, Location, PriceLayer, Transaction, Vat
 from . import answers, rules
+from . import optimizer as optimizing
 from .assurance import Finding, judge
 from .model import (
     FRESH_S,
@@ -69,7 +70,7 @@ from .model import (
     Situation,
     Tank,
 )
-from .optimizer import TIME_LIMIT_S, Optimized, Optimizer, retrieved
+from .optimizer import OVER, TIME_LIMIT_S, Optimized, Optimizer, retrieved
 from .summary import Pump, Summaries
 from .watch import MISSED_S, Watch
 
@@ -413,8 +414,17 @@ class Planner:
         theirs: list[Decision] = []
         if slot:
             if self._resolver is not None:
-                async with self._planning:
-                    optimized = await self.optimizer.run(sit, self._resolver)
+                # The plan's budget includes waiting for the lock an answer may hold.
+                try:
+                    async with asyncio.timeout(optimizing.PLAN_BUDGET_S):
+                        async with self._planning:
+                            optimized = await self.optimizer.run(sit, self._resolver)
+                except TimeoutError:
+                    log.warning(
+                        "the plan, waiting included, took over %s s: the rules drive",
+                        optimizing.PLAN_BUDGET_S,
+                    )
+                    optimized = self.optimizer.last = Optimized(False, OVER)
                 self.optimized = optimized
                 theirs = [] if hands_off else optimized.decisions
                 try:
@@ -512,12 +522,19 @@ class Planner:
         for it."""
         if self.optimizer is None or intent.kind not in ANSWERED:
             return []
-        async with self._planning:
-            sit = await self.gather()
-            resolver = self._resolver
-            if resolver is None:
-                return []
-            preview = await self.optimizer.preview(sit, resolver)
+        # Within a plan's budget, waiting for the lock and gathering included: the answer
+        # then is the request's own messages, without the plan's.
+        try:
+            async with asyncio.timeout(optimizing.PLAN_BUDGET_S):
+                async with self._planning:
+                    sit = await self.gather()
+                    resolver = self._resolver
+                    if resolver is None:
+                        return []
+                    preview = await self.optimizer.preview(sit, resolver)
+        except TimeoutError:
+            log.warning("the plan for an answer took over %s s", optimizing.PLAN_BUDGET_S)
+            return []
         others = {i.id: i for i in await self._intents.all()}
         return answers.answer(intent, preview, self.optimized, others, sit.zone)
 

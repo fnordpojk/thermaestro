@@ -93,3 +93,39 @@ async def test_the_history_writer_says_whether_it_runs(tmp_path: Path) -> None:
         values.flush_s, values.flushed = 60.0, NOW - 60
         assert values.writing(NOW) == "writing"
         assert values.writing(NOW + 200) == "stalled"
+
+
+async def test_only_a_reading_counts_as_fresh(tmp_path: Path) -> None:
+    """A placeholder ("not read yet"), or a reading that isn't good, renews nothing: only
+    a good value counts as the device's reading."""
+    from datetime import UTC, datetime
+
+    async with await Database.open(tmp_path / "t.db") as db:
+        host = cast(Any, SimpleNamespace(instances={"pump": pump()}))
+        values = Values(db)
+        values.flush_s, values.flushed = 60.0, NOW
+        parts: dict[str, Any] = {
+            "executor": executor(),
+            "planner": planner(),
+            "values": values,
+            "host": host,
+        }
+        assert readiness(**parts, now=NOW)["inputs_stale"] == 1  # never a reading
+        reading(values, INPUT_S * 2)
+        now = datetime.fromtimestamp(NOW, UTC)
+        for quality, value in (("unknown", None), ("out_of_range", 99.0)):
+            values.add(
+                "pump",
+                Envelope(
+                    point=f"hp1/{quality}",
+                    value=value,
+                    t_observed=None,
+                    t_received=now,
+                    quality=quality,
+                    source="measured",
+                    why="not read yet",
+                ),
+            )
+        assert readiness(**parts, now=NOW)["inputs_stale"] == 1
+        reading(values, 5)
+        assert readiness(**parts, now=NOW)["inputs_stale"] == 0

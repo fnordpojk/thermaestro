@@ -2,8 +2,8 @@
 says only that the web UI answers.
 
 Ready means all of: the planner checks in and has made a whole round within two slots;
-every device plugin (one with levers, or not described yet) is up, with a reading of its
-own taken within `INPUT_S`; the value history is being written; no loop of the write path
+every device plugin (one with levers, or not described yet) is up, with a good reading of
+its own taken within `INPUT_S`; the value history is being written; no loop of the write path
 or the planner has ended; and every lever that was to be put back is. In counts and
 states, no names: it answers without a login.
 """
@@ -44,6 +44,9 @@ def readiness(
     down = sum(1 for _, i in devices if i.state is not State.UP)
     newest: dict[str, float] = {}
     for key, envelope in values.latest.items():
+        # A reading: good, with a value. A placeholder ("not read yet") renews nothing.
+        if envelope.quality != "good" or envelope.value is None:
+            continue
         t = (envelope.t_observed or envelope.t_received).timestamp()
         newest[key.instance] = max(t, newest.get(key.instance, -math.inf))
     stale = sum(

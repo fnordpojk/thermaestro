@@ -12,7 +12,7 @@ The optimizer plans a goal only once what it rests on has been learned and has p
 - **a hot-water tank:** its standing loss and its week of hot-water use, and its volume;
 - **a pool:** how fast it warms and cools.
 
-Whatever it can't plan yet stays with the rules, and so does everything when a plan fails or takes over 30 seconds, from making its problem to its last solve. Plans are solved one at a time: a solve cut off at 30 seconds goes on until the solver's own limit, and the next slot's plan, finding it still running, leaves that slot to the rules. Judging the intents in a plan, which solves it again, has 30 seconds of its own, one at a time; cut off, the round goes on without it. **Setup → Control** lists what it covers and why the rest is left out. A climate system without a room sensor stays with the rules too: nothing measures how its rooms answer.
+Whatever it can't plan yet stays with the rules, and so does everything when a plan fails or takes over 30 seconds, from waiting for its turn (an answer to something just asked may be planning) to its last solve. An answer gets the same 30 seconds; without the plan's, it says what the request itself does. Plans are solved one at a time: a solve cut off at 30 seconds goes on until the solver's own limit, and the next slot's plan, finding it still running, leaves that slot to the rules. Judging the intents in a plan, which solves it again, has 30 seconds of its own, one at a time; cut off, the round goes on without it. **Setup → Control** lists what it covers and why the rest is left out. A climate system without a room sensor stays with the rules too: nothing measures how its rooms answer.
 
 ## How it plans
 

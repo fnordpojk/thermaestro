@@ -15,7 +15,7 @@ from thermaestro import clock
 from thermaestro.core import AuditLog, State, Values
 from thermaestro.core.events import Events, Raise
 from thermaestro.optimize import Problem, Slot
-from thermaestro.planner import Planner, service
+from thermaestro.planner import Planner, rules, service
 from thermaestro.planner import optimizer as optimizing
 from thermaestro.planner.optimizer import Optimized, Optimizer
 from thermaestro.planner.watch import DOWN, MISSING_S, Watch
@@ -188,3 +188,50 @@ async def test_judging_the_intents_has_its_own_budget(
         await p._assure(planned, sit)  # still judging: not again
         assert calls == [1]
         release.set()
+
+
+async def test_a_round_waits_for_the_planning_lock_within_its_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An answer being planned holds the lock while it gathers: a scheduled round waits
+    for it only within the plan's budget, and the rules drive; so does an answer, which
+    gives up within the same budget."""
+    from thermaestro.planner.model import Decision
+
+    monkeypatch.setattr(optimizing, "PLAN_BUDGET_S", 0.2)
+    ruled = [Decision("pump:hp1/cs1/heating.offset", "set", {"value": 1})]
+    monkeypatch.setattr(rules, "plan", lambda sit: ruled)
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path, cast(Any, None))
+        p.optimizer = Optimizer(db, Values(db), cast(Any, None), cast(Any, None))
+        p._resolver = cast(Any, object())
+        stuck = asyncio.Event()
+
+        async def gathering() -> Any:
+            await stuck.wait()
+
+        async def nothing(*args: Any, **kwargs: Any) -> None:
+            return None
+
+        p.gather = gathering  # type: ignore[method-assign]
+        p._keep = nothing  # type: ignore[method-assign]
+        sit = cast(
+            Any,
+            SimpleNamespace(
+                force=SimpleNamespace(hands_off_until=None), now=NOW, budget=None, zone=UTC
+            ),
+        )
+        async with p._planning:  # held, as an answer being planned holds it
+            async with asyncio.timeout(1):
+                chosen = await p._decide(sit, slot=True)
+        assert chosen == ruled
+        assert p.optimized is not None
+        assert (p.optimized.ok, p.optimized.why) == (False, optimizing.OVER)
+        # Answers stuck gathering, queued for the lock: each gives up within its budget.
+        answers = [
+            asyncio.create_task(p.answer(cast(Any, SimpleNamespace(kind="bath")))) for _ in range(3)
+        ]
+        async with asyncio.timeout(1):
+            said = await asyncio.gather(*answers)
+        assert said == [[], [], []]
+        assert not p._planning.locked()
