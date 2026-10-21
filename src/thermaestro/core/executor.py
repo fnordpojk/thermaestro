@@ -527,7 +527,12 @@ class Executor:
         if not restoring:
             since = self._clock() - DAY_S
             written = await self._db.run(lambda t: _count(t, ref, since))
-            refusal = self._limits(lever, claim, control, written)
+            # Back as found (a hold released, a setting to its baseline) is never a runaway:
+            # the changes away from it are what the guard counts.
+            back = (op == "release" and claim.held) or (
+                op == "set" and same(params.get("value"), claim.baseline, lever.params.get("value"))
+            )
+            refusal = self._limits(lever, claim, control, 0 if back else written)
             if refusal is not None:
                 return await self._record(
                     ref, op, params, who, why, mode, Result("refused", refusal)

@@ -97,6 +97,8 @@ def test_a_block_held_the_longest_is_let_go_and_not_held_again_until_a_charge() 
     assert [(d.lever, d.op, d.reason) for d in found] == [
         (BLOCK.ref, "release", "held long enough: the pump may charge again")
     ]
+    # A limit kept, not price: ranked to survive a spent write budget (rank 3 at most).
+    assert found[0].rank <= 3
     assert decide(planned([0.0] * 16), problem(tank()), now(tanks=spent)) == []
 
 

@@ -256,6 +256,24 @@ async def test_the_runaway_guard(tmp_path: Path) -> None:
         assert again.outcome == "verified"
 
 
+async def test_the_runaway_guard_never_stops_a_way_back(tmp_path: Path) -> None:
+    """Released or set to its baseline, a lever is as found: the guard counts the changes
+    away from that, and a lever at its limit still goes back."""
+    modes: dict[str, LeverMode] = {OFFSET: "control", BLOCK: "control"}
+    async with rig(tmp_path, modes, guard=3, min_hold_s=0) as r:
+        for op in ("engage", "release", "engage"):
+            done = await r.executor.act(BLOCK, op, who="p")
+            assert done.outcome in ("verified", "awaiting_effect"), done.detail
+        released = await r.executor.act(BLOCK, "release", who="p")
+        assert released.outcome != "refused", released.detail
+        engaged = await r.executor.act(BLOCK, "engage", who="p")
+        assert engaged.detail == "stopped by the runaway guard: 3 writes in a day"
+        for value in (1, 2, 3):
+            await r.executor.act(OFFSET, "set", {"value": value}, who="p")
+        back = await r.executor.act(OFFSET, "set", {"value": -4}, who="p")  # its baseline
+        assert back.outcome == "verified"
+
+
 async def test_restore_puts_everything_back(tmp_path: Path) -> None:
     async with rig(tmp_path, {OFFSET: "control", BLOCK: "control"}) as r:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")

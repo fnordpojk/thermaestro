@@ -7,7 +7,7 @@ has them and how to decode them. A point whose register the model lacks isn't de
 """
 
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -812,6 +812,8 @@ class Spec:
     """A hold on `register`: its value while engaged. Release writes back what was read."""
     starts: Mapping[int, int] | None = None
     """The hot-water block: the start-temperature register of each mode it can block."""
+    retired: bool = False
+    """Offered only to put back what an earlier version engaged: never engaged again."""
 
     @property
     def path(self) -> str:
@@ -1070,6 +1072,42 @@ def levers(
                 )
         # No block for a pool: switched off and left so by a Thermaestro that stopped, it
         # would stay off. Its start temperature at the band's bottom holds it instead.
+    return out
+
+
+def retired_pool_blocks(points: Collection[str], held: Collection[str]) -> list[Spec]:
+    """A pool block an earlier version engaged and kept: offered again until it is
+    released, for its release only."""
+    out: list[Spec] = []
+    for pool in POOLS:
+        node = f"pool{pool.number}"
+        path = f"{UNIT}/{node}/block"
+        if path not in held or f"{node}/x.nibe.{pool.activated}" not in points:
+            continue
+        out.append(
+            Spec(
+                Lever(
+                    path=path,
+                    kind="hold",
+                    implementation=Implementation(
+                        kind="emulated",
+                        how=f"pool heating switched off ({pool.activated} = 0) by an earlier"
+                        " version; offered only to switch it on again",
+                        side_effects=("a setting write to release",),
+                    ),
+                    works=_documented((DATABASE, "not yet tried on a real pool")),
+                    persistence=STORED,
+                    wear=FLASH,
+                    verify=Verify(
+                        kind="effect", point=f"{UNIT}/demand", expectation="no pool demand"
+                    ),
+                    touches=(f"x.nibe.{pool.activated}",),
+                ),
+                register=pool.activated,
+                held=0,
+                retired=True,
+            )
+        )
     return out
 
 

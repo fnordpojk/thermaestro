@@ -474,6 +474,7 @@ async def daemon(
     gateway: Gateway,
     levers: dict[str, Any],
     started: Any,
+    prepare: Any = None,
 ) -> None:
     lay = Layout(tmp_path / "config", tmp_path / "state")
     lay.config.mkdir()
@@ -495,6 +496,8 @@ async def daemon(
         await db.put(
             Control(levers={f"pump:hp1/{k}": v for k, v in levers.items()}, confirmed_off=confirmed)
         )
+        if prepare is not None:
+            await prepare(db)
 
     def factory(context: Any) -> NibePlugin:
         return NibePlugin(
@@ -625,3 +628,65 @@ def test_levers_tried_on_a_pump_are_verified_on_that_model_and_firmware_only() -
     # Only climate system 1's offset was tried.
     assert profile.tried("cs2/heating.offset", f1245, "9721R4", documented) == documented
     assert profile.tried("addition/stop_temp", f1245, "9721R4", documented) == documented
+
+
+async def test_a_pool_block_left_by_an_earlier_version_is_released(
+    stocked: SimPump, gateway: Gateway, tmp_path: Path
+) -> None:
+    """An earlier version switched pool heating off and kept the hold: the lever is offered
+    again for its release only, and goes once released. Switched on meanwhile by someone
+    else, it is let be: nothing is written."""
+    for meanwhile, writes in ((0, [(48094, 1)]), (1, [])):
+        async with await Database.open(tmp_path / f"db{meanwhile}.sqlite") as db:
+            state = PluginStore(db, "pump")
+            await state.save({"holds": {"hp1/pool1/block": {"register": 48094, "value": 1}}})
+            stocked.registers[48094] = meanwhile
+            stocked.taken_writes.clear()
+            p = plugin(gateway, state)
+            async with served(p) as link:
+                offered = {lv.path for lv in (await link.describe(timeout=5)).levers}
+                assert "hp1/pool1/block" in offered
+                refused = await act(link, "pool1/block", "engage")
+                assert (refused.stage, refused.detail) == (
+                    "dropped",
+                    "no longer engaged; offered only to release what was engaged before",
+                )
+                assert (await act(link, "pool1/block", "release")).stage == "device_accepted"
+                after = {lv.path for lv in (await link.describe(timeout=5)).levers}
+                assert "hp1/pool1/block" not in after
+            assert stocked.registers[48094] == 1
+            assert [(r, v) for r, v in stocked.taken_writes] == writes
+            assert (await state.load())["holds"] == {}
+
+
+async def test_an_upgrade_puts_back_a_pool_block_an_earlier_version_left(
+    stocked: SimPump, gateway: Gateway, tmp_path: Path
+) -> None:
+    """Thermaestro stopped uncleanly with pool heating switched off, and starts again as a
+    version without the pool block: the held claim and the plugin's hold both settle, the
+    heating on again. Switched on meanwhile by someone else, it is left as it is."""
+    from thermaestro.core.executor import Claim, _store_claim
+
+    ref = "pump:hp1/pool1/block"
+    for meanwhile in (0, 1):
+        stocked.registers[48094] = meanwhile
+        stocked.taken_writes.clear()
+
+        async def left_held(db: Database) -> None:
+            claim = Claim(ref, 1.0, None, "control", held=True, last_t=1.0)
+            await db.run(lambda t: _store_claim(t, claim))
+            hold = {"hp1/pool1/block": {"register": 48094, "value": 1}}
+            await PluginStore(db, "pump").save({"holds": hold})
+
+        async def started(core: Core) -> None:
+            async with asyncio.timeout(30):
+                while (claim := core.executor.claims.get(ref)) is None or claim.changed:
+                    await asyncio.sleep(0.1)
+            assert core.executor.put_back([ref])
+
+        (tmp_path / str(meanwhile)).mkdir()
+        await daemon(
+            tmp_path / str(meanwhile), gateway, {"pool1/block": "control"}, started, left_held
+        )
+        assert stocked.registers[48094] == 1
+        assert [(r, v) for r, v in stocked.taken_writes] == ([(48094, 1)] if meanwhile == 0 else [])

@@ -1025,7 +1025,13 @@ class NibePlugin:
     def _specs(self) -> dict[str, profile.Spec]:
         model, layout = self._pump()
         specs = self.family.levers(model, layout.points, self._snapshot().values, self.firmware)
-        return {spec.path: spec for spec in specs}
+        return {spec.path: spec for spec in [*specs, *self._retired(layout)]}
+
+    def _retired(self, layout: profile.Layout) -> list[profile.Spec]:
+        """Levers no longer offered, for releasing what an earlier version left engaged."""
+        if self.family.name != "bus":
+            return []
+        return profile.retired_pool_blocks(layout.points, self.holds)
 
     async def _act(self, request: Act, send: Send) -> None:
         spec = self._specs().get(request.lever)
@@ -1095,6 +1101,8 @@ class NibePlugin:
             return await self._write(spec, spec.register, spec.fire)
         if kind == "trigger" and op == "cancel" and spec.cancel is not None:
             return await self._write(spec, spec.register, spec.cancel)
+        if kind == "hold" and op == "engage" and spec.retired:
+            raise Refused("no longer engaged; offered only to release what was engaged before")
         if kind == "hold" and op == "engage":
             return await self._engage(spec)
         if kind == "hold" and op == "release":
@@ -1150,6 +1158,18 @@ class NibePlugin:
         kept = self.holds.get(spec.path)
         if kept is None:
             raise Refused("nothing engaged by this plugin is held here")
+        if spec.retired and _same(await self._fresh(int(kept["register"])), kept["value"]):
+            # Someone put it back meanwhile: nothing left to write, nor to write over.
+            self.holds.pop(spec.path, None)
+            await self._save()
+            return WriteOutcome(
+                int(kept["register"]),
+                int(kept["value"]),
+                WriteResult.ACCEPTED,
+                "already as found: nothing written",
+                clock.monotonic(),
+                (),
+            )
         outcome = await self._write(spec, int(kept["register"]), kept["value"])
         if outcome.result is WriteResult.ACCEPTED:
             self.holds.pop(spec.path, None)
@@ -1240,6 +1260,7 @@ class NibePlugin:
         levers = [
             spec.lever for spec in self.family.levers(model, layout.points, values, self.firmware)
         ]
+        levers += [spec.lever for spec in self._retired(layout)]
         return Described(id=id, nodes=tuple(nodes), points=tuple(points), levers=tuple(levers))
 
     def _named(self) -> None:

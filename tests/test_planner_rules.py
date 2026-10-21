@@ -360,6 +360,17 @@ def test_a_block_held_the_longest_is_let_go_until_the_pump_has_charged() -> None
         situation(intents, levers=free, memory=Memory(spent={TANK: NOW}), price=expensive)
     )
     assert all(d.lever != BLOCK for d in again)
+    # The day's write budget spent: the limit is kept all the same, and no new hold begins.
+    spent_budget = situation(
+        intents,
+        levers=held,
+        memory=Memory(blocked={TANK: True}, spent={TANK: NOW}),
+        price=expensive,
+        budget=(50, 50),
+    )
+    assert [(d.lever, d.op) for d in rules.plan(spent_budget)] == [(BLOCK, "release")]
+    fresh = situation(intents, levers=free, price=expensive, budget=(50, 50))
+    assert all(d.lever != BLOCK for d in rules.plan(fresh))
 
 
 def test_boost_now() -> None:

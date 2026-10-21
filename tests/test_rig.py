@@ -388,6 +388,28 @@ def test_periodic(tmp_path: Path) -> None:
     assert written(r.bus) == [(47044, s16(35.0)), (47044, s16(45.0))]
 
 
+def test_a_tank_already_hot_is_no_periodic_increase(tmp_path: Path) -> None:
+    """Warm from an earlier charge, above the periodic increase's stop less a degree, and
+    no charge while the block holds: nothing ran, so nothing passes."""
+    s = scenario()
+
+    def hot_and_not_due(plant: Plant) -> None:
+        plant.last_periodic = plant.t  # the next one is days away
+        plant.top, plant.bottom = 58.0, 54.8
+
+    due = datetime.fromtimestamp(s.start_time.timestamp() + 600, UTC).astimezone()
+    options = Options(due=f"{due:%Y-%m-%d %H:%M}")
+    r = rig(tmp_path, s, "periodic", options=options, prepare=hot_and_not_due)
+    assert r.step("no periodic increase while the block held").passed is None
+    assert all(not step.what.startswith("the periodic increase ran") for step in r.report.steps)
+    assert r.plant.registers[47044] == s16(45.0)
+
+
+def test_periodic_refuses_a_mode_whose_stop_reaches_the_periodic_one(tmp_path: Path) -> None:
+    with pytest.raises(RigError, match="couldn't be told from it"):
+        rig(tmp_path, scenario().set({47048: 545}), "periodic", options=Options(due="03:30"))
+
+
 def test_periodic_needs_to_know_when_it_is_due(tmp_path: Path) -> None:
     with pytest.raises(RigError, match="--due is needed"):
         rig(tmp_path, scenario(), "periodic")

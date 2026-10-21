@@ -307,7 +307,9 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
         elif not want and block.held:
             why = "held long enough" if state.spent else "the plan charges soon"
             reason = f"{why}: the pump may charge again"
-            out.append(Decision(block.ref, "release", rank=min(rank, RANK_SLIDER), reason=reason))
+            # Held the longest, it is a limit kept, not price: ranked to survive a spent budget.
+            released = 1 if state.spent else min(rank, RANK_SLIDER)
+            out.append(Decision(block.ref, "release", rank=released, reason=reason))
     return out
 
 

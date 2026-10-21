@@ -78,9 +78,11 @@ class Pump:
         self.registers = registers
         self.writes: list[tuple[int, int]] = []
 
-    def cycle(self, now_us: int) -> None:
+    def cycle(
+        self, now_us: int, tokens: tuple[int, ...] = (nibe.READ_TOKEN, nibe.WRITE_TOKEN)
+    ) -> None:
         engine = self.control.engine
-        for token in (nibe.READ_TOKEN, nibe.WRITE_TOKEN):
+        for token in tokens:
             reply = engine.reply_for(nibe.MODBUS40, token, now_us)
             token_telegram = telegram(token, b"")
             self.control.on_exchange(
@@ -271,3 +273,46 @@ def test_stopping_mid_firing_keeps_the_entry_armed(tmp_path: Path) -> None:
     control.tick(901 * S)  # its read is queued
     control.shutdown(902 * S)
     assert [e["number"] for e in json.loads(state.read_text())["armed"]] == [0]
+
+
+def firing_saved(tmp_path: Path, *, past_read: bool) -> tuple[Path, Pump]:
+    """Armed and silent for 300 s, so fired at 599 s; saved at 600 s, ten minutes after the
+    gateway started, while its read (or, with `past_read`, its write) is still out; then
+    the gateway gone without a word."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    state = tmp_path / "deadman.json"
+    control = make(state)
+    Client(control, A, 0, asking(300)).send(arm(), 299 * S)
+    pump = Pump(control, {OFFSET: SET})
+    control.tick(599 * S)  # the read is queued
+    if past_read:
+        pump.cycle(599 * S + 500_000, tokens=(nibe.READ_TOKEN,))  # answered: the write is queued
+    control.tick(SAVE_EVERY_US)
+    return state, pump
+
+
+def test_a_restart_during_a_firing_fires_it_again(tmp_path: Path) -> None:
+    for past_read in (False, True):
+        state, before = firing_saved(tmp_path / str(past_read), past_read=past_read)
+        assert before.writes == []
+        restarted = make(state)
+        pump = Pump(restarted, {OFFSET: SET})  # still as the client left it
+        pump.run(0, 310 * S)
+        assert pump.writes == [(OFFSET, FOUND)], past_read
+        (fired,) = Client(restarted, A, 1000 * S, asking()).after_welcome
+        assert isinstance(fired, p.Fired)
+        assert fired.outcome == p.FiredOutcome.PUT_BACK
+
+
+def test_after_a_restart_a_register_already_back_or_changed_isnt_written(tmp_path: Path) -> None:
+    for value, outcome in ((FOUND, p.FiredOutcome.PUT_BACK), (0x0001, p.FiredOutcome.SKIPPED)):
+        state, _ = firing_saved(tmp_path / str(value), past_read=True)
+        restarted = make(state)
+        # The write before the restart went through, or someone set the register meanwhile.
+        pump = Pump(restarted, {OFFSET: value})
+        pump.run(0, 310 * S)
+        assert pump.writes == []
+        assert pump.registers[OFFSET] == value
+        (fired,) = Client(restarted, A, 1000 * S, asking()).after_welcome
+        assert isinstance(fired, p.Fired)
+        assert (fired.outcome, fired.read) == (outcome, value)

@@ -514,8 +514,9 @@ def hot_water(sit: Situation) -> list[Decision]:
                 else "cheaper now"
             )
             reason = f"{why}: the pump may charge again"
-            # Released before a charge asked for it is fired: ranked with it.
-            rank = boosting if boosting is not None else RANK_SLIDER
+            # Released before a charge asked for it is fired: ranked with it. Held the
+            # longest, it is a limit kept, not price: ranked to survive a spent budget.
+            rank = boosting if boosting is not None else 1 if long else RANK_SLIDER
             out.append(Decision(block.ref, "release", rank=rank, reason=reason))
     return out
 

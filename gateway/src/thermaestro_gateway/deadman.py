@@ -188,6 +188,11 @@ class DeadMan:
             value = _value(payload, entry.width)
             if value is None or int.from_bytes(payload[:2], "little") != entry.register:
                 self._done(Outcome(entry.number, p.FiredOutcome.NO_ANSWER, entry.register), now_us)
+            elif value == _restores(entry):
+                # Already back: a firing before a restart wrote it, or someone put it back.
+                self._done(
+                    Outcome(entry.number, p.FiredOutcome.PUT_BACK, entry.register, value), now_us
+                )
             elif value != entry.expected & _mask(entry.width):
                 # Someone changed it while the client was silent: theirs stands.
                 self._done(
@@ -209,6 +214,7 @@ class DeadMan:
             return  # disarmed or armed anew since the firing began: the client knows best
         del self.armed[entry.number]
         self._current = entry
+        self._dirty = True
         self._request(nibe.READ_TOKEN, nibe.read_request(entry.register), "read", now_us)
 
     def _request(self, token: int, frame: bytes, step: str, now_us: int) -> None:
@@ -245,9 +251,14 @@ class DeadMan:
         self._dirty = False
         if self._state is None:
             return
+        # The entry being fired is still to be put back until its outcome is kept: a restart
+        # fires it again, and its read then shows whether this firing already did.
+        armed = dict(self.armed)
+        if self._current is not None:
+            armed.setdefault(self._current.number, self._current)
         body = {
             "silence_s": self.silence_us // 1_000_000,
-            "armed": [{**asdict(e), "frame": e.frame.hex()} for e in self.armed.values()],
+            "armed": [{**asdict(e), "frame": e.frame.hex()} for e in armed.values()],
             "fired": [
                 {**asdict(o), "outcome": int(o.outcome), "fired_us": 0} for o in self.fired.values()
             ],
@@ -290,6 +301,11 @@ class DeadMan:
 
 def _mask(width: int) -> int:
     return (1 << (8 * width)) - 1
+
+
+def _restores(entry: Entry) -> int:
+    """The value the entry's write puts back, at its width: the write's four value bytes."""
+    return int.from_bytes(entry.frame[5:9], "little") & _mask(entry.width)
 
 
 def _value(payload: bytes, width: int) -> int | None:

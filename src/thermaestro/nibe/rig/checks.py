@@ -397,6 +397,12 @@ async def periodic(bench: Bench, o: Options) -> None:
     stop = bench.value(f"dhw/x.nibe.{profile.PERIODIC_STOP}")
     if not isinstance(stop, int | float):
         raise RigError(f"the periodic increase's stop ({profile.PERIODIC_STOP}) can't be read now")
+    mode_stop = bench.value("dhw/temp.stop")
+    if isinstance(mode_stop, int | float) and mode_stop >= stop - PERIODIC_MARGIN:
+        raise RigError(
+            f"the hot-water mode's own stop ({mode_stop:g} °C) reaches the periodic increase's"
+            f" ({stop:g} °C): an ordinary charge couldn't be told from it. Choose a lower mode"
+        )
     path = "dhw/block"
     lever = bench.need(path)
     now = clock.now().astimezone()
@@ -426,16 +432,14 @@ async def periodic(bench: Bench, o: Options) -> None:
         await bench.put_back([path])
         return
 
-    def reached() -> bool:
-        charge = bench.value("dhw/temp.charge")
-        return isinstance(charge, int | float) and charge >= stop - PERIODIC_MARGIN
-
     left = (until - clock.now()).total_seconds()
     bench.say(
-        f"Watching until {until:%H:%M} for the charge sensor to reach {stop - PERIODIC_MARGIN:g}"
-        f" °C, the periodic increase's stop less {PERIODIC_MARGIN:g}."
+        f"Watching until {until:%H:%M} for a charge that takes the charge sensor to"
+        f" {stop - PERIODIC_MARGIN:g} °C, the periodic increase's stop less {PERIODIC_MARGIN:g}."
     )
-    took = await bench.watch(reached, minutes=max(0.0, left) / 60, show=HOT_WATER)
+    took = await bench.watch(
+        _Increase(bench, stop - PERIODIC_MARGIN), minutes=max(0.0, left) / 60, show=HOT_WATER
+    )
     if took is not None:
         charge = bench.value("dhw/temp.charge")
         bench.step(
@@ -452,7 +456,9 @@ async def periodic(bench: Bench, o: Options) -> None:
     await bench.put_back([path])
     summary = "The periodic increase ran while the block held its charges off."
     if took is None:
-        after = await bench.watch(reached, minutes=PERIODIC_WAIT_S / 60, show=HOT_WATER)
+        after = await bench.watch(
+            _Increase(bench, stop - PERIODIC_MARGIN), minutes=PERIODIC_WAIT_S / 60, show=HOT_WATER
+        )
         if after is None:
             bench.step(f"nor within {durations.text(PERIODIC_WAIT_S)} of the release", "not seen")
             summary = "No periodic increase was seen, held or after."
@@ -460,6 +466,23 @@ async def periodic(bench: Bench, o: Options) -> None:
             bench.step(f"it ran {durations.text(after)} after the release", "seen")
             summary = "The block held the periodic increase off; it ran once the block was let go."
     await bench.judge(summary)
+
+
+class _Increase:
+    """Whether a periodic increase has run since this began watching: a charge that
+    started since then, and took the charge sensor to `threshold`. A tank that was already
+    that warm, with no charge since, shows none."""
+
+    def __init__(self, bench: Bench, threshold: float) -> None:
+        self.bench = bench
+        self.threshold = threshold
+        self.charged = False
+
+    def __call__(self) -> bool:
+        if _charging(self.bench):
+            self.charged = True
+        charge = self.bench.value("dhw/temp.charge")
+        return self.charged and isinstance(charge, int | float) and charge >= self.threshold
 
 
 CHECKS: dict[str, Check] = {
@@ -514,6 +537,8 @@ CHECKS: dict[str, Check] = {
             *(f"dhw/x.nibe.{r}" for r in profile.MODE_STARTS.values()),
             f"dhw/x.nibe.{profile.PERIODIC_STOP}",
             f"dhw/x.nibe.{profile.PERIODIC_ON}",
+            "dhw/temp.stop",
+            *(f"dhw/x.nibe.{r}" for r in profile.MODE_STOPS.values()),
         ),
         periodic,
     ),
