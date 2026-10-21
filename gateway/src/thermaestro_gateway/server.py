@@ -12,6 +12,7 @@ import functools
 import logging
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import serial
 
@@ -45,6 +46,8 @@ class Config:
     those writes would bypass."""
     max_clients: int = 4
     queue_cap: int = 3
+    state_file: Path | None = None
+    """Where the dead-man keeps what is armed, so a restart of the gateway keeps it."""
 
     @property
     def takes_plain_writes(self) -> bool:
@@ -100,6 +103,7 @@ class Gateway:
                 sources=config.sources,
                 acknowledged=config.acknowledged,
                 started_us=now_us(),
+                deadman_state=config.state_file,
             ),
         )
         self.ports: dict[str, int] = {}

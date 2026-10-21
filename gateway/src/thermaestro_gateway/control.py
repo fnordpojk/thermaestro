@@ -8,16 +8,21 @@ completed bus exchange becomes a FRAME for the sessions subscribed to it.
 
 With a pre-shared key, authentication comes before anything else: a sender without a
 session only ever hears `auth_required` or `auth_failed`, and every message of an
-authenticated session is signed with its session key, in both directions.
+authenticated session is signed with its session key, in both directions. Only then is
+the dead-man granted (deadman.py): a session that asks for it may arm entries, and the
+silence it watches for is that of every session granted it.
 """
 
+import dataclasses
 import os
 from dataclasses import dataclass, field
 from importlib.metadata import version
+from pathlib import Path
 
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
 from thermaestro_gateway.bus import BusStats, Exchange
+from thermaestro_gateway.deadman import DeadMan
 from thermaestro_gateway.engine import Engine, Outgoing, Queued
 
 Address = tuple[str, int]
@@ -51,6 +56,8 @@ class Settings:
     answer_timeout_ms: int = 5000
     timestamp_lag_max_us: int = 20_000
     started_us: int = 0
+    deadman_state: Path | None = None
+    """Where the dead-man keeps what is armed through a reboot; None keeps it in memory."""
 
 
 @dataclass(eq=False, slots=True)
@@ -67,6 +74,8 @@ class Session:
     event_seq: int = 0
     loop_gap_max_ms: int = 0
     reply_prep_max_us: int = 0
+    deadman_entries: int = 0
+    """The dead-man's entries granted to it; 0 if it wasn't."""
 
 
 @dataclass(slots=True)
@@ -86,6 +95,12 @@ class Control:
         self._sessions: dict[Address, Session] = {}
         self._last_error_us: dict[Address, int] = {}
         self._bus_active = False
+        self.deadman = (
+            DeadMan(engine.submit, settings.started_us, state=settings.deadman_state)
+            if settings.psk is not None
+            else None
+        )
+        """Only with a key: without one, anyone could arm writes."""
 
     @property
     def clients(self) -> int:
@@ -110,6 +125,8 @@ class Control:
             if refusal is not None:
                 return refusal
         session.expires_us = now_us + session.lease_us
+        if session.deadman_entries and self.deadman is not None:
+            self.deadman.heard(now_us)
         out: list[Datagram] = []
         match msg:
             case p.Keepalive():
@@ -125,6 +142,8 @@ class Control:
             case p.Cancel():
                 if not self.engine.cancel(session, msg.id, now_us):
                     out += self._error(addr, session, p.ErrorCode.UNKNOWN_REQUEST, msg.id, now_us)
+            case p.Arm() | p.Disarm() | p.AckFired():
+                out.append(self._send(session, self._deadman(session, msg, now_us)))
             case _:
                 out += self._error(addr, session, p.ErrorCode.UNKNOWN_TYPE, msg.id, now_us)
         return out + self._flush(now_us)
@@ -210,9 +229,10 @@ class Control:
             expires_us=now_us + lease_s * 1_000_000,
             next_health_us=now_us + health_s * 1_000_000,
         )
+        features = BASE_FEATURES | (p.Feature.AUTH | p.Feature.DEADMAN if s.psk else 0)
         options = [
             p.Option.u32(p.Tag.BOOT_ID, s.boot_id),
-            p.Option.u32(p.Tag.FEATURES, BASE_FEATURES | (p.Feature.AUTH if s.psk else 0)),
+            p.Option.u32(p.Tag.FEATURES, features),
         ]
         if s.psk is not None and nonce is not None:
             gateway_nonce = os.urandom(16)
@@ -236,9 +256,39 @@ class Control:
             p.Option.u16(p.Tag.LEASE_S, lease_s),
             p.Option.u16(p.Tag.HEALTH_INTERVAL_S, health_s),
         ]
+        reports: list[p.Fired] = []
+        deadman = p.find(msg.options, p.Tag.DEADMAN)
+        if deadman is not None and session.key is not None and self.deadman is not None:
+            asked_s, asked_entries, _, _ = deadman.unpack()
+            seconds, entries = self.deadman.grant(asked_s, asked_entries)
+            session.deadman_entries = entries
+            self.deadman.heard(now_us)
+            dm = self.deadman
+            options.append(
+                p.Option.pack(p.Tag.DEADMAN, seconds, entries, len(dm.armed), len(dm.fired))
+            )
+            reports = dm.reports(now_us)
         self._sessions[addr] = session
         welcome = p.Welcome(id=msg.id, gw_time_us=now_us, options=tuple(options))
-        return [self._send(session, welcome)]
+        return [self._send(session, welcome), *(self._send(session, r) for r in reports)]
+
+    def _deadman(
+        self, session: Session, msg: p.Arm | p.Disarm | p.AckFired, now_us: int
+    ) -> p.Armed:
+        if not session.deadman_entries or self.deadman is None:
+            answer = p.Armed(
+                entry=msg.entry,
+                result=p.ArmResult.REFUSED,
+                detail=p.ArmRefusal.NOT_GRANTED,
+                id=msg.id,
+            )
+        elif isinstance(msg, p.Arm):
+            answer = self.deadman.arm(msg, session.deadman_entries)
+        elif isinstance(msg, p.Disarm):
+            answer = self.deadman.disarm(msg.entry, msg.id)
+        else:
+            answer = self.deadman.ack_fired(msg.entry, msg.id)
+        return dataclasses.replace(answer, gw_time_us=now_us)
 
     # --- events out ----------------------------------------------------------------------
 
@@ -270,6 +320,8 @@ class Control:
 
     def tick(self, now_us: int) -> list[Datagram]:
         self.engine.tick(now_us)
+        if self.deadman is not None:
+            self.deadman.tick(now_us)
         for session in [s for s in self._sessions.values() if s.expires_us <= now_us]:
             self._end(session)
         last = self.bus_stats.last_byte_us
@@ -288,7 +340,10 @@ class Control:
         return out + self._flush(now_us)
 
     def shutdown(self, now_us: int) -> list[Datagram]:
-        """The gateway is stopping: report the queued requests as dropped."""
+        """The gateway is stopping: report the queued requests as dropped. The dead-man
+        keeps what it hasn't fired yet, for after the restart."""
+        if self.deadman is not None:
+            self.deadman.stop(now_us)
         self.engine.shutdown(now_us)
         return self._flush(now_us)
 
@@ -363,10 +418,15 @@ class Control:
 
     def _flush(self, now_us: int) -> list[Datagram]:
         out: list[Datagram] = []
-        for item in self.engine.take_outbox():
-            session = self._session_of(item)
-            if session is not None:
-                out.append(self._send(session, item.message))
+        # The dead-man's own fates and answers may make it ask for more: until none is left.
+        while items := self.engine.take_outbox():
+            for item in items:
+                if self.deadman is not None and item.client is self.deadman:
+                    self.deadman.on_message(item.message, now_us)
+                    continue
+                session = self._session_of(item)
+                if session is not None:
+                    out.append(self._send(session, item.message))
         return out
 
     def _session_of(self, item: Outgoing) -> Session | None:

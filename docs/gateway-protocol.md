@@ -24,9 +24,10 @@ This protocol adds, on its own UDP port beside the plain NibeGW ports, which sta
 5. **a version handshake**, so a client can tell a gateway that speaks it from a plain NibeGW gateway and fall back;
 6. **a bus path that never waits on the network**: everything the gateway sends is non-blocking, and what it can't send is counted;
 7. **health counters that expose stalls**, not just averages: the longest gap between passes of the gateway's loop, and the pump's NAKs of the gateway's replies;
-8. **optional authentication** with a pre-shared key (§11).
+8. **optional authentication** with a pre-shared key (§11);
+9. **a dead-man**, with a key: what a client changed is put back if it goes silent, and only where nobody else changed it since (§15).
 
-The gateway doesn't parse payloads, with one exception: it reads the register number of a `0x6A`, to pair answers (§8).
+The gateway doesn't parse payloads, with two exceptions: it reads the register number of a `0x6A`, to pair answers (§8), and the dead-man reads the value in the answers to its own reads (§15).
 
 ## 2. Background: the bus
 
@@ -108,6 +109,9 @@ A message body is a **fixed core**, the few fields that message type always has 
 | `0x04` | SUBSCRIBE | none | `SUBSCRIBE`: the new mask |
 | `0x10` | REQUEST | `address` u16, `token` u8, `flags` u8 (bit 0 PRIORITY, bit 1 EXPECT_ANSWER), `ttl_ms` u16 (0: no limit), `answer_timeout_ms` u16 (0: the gateway's default), `frame_len` u8, `frame`: the `C0` reply frame to send on the token | none yet |
 | `0x11` | CANCEL | none; the header `id` names the queued request | none |
+| `0x20` | ARM | `entry` u8, `width` u8 (2 or 4), `register` u16, `expected` u32, `frame_len` u8, `frame`: the `C0 6B` write that puts the register back | none yet. §15 |
+| `0x21` | DISARM | `entry` u8 | none yet. §15 |
+| `0x22` | ACK_FIRED | `entry` u8: the FIRED report was read | none yet. §15 |
 
 **Gateway → client**
 
@@ -116,13 +120,15 @@ A message body is a **fixed core**, the few fields that message type always has 
 | `0x81` | WELCOME | `ver_major` u8, `ver_minor` u8: the gateway's | `BOOT_ID`, `FEATURES`, `GATEWAY_NONCE` (with a key), `IMPL`, `IMPL_VERSION`, `UPTIME_S`, `QUEUE_CAP`, `PROTOCOL_SLOTS`, `MAX_CLIENTS`, `ANSWER_TIMEOUT_MS`, `TIMESTAMP_LAG_MAX_US`, `PLAIN_PORTS`, `ACK_ADDRESS` (repeated), and the granted `SUBSCRIBE`, `LEASE_S`, `HEALTH_INTERVAL_S` |
 | `0x90` | FATE | `stage` u8, reserved u8 (0), `detail` u16, `stage_time_us` u64 | none yet |
 | `0x91` | ANSWER | `status` u8, `frame_len` u8, `frame`: the pump's `0x6A`/`0x6C` telegram exactly as received (empty on TIMEOUT) | none yet |
+| `0x92` | ARMED | `entry` u8, `result` u8, `detail` u16 | none yet. §15 |
+| `0x93` | FIRED | `entry` u8, `outcome` u8, `register` u16, `read` u32, `fired_us` u64 | none yet. §15 |
 | `0xA0` | FRAME | `kind` u8, `origin` u8, `request_id` u32 (0 unless this client's request), `t_complete_us` u64, `t_reply_us` u64 (0 if the gateway sent no reply), `data_len` u16, `data`: the exchange's bytes exactly as a plain NibeGW datagram carries them | none yet |
 | `0xB0` | HEALTH | none | the values of §10, one option each |
 | `0xE0` | ERROR | `code` u16 | `ERR_TAG` (the offending option), `ERR_DETAIL`. The header `id` echoes the offending message's |
 
-## 7. Registry, revision 2
+## 7. Registry, revision 3
 
-Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8).
+Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8). Revision 3 added the dead-man (§15): `DEADMAN`, the messages ARM, DISARM, ACK_FIRED, ARMED and FIRED, and `FEATURES` bit 7.
 
 ### 7.1 FATE `stage` (u8)
 
@@ -166,7 +172,7 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0102` | `IMPL` | str | WELCOME | e.g. `esphome-nibe`, `thermaestro-gateway` |
 | `0x0103` | `IMPL_VERSION` | str | WELCOME | |
 | `0x0104` | `UPTIME_S` | u32 | WELCOME, HEALTH | |
-| `0x0105` | `FEATURES` | u32 | WELCOME | bit 0 fate, 1 answer pairing, 2 frames, 3 health, 4 priority, 5 ttl, 6 auth (a key is configured and required) |
+| `0x0105` | `FEATURES` | u32 | WELCOME | bit 0 fate, 1 answer pairing, 2 frames, 3 health, 4 priority, 5 ttl, 6 auth (a key is configured and required), 7 dead-man (§15) |
 | `0x0106` | `QUEUE_CAP` | u8 | WELCOME | plain requests per (address, token) |
 | `0x0107` | `MAX_CLIENTS` | u8 | WELCOME | |
 | `0x0108` | `ANSWER_TIMEOUT_MS` | u16 | WELCOME | the default |
@@ -177,17 +183,24 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0200` | `ERR_TAG` | u16 | ERROR | the option that caused it |
 | `0x0201` | `ERR_DETAIL` | str | ERROR | human-readable |
 | `0x0301`–`0x0319` | HEALTH values | §10 | HEALTH | |
-| `0x0801`, `0x0802` | | | | reserved for future features |
+| `0x0801` | `DEADMAN` | u16 `deadman_s`, u8 `entries`, u8 `armed`, u8 `fired` | HELLO; WELCOME | §15. In HELLO, `armed` and `fired` are 0 |
+| `0x0802` | | | | reserved for a future feature |
 
 **Subscription bits** are those of `SUBSCRIBE`. **REQUEST flags:** bit 0 `PRIORITY` (to the front of its queue), bit 1 `EXPECT_ANSWER` (pair the pump's answer with it).
 
 ### 7.8 Header `id` in gateway messages
 
-FATE and ANSWER carry the request's id. FRAME and HEALTH carry a sequence number per session, shared by the two and starting at 1, so a client can count events it missed. WELCOME and ERROR echo the id of the message they answer (0 if it couldn't be read).
+FATE and ANSWER carry the request's id. ARMED echoes the ARM, DISARM or ACK_FIRED it answers; a FIRED report sent after WELCOME has 0. FRAME and HEALTH carry a sequence number per session, shared by the two and starting at 1, so a client can count events it missed. WELCOME and ERROR echo the id of the message they answer (0 if it couldn't be read).
 
 ### 7.9 Defaults
 
-Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request per (address, token), datagrams of at most 512 bytes.
+Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request per (address, token), datagrams of at most 512 bytes. The dead-man: silence 900 s (granted between 300 and 7200), 16 entries.
+
+### 7.10 The dead-man's codes
+
+ARMED `result` (u8): 1 `ARMED`, 2 `DISARMED` (also the answer to ACK_FIRED), 3 `REFUSED`. Its `detail` for a refusal (u16): 1 `NOT_GRANTED` (the session wasn't granted the dead-man), 2 `NO_SUCH_ENTRY` (past the entries granted), 3 `INVALID_FRAME` (not a valid `C0 6B` write of 6 data bytes), 4 `REGISTER_MISMATCH` (the frame writes another register), 5 `BAD_WIDTH`.
+
+FIRED `outcome` (u8): 1 `PUT_BACK` (the pump's `0x6C` was 1), 2 `REFUSED` (it was 0), 3 `SKIPPED` (the register no longer held `expected`; `read` is what it held), 4 `NO_ANSWER` (the read or the write got no answer, an ambiguous one, or was dropped).
 
 ## 8. A request's life, and pairing answers
 
@@ -319,6 +332,7 @@ Without a key, the control port works unauthenticated, like plain NibeGW. With o
 4. **ERROR `unsupported_option`:** the gateway doesn't know a critical option. The client retries without it if it can live without the feature, or stops and reports what is missing. It doesn't fall back to plain NibeGW when the missing option was the authentication it insisted on.
 5. **WELCOME without an option the client asked for:** that feature isn't granted, and the client works without it.
 6. **A new `BOOT_ID`**, `no_session`, or no HEALTH for a lease: send HELLO again. The fates of requests made before are unknown.
+7. **The dead-man:** with a key, ask for it in HELLO (`DEADMAN`). A WELCOME that grants it is followed by a FIRED report for each entry fired while the client was away (§15).
 
 ## 14. Implementations and test vectors
 
@@ -326,3 +340,31 @@ Without a key, the control port works unauthenticated, like plain NibeGW. With o
 - **esphome-nibe:** an optional `thermaestro` block in a fork of [esphome-nibe](https://github.com/elupus/esphome-nibe), at [fnordpojk/esphome-nibe](https://github.com/fnordpojk/esphome-nibe), branch `thermaestro-protocol`.
 - **Client:** `thermaestro.nibe.transport` in this repository.
 - **Test vectors:** `testvectors/` holds byte sequences for every message type, invalid datagrams with the error each must give, and the authentication steps. Both implementations are tested against them. They are licensed AGPL-3.0-or-later or MIT, at your choice, so implementations under either license can use them. `scripts/make-testvectors.py` builds them with `struct` and `hmac` directly, not with the codec.
+
+## 15. The dead-man
+
+A Nibe pump keeps every setting written to it; nothing in it expires. A client that changes a setting and then goes silent (it crashed, its machine lost power, the network between them failed) leaves the setting changed. The dead-man lets the gateway, which keeps running on the pump's bus, put it back.
+
+**Granted only with a key.** A client asks for it in HELLO with `DEADMAN` (the silence in seconds, and how many entries it wants). A gateway with a key grants it to an authenticated session in WELCOME, possibly with a shorter or longer silence (300 to 7200 s) and fewer entries (at most 16). In WELCOME, `armed` and `fired` say how many entries it holds armed, and how many have fired without a session having acknowledged them. Without a key, a gateway never grants it: anyone could arm writes.
+
+**Arming.** When the client writes a value it will want put back, it sends ARM:
+- `entry`, a number below the entries granted, of its choosing;
+- `register` and `width`, 2 or 4 bytes;
+- `expected`, the raw value it wrote;
+- `frame`, the `C0 6B` write that puts the register back to the value it found.
+
+A second ARM for an entry replaces the first. DISARM drops an entry: the client put the register back itself, or let another writer's value stand. The gateway answers each with ARMED, giving `ARMED`, `DISARMED` or `REFUSED` with why (§7.10). Every authenticated message renews the session; ARM, DISARM and ACK_FIRED are no exception.
+
+**Firing.** Once no session granted the dead-man has sent anything for the granted silence, the gateway fires each armed entry in turn, in entry order:
+1. It reads the register, as a protocol read of its own, paired as any other (§8).
+2. It compares the answer's value with `expected`. A 2-byte entry compares the first word after the register; a 4-byte entry compares both, the first as the low half.
+3. **If they match,** it sends `frame`, as a protocol write of its own, waiting for the write in flight as any other. **If not,** someone changed the register while the client was away, and the gateway leaves it as it is (`SKIPPED`).
+
+Each entry fires once, and then holds an outcome (§7.10) instead of being armed. A session granted the dead-man that starts meanwhile stops the firing after the entry under way; the rest stay armed. There is no read-back after the write: accepted isn't applied (§2), so the client reads the register when it returns.
+
+**Coming back.** After a WELCOME that grants the dead-man, the gateway sends one FIRED for each entry that has fired since a session last acknowledged it: `outcome`, the `register`, `read` (the value found), and `fired_us`, the gateway's clock when it fired (0 when that was before the gateway restarted). The client answers each with ACK_FIRED once it has taken it in. Until then, every later WELCOME reports it again.
+
+**Through a restart of the gateway.** A gateway may keep the armed entries and the unacknowledged outcomes through a restart, saving them now and then. `thermaestro-gateway` saves them at most every 10 minutes when they changed, and at once when entries fire, to the file given with `--state-file`. After a restart, the silence counts from the boot. An entry the client disarmed after the last save comes back; if it fires, its register no longer holds `expected`, or already holds what `frame` writes, so it changes nothing but the client's own value.
+
+**What it doesn't cover.** A plain NibeGW gateway has no dead-man. A gateway that loses power with the pump comes back with it, and the client's own start (§13) then puts things back as it would. The dead-man writes only what a client armed, and only to the register named in its frame.
+

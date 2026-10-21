@@ -176,11 +176,13 @@ def nibe_vectors() -> dict[str, Any]:
 # --- The Thermaestro gateway protocol (docs/gateway-protocol.md) ---------------------------------
 
 VER_MAJOR = 0
-VER_MINOR = 2
+VER_MINOR = 3
 CRITICAL = 0x8000
 
 HELLO, KEEPALIVE, BYE, SUBSCRIBE, REQUEST, CANCEL = 0x01, 0x02, 0x03, 0x04, 0x10, 0x11
 WELCOME, FATE, ANSWER, FRAME, HEALTH, ERROR = 0x81, 0x90, 0x91, 0xA0, 0xB0, 0xE0
+ARM, DISARM, ACK_FIRED, ARMED, FIRED = 0x20, 0x21, 0x22, 0x92, 0x93
+DEADMAN = 0x0801
 TYPE_NAMES = {
     HELLO: "HELLO",
     KEEPALIVE: "KEEPALIVE",
@@ -194,6 +196,11 @@ TYPE_NAMES = {
     FRAME: "FRAME",
     HEALTH: "HEALTH",
     ERROR: "ERROR",
+    ARM: "ARM",
+    DISARM: "DISARM",
+    ACK_FIRED: "ACK_FIRED",
+    ARMED: "ARMED",
+    FIRED: "FIRED",
 }
 
 
@@ -257,6 +264,9 @@ def gw_vectors() -> dict[str, Any]:
     answer = telegram(0x0020, 0x6A, struct.pack("<HHH", 47134, 45, 0))
     exchange = token_read + read_47134 + b"\x06"
     nonce_c = bytes(range(0x10, 0x20))
+    # The dead-man: the offset 47011 set to -2, to be put back to -4 (0xFFFC as the 4 bytes
+    # of a write) if Thermaestro goes silent.
+    restore_47011 = reply(0x6B, struct.pack("<HI", 47011, 0xFFFC))
 
     messages = [
         described(
@@ -435,6 +445,80 @@ def gw_vectors() -> dict[str, Any]:
             gw_time_us=3_600_000_000,
         ),
         described(
+            "HELLO asking for the dead-man: 15 minutes, 16 entries",
+            HELLO,
+            {"ver_min": 0, "ver_max": 0},
+            struct.pack("<BB", 0, 0),
+            [(DEADMAN, struct.pack("<HBBB", 900, 16, 0, 0))],
+            msg_id=4,
+        ),
+        described(
+            "WELCOME granting the dead-man, 2 entries armed and 1 fired unreported",
+            WELCOME,
+            {"ver_major": 0, "ver_minor": VER_MINOR},
+            struct.pack("<BB", 0, VER_MINOR),
+            [
+                (0x0105, struct.pack("<I", 0b11111111)),
+                (DEADMAN, struct.pack("<HBBB", 900, 16, 2, 1)),
+            ],
+            msg_id=4,
+            gw_time_us=700,
+        ),
+        described(
+            "ARM entry 0: 47011, 2 bytes, expected -2, put back to -4",
+            ARM,
+            {
+                "entry": 0,
+                "width": 2,
+                "register": 47011,
+                "expected": 0xFFFE,
+                "frame": restore_47011.hex(),
+            },
+            struct.pack("<BBHIB", 0, 2, 47011, 0xFFFE, len(restore_47011)) + restore_47011,
+            [],
+            msg_id=50,
+        ),
+        described("DISARM entry 0", DISARM, {"entry": 0}, struct.pack("<B", 0), [], msg_id=51),
+        described(
+            "ACK_FIRED entry 3", ACK_FIRED, {"entry": 3}, struct.pack("<B", 3), [], msg_id=52
+        ),
+        described(
+            "ARMED: entry 0 armed",
+            ARMED,
+            {"entry": 0, "result": 1, "detail": 0},
+            struct.pack("<BBH", 0, 1, 0),
+            [],
+            msg_id=50,
+            gw_time_us=5_000,
+        ),
+        described(
+            "ARMED: refused, the frame writes another register",
+            ARMED,
+            {"entry": 1, "result": 3, "detail": 4},
+            struct.pack("<BBH", 1, 3, 4),
+            [],
+            msg_id=53,
+            gw_time_us=5_100,
+        ),
+        described(
+            "FIRED: entry 0 put back",
+            FIRED,
+            {"entry": 0, "outcome": 1, "register": 47011, "read": 0xFFFE, "fired_us": 960_000_000},
+            struct.pack("<BBHIQ", 0, 1, 47011, 0xFFFE, 960_000_000),
+            [],
+            msg_id=0,
+            gw_time_us=990_000_000,
+        ),
+        described(
+            "FIRED: entry 3 skipped, someone set 47044 to 45.0 °C",
+            FIRED,
+            {"entry": 3, "outcome": 3, "register": 47044, "read": 450, "fired_us": 0},
+            struct.pack("<BBHIQ", 3, 3, 47044, 450, 0),
+            [],
+            msg_id=0,
+            gw_time_us=12_000,
+        ),
+        described(
             "ERROR: unsupported option",
             ERROR,
             {"code": 5},
@@ -515,6 +599,20 @@ def gw_vectors() -> dict[str, Any]:
             "error": "malformed",
         },
         {
+            "name": "ARM frame_len runs past the body",
+            "hex": message(
+                ARM, struct.pack("<BBHIB", 0, 2, 47011, 0, 12) + restore_47011, [], 1
+            ).hex(),
+            "error": "malformed",
+        },
+        {
+            "name": "DEADMAN option with the wrong length",
+            "hex": message(
+                HELLO, struct.pack("<BB", 0, 0), [(DEADMAN, struct.pack("<H", 900))], 1
+            ).hex(),
+            "error": "malformed",
+        },
+        {
             "name": "authenticated flag without a trailer",
             "hex": header(HELLO, hello[20:], 1, flags=0x80).hex() + hello[20:].hex(),
             "error": "malformed",
@@ -590,7 +688,7 @@ def gw_vectors() -> dict[str, Any]:
 
     return {
         "note": (
-            "The Thermaestro gateway protocol, registry revision 2; see "
+            "The Thermaestro gateway protocol, registry revision 3; see "
             "docs/gateway-protocol.md §3 to §7 and §11. Hex strings are whole "
             "datagrams. Options keep their full tag, critical bit included."
         ),

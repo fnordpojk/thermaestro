@@ -83,6 +83,11 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
         type=Path,
         help="file holding the control port's pre-shared key, 64 hex digits",
     )
+    ap.add_argument(
+        "--state-file",
+        type=Path,
+        help="where the dead-man keeps what is armed, so a restart of the gateway keeps it",
+    )
     ap.add_argument("--max-clients", type=int, default=4)
     ap.add_argument("--log-level", default="INFO")
     args = ap.parse_args(argv)
@@ -112,6 +117,7 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
         # Asked for by name: plain writes with a key, for a client that can't sign.
         plain_writes=True if psk and args.write_port else None,
         max_clients=args.max_clients,
+        state_file=args.state_file,
     )
     return config, args.log_level
 

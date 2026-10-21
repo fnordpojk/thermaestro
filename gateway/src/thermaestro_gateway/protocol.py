@@ -2,7 +2,7 @@
 
 One message per UDP datagram: a 20-byte header, a fixed core per message type, then TLV
 options. An authenticated message ends with a trailer: a sequence number and a MAC.
-Numbers are little-endian. The registry is the spec's §7, revision 2.
+Numbers are little-endian. The registry is the spec's §7, revision 3.
 """
 
 import hashlib
@@ -14,7 +14,7 @@ from typing import ClassVar
 
 MAGIC = b"TG"
 VERSION_MAJOR = 0
-REGISTRY_REVISION = 2
+REGISTRY_REVISION = 3
 MAX_DATAGRAM = 512
 FLAG_AUTHENTICATED = 0x80
 CRITICAL = 0x8000
@@ -33,9 +33,14 @@ class MessageType(IntEnum):
     SUBSCRIBE = 0x04
     REQUEST = 0x10
     CANCEL = 0x11
+    ARM = 0x20
+    DISARM = 0x21
+    ACK_FIRED = 0x22
     WELCOME = 0x81
     FATE = 0x90
     ANSWER = 0x91
+    ARMED = 0x92
+    FIRED = 0x93
     FRAME = 0xA0
     HEALTH = 0xB0
     ERROR = 0xE0
@@ -99,6 +104,27 @@ class ErrorCode(IntEnum):
     UNKNOWN_REQUEST = 13
 
 
+class ArmResult(IntEnum):
+    ARMED = 1
+    DISARMED = 2
+    REFUSED = 3
+
+
+class ArmRefusal(IntEnum):
+    NOT_GRANTED = 1
+    NO_SUCH_ENTRY = 2
+    INVALID_FRAME = 3
+    REGISTER_MISMATCH = 4
+    BAD_WIDTH = 5
+
+
+class FiredOutcome(IntEnum):
+    PUT_BACK = 1
+    REFUSED = 2
+    SKIPPED = 3
+    NO_ANSWER = 4
+
+
 class BusState(IntEnum):
     SILENT = 0
     ACTIVE = 1
@@ -118,6 +144,7 @@ class Feature(IntFlag):
     PRIORITY = 1 << 4
     TTL = 1 << 5
     AUTH = 1 << 6
+    DEADMAN = 1 << 7
 
 
 class RequestFlag(IntFlag):
@@ -171,6 +198,7 @@ class Tag(IntEnum):
     REPLAYS_REJECTED = 0x0317
     WIFI_RSSI = 0x0318
     FREE_HEAP = 0x0319
+    DEADMAN = 0x0801
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +239,7 @@ _SPECS: dict[int, _Spec] = {
     Tag.CLIENTS: _U8,
     Tag.QUEUE_DEPTH: _Spec("HBB", repeatable=True),
     Tag.WIFI_RSSI: _Spec("b"),
+    Tag.DEADMAN: _Spec("HBBB"),
 }
 for _tag in Tag:
     _SPECS.setdefault(_tag, _U32)  # the remaining HEALTH counters
@@ -373,6 +402,40 @@ class Cancel:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class Arm:
+    """The dead-man: if Thermaestro goes silent, put `register` back with `frame`, provided
+    it still holds `expected` (its low `width` bytes)."""
+
+    TYPE: ClassVar[MessageType] = MessageType.ARM
+    entry: int
+    width: int
+    register: int
+    expected: int
+    frame: bytes
+    id: int = 0
+    gw_time_us: int = 0
+    options: tuple[Option, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Disarm:
+    TYPE: ClassVar[MessageType] = MessageType.DISARM
+    entry: int
+    id: int = 0
+    gw_time_us: int = 0
+    options: tuple[Option, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AckFired:
+    TYPE: ClassVar[MessageType] = MessageType.ACK_FIRED
+    entry: int
+    id: int = 0
+    gw_time_us: int = 0
+    options: tuple[Option, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Welcome:
     TYPE: ClassVar[MessageType] = MessageType.WELCOME
     ver_major: int = VERSION_MAJOR
@@ -398,6 +461,32 @@ class Answer:
     TYPE: ClassVar[MessageType] = MessageType.ANSWER
     status: int
     frame: bytes = b""
+    id: int = 0
+    gw_time_us: int = 0
+    options: tuple[Option, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Armed:
+    TYPE: ClassVar[MessageType] = MessageType.ARMED
+    entry: int
+    result: int
+    detail: int = 0
+    id: int = 0
+    gw_time_us: int = 0
+    options: tuple[Option, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Fired:
+    TYPE: ClassVar[MessageType] = MessageType.FIRED
+    entry: int
+    outcome: int
+    register: int
+    read: int = 0
+    """The value found, for a skipped entry."""
+    fired_us: int
+    """The gateway's clock when it fired; 0 when that was before a reboot."""
     id: int = 0
     gw_time_us: int = 0
     options: tuple[Option, ...] = ()
@@ -441,9 +530,14 @@ Message = (
     | Subscribe
     | Request
     | Cancel
+    | Arm
+    | Disarm
+    | AckFired
     | Welcome
     | Fate
     | Answer
+    | Armed
+    | Fired
     | Frame
     | Health
     | Error
@@ -458,9 +552,14 @@ MESSAGE_CLASSES: dict[MessageType, type[Message]] = {
         Subscribe,
         Request,
         Cancel,
+        Arm,
+        Disarm,
+        AckFired,
         Welcome,
         Fate,
         Answer,
+        Armed,
+        Fired,
         Frame,
         Health,
         Error,
@@ -509,6 +608,17 @@ def _core(msg: Message) -> bytes:
                 len(msg.data),
             )
             return head + msg.data
+        case Arm():
+            head = struct.pack("<BBHI", msg.entry, msg.width, msg.register, msg.expected)
+            return head + _with_length(msg.frame)
+        case Disarm() | AckFired():
+            return struct.pack("<B", msg.entry)
+        case Armed():
+            return struct.pack("<BBH", msg.entry, msg.result, msg.detail)
+        case Fired():
+            return struct.pack(
+                "<BBHIQ", msg.entry, msg.outcome, msg.register, msg.read, msg.fired_us
+            )
         case Error():
             return struct.pack("<H", msg.code)
         case Keepalive() | Bye() | Subscribe() | Cancel() | Health():
@@ -675,6 +785,46 @@ def _parse_body(msg_type: MessageType, data: bytes, msg_id: int, gw_time_us: int
                 t_complete_us=t_complete_us,
                 t_reply_us=t_reply_us,
                 data=b.counted(data_len, "data"),
+                id=msg_id,
+                gw_time_us=gw_time_us,
+                options=b.options(),
+            )
+        case MessageType.ARM:
+            entry, width, register, expected, frame_len = b.fixed("BBHIB")
+            return Arm(
+                entry=entry,
+                width=width,
+                register=register,
+                expected=expected,
+                frame=b.counted(frame_len, "frame"),
+                id=msg_id,
+                gw_time_us=gw_time_us,
+                options=b.options(),
+            )
+        case MessageType.DISARM:
+            (entry,) = b.fixed("B")
+            return Disarm(entry=entry, id=msg_id, gw_time_us=gw_time_us, options=b.options())
+        case MessageType.ACK_FIRED:
+            (entry,) = b.fixed("B")
+            return AckFired(entry=entry, id=msg_id, gw_time_us=gw_time_us, options=b.options())
+        case MessageType.ARMED:
+            entry, result, detail = b.fixed("BBH")
+            return Armed(
+                entry=entry,
+                result=result,
+                detail=detail,
+                id=msg_id,
+                gw_time_us=gw_time_us,
+                options=b.options(),
+            )
+        case MessageType.FIRED:
+            entry, outcome, register, read, fired_us = b.fixed("BBHIQ")
+            return Fired(
+                entry=entry,
+                outcome=outcome,
+                register=register,
+                read=read,
+                fired_us=fired_us,
                 id=msg_id,
                 gw_time_us=gw_time_us,
                 options=b.options(),

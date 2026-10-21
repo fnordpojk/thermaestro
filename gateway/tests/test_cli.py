@@ -65,3 +65,9 @@ def test_a_key_turns_the_plain_write_port_off(tmp_path: Path) -> None:
     assert (opened.write_port, opened.takes_plain_writes) == (10000, True)
     plain, _ = parse(["/dev/ttyUSB0"])
     assert plain.takes_plain_writes
+
+
+def test_a_state_file_for_the_deadman(tmp_path: Path) -> None:
+    assert parse(["/dev/ttyUSB0"])[0].state_file is None
+    config, _ = parse(["/dev/ttyUSB0", "--state-file", str(tmp_path / "deadman.json")])
+    assert config.state_file == tmp_path / "deadman.json"

@@ -13,6 +13,8 @@ thermaestro-gateway /dev/ttyUSB0
 
 `thermaestro-gateway --help` lists the options: the ports (read 9999, write 10000, control 10090 by default; 0 turns one off; with a key, the plain write port is off unless `--write-port` opens it, since it takes writes without the key), the addresses allowed to send requests, fixed forwarding targets, and the file with the control port's key.
 
+**The dead-man.** With a key, a client may ask the gateway to put back what it changed if it goes silent. Once the client has said nothing for the time it asked for (15 minutes by default), the gateway reads each register it armed and writes the client's earlier value back, but only where the register still holds what the client wrote. Someone who changed it meanwhile is never written over. `--state-file PATH` keeps what is armed through a restart of the gateway, saved at most every 10 minutes when it changed. Without it, a restart forgets what was armed.
+
 If the serial port fails, as when the adapter is unplugged, the gateway stops and exits with the error, so a service manager set to restart it (systemd's `Restart=on-failure`, Docker's `restart: unless-stopped`) starts it again.
 
 **Status:** there is no release yet. Version 0.0.0 on PyPI is a placeholder that keeps the package name. The project lives at https://github.com/fnordpojk/thermaestro.
