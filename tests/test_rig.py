@@ -405,6 +405,47 @@ def test_a_tank_already_hot_is_no_periodic_increase(tmp_path: Path) -> None:
     assert r.plant.registers[47044] == s16(45.0)
 
 
+def due_late(seconds: float) -> Callable[[Plant], None]:
+    """The pump's periodic increase due `seconds` from the start, later than the rig is told;
+    the tank a little above its start, so the increase takes a while."""
+
+    def prepare(plant: Plant) -> None:
+        plant.last_periodic = plant.t - plant.word(47051) * 86_400 + seconds
+        plant.top, plant.bottom = 48.0, 46.0
+
+    return prepare
+
+
+def test_an_increase_begun_under_the_block_is_not_put_down_to_the_release(
+    tmp_path: Path,
+) -> None:
+    """The increase starts while the block holds and reaches its stop only after the
+    release: it ran under the block, and the release didn't start it."""
+    s = scenario()
+    told = datetime.fromtimestamp(s.start_time.timestamp() + 3600, UTC).astimezone()
+    options = Options(due=f"{told:%Y-%m-%d %H:%M}")
+    # The watch under the block ends at 7200 s; the increase starts ten minutes before.
+    r = rig(tmp_path, s, "periodic", options=options, prepare=due_late(6600))
+    assert r.step("a charge began while the block held").outcome == "not finished"
+    after = r.step("the charge that began while the block held reached")
+    assert after.outcome == "seen"
+    assert after.passed is None
+    assert not any("ran once the block was let go" in line for line in r.said)
+    assert any("didn't keep it from starting" in line for line in r.said)
+    assert r.plant.registers[47044] == s16(45.0)
+
+
+def test_an_increase_begun_after_the_release_was_held_off(tmp_path: Path) -> None:
+    """No charge while the block holds; the increase starts after the release."""
+    s = scenario()
+    told = datetime.fromtimestamp(s.start_time.timestamp() + 3600, UTC).astimezone()
+    options = Options(due=f"{told:%Y-%m-%d %H:%M}")
+    r = rig(tmp_path, s, "periodic", options=options, prepare=due_late(7800))
+    assert r.step("no periodic increase while the block held").outcome == "not seen"
+    assert r.step("it ran").outcome == "seen"
+    assert any("ran once the block was let go" in line for line in r.said)
+
+
 def test_periodic_refuses_a_mode_whose_stop_reaches_the_periodic_one(tmp_path: Path) -> None:
     with pytest.raises(RigError, match="couldn't be told from it"):
         rig(tmp_path, scenario().set({47048: 545}), "periodic", options=Options(due="03:30"))

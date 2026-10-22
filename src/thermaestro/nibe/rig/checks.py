@@ -433,19 +433,27 @@ async def periodic(bench: Bench, o: Options) -> None:
         return
 
     left = (until - clock.now()).total_seconds()
+    threshold = stop - PERIODIC_MARGIN
     bench.say(
         f"Watching until {until:%H:%M} for a charge that takes the charge sensor to"
-        f" {stop - PERIODIC_MARGIN:g} °C, the periodic increase's stop less {PERIODIC_MARGIN:g}."
+        f" {threshold:g} °C, the periodic increase's stop less {PERIODIC_MARGIN:g}."
     )
-    took = await bench.watch(
-        _Increase(bench, stop - PERIODIC_MARGIN), minutes=max(0.0, left) / 60, show=HOT_WATER
-    )
+    # One watcher for both phases: a charge begun under the block is still known as such
+    # when it finishes after the release.
+    increase = _Increase(bench, threshold)
+    took = await bench.watch(increase, minutes=max(0.0, left) / 60, show=HOT_WATER)
     if took is not None:
         charge = bench.value("dhw/temp.charge")
         bench.step(
             f"the periodic increase ran while the block held: the charge sensor at {charge} °C",
             "seen",
             passed=True,
+        )
+    elif increase.under:
+        bench.step(
+            f"a charge began while the block held, but hadn't taken the charge sensor to"
+            f" {threshold:g} °C by {until:%H:%M}",
+            "not finished",
         )
     else:
         bench.step(
@@ -456,12 +464,37 @@ async def periodic(bench: Bench, o: Options) -> None:
     await bench.put_back([path])
     summary = "The periodic increase ran while the block held its charges off."
     if took is None:
-        after = await bench.watch(
-            _Increase(bench, stop - PERIODIC_MARGIN), minutes=PERIODIC_WAIT_S / 60, show=HOT_WATER
-        )
+        increase.released()
+        after = await bench.watch(increase, minutes=PERIODIC_WAIT_S / 60, show=HOT_WATER)
         if after is None:
             bench.step(f"nor within {durations.text(PERIODIC_WAIT_S)} of the release", "not seen")
-            summary = "No periodic increase was seen, held or after."
+            summary = (
+                "A charge began while the block held, but no periodic increase was seen to"
+                " finish, held or after."
+                if increase.under
+                else "No periodic increase was seen, held or after."
+            )
+        elif increase.began_held:
+            bench.step(
+                f"the charge that began while the block held reached {threshold:g} °C"
+                f" {durations.text(after)} after the release",
+                "seen",
+            )
+            summary = (
+                "The periodic increase began while the block held and finished after the"
+                " release: the block didn't keep it from starting."
+            )
+        elif increase.under:
+            bench.step(
+                f"a charge begun after the release reached {threshold:g} °C"
+                f" {durations.text(after)} after it",
+                "seen",
+            )
+            summary = (
+                "A charge began while the block held without finishing the periodic increase;"
+                " one begun after the release did. Whether the block held the increase off"
+                " can't be told from this run."
+            )
         else:
             bench.step(f"it ran {durations.text(after)} after the release", "seen")
             summary = "The block held the periodic increase off; it ran once the block was let go."
@@ -471,16 +504,31 @@ async def periodic(bench: Bench, o: Options) -> None:
 class _Increase:
     """Whether a periodic increase has run since this began watching: a charge that
     started since then, and took the charge sensor to `threshold`. A tank that was already
-    that warm, with no charge since, shows none."""
+    that warm, with no charge since, shows none. Watching the block held, then released:
+    whether a charge was seen while it held, and whether the latest began then."""
 
     def __init__(self, bench: Bench, threshold: float) -> None:
         self.bench = bench
         self.threshold = threshold
         self.charged = False
+        self.held = True
+        self.under = False
+        """A charge was seen while the block held."""
+        self.began_held = False
+        """The charge running, or the last one, began while the block held."""
+        self._was = False
+
+    def released(self) -> None:
+        self.held = False
 
     def __call__(self) -> bool:
-        if _charging(self.bench):
+        charging = _charging(self.bench)
+        if charging:
+            if not self._was:
+                self.began_held = self.held
             self.charged = True
+            self.under = self.under or self.held
+        self._was = charging
         charge = self.bench.value("dhw/temp.charge")
         return self.charged and isinstance(charge, int | float) and charge >= self.threshold
 
