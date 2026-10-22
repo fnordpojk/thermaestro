@@ -136,7 +136,13 @@ def steps(
         if not step:
             return [current] * len(targets)
         best = step
-    return min(best.values(), key=lambda b: b[0])[1]
+    # The last step stays past the slots looked at: its miss goes on as long again, or a
+    # step a little off would never be worth a change, round after round.
+    last = targets[-1] if targets else current
+    tail = len(targets) * w2 * 0.25
+    return min(
+        best.items(), key=lambda kv: kv[1][0] + tail * max(0.0, abs(kv[0][0] - last) - DEAD)
+    )[1][1]
 
 
 def decide(plan: Plan, problem: Problem, now: Now) -> list[Decision]:

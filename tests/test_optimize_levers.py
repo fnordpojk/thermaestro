@@ -31,6 +31,13 @@ def test_the_offset_follows_the_plan_in_whole_steps() -> None:
     assert steps([0.4, 0.6, 0.45, 0.55] * 4, 0, OFFSET, 2.0, 16) == [0] * 16
 
 
+def test_a_step_a_little_off_the_plan_is_put_right() -> None:
+    """Most of a step off the plan, the offset is moved, though four hours of the miss cost
+    less than a change: it would stay as long again past them, and round after round."""
+    targets = [-0.3] * 4 + [-0.2] * 8 + [-0.1] * 4
+    assert steps(targets, -1, OFFSET, 2.0, 6)[0] == 0
+
+
 def test_with_little_budget_left_the_offset_changes_less() -> None:
     wandering = [0.0] * 6 + [3.0] * 10
     free = steps(wandering, 0, OFFSET, 2.0, 16)
