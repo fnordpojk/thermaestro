@@ -116,6 +116,7 @@ class ArmRefusal(IntEnum):
     INVALID_FRAME = 3
     REGISTER_MISMATCH = 4
     BAD_WIDTH = 5
+    FIRED = 6
 
 
 class FiredOutcome(IntEnum):

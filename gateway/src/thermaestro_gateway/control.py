@@ -427,6 +427,11 @@ class Control:
                 session = self._session_of(item)
                 if session is not None:
                     out.append(self._send(session, item.message))
+        if self.deadman is not None:
+            for report in self.deadman.just_fired(now_us):
+                for session in self._sessions.values():
+                    if session.deadman_entries:
+                        out.append(self._send(session, report))
         return out
 
     def _session_of(self, item: Outgoing) -> Session | None:

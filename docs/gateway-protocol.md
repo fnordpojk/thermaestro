@@ -190,7 +190,7 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 
 ### 7.8 Header `id` in gateway messages
 
-FATE and ANSWER carry the request's id. ARMED echoes the ARM, DISARM or ACK_FIRED it answers; a FIRED report sent after WELCOME has 0. FRAME and HEALTH carry a sequence number per session, shared by the two and starting at 1, so a client can count events it missed. WELCOME and ERROR echo the id of the message they answer (0 if it couldn't be read).
+FATE and ANSWER carry the request's id. ARMED echoes the ARM, DISARM or ACK_FIRED it answers; a FIRED report has 0. FRAME and HEALTH carry a sequence number per session, shared by the two and starting at 1, so a client can count events it missed. WELCOME and ERROR echo the id of the message they answer (0 if it couldn't be read).
 
 ### 7.9 Defaults
 
@@ -198,7 +198,7 @@ Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answ
 
 ### 7.10 The dead-man's codes
 
-ARMED `result` (u8): 1 `ARMED`, 2 `DISARMED` (also the answer to ACK_FIRED), 3 `REFUSED`. Its `detail` for a refusal (u16): 1 `NOT_GRANTED` (the session wasn't granted the dead-man), 2 `NO_SUCH_ENTRY` (past the entries granted), 3 `INVALID_FRAME` (not a valid `C0 6B` write of 6 data bytes), 4 `REGISTER_MISMATCH` (the frame writes another register), 5 `BAD_WIDTH`.
+ARMED `result` (u8): 1 `ARMED`, 2 `DISARMED` (also the answer to ACK_FIRED), 3 `REFUSED`. Its `detail` for a refusal (u16): 1 `NOT_GRANTED` (the session wasn't granted the dead-man), 2 `NO_SUCH_ENTRY` (past the entries granted), 3 `INVALID_FRAME` (not a valid `C0 6B` write of 6 data bytes), 4 `REGISTER_MISMATCH` (the frame writes another register), 5 `BAD_WIDTH`, 6 `FIRED` (the entry is being fired, or its outcome isn't acknowledged yet).
 
 FIRED `outcome` (u8): 1 `PUT_BACK` (the pump's `0x6C` was 1), 2 `REFUSED` (it was 0), 3 `SKIPPED` (the register no longer held `expected`; `read` is what it held), 4 `NO_ANSWER` (the read or the write got no answer, an ambiguous one, or was dropped).
 
@@ -353,7 +353,7 @@ A Nibe pump keeps every setting written to it; nothing in it expires. A client t
 - `expected`, the raw value it wrote;
 - `frame`, the `C0 6B` write that puts the register back to the value it found.
 
-A second ARM for an entry replaces the first. DISARM drops an entry: the client put the register back itself, or let another writer's value stand. The gateway answers each with ARMED, giving `ARMED`, `DISARMED` or `REFUSED` with why (§7.10). Every authenticated message renews the session; ARM, DISARM and ACK_FIRED are no exception.
+A second ARM for an entry replaces the first. DISARM drops an entry: the client put the register back itself, or let another writer's value stand. The gateway answers each with ARMED, giving `ARMED`, `DISARMED` or `REFUSED` with why (§7.10). An entry being fired, or one that has fired and whose outcome the client hasn't acknowledged, keeps its number: ARM and DISARM for it are refused with `FIRED`. So a FIRED report is always for what the client armed last under that number, and a client never gives a number to a new value while an outcome for the old one may still come. Every authenticated message renews the session; ARM, DISARM and ACK_FIRED are no exception.
 
 **Firing.** Once no session granted the dead-man has sent anything for the granted silence, the gateway fires each armed entry in turn, in entry order:
 1. It reads the register, as a protocol read of its own, paired as any other (§8).
@@ -362,7 +362,7 @@ A second ARM for an entry replaces the first. DISARM drops an entry: the client 
 
 Each entry fires once, and then holds an outcome (§7.10) instead of being armed. A register that already holds what `frame` writes (a firing before a restart wrote it, or someone put it back) counts as `PUT_BACK`, and isn't written again. A session granted the dead-man that starts meanwhile stops the firing after the entry under way; the rest stay armed. There is no read-back after the write: accepted isn't applied (§2), so the client reads the register when it returns.
 
-**Coming back.** After a WELCOME that grants the dead-man, the gateway sends one FIRED for each entry that has fired since a session last acknowledged it: `outcome`, the `register`, `read` (the value found), and `fired_us`, the gateway's clock when it fired (0 when that was before the gateway restarted). The client answers each with ACK_FIRED once it has taken it in. Until then, every later WELCOME reports it again.
+**Coming back.** After a WELCOME that grants the dead-man, the gateway sends one FIRED for each entry that has fired since a session last acknowledged it: `outcome`, the `register`, `read` (the value found), and `fired_us`, the gateway's clock when it fired (0 when that was before the gateway restarted). An entry that finishes firing after that (the one under way as the session started) is reported at once to every session granted the dead-man, as is any that fires while a session lingers. The client answers each with ACK_FIRED once it has taken it in. Until then, every later WELCOME reports it again.
 
 **Through a restart of the gateway.** A gateway may keep the armed entries and the unacknowledged outcomes through a restart, saving them now and then. `thermaestro-gateway` saves them at most every 10 minutes when they changed, and at once when entries fire, to the file given with `--state-file`. An entry being fired is saved as still armed until its outcome is kept, so a restart in the middle of a firing fires it again. After a restart, the silence counts from the boot. An entry the client disarmed after the last save comes back; if it fires, its register no longer holds `expected`, or already holds what `frame` writes, so it changes nothing but the client's own value.
 

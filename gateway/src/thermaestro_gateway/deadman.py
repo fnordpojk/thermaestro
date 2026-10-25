@@ -67,6 +67,7 @@ class DeadMan:
         self._current: Entry | None = None
         self._pending: tuple[int, str] | None = None
         """The request in flight for the current entry: its id, and "read" or "write"."""
+        self._just_fired: list[Outcome] = []
         self._next_id = FIRST_ID
         self._state = state
         self._dirty = False
@@ -94,7 +95,7 @@ class DeadMan:
             self._queue = []
 
     def arm(self, msg: p.Arm, entries: int) -> p.Armed:
-        refusal = self._refusal(msg, entries)
+        refusal = self._refusal(msg, entries) or self._fired(msg.entry)
         if refusal is not None:
             return p.Armed(entry=msg.entry, result=p.ArmResult.REFUSED, detail=refusal, id=msg.id)
         self.armed[msg.entry] = Entry(msg.entry, msg.width, msg.register, msg.expected, msg.frame)
@@ -102,9 +103,19 @@ class DeadMan:
         return p.Armed(entry=msg.entry, result=p.ArmResult.ARMED, id=msg.id)
 
     def disarm(self, entry: int, msg_id: int) -> p.Armed:
+        refusal = self._fired(entry)
+        if refusal is not None:
+            return p.Armed(entry=entry, result=p.ArmResult.REFUSED, detail=refusal, id=msg_id)
         if self.armed.pop(entry, None) is not None:
             self._dirty = True
         return p.Armed(entry=entry, result=p.ArmResult.DISARMED, id=msg_id)
+
+    def _fired(self, entry: int) -> p.ArmRefusal | None:
+        """An entry being fired, or whose outcome isn't acknowledged, keeps its number: a
+        report for it is then always for what the client armed last."""
+        if entry in self.fired or (self._current is not None and self._current.number == entry):
+            return p.ArmRefusal.FIRED
+        return None
 
     def ack_fired(self, entry: int, msg_id: int) -> p.Armed:
         if self.fired.pop(entry, None) is not None:
@@ -123,17 +134,13 @@ class DeadMan:
         self.save(now_us)
 
     def reports(self, now_us: int) -> list[p.Fired]:
-        return [
-            p.Fired(
-                entry=o.entry,
-                outcome=o.outcome,
-                register=o.register,
-                read=o.read,
-                fired_us=o.fired_us,
-                gw_time_us=now_us,
-            )
-            for o in sorted(self.fired.values(), key=lambda o: o.entry)
-        ]
+        return [_report(o, now_us) for o in sorted(self.fired.values(), key=lambda o: o.entry)]
+
+    def just_fired(self, now_us: int) -> list[p.Fired]:
+        """The entries that fired since this was last asked: told to the sessions there are
+        at once, as one may be back while an entry was under way."""
+        done, self._just_fired = self._just_fired, []
+        return [_report(o, now_us) for o in done]
 
     @staticmethod
     def _refusal(msg: p.Arm, entries: int) -> p.ArmRefusal | None:
@@ -237,6 +244,7 @@ class DeadMan:
         self.fired[outcome.entry] = Outcome(
             outcome.entry, outcome.outcome, outcome.register, outcome.read, now_us
         )
+        self._just_fired.append(self.fired[outcome.entry])
         self._current = None
         self._pending = None
         self._dirty = True
@@ -297,6 +305,17 @@ class DeadMan:
                 log.info("dead-man: %d entries armed from %s", len(self.armed), path)
             except (OSError, ValueError, KeyError, TypeError) as e:
                 log.error("dead-man: the state file %s couldn't be read: %s", path, e)
+
+
+def _report(o: Outcome, now_us: int) -> p.Fired:
+    return p.Fired(
+        entry=o.entry,
+        outcome=o.outcome,
+        register=o.register,
+        read=o.read,
+        fired_us=o.fired_us,
+        gw_time_us=now_us,
+    )
 
 
 def _mask(width: int) -> int:

@@ -77,6 +77,8 @@ class Pump:
         self.control = control
         self.registers = registers
         self.writes: list[tuple[int, int]] = []
+        self.sent: list[tuple[tuple[str, int], bytes]] = []
+        """What the gateway sent the clients meanwhile."""
 
     def cycle(
         self, now_us: int, tokens: tuple[int, ...] = (nibe.READ_TOKEN, nibe.WRITE_TOKEN)
@@ -85,7 +87,7 @@ class Pump:
         for token in tokens:
             reply = engine.reply_for(nibe.MODBUS40, token, now_us)
             token_telegram = telegram(token, b"")
-            self.control.on_exchange(
+            self.sent += self.control.on_exchange(
                 Exchange(
                     data=token_telegram + (reply.frame if reply else b"") + b"\x06",
                     kind=p.FrameKind.TO_GATEWAY,
@@ -109,7 +111,7 @@ class Pump:
                 self.registers[register] = value
                 self.writes.append((register, value))
                 answer = telegram(nibe.WRITE_ANSWER, b"\x01")
-            self.control.on_exchange(
+            self.sent += self.control.on_exchange(
                 Exchange(
                     data=answer + b"\x06",
                     kind=p.FrameKind.TO_GATEWAY,
@@ -240,6 +242,47 @@ def test_a_client_back_meanwhile_stops_the_firing_after_the_entry_under_way() ->
     pump.run(902 * S, 920 * S)
     assert pump.writes == [(OFFSET, FOUND)]
     assert set(control.deadman.armed) == {1}  # type: ignore[union-attr]
+
+
+def test_an_entry_keeps_its_number_until_its_outcome_is_acknowledged() -> None:
+    """Being fired, or fired and not acknowledged, an entry is neither armed anew nor
+    disarmed: a report for it is always for what the client armed last."""
+    control = make()
+    Client(control, A, 0, asking(300)).send(arm(0), 1 * S)
+    pump = Pump(control, {OFFSET: SET})
+    control.tick(302 * S)  # silent: its read is queued
+    back = Client(control, A, 302 * S + 1, asking(300))
+    for msg in (arm(0, expected=0x0003), p.Disarm(id=20, entry=0)):
+        (answer,) = back.send(msg, 303 * S)
+        assert isinstance(answer, p.Armed)
+        assert (answer.result, answer.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.FIRED)
+    pump.run(304 * S, 310 * S)
+    assert pump.writes == [(OFFSET, FOUND)]  # the firing under way, as it was armed
+    (answer,) = back.send(arm(0, expected=0x0003), 311 * S)
+    assert isinstance(answer, p.Armed)
+    assert (answer.result, answer.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.FIRED)
+    (cleared,) = back.send(p.AckFired(id=21, entry=0), 312 * S)
+    assert isinstance(cleared, p.Armed)
+    assert cleared.result == p.ArmResult.DISARMED
+    (armed,) = back.send(arm(0, expected=0x0003), 313 * S)
+    assert isinstance(armed, p.Armed)
+    assert armed.result == p.ArmResult.ARMED
+
+
+def test_an_entry_that_fires_once_a_client_is_back_is_reported_at_once() -> None:
+    """The entry under way as a session starts isn't in its WELCOME: it is reported as it
+    finishes, not only at the next one."""
+    control = make()
+    Client(control, A, 0, asking(300)).send(arm(0), 1 * S)
+    pump = Pump(control, {OFFSET: 0x0001})  # set at the pump meanwhile
+    control.tick(302 * S)  # its read is queued
+    back = Client(control, A, 302 * S + 1, asking(300))
+    assert back.after_welcome == []
+    pump.cycle(303 * S)
+    reports = [p.decode(d).message for to, d in pump.sent if to == A]
+    assert [(r.entry, r.outcome, r.read) for r in reports if isinstance(r, p.Fired)] == [
+        (0, p.FiredOutcome.SKIPPED, 0x0001)
+    ]
 
 
 def test_kept_through_a_restart_of_the_gateway(tmp_path: Path) -> None:
