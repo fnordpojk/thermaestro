@@ -143,10 +143,14 @@ class Link:
         params: Mapping[str, Value] | None = None,
         *,
         timeout: float = TIMEOUT_S,
+        baseline: Value | None = None,
     ) -> AsyncIterator[Fate]:
         """Each fate the plugin reports, up to and including a final one. `timeout` is
-        the longest wait for the next."""
-        message = Act(id=self.next_id(), lever=lever, op=op, params=dict(params or {}))
+        the longest wait for the next. `baseline`: with `set`, the setting as found, for a
+        dead-man in the route."""
+        message = Act(
+            id=self.next_id(), lever=lever, op=op, params=dict(params or {}), baseline=baseline
+        )
         async for fate in self._fates(message, "act", timeout):
             yield fate
 

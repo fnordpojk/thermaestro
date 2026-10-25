@@ -57,7 +57,7 @@ from .. import clock as clocks
 from ..cap import Closed, Message, vocabulary
 from ..cap.client import CapError, Link
 from ..cap.defaults import assume
-from ..cap.messages import Described, ForeignWrite, Op
+from ..cap.messages import DeadmanFired, Described, ForeignWrite, Op
 from ..cap.model import Envelope, Lever, Param, Value
 from ..store import Control, Database, LeverMode, Transaction
 from .audit import AuditLog
@@ -86,6 +86,21 @@ RETRY_DOUBLINGS = 16
 """Doubled no more often than this: far past the watchdog's period, and finite."""
 
 NOT_BACK = mark("%(lever)s couldn't be put back as found (%(why)s): it is tried again")
+FIRED = {
+    "put_back": mark("While Thermaestro was silent, the gateway put %(lever)s back as found"),
+    "skipped": mark(
+        "While Thermaestro was silent, the gateway found %(lever)s changed by someone else,"
+        " to %(found)s, and left it"
+    ),
+    "refused": mark(
+        "While Thermaestro was silent, the gateway tried to put %(lever)s back,"
+        " and the pump refused"
+    ),
+    "no_answer": mark(
+        "While Thermaestro was silent, the gateway tried to put %(lever)s back, and got no answer"
+    ),
+}
+"""What a dead-man in a lever's route did, by its outcome."""
 
 Outcome = Literal[
     "verified",
@@ -845,11 +860,16 @@ class Executor:
         link = found.link if found is not None and found.state is State.UP else None
         if link is None:
             return Result("dropped", "its plugin isn't running")
+        # With a setting's change, what a dead-man in its route would put back.
+        claim = self.claims.get(ref)
+        baseline = claim.baseline if op == "set" and claim is not None else None
         self._writing.add(ref)
         try:
             final = None
             try:
-                async for fate in link.act(path, op, params, timeout=self._act_timeout_s):
+                async for fate in link.act(
+                    path, op, params, timeout=self._act_timeout_s, baseline=baseline
+                ):
                     final = fate
             except TimeoutError:
                 return Result("timeout", "the plugin didn't say what became of it")
@@ -1101,6 +1121,9 @@ class Executor:
                 if claim is not None and claim.held and claim.drift is None:
                     self._spawn(self._move(ref))
             return
+        if isinstance(message, DeadmanFired):
+            self._spawn(self._fired(f"{instance}:{message.lever}", message))
+            return
         if not isinstance(message, ForeignWrite):
             return
         for ref, claim in self.claims.items():
@@ -1109,6 +1132,49 @@ class Executor:
             lever = self.lever(ref)
             if lever is not None and claim.changed and message.datapoint in lever.touches:
                 self._spawn(self._let_go(ref, f"another client wrote {message.datapoint}"))
+
+    async def _fired(self, ref: str, message: DeadmanFired) -> None:
+        """A dead-man in the lever's route fired while Thermaestro was silent. Put back,
+        the lever is as found: a reading of its baseline isn't someone else's change, and
+        one that came first and let the lever go is taken back. Skipped, someone else's
+        value stands, as Thermaestro's own reading would have found. Refused or not
+        answered, the lever is still as Thermaestro set it."""
+        async with self._lock(ref):
+            claim = self.claims.get(ref)
+            if claim is not None and message.outcome == "put_back":
+                lever = self.lever(ref)
+                if claim.drift is not None and lever is not None and self._as_found(ref, lever):
+                    log.info("%s: let go on a reading the gateway's put-back made: taken back", ref)
+                    claim.drift = None
+                if claim.drift is None:
+                    claim.held = False
+                    claim.last = None
+                    claim.last_t = self._clock()
+                    claim.pending = None
+                    self._unsettled.pop(ref, None)
+                    await self._save(claim)
+            elif claim is not None and message.outcome == "skipped" and claim.drift is None:
+                claim.drift = f"while Thermaestro was silent, it was changed to {message.found}"
+                await self._told_let_go(ref, claim)
+        args = {"lever": ref, "found": message.found}
+        await self._audit.record(
+            "core",
+            "lever.deadman",
+            outcome=message.outcome,
+            details={**args, "fired": message.fired.isoformat() if message.fired else None},
+        )
+        if self.events is not None:
+            what = Raise("lever.deadman", ref, FIRED[message.outcome], args)
+            await self.events.moment(f"lever.deadman:{ref}", what)
+
+    def _as_found(self, ref: str, lever: Lever) -> bool:
+        """Whether the lever's latest good reading is its baseline."""
+        claim = self.claims.get(ref)
+        back = self._readback(ref, lever)
+        if claim is None or back is None or back.quality != "good":
+            return False
+        param = lever.params.get("value")
+        return same(reading(back, param), claim.baseline, param)
 
     async def _let_go(self, ref: str, why: str) -> None:
         claim = self.claims.get(ref)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-20 17:04+0200\n"
+"POT-Creation-Date: 2026-10-25 02:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3250,6 +3250,28 @@ msgid "Which planner drives"
 msgstr ""
 
 msgid "Which provider for what"
+msgstr ""
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway found %(lever)s changed by "
+"someone else, to %(found)s, and left it"
+msgstr ""
+
+#, python-format
+msgid "While Thermaestro was silent, the gateway put %(lever)s back as found"
+msgstr ""
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway tried to put %(lever)s back, "
+"and got no answer"
+msgstr ""
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway tried to put %(lever)s back, "
+"and the pump refused"
 msgstr ""
 
 msgid "Who"

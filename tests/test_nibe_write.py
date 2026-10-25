@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import socket
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ from test_nibe_plugin import FAST_PLAIN, FAST_TGW, PUMP, settings, until
 from thermaestro_gateway.server import Config, Gateway
 
 from thermaestro.cap import Link, pair, serve
-from thermaestro.cap.messages import Described, Fate, ForeignWrite, Op
+from thermaestro.cap.messages import DeadmanFired, Described, Fate, ForeignWrite, Op
 from thermaestro.cap.model import Knowledge, Value
 from thermaestro.core import Core, Key, run
 from thermaestro.core.plugins import PluginStore
@@ -132,7 +133,9 @@ def test_no_lever_writes_what_is_never_written() -> None:
             assert all(model.register(r).writable for r in registers), (name, spec.path)
 
 
-async def over_the_protocol(gateway: Gateway, tmp_path: Path) -> NibePlugin:
+async def over_the_protocol(
+    gateway: Gateway, tmp_path: Path, state: PluginStore | None = None
+) -> NibePlugin:
     """A plugin on the Thermaestro gateway protocol, with the gateway's key."""
     secrets = SecretStore(tmp_path / "secrets.json")
     await secrets.set("nibe.psk", TEST_PSK.hex())
@@ -147,6 +150,7 @@ async def over_the_protocol(gateway: Gateway, tmp_path: Path) -> NibePlugin:
         secrets=secrets,
         transport_settings={"tgw_settings": FAST_TGW},
         identify_timeout_s=5,
+        state=state,
     )
 
 
@@ -250,6 +254,117 @@ async def test_over_the_gateway_protocol(
     assert signed(stocked.registers[47011]) == 3
     assert stocked.registers[47044] == 450
     assert not [e for e in events if isinstance(e, ForeignWrite)]  # its own aren't reported
+
+
+async def act_from(
+    link: Link, lever: str, op: Op, params: dict[str, Value], baseline: Value
+) -> Fate:
+    """The final fate of an act that gives the setting as found, as the executor does."""
+    fates = [f async for f in link.act(f"hp1/{lever}", op, params, timeout=20, baseline=baseline)]
+    return fates[-1]
+
+
+def armed(gateway: Gateway) -> list[tuple[int, int, int]]:
+    """What the gateway's dead-man holds armed: each register, the word it expects there,
+    and the value its write puts back."""
+    held = gateway.control.deadman
+    assert held is not None
+    return sorted(
+        (e.register, e.expected, int.from_bytes(e.frame[5:9], "little"))
+        for e in held.armed.values()
+    )
+
+
+async def test_each_change_arms_the_gateways_dead_man(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Over the protocol with a key, a setting changed and a hold engaged are armed, to be
+    put back as found; put back by Thermaestro itself, they are disarmed."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        described = await link.describe(timeout=5)
+        unit = next(n for n in described.nodes if n.path == "hp1")
+        assert unit.transport is not None
+        assert unit.transport.deadman == "supported"
+        offset = await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)
+        assert offset.stage == "device_accepted"
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+        assert armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC), (47044, 350, 450)]
+        back = await act_from(link, "cs1/heating.offset", "set", {"value": -4}, -4)
+        assert back.stage == "device_accepted"
+        assert (await act(link, "dhw/block", "release")).stage == "device_accepted"
+        await until(lambda: not armed(gateway_with_psk))
+    assert p.armed == {}
+
+
+async def test_a_change_the_pump_refused_leaves_the_dead_man_as_it_was(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+            "device_accepted"
+        )
+        stocked.refuse.add(47011)
+        refused = await act_from(link, "cs1/heating.offset", "set", {"value": 5}, -4)
+        assert refused.stage == "device_refused"
+        assert armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)]
+
+
+@pytest.mark.parametrize(
+    ("meanwhile", "outcome", "found"), [(None, "put_back", None), (1, "skipped", 1)]
+)
+async def test_the_gateway_puts_back_what_a_silent_thermaestro_left(
+    stocked: SimPump,
+    gateway_with_psk: Gateway,
+    tmp_path: Path,
+    meanwhile: int | None,
+    outcome: str,
+    found: int | None,
+) -> None:
+    """Thermaestro changes the offset and goes silent: the gateway puts it back as found,
+    or leaves a value someone set meanwhile. Started again, the plugin tells the core what
+    the gateway did, and the gateway forgets its report."""
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+        if meanwhile is not None:
+            stocked.registers[47011] = meanwhile  # the pump's menu
+        held.silence_us = 200_000  # the silence, shortened
+        await until(lambda: bool(held.fired), 10)
+        assert signed(stocked.registers[47011]) == (-4 if meanwhile is None else meanwhile)
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events) as link:
+            await until(lambda: any(isinstance(e, DeadmanFired) for e in events), 10)
+            await until(lambda: not held.fired)
+        told = next(e for e in events if isinstance(e, DeadmanFired))
+        assert (told.lever, told.outcome, told.found) == ("hp1/cs1/heating.offset", outcome, found)
+        assert told.fired is not None
+        assert again.armed == {}
+
+
+async def test_a_negative_byte_is_armed_as_the_pump_gives_it(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """A pump may give -2 in an 8-bit register as 0x00FE rather than 0xFFFE: the gateway
+    compares words, so the dead-man is armed again with the pump's own."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act_from(link, "cs1/heating.offset", "set", {"value": -2}, -4)).stage == (
+            "device_accepted"
+        )
+        assert armed(gateway_with_psk) == [(47011, 0xFFFE, 0xFFFF_FFFC)]
+        stocked.registers[47011] = 0x00FE
+        after = datetime.now(UTC)
+        await link.read(["hp1/cs1/x.nibe.47011"], after=after, timeout=10)
+        await until(lambda: armed(gateway_with_psk) == [(47011, 0x00FE, 0xFFFF_FFFC)])
 
 
 async def test_what_isnt_sent(stocked: SimPump, gateway: Gateway) -> None:

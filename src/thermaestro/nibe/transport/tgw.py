@@ -634,6 +634,11 @@ class TgwClient:
             callback(report)
         return lambda: self._fired_listeners.remove(callback)
 
+    def local_time(self, gw_time_us: int) -> float:
+        """A time on the gateway's clock, in this side's monotonic time (spec §9). Raises
+        RuntimeError before the gateway has said anything."""
+        return self._clock.to_local(gw_time_us)
+
     def on_session(self, callback: Callable[[], None]) -> Callable[[], None]:
         """Each new session: what was armed may have to be armed again."""
         self._session_listeners.append(callback)

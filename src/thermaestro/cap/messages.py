@@ -32,13 +32,14 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.6"
+VERSION = "0.7"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
 `SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
 one of the device's own settings, which a plugin offers with the `write` feature. 0.4
 added a node's `rating`, what its maker documents about it. 0.5 added `notify.targets` and
 `notify`, a notification for a person, which a plugin offers with the `notify` feature.
-0.6 added a climate system's `offset_step_k` to a rating. Older peers still talk to newer
+0.6 added a climate system's `offset_step_k` to a rating. 0.7 added an act's `baseline`,
+for a route's dead-man, and `deadman.fired`, what it did. Older peers still talk to newer
 ones."""
 FEATURES = ("subscribe", "forecast", "write", "notify")
 """What this side of the protocol understands."""
@@ -141,6 +142,9 @@ class Act(Model):
     lever: Path
     op: Op
     params: dict[str, Value] = Field(default_factory=dict)
+    baseline: Value | None = None
+    """With `set`, the setting's value as Thermaestro found it: what a route's dead-man
+    puts back should the core go silent (protocol 0.7)."""
 
 
 class Write(Model):
@@ -253,6 +257,21 @@ class ForeignWrite(Model):
     detail: str | None = None
 
 
+class DeadmanFired(Model):
+    """While the core was silent, the route's dead-man fired for a lever (protocol 0.7):
+    put it back as found, found someone else's value there and left it, or couldn't. Told
+    once."""
+
+    type: Literal["deadman.fired"] = "deadman.fired"
+    t: AwareDatetime
+    lever: Path
+    outcome: Literal["put_back", "refused", "skipped", "no_answer"]
+    found: Value | None = None
+    """For `skipped`, the value found in place of what Thermaestro set."""
+    fired: AwareDatetime | None = None
+    """When it fired, where the route knows."""
+
+
 class SeriesGet(Model):
     model_config = ConfigDict(serialize_by_alias=True, validate_by_name=True)
 
@@ -338,6 +357,7 @@ Message = Annotated[
     | Health
     | DeviceEvent
     | ForeignWrite
+    | DeadmanFired
     | SeriesGet
     | SeriesData
     | SeriesSubscribe
@@ -379,6 +399,7 @@ TO_CORE = frozenset(
         "health",
         "device_event",
         "foreign_write",
+        "deadman.fired",
         "series.data",
         "series.update",
         "rules",

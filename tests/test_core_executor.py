@@ -12,7 +12,7 @@ from pathlib import Path
 from leverfake import LeverDevice
 
 from thermaestro.cap import Closed
-from thermaestro.cap.messages import Op
+from thermaestro.cap.messages import DeadmanFired, Op
 from thermaestro.cap.model import Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
 from thermaestro.core.events import Events
@@ -325,6 +325,57 @@ async def test_a_change_someone_else_made_lets_go_of_the_lever(tmp_path: Path) -
         taken = await r.executor.act(OFFSET, "set", {"value": 1}, who="planner")
         assert taken.outcome == "verified"
         assert r.executor.claims[OFFSET].baseline == 0  # taken over from how it is now
+
+
+async def test_a_setting_is_sent_with_its_baseline(tmp_path: Path) -> None:
+    """For a dead-man in the route: what it would put back."""
+    async with rig(tmp_path, {OFFSET: "control", BLOCK: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(BLOCK, "engage", who="planner")
+        assert [(a.op, a.baseline) for a in r.device.acts] == [("set", -4), ("engage", None)]
+
+
+def fired(outcome: str, found: Value | None = None) -> DeadmanFired:
+    return DeadmanFired.model_validate(
+        {"t": datetime.now(UTC), "lever": "hp1/offset", "outcome": outcome, "found": found}
+    )
+
+
+async def test_a_gateways_put_back_isnt_taken_for_someone_elses(tmp_path: Path) -> None:
+    """While Thermaestro was silent, the gateway put the offset back. Its reading came
+    before the report and let go of the lever; the report takes that back."""
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await asyncio.sleep(0.1)
+        await r.device.someone_writes("x.fake.offset", -4, tell=False)  # the gateway
+        await until(lambda: r.executor.claims[OFFSET].drift is not None)
+        r.executor._on_event("dev", fired("put_back"))
+        await until(lambda: r.executor.claims[OFFSET].drift is None)
+        assert not r.executor.claims[OFFSET].changed
+        assert any(e["what"] == "lever.deadman" and e["outcome"] == "put_back" for e in audited(r))
+        r.clock[0] += 901
+        again = await r.executor.act(OFFSET, "set", {"value": 1}, who="planner")
+        assert again.outcome == "verified"
+
+
+async def test_a_gateways_put_back_told_before_its_reading(tmp_path: Path) -> None:
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.executor._on_event("dev", fired("put_back"))
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        await r.device.someone_writes("x.fake.offset", -4, tell=False)
+        await asyncio.sleep(0.3)
+        assert r.executor.claims[OFFSET].drift is None
+
+
+async def test_a_value_the_gateway_found_and_left_lets_go(tmp_path: Path) -> None:
+    async with rig(tmp_path, {OFFSET: "control"}) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        r.executor._on_event("dev", fired("skipped", 0))
+        await until(lambda: r.executor.claims[OFFSET].drift is not None)
+        assert (
+            r.executor.claims[OFFSET].drift == "while Thermaestro was silent, it was changed to 0"
+        )
 
 
 async def test_another_clients_write_lets_go_of_a_hold(tmp_path: Path) -> None:

@@ -161,6 +161,7 @@ EXAMPLES: list[dict[str, Any]] = [
         "lever": "hp1/cs1/heating.offset",
         "op": "set",
         "params": {"value": -2},
+        "baseline": 1,
     },
     {"type": "write", "id": 44, "point": "hp1/x.nibe.47134", "value": 30},
     {"type": "fate", "id": 42, "stage": "queued", "t": T},
@@ -178,6 +179,15 @@ EXAMPLES: list[dict[str, Any]] = [
     {"type": "health", "t": T, "state": "contended", "needs_user_action": "reauthorize"},
     {"type": "device_event", "t": T, "unit": "hp1", "code": "251", "text": "Communication error"},
     {"type": "foreign_write", "t": T, "unit": "hp1", "datapoint": "x.nibe.47387", "value": 0},
+    {"type": "deadman.fired", "t": T, "lever": "hp1/cs1/heating.offset", "outcome": "put_back"},
+    {
+        "type": "deadman.fired",
+        "t": T,
+        "lever": "hp1/dhw/block",
+        "outcome": "skipped",
+        "found": 42.0,
+        "fired": T,
+    },
     {
         "type": "series.get",
         "id": 9,

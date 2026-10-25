@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 17:04+0200\n"
+"POT-Creation-Date: 2026-10-25 02:15+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -3496,6 +3496,34 @@ msgstr "Welcher Planer steuert"
 
 msgid "Which provider for what"
 msgstr "Welcher Anbieter wofür"
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway found %(lever)s changed by someone else, to"
+" %(found)s, and left it"
+msgstr ""
+"Während Thermaestro schwieg, fand das Gateway %(lever)s von jemand anderem auf "
+"%(found)s geändert vor und ließ es so"
+
+#, python-format
+msgid "While Thermaestro was silent, the gateway put %(lever)s back as found"
+msgstr "Während Thermaestro schwieg, hat das Gateway %(lever)s wie vorgefunden zurückgesetzt"
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway tried to put %(lever)s back, and got no "
+"answer"
+msgstr ""
+"Während Thermaestro schwieg, versuchte das Gateway, %(lever)s zurückzusetzen, und "
+"bekam keine Antwort"
+
+#, python-format
+msgid ""
+"While Thermaestro was silent, the gateway tried to put %(lever)s back, and the pump "
+"refused"
+msgstr ""
+"Während Thermaestro schwieg, versuchte das Gateway, %(lever)s zurückzusetzen, und die"
+" Pumpe lehnte ab"
 
 msgid "Who"
 msgstr "Wer"
