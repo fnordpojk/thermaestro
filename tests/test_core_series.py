@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -62,12 +62,15 @@ async def db(tmp_path: Path) -> AsyncIterator[Database]:
 
 
 def quarters(series: str, start: datetime, n: int, value: float, **kw: object) -> list[Interval]:
+    # Stepped in UTC: an aware local time adds by its wall clock, so on the day the clocks
+    # go back, 100 quarters from midnight would run an hour into the next day.
+    utc = start.astimezone(UTC)
     return [
         Interval.model_validate(
             {
                 "series": series,
-                "start": start + i * timedelta(minutes=15),
-                "end": start + (i + 1) * timedelta(minutes=15),
+                "start": utc + i * timedelta(minutes=15),
+                "end": utc + (i + 1) * timedelta(minutes=15),
                 "value": value,
                 "unit": "SEK/kWh",
                 "vat": kw.get("vat", "excl"),
