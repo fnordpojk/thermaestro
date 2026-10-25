@@ -55,6 +55,7 @@
     {% if lv.held %}· {{ _("held now") }}{% elif lv.last is not none %}· {{ _("set to %(value)s", value=lv.last) }}{% endif %}
     {% endif %}
   </p>
+  {% if lv.deadman %}<p class="hint">{{ _("Should Thermaestro go silent for 15 minutes, the pump's gateway puts this back as found.") }}</p>{% endif %}
   {% if lv.drift %}
   <p class="notice">{{ _("Let go after a change made elsewhere: %(why)s. Thermaestro doesn't write over it.", why=lv.drift) }}</p>
   {% if can("levers.control") %}

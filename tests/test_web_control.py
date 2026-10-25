@@ -18,7 +18,16 @@ from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, csrf_of, form
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.cap import Message, Send
 from thermaestro.cap.messages import Describe, Described, Write
-from thermaestro.cap.model import Envelope, Identity, Node, Presence, RatedPoint, Rating
+from thermaestro.cap.model import (
+    Ack,
+    Envelope,
+    Identity,
+    Node,
+    Presence,
+    Promises,
+    RatedPoint,
+    Rating,
+)
 from thermaestro.core import AuditLog, Values
 from thermaestro.intents import Capabilities, Intents, Level, kinds
 from thermaestro.intents.resolve import RANKS
@@ -385,6 +394,19 @@ async def test_the_control_page_switches_a_lever(tmp_path: Path) -> None:
         refused = await form(client, "/setup/control", f"/levers/{OFFSET}/mode", mode="on")
         assert refused.status_code == 400
         assert "a lever is off, shadow, control" in refused.text
+
+
+async def test_the_control_page_says_which_settings_the_gateway_puts_back(tmp_path: Path) -> None:
+    device = LeverDevice()
+    device.transport = Promises(fate="exact", ack=Ack(means="accepted"), deadman="supported")
+    async with site(tmp_path, device) as (_, _, client):
+        await login(client, "admin")
+        page = (await client.get("/setup/control")).text
+        assert page.count("gateway puts this back as found") == 7  # each setting, and the hold
+        rows = {lv["lever"]: lv["deadman"] for lv in (await client.get("/api/v1/levers")).json()}
+        assert rows[OFFSET] is True  # a setting
+        assert rows["dev:hp1/block"] is True  # a hold
+        assert rows["dev:hp1/boost"] is False  # a trigger ends by itself
 
 
 async def test_the_household_sees_the_settings_but_cant_switch_them(tmp_path: Path) -> None:

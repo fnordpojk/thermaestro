@@ -226,7 +226,9 @@ Switching needs the password again. A setting the pump has its own feature for (
 - A pool is held by its start temperature at the bottom of its band, never by switching its heating off.
 - However far the heating offset is raised, a climate system's supply stays at or below its own highest supply temperature (menu 5.1.2), and at or above its lowest (menu 1.9.3). Thermaestro reads both, shown with the pump's values, and never writes them. Set the highest for what the floor takes: underfloor heating is usually 35 to 45 °C, and laminate on boards about 35 °C.
 
-**If Thermaestro stops.** Nothing puts a setting back while it is stopped: the pump keeps each as Thermaestro last set it, within the limits above. Once Thermaestro starts again, it checks every setting it had changed against the pump and puts it back. A setting someone changed meanwhile is let go instead.
+**If Thermaestro stops.** The pump keeps each setting as Thermaestro last set it, within the limits above. Once Thermaestro starts again, it checks every setting it had changed against the pump and puts it back. A setting someone changed meanwhile is let go instead.
+
+Through `thermaestro-gateway` with a key, the gateway puts them back itself: Thermaestro arms its dead-man with each change, and once Thermaestro has been silent for 15 minutes (stopped, crashed, or cut off from the gateway), the gateway writes each setting back as found, as long as it still holds what Thermaestro wrote. A setting someone changed meanwhile is left as it is. When Thermaestro comes back, the gateway tells it what it did, and the Events page says so. The Control page marks each setting the gateway covers. A plain NibeGW gateway can't do this, and the esphome-nibe gateway doesn't yet; there, the settings stay as Thermaestro left them until it starts again.
 
 To put the settings back by hand, use the pump's menus. They are listed here as on an F1145 or F1245; other models' manuals name them alike. Note the values while Thermaestro runs, since its pages are gone while it is stopped:
 

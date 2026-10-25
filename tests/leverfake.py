@@ -35,6 +35,7 @@ from thermaestro.cap.model import (
     Persistence,
     Point,
     Presence,
+    Promises,
     Range,
     Verify,
 )
@@ -163,6 +164,8 @@ class LeverDevice:
         self.unanswered: set[str] = set()
         """Lever paths whose writes are done, and never answered."""
         self.identity = Identity(vendor="Fake", model="LF-1", firmware="1.0", serial="A1")
+        self.transport: Promises | None = None
+        """What its connection promises, as described."""
         self.quiet = False
         """Whether its subscriptions send nothing for now."""
         self.stale: dict[str, float] = {}
@@ -189,6 +192,7 @@ class LeverDevice:
                         kind="unit",
                         presence=Presence(how="configured"),
                         identity=self.identity,
+                        transport=self.transport,
                     ),
                 )
                 await send(Described(id=request.id, nodes=nodes, points=points, levers=LEVERS))

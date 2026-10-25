@@ -344,7 +344,8 @@ class ControlOperations:
     async def levers(self, caller: "Caller") -> list[dict[str, Any]]:
         """Every lever the plugins offer, with its mode, what it was found at, what
         Thermaestro last set, any change made elsewhere, its competing features and
-        whether each is confirmed off, and the day's writes against the budget."""
+        whether each is confirmed off, whether a dead-man in its route puts it back, and
+        the day's writes against the budget."""
         caller.principal.require("settings.read")
         control = await self.db.get(Control) or Control()
         executor = self.executor
@@ -353,6 +354,12 @@ class ControlOperations:
         for instance_id, instance in sorted((self.host.instances if self.host else {}).items()):
             if instance.described is None:
                 continue
+            # Units whose route puts settings back by itself should the core go silent.
+            covered = {
+                n.path
+                for n in instance.described.nodes
+                if n.transport is not None and n.transport.deadman == "supported"
+            }
             for lever in instance.described.levers:
                 ref = f"{instance_id}:{lever.path}"
                 claim = executor.claims.get(ref) if executor is not None else None
@@ -383,6 +390,8 @@ class ControlOperations:
                         "last": claim.last if claim else None,
                         "held": claim.held if claim else False,
                         "drift": claim.drift if claim else None,
+                        "deadman": lever.kind in ("setting", "hold")
+                        and lever.path.split("/")[0] in covered,
                         "writes_today": used,
                         "budget": soft,
                     }
