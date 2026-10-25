@@ -163,6 +163,13 @@ EXAMPLES: list[dict[str, Any]] = [
         "params": {"value": -2},
         "baseline": 1,
     },
+    {
+        "type": "act",
+        "id": 45,
+        "lever": "hp1/cs1/heating.offset",
+        "op": "baseline",
+        "params": {"value": 0},
+    },
     {"type": "write", "id": 44, "point": "hp1/x.nibe.47134", "value": 30},
     {"type": "fate", "id": 42, "stage": "queued", "t": T},
     {"type": "fate", "id": 42, "stage": "device_accepted", "t": T, "detail": "0x6C = 1"},

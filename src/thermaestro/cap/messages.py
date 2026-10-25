@@ -32,15 +32,15 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.7"
+VERSION = "0.8"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
 `SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
 one of the device's own settings, which a plugin offers with the `write` feature. 0.4
 added a node's `rating`, what its maker documents about it. 0.5 added `notify.targets` and
 `notify`, a notification for a person, which a plugin offers with the `notify` feature.
 0.6 added a climate system's `offset_step_k` to a rating. 0.7 added an act's `baseline`,
-for a route's dead-man, and `deadman.fired`, what it did. Older peers still talk to newer
-ones."""
+for a route's dead-man, and `deadman.fired`, what it did. 0.8 added the `baseline` op, a
+setting's baseline chosen anew for that dead-man. Older peers still talk to newer ones."""
 FEATURES = ("subscribe", "forecast", "write", "notify")
 """What this side of the protocol understands."""
 
@@ -133,7 +133,10 @@ class Update(Model):
     values: tuple[Envelope, ...]
 
 
-Op = Literal["set", "engage", "release", "fire", "cancel", "feed", "renew"]
+Op = Literal["set", "engage", "release", "fire", "cancel", "feed", "renew", "baseline"]
+"""`baseline` (protocol 0.8): a setting's baseline chosen anew, in `params["value"]`, for
+a route's dead-man to put back from now on; nothing is written. The core sends it only to
+a route that has one."""
 
 
 class Act(Model):
@@ -264,6 +267,7 @@ class DeadmanFired(Model):
 
     type: Literal["deadman.fired"] = "deadman.fired"
     t: AwareDatetime
+    """When the route's report came in: the firing was before it."""
     lever: Path
     outcome: Literal["put_back", "refused", "skipped", "no_answer"]
     found: Value | None = None

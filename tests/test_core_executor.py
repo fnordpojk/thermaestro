@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from leverfake import LeverDevice
 
 from thermaestro.cap import Closed
 from thermaestro.cap.messages import DeadmanFired, Op
-from thermaestro.cap.model import Value
+from thermaestro.cap.model import Ack, Promises, Value
 from thermaestro.core import AuditLog, Executor, Key, PluginHost, State, Values
 from thermaestro.core.events import Events
 from thermaestro.core.executor import _not_before, _Owed, left_changed
@@ -376,6 +377,54 @@ async def test_a_value_the_gateway_found_and_left_lets_go(tmp_path: Path) -> Non
         assert (
             r.executor.claims[OFFSET].drift == "while Thermaestro was silent, it was changed to 0"
         )
+
+
+@pytest.mark.parametrize("fate", ["verified", "in_flight"])
+async def test_a_report_from_before_a_newer_change_leaves_it(tmp_path: Path, fate: str) -> None:
+    """The plugin took in a put-back before Thermaestro changed the lever again, and the
+    core hears of it after: the newer change, taken or still in flight, stands and is put
+    back."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device, act_timeout_s=0.5) as r:
+        report = fired("put_back")  # taken in now, before the change
+        await asyncio.sleep(0.01)
+        if fate == "in_flight":
+            device.quiet = True  # no reading settles it meanwhile
+            device.unanswered.add("hp1/offset")
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        device.unanswered.clear()
+        r.executor._on_event("dev", report)
+        await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
+        claim = r.executor.claims[OFFSET]
+        assert claim.changed
+        assert (claim.last, claim.pending) == (
+            (2, None) if fate == "verified" else (None, {"op": "set", "params": {"value": 2}})
+        )
+        device.quiet = False
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[OFFSET].outcome == "verified"
+        assert device.registers["x.fake.offset"] == -4
+
+
+async def test_a_baseline_chosen_anew_reaches_the_dead_man(tmp_path: Path) -> None:
+    """In a route with a dead-man, a baseline chosen while the lever is changed is told to
+    the plugin first; one it can't be told is not taken."""
+    device = LeverDevice()
+    device.transport = Promises(fate="exact", ack=Ack(means="accepted"), deadman="supported")
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        assert await r.executor.set_baseline(OFFSET, 0, who="anna") is None
+        assert device.acts == []  # as found: nothing armed
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        assert await r.executor.set_baseline(OFFSET, 1, who="anna") is None
+        assert [(a.op, a.params) for a in device.acts] == [
+            ("set", {"value": 2}),
+            ("baseline", {"value": 1}),
+        ]
+        assert device.registers["x.fake.offset"] == 2
+        device.refused.add("hp1/offset")
+        refused = await r.executor.set_baseline(OFFSET, 3, who="anna")
+        assert refused == "the dead-man in its route couldn't be told: it wasn't taken"
+        assert r.executor.claims[OFFSET].baseline == 1
 
 
 async def test_another_clients_write_lets_go_of_a_hold(tmp_path: Path) -> None:

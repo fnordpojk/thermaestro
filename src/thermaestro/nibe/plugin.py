@@ -221,10 +221,17 @@ class NibePlugin:
         self.holds: dict[str, dict[str, Any]] = {}
         """Per hold lever engaged: the register written and the value to put back (and for
         the hot-water block, the mode it was engaged in). Kept across restarts."""
-        self.armed: dict[str, dict[str, int]] = {}
-        """Per lever the gateway's dead-man is armed for: its `entry`, the `register`, the
-        word the register holds as Thermaestro wrote it (`expected`), and the raw value
-        that puts it back (`back`). Kept across restarts."""
+        self.armed: dict[str, list[dict[str, int]]] = {}
+        """Per lever the gateway's dead-man is armed for, its entries: each its `entry`, the
+        `register`, the word the register holds as Thermaestro wrote it (`expected`), and
+        the raw value that puts it back (`back`). The last is for the value written last;
+        any before it, for earlier values the pump may still hold until that write is known
+        to have replaced them. Kept across restarts."""
+        self.reported: dict[int, dict[str, Any]] = {}
+        """Per entry, a dead-man report taken in and not yet both told to the core and
+        acknowledged: the lever's `path`, the `register`, the `outcome`, the value `found`,
+        when it `fired` and when it came in (`t`), and the lever's `others` entries, to
+        disarm. Kept across restarts."""
         self._deadman_lock = asyncio.Lock()
         self._deadman_stops: list[Callable[[], None]] = []
         self._act_lock = asyncio.Lock()
@@ -593,12 +600,32 @@ class NibePlugin:
             else:
                 log.error("the hold kept for %s can't be read: %r", path, hold)
         armed = data.get("deadman", {})
+        fields = ("entry", "register", "expected", "back")
         for path, kept in armed.items() if isinstance(armed, dict) else ():
-            fields = ("entry", "register", "expected", "back")
-            if isinstance(kept, dict) and all(isinstance(kept.get(f), int) for f in fields):
-                self.armed[str(path)] = {f: int(kept[f]) for f in fields}
+            entries = [kept] if isinstance(kept, dict) else kept  # an earlier version kept one
+            if (
+                isinstance(entries, list)
+                and entries
+                and all(
+                    isinstance(e, dict) and all(isinstance(e.get(f), int) for f in fields)
+                    for e in entries
+                )
+            ):
+                self.armed[str(path)] = [{f: int(e[f]) for f in fields} for e in entries]
             else:
                 log.error("the dead-man kept for %s can't be read: %r", path, kept)
+        reported = data.get("deadman_reported", {})
+        for entry, kept in reported.items() if isinstance(reported, dict) else ():
+            if (
+                str(entry).isdigit()
+                and isinstance(kept, dict)
+                and isinstance(kept.get("path"), str)
+                and isinstance(kept.get("t"), str)
+                and kept.get("outcome") in OUTCOMES.values()
+            ):
+                self.reported[int(entry)] = dict(kept)
+            else:
+                log.error("the dead-man report kept for entry %s can't be read: %r", entry, kept)
 
     def _save_meters(self, now: float) -> None:
         """Keep the heat meters' counts and the heat taken from the ground for a restart,
@@ -626,7 +653,10 @@ class NibePlugin:
                 "meters": meters,
                 "brine_kwh": round(self._extracted_kwh, 3),
                 "holds": {path: dict(hold) for path, hold in self.holds.items()},
-                "deadman": {path: dict(kept) for path, kept in self.armed.items()},
+                "deadman": {path: [dict(k) for k in kept] for path, kept in self.armed.items()},
+                "deadman_reported": {
+                    str(entry): dict(kept) for entry, kept in self.reported.items()
+                },
             }
             if data == self._last_saved:
                 return  # nothing new: no write, which on a Pi's SD card counts
@@ -1130,6 +1160,8 @@ class NibePlugin:
         if kind == "setting" and op == "set":
             value = _setting_value(spec, request.params.get("value"))
             return await self._set(spec, value, request.baseline)
+        if kind == "setting" and op == "baseline":
+            return await self._rebase(spec, request.params.get("value"))
         if kind == "trigger" and op == "fire" and spec.fire is not None:
             return await self._write(spec, spec.register, spec.fire)
         if kind == "trigger" and op == "cancel" and spec.cancel is not None:
@@ -1181,15 +1213,22 @@ class NibePlugin:
             put_back = now
         self.holds[spec.path] = {"register": register, "value": put_back, **extra}
         await self._save()  # before the write: a crash right after it still knows
-        previous = dict(self.armed[spec.path]) if spec.path in self.armed else None
         written, back = self._encoded(register, engaged), self._encoded(register, put_back)
-        if written is not None and back is not None:
-            await self._arm(spec.path, register, written, back)
-        outcome = await self._write(spec, register, engaged)
+        armed = None
+        try:
+            if written is not None and back is not None and written != back:
+                armed = await self._arm(spec.path, register, written, back)
+            outcome = await self._write(spec, register, engaged)
+        except Refused:
+            if not still:
+                self.holds.pop(spec.path, None)
+                await self._save()
+            await self._settled(spec.path, armed, WriteResult.NOT_TAKEN)
+            raise
         if outcome.result in (WriteResult.REFUSED, WriteResult.NOT_TAKEN) and not still:
             self.holds.pop(spec.path, None)
             await self._save()
-            await self._armed_again(spec.path, previous)
+        await self._settled(spec.path, armed, outcome.result)
         return outcome
 
     async def _release(self, spec: profile.Spec) -> WriteOutcome:
@@ -1220,8 +1259,8 @@ class NibePlugin:
         self, spec: profile.Spec, value: float | int, baseline: object | None
     ) -> WriteOutcome:
         """A setting's change. With a dead-man in the route and the setting as found given,
-        armed before it is written, so a silence right after the write is covered; written
-        back as found, disarmed."""
+        armed before it is written, so a silence right after the write is covered, and not
+        written where it can't be armed; written back as found, disarmed."""
         written = self._encoded(spec.register, value)
         back = None
         if baseline is not None:
@@ -1234,12 +1273,39 @@ class NibePlugin:
             if outcome.result is WriteResult.ACCEPTED:
                 await self._disarm(spec.path)
             return outcome
-        previous = dict(self.armed[spec.path]) if spec.path in self.armed else None
-        await self._arm(spec.path, spec.register, written, back)
-        outcome = await self._write(spec, spec.register, value)
-        if outcome.result in (WriteResult.REFUSED, WriteResult.NOT_TAKEN):
-            await self._armed_again(spec.path, previous)
+        armed = await self._arm(spec.path, spec.register, written, back)
+        try:
+            outcome = await self._write(spec, spec.register, value)
+        except Refused:
+            await self._settled(spec.path, armed, WriteResult.NOT_TAKEN)
+            raise
+        await self._settled(spec.path, armed, outcome.result)
         return outcome
+
+    async def _rebase(self, spec: profile.Spec, baseline: object) -> WriteOutcome:
+        """A setting's baseline chosen anew: what the dead-man puts back from now on. Nothing
+        is written; an entry for a value that is now the baseline is disarmed. Refused when
+        the gateway doesn't confirm it."""
+        register = spec.register
+        back = self._encoded(register, _setting_value(spec, baseline))
+        if register is None or back is None:
+            raise Refused(f"{spec.path} can't be put back to {baseline!r}")
+        client = self._deadman_client()
+        async with self._deadman_lock:
+            for kept in list(self.armed.get(spec.path, ())):
+                if self._same_word(register, kept["expected"], back):
+                    self._drop(spec.path, [kept])
+                    await self._save()
+                    if client is not None:
+                        await client.disarm(kept["entry"])
+                elif kept["back"] != back and client is not None:
+                    await self._rebased(client, spec.path, kept, back)
+                elif kept["back"] != back:
+                    kept["back"] = back  # armed so when a session grants it again
+                    await self._save()
+        return WriteOutcome(
+            register, back, WriteResult.ACCEPTED, "nothing written", clock.monotonic(), ()
+        )
 
     def _encoded(self, register: int | None, value: float | int) -> int | None:
         """What a write of `value` sends, where it can be written; else None."""
@@ -1253,9 +1319,13 @@ class NibePlugin:
     # --- the gateway's dead-man (docs/gateway-protocol.md §15) -----------------------------
 
     def _deadman_client(self) -> TgwClient | None:
-        """The gateway protocol with a key: the route that can have a dead-man."""
+        """The gateway protocol with a key, its dead-man granted: the route that has one."""
         transport = self._transport
-        if isinstance(transport, TgwClient) and transport.psk is not None:
+        if (
+            isinstance(transport, TgwClient)
+            and transport.psk is not None
+            and transport.deadman is not None
+        ):
             return transport
         return None
 
@@ -1264,76 +1334,137 @@ class NibePlugin:
         if client is None:
             return
         self._deadman_stops = [
-            client.on_fired(lambda report: self._spawn(self._take_fired(report))),
+            client.on_fired(lambda report: self._spawn(self._take_fired(report, _now()))),
             client.on_session(lambda: self._spawn(self._rearm())),
         ]
         self._spawn(self._rearm())
 
-    async def _arm(self, path: str, register: int, written: int, back: int) -> None:
+    async def _arm(
+        self, path: str, register: int, written: int, back: int
+    ) -> tuple[int, bool] | None:
         """Have the gateway write `back` to `register` should Thermaestro go silent, if it
-        still holds what was written. Kept before it is sent: a new session arms it again."""
+        still holds what is written now. Its own entry, beside any armed for the lever's
+        earlier values: the pump holds one of those until the write is known to have
+        replaced it (`_settled`). Kept before it is sent: a new session arms it again.
+
+        The entry, and whether it is new; None without a dead-man in the route. Refused
+        when the gateway doesn't confirm it: on a route that has one, nothing is changed
+        without it."""
         client = self._deadman_client()
         if client is None:
-            return
+            return None
         async with self._deadman_lock:
-            kept = self.armed.get(path)
+            entries = self.armed.get(path, [])
+            kept = next(
+                (
+                    k
+                    for k in entries
+                    if k["register"] == register
+                    and self._same_word(register, k["expected"], written)
+                ),
+                None,
+            )
+            if kept is not None and kept["back"] == back:
+                return kept["entry"], False  # armed for this value already
             if kept is not None:
-                entry = kept["entry"]
-            else:
-                used = {k["entry"] for k in self.armed.values()} | set(client.fired)
-                limit = (
-                    client.deadman.entries
-                    if client.deadman is not None
-                    else client.settings.deadman_entries
-                )
-                free = next((n for n in range(limit) if n not in used), None)
-                if free is None:
-                    log.warning("%s: no dead-man entry is left for it", path)
-                    return
-                entry = free
+                return await self._rebased(client, path, kept, back), False
+            entry = self._free_entry(client)
+            if entry is None:
+                raise Refused("the gateway has no dead-man entry left for it")
             record = {
                 "entry": entry,
                 "register": register,
                 "expected": written & 0xFFFF,
                 "back": back,
             }
-            self.armed[path] = record
+            self.armed[path] = [*entries, record]
             await self._save()
-            await self._send_arm(client, path, record)
+            why = await self._send_arm(client, path, record)
+            if why is not None:
+                self._drop(path, [record])
+                await self._save()
+                await client.disarm(entry)  # its answer may be what was lost
+                raise Refused(f"the gateway didn't arm its dead-man for it: {why}")
+            return entry, True
 
-    async def _armed_again(self, path: str, previous: dict[str, int] | None) -> None:
-        """A change the pump didn't take: the dead-man as it was before it."""
-        if previous is None:
-            await self._disarm(path)
-            return
-        client = self._deadman_client()
-        async with self._deadman_lock:
-            self.armed[path] = previous
+    async def _rebased(self, client: TgwClient, path: str, kept: dict[str, int], back: int) -> int:
+        """An entry armed again for the value it has, to put back another. Under the lock."""
+        before, kept["back"] = kept["back"], back
+        await self._save()
+        why = await self._send_arm(client, path, kept)
+        if why is not None:
+            kept["back"] = before
             await self._save()
+            await self._send_arm(client, path, kept)
+            raise Refused(f"the gateway didn't arm its dead-man anew: {why}")
+        return kept["entry"]
+
+    def _free_entry(self, client: TgwClient) -> int | None:
+        """An entry no lever has, nor a report not yet acknowledged."""
+        used = {k["entry"] for kept in self.armed.values() for k in kept}
+        used |= set(client.fired) | set(self.reported)
+        limit = client.deadman.entries if client.deadman is not None else 0
+        return next((n for n in range(limit) if n not in used), None)
+
+    def _drop(self, path: str, gone: list[dict[str, int]]) -> None:
+        left = [k for k in self.armed.get(path, []) if all(k is not g for g in gone)]
+        if left:
+            self.armed[path] = left
+        else:
+            self.armed.pop(path, None)
+
+    async def _settled(
+        self, path: str, armed: tuple[int, bool] | None, result: WriteResult
+    ) -> None:
+        """What a write's outcome says of the lever's entries. Taken, the pump holds the new
+        value: the entries for earlier ones go. Not taken, the new entry goes. Not known,
+        all stay, so the gateway puts back whichever value it finds."""
+        if armed is None:
+            return
+        entry, new = armed
+        async with self._deadman_lock:
+            entries = self.armed.get(path, [])
+            if result is WriteResult.ACCEPTED:
+                gone = [k for k in entries if k["entry"] != entry]
+            elif result in (WriteResult.REFUSED, WriteResult.NOT_TAKEN) and new:
+                gone = [k for k in entries if k["entry"] == entry]
+            else:
+                return
+            if not gone:
+                return
+            self._drop(path, gone)
+            await self._save()
+            client = self._deadman_client()
             if client is not None:
-                await self._send_arm(client, path, previous)
+                for kept in gone:
+                    await client.disarm(kept["entry"])
 
     async def _disarm(self, path: str) -> None:
         async with self._deadman_lock:
-            kept = self.armed.pop(path, None)
-            if kept is None:
+            gone = self.armed.pop(path, None)
+            if gone is None:
                 return
             await self._save()
             client = self._deadman_client()
             if client is not None:
-                await client.disarm(kept["entry"])
+                for kept in gone:
+                    await client.disarm(kept["entry"])
 
-    async def _send_arm(self, client: TgwClient, path: str, kept: dict[str, int]) -> None:
+    async def _send_arm(self, client: TgwClient, path: str, kept: dict[str, int]) -> str | None:
+        """Arm an entry at the gateway: why it isn't armed, or None."""
         frame = nibe.write_request(kept["register"], kept["back"])
         answer = await client.arm(kept["entry"], 2, kept["register"], kept["expected"], frame)
         if answer is None:
-            log.warning("%s: the gateway didn't confirm its dead-man", path)
+            why = "no answer"
         elif answer.result != ArmResult.ARMED:
             try:
                 why = ArmRefusal(answer.detail).name
             except ValueError:
                 why = str(answer.detail)
-            log.warning("%s: the gateway refused its dead-man (%s)", path, why)
+        else:
+            return None
+        log.warning("%s: the gateway didn't arm its dead-man (%s)", path, why)
+        return why
 
     async def _rearm(self) -> None:
         """A new session: what this plugin armed is armed again (a gateway restarted
@@ -1343,53 +1474,107 @@ class NibePlugin:
             return
         grant = client.deadman
         async with self._deadman_lock:
+            if grant.fired == 0 and self.reported:
+                # Nothing is waiting there: what was kept was told and acknowledged.
+                self.reported.clear()
+                await self._save()
             reported = set(client.fired)  # fired: no longer armed there
-            for path, kept in list(self.armed.items()):
-                if kept["entry"] not in reported:
-                    await self._send_arm(client, path, kept)
-            ours = {k["entry"] for k in self.armed.values()} | reported
-            if grant.armed > len(self.armed):
+            for path, entries in list(self.armed.items()):
+                for kept in entries:
+                    if kept["entry"] not in reported:
+                        await self._send_arm(client, path, kept)
+            ours = {k["entry"] for kept in self.armed.values() for k in kept}
+            if grant.armed > len(ours):
                 for entry in range(grant.entries):
-                    if entry not in ours:
+                    if entry not in ours | reported:
                         await client.disarm(entry)
 
-    async def _take_fired(self, report: Fired) -> None:
-        """The gateway fired an entry while Thermaestro was silent: it is no longer armed,
-        a hold it put back (or found changed) is no longer engaged, and the core is told
-        before the gateway is told the report was taken in."""
-        client = self._deadman_client()
+    async def _take_fired(self, report: Fired, arrived: datetime | None = None) -> None:
+        """The gateway fired an entry while Thermaestro was silent, and its report
+        `arrived`. What it says is kept until the core is told and the gateway has been
+        told it was taken in, so a stop in between tells it again (`_tell`)."""
+        arrived = arrived or _now()
         with contextlib.suppress(Exception):
             await asyncio.shield(self._identified)  # the lever's register, and the core's
-        outcome = OUTCOMES.get(report.outcome)
         async with self._deadman_lock:
-            path = next(
-                (
-                    p
-                    for p, k in self.armed.items()
-                    if k["entry"] == report.entry and k["register"] == report.register
-                ),
-                None,
-            )
-            if path is not None:
-                del self.armed[path]
-                if outcome in ("put_back", "skipped"):
-                    self.holds.pop(path, None)
+            if report.entry not in self.reported:
+                self._took_in(report, arrived)
                 await self._save()
-        if path is None or outcome is None:
+        await self._tell(report.entry)
+
+    def _took_in(self, report: Fired, arrived: datetime) -> None:
+        """A report for one of the lever's entries. Put back, or someone else's value found,
+        all its entries go, and a hold is no longer engaged. Found one of the lever's own
+        values that another of its entries covers, it says nothing new. Refused or not
+        answered, the value is still Thermaestro's: the entry is armed again once told."""
+        found = next(
+            (
+                (path, k)
+                for path, kept in self.armed.items()
+                for k in kept
+                if k["entry"] == report.entry and k["register"] == report.register
+            ),
+            None,
+        )
+        outcome = OUTCOMES.get(report.outcome)
+        if found is None or outcome is None:
             log.info("a dead-man report for entry %d, not one this plugin armed", report.entry)
-        elif self._send_event is not None:
-            found = self._read_value_of(report.register, report.read)
+            return
+        path, record = found
+        others = [k for k in self.armed[path] if k is not record]
+        if outcome == "skipped" and any(
+            self._same_word(report.register, k["expected"], report.read) for k in others
+        ):
+            self._drop(path, [record])
+            return
+        if outcome in ("put_back", "skipped"):
+            self.armed.pop(path, None)
+            self.holds.pop(path, None)
+        client = self._deadman_client()
+        fired = self._fired_at(client, report)
+        self.reported[report.entry] = {
+            "path": path,
+            "register": report.register,
+            "outcome": outcome,
+            "found": self._read_value_of(report.register, report.read)
+            if outcome == "skipped"
+            else None,
+            "fired": None if fired is None else fired.isoformat(),
+            "t": arrived.isoformat(),
+            "others": [k["entry"] for k in others] if outcome in ("put_back", "skipped") else [],
+        }
+
+    async def _tell(self, entry: int) -> None:
+        """Tell the core a report kept, then the gateway that it was taken in. A refused
+        or unanswered entry is armed again; the rest of a lever put back are disarmed."""
+        kept = self.reported.get(entry)
+        if kept is not None and self._send_event is not None:
+            fired = kept.get("fired")
             await self._send_event(
                 DeadmanFired(
-                    t=_now(),
-                    lever=path,
-                    outcome=outcome,
-                    found=found if outcome == "skipped" else None,
-                    fired=self._fired_at(client, report),
+                    t=datetime.fromisoformat(kept["t"]),
+                    lever=kept["path"],
+                    outcome=kept["outcome"],
+                    found=kept.get("found"),
+                    fired=None if fired is None else datetime.fromisoformat(fired),
                 )
             )
+        client = self._deadman_client()
         if client is not None:
-            await client.ack_fired(report.entry)
+            await client.ack_fired(entry)
+        if kept is None:
+            return
+        async with self._deadman_lock:
+            self.reported.pop(entry, None)
+            await self._save()
+            if client is None:
+                return
+            for other in kept.get("others", ()):
+                if other not in client.fired:
+                    await client.disarm(other)
+            for k in self.armed.get(kept["path"], []):
+                if k["entry"] == entry:
+                    await self._send_arm(client, kept["path"], k)
 
     def _read_value_of(self, register: int, raw: int) -> float | int | None:
         if self.model is None or register not in self.model:
@@ -1409,26 +1594,35 @@ class NibePlugin:
             return None
         return _now() - timedelta(seconds=max(0.0, clock.monotonic() - local))
 
+    def _bits(self, register: int) -> int | None:
+        if self.model is None or register not in self.model:
+            return None
+        size = self.model.register(register).size
+        return None if size is None else size.bits
+
+    def _same_word(self, register: int, a: int, b: int) -> bool:
+        """Whether two words are the same value of the register: of an 8-bit one, its byte,
+        as a pump may give a negative one either way."""
+        mask = 0xFF if self._bits(register) == 8 else 0xFFFF
+        return (a & mask) == (b & mask)
+
     def _learn_word(self, register: int, word: int) -> None:
         """A pump may give a negative 8-bit value as a byte or sign-extended: the gateway
         compares the word as the pump gives it."""
-        if self.model is None or register not in self.model:
+        if self._bits(register) != 8:
             return
-        definition = self.model.register(register)
-        size = definition.size
-        if size is None or size.bits != 8:
-            return
-        for path, kept in self.armed.items():
-            if kept["register"] != register or kept["expected"] == word:
-                continue
-            if (kept["expected"] & 0xFF) == (word & 0xFF):
-                kept["expected"] = word
-                self._spawn(self._rearmed(path))
+        for path, entries in self.armed.items():
+            for kept in entries:
+                if kept["register"] != register or kept["expected"] == word:
+                    continue
+                if self._same_word(register, kept["expected"], word):
+                    kept["expected"] = word
+                    self._spawn(self._rearmed(path, kept["entry"]))
 
-    async def _rearmed(self, path: str) -> None:
+    async def _rearmed(self, path: str, entry: int) -> None:
         client = self._deadman_client()
         async with self._deadman_lock:
-            kept = self.armed.get(path)
+            kept = next((k for k in self.armed.get(path, []) if k["entry"] == entry), None)
             if kept is None:
                 return
             await self._save()

@@ -4,6 +4,7 @@ writes, and the executor driving it all from shadow to control and back."""
 
 import asyncio
 import contextlib
+import dataclasses
 import socket
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -13,9 +14,10 @@ from typing import Any
 import pytest
 from simpump import TEST_PSK, OtherClient, SimPump
 from test_nibe_plugin import FAST_PLAIN, FAST_TGW, PUMP, settings, until
+from thermaestro_gateway.protocol import Armed, ArmRefusal, ArmResult
 from thermaestro_gateway.server import Config, Gateway
 
-from thermaestro.cap import Link, pair, serve
+from thermaestro.cap import Link, Message, Send, pair, serve
 from thermaestro.cap.messages import DeadmanFired, Described, Fate, ForeignWrite, Op
 from thermaestro.cap.model import Knowledge, Value
 from thermaestro.core import Core, Key, run
@@ -24,6 +26,8 @@ from thermaestro.nibe import profile
 from thermaestro.nibe.maps import decode, load
 from thermaestro.nibe.maps.codec import encode
 from thermaestro.nibe.plugin import NibePlugin
+from thermaestro.nibe.transport.base import WriteOutcome
+from thermaestro.nibe.transport.tgw import TgwClient
 from thermaestro.store import Control, Database, Layout, NibeGateway, Plugin, SecretStore
 
 SCHEDULE = "the pump's hot-water schedule (menu 2.3)"
@@ -365,6 +369,165 @@ async def test_a_negative_byte_is_armed_as_the_pump_gives_it(
         after = datetime.now(UTC)
         await link.read(["hp1/cs1/x.nibe.47011"], after=after, timeout=10)
         await until(lambda: armed(gateway_with_psk) == [(47011, 0x00FE, 0xFFFF_FFFC)])
+
+
+async def test_a_change_cut_off_before_its_write_is_still_put_back(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Changing a value Thermaestro set, the entry for it stays armed beside the new one
+    until the write is known to be taken. Cut off between the two, the gateway puts the
+    setting back as found from whichever it holds, and the core is told just that: the
+    other entry, finding Thermaestro's own earlier value, says nothing new."""
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            for value in (3, 5):
+                fate = await act_from(link, "cs1/heating.offset", "set", {"value": value}, -4)
+                assert fate.stage == "device_accepted"
+            assert armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC)]
+            reached = asyncio.Event()
+
+            async def cut_off(register: int, raw: int) -> WriteOutcome:
+                reached.set()
+                await asyncio.Event().wait()  # Thermaestro stops here
+                raise AssertionError
+
+            p._send_write = cut_off  # type: ignore[method-assign]
+            changing = asyncio.create_task(
+                act_from(link, "cs1/heating.offset", "set", {"value": 7}, -4)
+            )
+            await asyncio.wait_for(reached.wait(), 10)
+            # The new entry is the lower: it fires first and finds 5, not its 7.
+            assert sorted(held.armed) == [0, 1]
+            assert armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC), (47011, 7, 0xFFFF_FFFC)]
+            changing.cancel()
+            await asyncio.gather(changing, return_exceptions=True)
+        assert signed(stocked.registers[47011]) == 5
+        held.silence_us = 200_000
+        await until(lambda: len(held.fired) == 2, 10)
+        assert signed(stocked.registers[47011]) == -4
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events) as link:
+            await until(lambda: not held.fired, 10)
+            await asyncio.sleep(0.3)
+        told = [(e.outcome, e.found) for e in events if isinstance(e, DeadmanFired)]
+        assert told == [("put_back", None)]
+        assert again.armed == {}
+
+
+@pytest.mark.parametrize("arming", ["refused", "no_answer", "no_entry_left"])
+async def test_a_change_the_dead_man_isnt_armed_for_isnt_made(
+    stocked: SimPump,
+    gateway_with_psk: Gateway,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    arming: str,
+) -> None:
+    """On a route with a dead-man, a change it doesn't confirm is armed for isn't written:
+    the gateway refused it, didn't answer, or has no entry left."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        client = p._transport
+        assert isinstance(client, TgwClient)
+        assert client.deadman is not None
+        if arming == "no_entry_left":
+            client.deadman = dataclasses.replace(client.deadman, entries=1)
+            other = await act_from(link, "addition/stop_temp", "set", {"value": -10}, 5)
+            assert other.stage == "device_accepted"
+        else:
+
+            async def arm(entry: int, *args: object) -> Armed | None:
+                if arming == "no_answer":
+                    return None
+                return Armed(entry=entry, result=ArmResult.REFUSED, detail=ArmRefusal.NOT_GRANTED)
+
+            monkeypatch.setattr(client, "arm", arm)
+        fate = await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)
+        assert fate.stage == "dropped"
+        assert "dead-man" in str(fate.detail)
+        assert 47011 not in [r for r, _ in stocked.taken_writes]
+        assert all(register != 47011 for register, _, _ in armed(gateway_with_psk))
+    assert signed(stocked.registers[47011]) == -4
+
+
+async def test_a_report_outlives_a_stop_before_the_core_was_told(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The plugin stops after taking a report in and before the core heard it: the gateway
+    keeps the report, and the plugin started again still knows whose it is."""
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+        held.silence_us = 200_000
+        await until(lambda: bool(held.fired), 10)
+        stopping = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        reached = asyncio.Event()
+
+        def until_told(send: Send) -> Send:
+            async def sending(message: Message) -> None:
+                if isinstance(message, DeadmanFired):
+                    reached.set()
+                    await asyncio.Event().wait()  # it stops before the core hears
+                await send(message)
+
+            return sending
+
+        events_of = stopping.events
+        monkeypatch.setattr(stopping, "events", lambda send: events_of(until_told(send)))
+        async with served(stopping):
+            await asyncio.wait_for(reached.wait(), 10)
+        assert held.fired  # not acknowledged
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events):
+            await until(lambda: not held.fired, 10)
+        told = [(e.lever, e.outcome) for e in events if isinstance(e, DeadmanFired)]
+        assert told == [("hp1/cs1/heating.offset", "put_back")]
+        assert again.reported == {}
+
+
+async def test_a_baseline_chosen_anew_is_what_the_dead_man_puts_back(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Nothing is written: the entry is armed again to put back the new baseline, and
+    disarmed where the setting is at it already."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+            "device_accepted"
+        )
+        writes = len(stocked.taken_writes)
+        assert (await act(link, "cs1/heating.offset", "baseline", {"value": 1})).stage == (
+            "device_accepted"
+        )
+        assert armed(gateway_with_psk) == [(47011, 3, 1)]
+        assert (await act(link, "cs1/heating.offset", "baseline", {"value": 3})).stage == (
+            "device_accepted"
+        )
+        assert armed(gateway_with_psk) == []
+        assert len(stocked.taken_writes) == writes
+    assert p.armed == {}
+
+
+async def test_a_dead_man_kept_by_an_earlier_version_is_read(tmp_path: Path) -> None:
+    """It kept one entry per lever, not a list."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        kept = {"entry": 2, "register": 47011, "expected": 3, "back": 0xFFFF_FFFC}
+        await state.save({"deadman": {"hp1/cs1/heating.offset": kept}})
+        p = NibePlugin(NibeGateway(host="127.0.0.1"), state=state)
+        await p._restore()
+    assert p.armed == {"hp1/cs1/heating.offset": [kept]}
 
 
 async def test_what_isnt_sent(stocked: SimPump, gateway: Gateway) -> None:

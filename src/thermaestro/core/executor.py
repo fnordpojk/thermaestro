@@ -244,6 +244,8 @@ class Executor:
         self._loops: dict[str, asyncio.Task[None]] = {}
         """The loops the write path runs while it does, by name."""
         self._unsettled: dict[str, float] = {}
+        self._sent: dict[str, float] = {}
+        """When each lever's latest change was sent, in this run."""
         self._born = self._clock()
         """A change in flight from an earlier run is settled by any reading since this."""
         """Changes whose fate isn't known, by when that was found: a reading after it says."""
@@ -342,7 +344,8 @@ class Executor:
 
     async def set_baseline(self, ref: str, value: Value, *, who: str) -> str | None:
         """Set what a setting lever is put back to: a value a person chooses rather than
-        the one it was found at. Why not, or None."""
+        the one it was found at. A dead-man in its route that would put back the old one
+        is told first; one that can't be leaves the baseline as it was. Why not, or None."""
         lever = self.lever(ref)
         if lever is None:
             return "no such lever, or its plugin isn't running"
@@ -355,6 +358,10 @@ class Executor:
             refusal = self._fits(lever, {"value": value}, claim)
             if refusal is not None:
                 return refusal
+            if claim is not None and _owing(claim) and self.guarded(ref):
+                untold = await self._rebase(ref, value)
+                if untold is not None:
+                    return f"the dead-man in its route couldn't be told: {untold}"
             before = claim.baseline if claim is not None else None
             if claim is None:
                 mode = (await self._control()).levers.get(ref, "off")
@@ -367,6 +374,41 @@ class Executor:
         await self._audit.record(
             who, "lever.baseline", details={"lever": ref, "from": before, "to": value}
         )
+        return None
+
+    def guarded(self, ref: str) -> bool:
+        """Whether a dead-man in the lever's route puts it back should the core go silent:
+        its unit's transport promises one."""
+        instance, path = split(ref)
+        found = self._host.instances.get(instance)
+        if found is None or found.described is None:
+            return False
+        unit = path.split("/")[0]
+        return any(
+            n.path == unit and n.transport is not None and n.transport.deadman == "supported"
+            for n in found.described.nodes
+        )
+
+    async def _rebase(self, ref: str, value: Value) -> str | None:
+        """Tell the lever's plugin its baseline, for the dead-man in its route: why it
+        couldn't be told, or None."""
+        instance, path = split(ref)
+        found = self._host.instances.get(instance)
+        link = found.link if found is not None and found.state is State.UP else None
+        if link is None:
+            return "its plugin isn't running"
+        final = None
+        try:
+            async for fate in link.act(
+                path, "baseline", {"value": value}, timeout=self._act_timeout_s
+            ):
+                final = fate
+        except TimeoutError:
+            return "the plugin didn't say what became of it"
+        except (Closed, CapError) as e:
+            return str(e)
+        if final is None or final.stage != "device_accepted":
+            return (final.detail if final is not None else None) or "it wasn't taken"
         return None
 
     async def budget(self, instance: str) -> tuple[int, int]:
@@ -565,6 +607,7 @@ class Executor:
         # knows the device may have taken it.
         claim.pending = {"op": op, "params": params}
         self._unsettled.pop(ref, None)
+        self._sent[ref] = self._clock()
         await self._save(claim)
         result = await self._send(ref, lever, op, params)
         unknown = result.outcome in ("lost", "timeout") or (
@@ -1138,9 +1181,15 @@ class Executor:
         the lever is as found: a reading of its baseline isn't someone else's change, and
         one that came first and let the lever go is taken back. Skipped, someone else's
         value stands, as Thermaestro's own reading would have found. Refused or not
-        answered, the lever is still as Thermaestro set it."""
+        answered, the lever is still as Thermaestro set it. A change Thermaestro sent after
+        the firing (or, where when isn't known, after the report came in) isn't the one the
+        report is about: that stands."""
         async with self._lock(ref):
             claim = self.claims.get(ref)
+            fired = (message.fired or message.t).timestamp()
+            if claim is not None and self._changed_since(ref, claim) > fired:
+                log.info("%s: a dead-man report from before its latest change: it stands", ref)
+                claim = None
             if claim is not None and message.outcome == "put_back":
                 lever = self.lever(ref)
                 if claim.drift is not None and lever is not None and self._as_found(ref, lever):
@@ -1166,6 +1215,11 @@ class Executor:
         if self.events is not None:
             what = Raise("lever.deadman", ref, FIRED[message.outcome], args)
             await self.events.moment(f"lever.deadman:{ref}", what)
+
+    def _changed_since(self, ref: str, claim: Claim) -> float:
+        """When Thermaestro last changed the lever, as far as is known: a change sent in
+        this run, or the latest one taken."""
+        return max(self._sent.get(ref, 0.0), claim.last_t or 0.0)
 
     def _as_found(self, ref: str, lever: Lever) -> bool:
         """Whether the lever's latest good reading is its baseline."""
