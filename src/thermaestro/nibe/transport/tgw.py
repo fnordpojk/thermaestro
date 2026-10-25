@@ -88,6 +88,25 @@ class TgwSettings:
     rehello_s: float = 5.0
     tick_s: float = 1.0
     subscribe: p.Subscription = p.Subscription.FRAMES_ALL | p.Subscription.HEALTH
+    deadman_s: int = 900
+    """The silence after which the gateway puts back what was armed (spec §15), asked for
+    with a key."""
+    deadman_entries: int = 16
+    deadman_wait_s: float = 1.0
+    """No ARMED this long after an ARM, DISARM or ACK_FIRED: it is sent again."""
+    deadman_tries: int = 3
+
+
+@dataclass(frozen=True, slots=True)
+class DeadmanGrant:
+    """The dead-man as the gateway granted it in WELCOME (spec §15)."""
+
+    seconds: int
+    entries: int
+    armed: int
+    """The entries it held armed then."""
+    fired: int
+    """The entries that had fired, not yet acknowledged."""
 
 
 @dataclass(slots=True)
@@ -204,7 +223,8 @@ class TgwClient:
         self._send_seq = 0
         self._recv_seq = 0
         self._next_id = 0
-        self._hello: tuple[int, asyncio.Future[bytes]] | None = None
+        self._hello: tuple[int, bytes | None, asyncio.Future[None]] | None = None
+        """The HELLO awaiting its answer: its id, its nonce, and the wait for it."""
         self._requests: dict[int, _Request] = {}
         self._slots: dict[int, asyncio.Lock] = {
             nibe.READ_TOKEN: asyncio.Lock(),
@@ -216,10 +236,22 @@ class TgwClient:
         self._last_tx = 0.0
         self._last_health: float | None = None
         self._last_event_id = 0
+        self.deadman: DeadmanGrant | None = None
+        """The dead-man granted to this session; None without one."""
+        self._armed: dict[int, asyncio.Future[p.Armed]] = {}
+        self.fired: dict[int, p.Fired] = {}
+        """FIRED reports not yet acknowledged, by entry."""
+        self._fired_listeners: list[Callable[[p.Fired], None]] = []
+        self._session_listeners: list[Callable[[], None]] = []
 
     @property
     def promises(self) -> Promises:
-        return Promises(fate=FateKind.EXACT, sees_other_writers=True, gateway_timestamps=True)
+        return Promises(
+            fate=FateKind.EXACT,
+            sees_other_writers=True,
+            gateway_timestamps=True,
+            deadman=self.deadman is not None,
+        )
 
     # --- the session ---------------------------------------------------------------------
 
@@ -263,22 +295,38 @@ class TgwClient:
         ]
         if nonce is not None:
             options.append(p.Option(p.Tag.CLIENT_NONCE | p.CRITICAL, nonce))
+            options.append(
+                p.Option.pack(
+                    p.Tag.DEADMAN, self.settings.deadman_s, self.settings.deadman_entries, 0, 0
+                )
+            )
         loop = asyncio.get_running_loop()
         for _ in range(self.settings.hello_tries):
             hello_id = self._new_id()
-            waiter: asyncio.Future[bytes] = loop.create_future()
-            self._hello = (hello_id, waiter)
+            waiter: asyncio.Future[None] = loop.create_future()
+            self._hello = (hello_id, nonce, waiter)
             hello = p.Hello(id=hello_id, options=tuple(options))
             self._send_raw(p.encode(hello, key=self.psk, seq=1) if self.psk else p.encode(hello))
             try:
-                data = await asyncio.wait_for(waiter, self.settings.hello_wait_s)
+                # The answer is taken in as it comes (`_welcome`): the FIRED reports right
+                # behind a WELCOME then find the session set up.
+                await asyncio.wait_for(waiter, self.settings.hello_wait_s)
             except TimeoutError:
                 continue
             finally:
                 self._hello = None
-            self._accept_welcome(data, nonce)
+            for listener in list(self._session_listeners):
+                listener()
             return
         raise HandshakeFailed(HandshakeIssue.SILENT, f"{self.host}:{self.control_port}")
+
+    def _welcome(self, hello: tuple[int, bytes | None, asyncio.Future[None]], data: bytes) -> None:
+        try:
+            self._accept_welcome(data, hello[1])
+        except HandshakeFailed as e:
+            hello[2].set_exception(e)
+        else:
+            hello[2].set_result(None)
 
     def _accept_welcome(self, data: bytes, nonce: bytes | None) -> None:
         try:
@@ -323,6 +371,9 @@ class TgwClient:
         self._lag_s = (lag.as_int() / 1e6 if lag else 0.0) + DELIVERY_S
         self._last_health = t
         self._last_event_id = 0
+        deadman = p.find(msg.options, p.Tag.DEADMAN) if key is not None else None
+        self.deadman = DeadmanGrant(*deadman.unpack()) if deadman is not None else None
+        self.fired = {}  # the gateway reports again what is still unacknowledged
         self._up.set()
         log.info(
             "gateway session with %s:%s, boot %08x", self.host, self.control_port, self.boot_id
@@ -532,6 +583,67 @@ class TgwClient:
         if self._up.is_set():
             self._send(p.Cancel(id=request.id))
 
+    # --- the dead-man (spec §15) ---------------------------------------------------------
+
+    async def arm(
+        self, entry: int, width: int, register: int, expected: int, frame: bytes
+    ) -> p.Armed | None:
+        """Have the gateway put `register` back with `frame` should this client go silent,
+        provided it still holds `expected`. The gateway's answer; None without a session
+        granted the dead-man, or without an answer."""
+        return await self._deadman(
+            lambda id: p.Arm(
+                entry=entry,
+                width=width,
+                register=register,
+                expected=expected & 0xFFFF_FFFF,
+                frame=frame,
+                id=id,
+            )
+        )
+
+    async def disarm(self, entry: int) -> p.Armed | None:
+        return await self._deadman(lambda id: p.Disarm(entry=entry, id=id))
+
+    async def ack_fired(self, entry: int) -> p.Armed | None:
+        """A FIRED report taken in: the gateway forgets it."""
+        self.fired.pop(entry, None)
+        return await self._deadman(lambda id: p.AckFired(entry=entry, id=id))
+
+    async def _deadman(self, message: Callable[[int], p.Message]) -> p.Armed | None:
+        loop = asyncio.get_running_loop()
+        for _ in range(self.settings.deadman_tries):
+            if not self._up.is_set() or self.deadman is None:
+                return None
+            id = self._new_id()
+            waiter: asyncio.Future[p.Armed] = loop.create_future()
+            self._armed[id] = waiter
+            try:
+                self._send(message(id))
+                return await asyncio.wait_for(waiter, self.settings.deadman_wait_s)
+            except TimeoutError:
+                continue  # the message or its answer was lost: each is safe to send again
+            finally:
+                self._armed.pop(id, None)
+        return None
+
+    def on_fired(self, callback: Callable[[p.Fired], None]) -> Callable[[], None]:
+        """Each FIRED report, those not yet acknowledged first."""
+        self._fired_listeners.append(callback)
+        for report in list(self.fired.values()):
+            callback(report)
+        return lambda: self._fired_listeners.remove(callback)
+
+    def on_session(self, callback: Callable[[], None]) -> Callable[[], None]:
+        """Each new session: what was armed may have to be armed again."""
+        self._session_listeners.append(callback)
+        return lambda: self._session_listeners.remove(callback)
+
+    def _on_fired(self, msg: p.Fired) -> None:
+        self.fired[msg.entry] = msg
+        for listener in list(self._fired_listeners):
+            listener(msg)
+
     # --- what the gateway sends ----------------------------------------------------------
 
     def _datagram(self, data: bytes, addr: tuple[str, int]) -> None:
@@ -544,8 +656,8 @@ class TgwClient:
         try:
             decoded = p.decode(data)
         except p.ProtocolError as e:
-            if hello is not None and not hello[1].done():
-                hello[1].set_result(data)
+            if hello is not None and not hello[2].done():
+                self._welcome(hello, data)
             else:
                 self.counters["unreadable"] += 1
                 log.debug("unreadable datagram from the gateway: %s", e)
@@ -553,11 +665,11 @@ class TgwClient:
         msg = decoded.message
         if (
             hello is not None
-            and not hello[1].done()
+            and not hello[2].done()
             and msg.id == hello[0]
             and isinstance(msg, p.Welcome | p.Error)
         ):
-            hello[1].set_result(data)
+            self._welcome(hello, data)
             return
         if isinstance(msg, p.Error) and decoded.seq is None and msg.code in _SESSION_GONE:
             # Unsigned: the gateway no longer knows this client, so it can't sign.
@@ -594,6 +706,12 @@ class TgwClient:
                 self._on_health(msg, t)
             case p.Error():
                 self._on_error(msg)
+            case p.Armed():
+                waiter = self._armed.get(msg.id)
+                if waiter is not None and not waiter.done():
+                    waiter.set_result(msg)
+            case p.Fired():
+                self._on_fired(msg)
             case _:
                 self.counters["unexpected_messages"] += 1
 

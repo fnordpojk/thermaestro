@@ -36,6 +36,8 @@ class Promises:
     """Whether other clients' requests show in the forwarded exchanges."""
     gateway_timestamps: bool
     """Whether event times come from the gateway's clock rather than arrival here."""
+    deadman: bool = False
+    """Whether the gateway puts back what was armed should this client go silent."""
 
 
 @dataclass(frozen=True, slots=True)

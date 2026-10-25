@@ -1,17 +1,20 @@
 import asyncio
 import socket
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import replace
 
 import pytest
 from simpump import TEST_PSK as PSK
 from simpump import SimPump
 from thermaestro_gateway import nibe
+from thermaestro_gateway import protocol as p
+from thermaestro_gateway.deadman import Outcome
 from thermaestro_gateway.protocol import Origin, Stage
 from thermaestro_gateway.server import Config, Gateway
 
 from thermaestro.nibe.transport.base import FateKind, Observed, ReadFailed, WriteResult
 from thermaestro.nibe.transport.tgw import (
+    DeadmanGrant,
     GatewayClock,
     HandshakeFailed,
     HandshakeIssue,
@@ -126,6 +129,87 @@ async def test_with_a_key(gateway_with_psk: Gateway) -> None:
         assert r.data[:2] == word(30)
     finally:
         await c.close()
+
+
+@pytest.fixture
+async def keyed(gateway_with_psk: Gateway) -> AsyncIterator[TgwClient]:
+    c = client_for(gateway_with_psk, PSK)
+    await c.start()
+    yield c
+    await c.close()
+
+
+async def until(condition: Callable[[], object], seconds: float = 3.0) -> None:
+    async with asyncio.timeout(seconds):
+        while not condition():
+            await asyncio.sleep(0.01)
+
+
+async def test_with_a_key_the_dead_man_is_asked_for_and_granted(keyed: TgwClient) -> None:
+    assert keyed.deadman == DeadmanGrant(seconds=900, entries=16, armed=0, fired=0)
+    assert keyed.promises.deadman
+
+
+async def test_without_a_key_there_is_no_dead_man(client: TgwClient) -> None:
+    assert client.deadman is None
+    assert not client.promises.deadman
+    assert await client.arm(0, 2, 47011, 0xFFFE, nibe.write_request(47011, 0xFFFC)) is None
+
+
+async def test_arming_and_disarming(keyed: TgwClient, gateway_with_psk: Gateway) -> None:
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    back = nibe.write_request(47011, 0xFFFC)
+    armed = await keyed.arm(0, 2, 47011, 0xFFFE, back)
+    assert armed is not None
+    assert armed.result == p.ArmResult.ARMED
+    assert held.armed[0].expected == 0xFFFE
+    elsewhere = await keyed.arm(1, 2, 47012, 0xFFFE, back)
+    assert elsewhere is not None
+    assert (elsewhere.result, elsewhere.detail) == (
+        p.ArmResult.REFUSED,
+        p.ArmRefusal.REGISTER_MISMATCH,
+    )
+    disarmed = await keyed.disarm(0)
+    assert disarmed is not None
+    assert disarmed.result == p.ArmResult.DISARMED
+    assert held.armed == {}
+
+
+async def test_a_fired_report_waits_until_it_is_acknowledged(gateway_with_psk: Gateway) -> None:
+    """The gateway reports what it put back right after WELCOME; a listener that comes
+    later still hears it, and once acknowledged, the gateway forgets it."""
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    held.fired[3] = Outcome(3, p.FiredOutcome.PUT_BACK, 47011, 0xFFFC)
+    c = client_for(gateway_with_psk, PSK)
+    await c.start()
+    try:
+        assert c.deadman is not None
+        assert c.deadman.fired == 1
+        heard: list[p.Fired] = []
+        c.on_fired(heard.append)
+        await until(lambda: heard)
+        assert (heard[0].entry, heard[0].outcome, heard[0].register) == (
+            3,
+            p.FiredOutcome.PUT_BACK,
+            47011,
+        )
+        acknowledged = await c.ack_fired(3)
+        assert acknowledged is not None
+        assert acknowledged.result == p.ArmResult.DISARMED
+        assert held.fired == {}
+        assert c.fired == {}
+    finally:
+        await c.close()
+
+
+async def test_a_new_session_is_told(keyed: TgwClient) -> None:
+    sessions: list[None] = []
+    keyed.on_session(lambda: sessions.append(None))
+    keyed._lose_session("a test", gone=False)
+    await until(lambda: sessions)
+    assert keyed.deadman is not None
 
 
 @pytest.mark.parametrize(
