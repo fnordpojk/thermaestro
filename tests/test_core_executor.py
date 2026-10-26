@@ -336,10 +336,11 @@ async def test_a_setting_is_sent_with_its_baseline(tmp_path: Path) -> None:
         assert [(a.op, a.baseline) for a in r.device.acts] == [("set", -4), ("engage", None)]
 
 
-def fired(outcome: str, found: Value | None = None) -> DeadmanFired:
-    return DeadmanFired.model_validate(
-        {"t": datetime.now(UTC), "lever": "hp1/offset", "outcome": outcome, "found": found}
-    )
+def fired(outcome: str, found: Value | None = None, put: Value | None = None) -> DeadmanFired:
+    report = {"t": datetime.now(UTC), "lever": "hp1/offset", "outcome": outcome, "found": found}
+    if put is not None:
+        report["put"] = put
+    return DeadmanFired.model_validate(report)
 
 
 async def test_a_gateways_put_back_isnt_taken_for_someone_elses(tmp_path: Path) -> None:
@@ -367,6 +368,77 @@ async def test_a_gateways_put_back_told_before_its_reading(tmp_path: Path) -> No
         await r.device.someone_writes("x.fake.offset", -4, tell=False)
         await asyncio.sleep(0.3)
         assert r.executor.claims[OFFSET].drift is None
+
+
+@pytest.mark.parametrize("first", ["report", "reading"])
+async def test_a_refused_baseline_the_gateway_put_back_is_set_back_to_the_baseline(
+    tmp_path: Path, first: str
+) -> None:
+    """The gateway may have put back a baseline the core refused (its answers lost): the
+    core reads which it put back, and where it was that one, puts its own baseline back.
+    Its reading may come before the report and let the lever go: the report takes that
+    back."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await asyncio.sleep(0.1)
+        if first == "reading":
+            await device.someone_writes("x.fake.offset", 1, tell=False)  # the gateway
+            await until(lambda: r.executor.claims[OFFSET].drift is not None)
+        else:
+            device.quiet = True  # the report comes before any reading
+            device.registers["x.fake.offset"] = 1
+        r.executor._on_event("dev", fired("put_back", put=1))
+        device.quiet = False
+        await until(lambda: device.registers["x.fake.offset"] == -4)
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        assert r.executor.claims[OFFSET].drift is None
+        restore = [e for e in audited(r) if e["what"] == "lever.restore"]
+        assert (
+            restore[-1]["why"] == "the gateway's dead-man put back a value that isn't its baseline"
+        )
+
+
+@pytest.mark.parametrize(("found", "drift"), [(-4, False), (5, True)])
+async def test_a_put_back_that_may_not_be_the_baseline_is_read_first(
+    tmp_path: Path, found: int, drift: bool
+) -> None:
+    """Found at the baseline, nothing is left to do; found at someone else's value, the
+    lever is let go and that value stands."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        device.quiet = True
+        device.registers["x.fake.offset"] = found
+        r.executor._on_event("dev", fired("put_back", put=1))
+        claim = r.executor.claims[OFFSET]
+        await until(
+            lambda: claim.pending is None and any(e["what"] == "lever.deadman" for e in audited(r))
+        )
+        await asyncio.sleep(0.2)
+        assert (claim.drift is not None) == drift
+        assert not claim.changed
+        assert device.registers["x.fake.offset"] == found
+        assert len(device.acts) == 1  # nothing written
+
+
+async def test_a_put_back_that_may_not_be_the_baseline_outlives_a_restart(tmp_path: Path) -> None:
+    """Stopped before a reading says which the gateway put back, the core reads it when it
+    starts again, and puts its baseline back."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        device.registers["x.fake.offset"] = 1
+        device.stale["x.fake.offset"] = 1  # only a reading from before: nothing settles it
+        r.executor._on_event("dev", fired("put_back", put=1))
+        await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
+        await asyncio.sleep(0.2)
+        assert r.executor.claims[OFFSET].pending == {"op": "set", "params": {"value": 1}}
+        await r.executor.stop()  # no restore: as if the process died
+    device.stale.clear()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await until(lambda: device.registers["x.fake.offset"] == -4)
+        await until(lambda: not r.executor.claims[OFFSET].changed)
 
 
 async def test_a_value_the_gateway_found_and_left_lets_go(tmp_path: Path) -> None:

@@ -144,7 +144,7 @@ Every request carries an `id` the core chooses, and everything that answers it c
 | `health` | the plugin's or a unit's state: `up`, `down` or `contended`; last traffic; counters; why a person must act; series whose publication is late |
 | `device_event` | an alarm or warning from a device, and when it ends |
 | `foreign_write` | another client wrote a datapoint, where the connection can see it |
-| `deadman.fired` | while the core was silent, the route's dead-man fired for a `lever`: `put_back` as found, `skipped` (someone else's value was `found` there and left), `refused` or `no_answer`; `fired` is when, where known, and `t` when the route's report came in. Told at least once: a plugin keeps a report until it is told, and the core takes one twice as once. A change the core sent after the firing (or after `t`, where `fired` isn't known) isn't the one a report is about |
+| `deadman.fired` | while the core was silent, the route's dead-man fired for a `lever`: `put_back` as found, `skipped` (someone else's value was `found` there and left), `refused` or `no_answer`; `fired` is when, where known, and `t` when the route's report came in. Told at least once: a plugin keeps a report until it is told, and the core takes one twice as once. A change the core sent after the firing (or after `t`, where `fired` isn't known) isn't the one a report is about. For `put_back`, `put` is a value the dead-man may have written instead of the baseline: one the core sent it as a baseline and then didn't take, while the route's answers were lost. The core then reads the setting, and puts its baseline back where it finds that value |
 | `described` | changed parts of the description, with `complete` false and no `id` |
 
 ### Fates
@@ -163,14 +163,14 @@ A plugin answers a request it can't serve with `error`, with the code `version`,
 These lines were produced by the message types themselves:
 
 ```json
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.8","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write","notify"]}
-{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.8","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.9","role":"core","plugin":null,"plugin_version":null,"features":["subscribe","forecast","write","notify"]}
+{"type":"hello","id":1,"protocol":"thermaestro-cap","version":"0.9","role":"plugin","plugin":"omie","plugin_version":"0.1.0","features":["subscribe"]}
 {"type":"read","id":3,"points":["hp1/dhw/temp.top"],"after":null}
 {"type":"values","id":3,"values":[{"point":"hp1/dhw/temp.top","value":52.3,"unit":"degC","raw":null,"t_observed":"2026-10-09T12:00:00Z","t_received":"2026-10-09T12:00:00Z","quality":"good","source":"measured","resolution":null,"why":null}]}
 {"type":"act","id":4,"lever":"hp1/dhw/block","op":"engage","params":{},"baseline":null}
 {"type":"act","id":4,"lever":"hp1/cs1/heating.offset","op":"set","params":{"value":-2},"baseline":1}
 {"type":"act","id":4,"lever":"hp1/cs1/heating.offset","op":"baseline","params":{"value":0},"baseline":null}
-{"type":"deadman.fired","t":"2026-10-09T12:00:00Z","lever":"hp1/cs1/heating.offset","outcome":"put_back","found":null,"fired":"2026-10-09T11:40:00Z"}
+{"type":"deadman.fired","t":"2026-10-09T12:00:00Z","lever":"hp1/cs1/heating.offset","outcome":"put_back","found":null,"fired":"2026-10-09T11:40:00Z","put":null}
 {"type":"fate","id":4,"stage":"device_accepted","t":"2026-10-09T12:00:00Z","detail":null}
 {"type":"write","id":5,"point":"hp1/x.nibe.47134","value":30.0}
 {"type":"series.get","id":5,"series":"spot","from":"2026-10-09T12:00:00Z","to":"2026-10-09T12:00:00Z"}
@@ -185,7 +185,7 @@ Times are ISO 8601 with a time zone. Fields with defaults may be left out.
 
 ### The JSON Schema
 
-For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.8.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.8.schema.json). It is generated from the message types:
+For plugins written in other languages, the JSON Schema of every message is [`src/thermaestro/cap/data/thermaestro-cap-0.9.schema.json`](../src/thermaestro/cap/data/thermaestro-cap-0.9.schema.json). It is generated from the message types:
 
 ```sh
 uv run python scripts/make-capschema.py          # write it
@@ -196,7 +196,7 @@ The test suite fails if the checked-in copy differs from the types.
 
 ### Versions
 
-The protocol is `thermaestro-cap`, version `0.8`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking an older minor version still talks to a newer core: `0.2` added the provider description and the forecast fields of `SeriesInfo`, `0.3` the `write` message, offered with the `write` feature, `0.4` a node's `rating`, `0.5` the `notify.targets` and `notify` messages, offered with the `notify` feature, `0.6` a climate system's `offset_step_k` in its rating, `0.7` an act's `baseline` and the `deadman.fired` message, for a route with a dead-man, and `0.8` the `baseline` op, a baseline chosen anew for that dead-man.
+The protocol is `thermaestro-cap`, version `0.9`. The core says `hello` first, and the plugin answers with its own, naming itself (`plugin`, matching `^[a-z0-9_]+$`) and its version. Major versions must match; a plugin answers a different major version with error `version`. A plugin speaking an older minor version still talks to a newer core: `0.2` added the provider description and the forecast fields of `SeriesInfo`, `0.3` the `write` message, offered with the `write` feature, `0.4` a node's `rating`, `0.5` the `notify.targets` and `notify` messages, offered with the `notify` feature, `0.6` a climate system's `offset_step_k` in its rating, `0.7` an act's `baseline` and the `deadman.fired` message, for a route with a dead-man, `0.8` the `baseline` op, a baseline chosen anew for that dead-man, and `0.9` `deadman.fired`'s `put`, what the dead-man may have put back in place of the baseline.
 
 ## Running a plugin
 

@@ -196,6 +196,13 @@ EXAMPLES: list[dict[str, Any]] = [
         "fired": T,
     },
     {
+        "type": "deadman.fired",
+        "t": T,
+        "lever": "hp1/cs1/heating.offset",
+        "outcome": "put_back",
+        "put": 1,
+    },
+    {
         "type": "series.get",
         "id": 9,
         "series": "example/SE3/spot",

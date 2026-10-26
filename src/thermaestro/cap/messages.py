@@ -32,7 +32,7 @@ from .model import (
 )
 
 PROTOCOL = "thermaestro-cap"
-VERSION = "0.8"
+VERSION = "0.9"
 """0.2 added the capability register: `Described.provider` and the forecast fields of
 `SeriesInfo`, announced by the `forecast` feature. 0.3 added `write`, a person's change of
 one of the device's own settings, which a plugin offers with the `write` feature. 0.4
@@ -40,7 +40,9 @@ added a node's `rating`, what its maker documents about it. 0.5 added `notify.ta
 `notify`, a notification for a person, which a plugin offers with the `notify` feature.
 0.6 added a climate system's `offset_step_k` to a rating. 0.7 added an act's `baseline`,
 for a route's dead-man, and `deadman.fired`, what it did. 0.8 added the `baseline` op, a
-setting's baseline chosen anew for that dead-man. Older peers still talk to newer ones."""
+setting's baseline chosen anew for that dead-man. 0.9 added `deadman.fired`'s `put`, what
+the dead-man may have put back in place of the baseline. Older peers still talk to newer
+ones."""
 FEATURES = ("subscribe", "forecast", "write", "notify")
 """What this side of the protocol understands."""
 
@@ -274,6 +276,10 @@ class DeadmanFired(Model):
     """For `skipped`, the value found in place of what Thermaestro set."""
     fired: AwareDatetime | None = None
     """When it fired, where the route knows."""
+    put: Value | None = None
+    """For `put_back`, a value the dead-man may have written instead of the baseline the
+    core gave it (protocol 0.9): one the core sent it as a baseline and then didn't take,
+    the route's answers lost. The core reads which it was."""
 
 
 class SeriesGet(Model):

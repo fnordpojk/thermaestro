@@ -139,6 +139,7 @@ TAKEN: frozenset[str] = frozenset(
 GONE = "the plugin's connection ended before it could be read back"
 LOST = "the plugin's connection ended before it said what became of it"
 UNSETTLED = "what became of its last change isn't known yet"
+ELSEWHERE = "the gateway's dead-man put back a value that isn't its baseline"
 
 AUTOMATIC = frozenset({"planner", "core", "mqtt"})
 """Principals that aren't a person acting: a lever kept for people is refused to them."""
@@ -1183,7 +1184,11 @@ class Executor:
         value stands, as Thermaestro's own reading would have found. Refused or not
         answered, the lever is still as Thermaestro set it. A change Thermaestro sent after
         the firing (or, where when isn't known, after the report came in) isn't the one the
-        report is about: that stands."""
+        report is about: that stands.
+
+        A put-back that may have written a value of Thermaestro's own other than the
+        baseline (`put`: a baseline chosen anew and refused, the gateway's answers lost) is
+        a change whose fate isn't known, until a reading says which (`_after_put_back`)."""
         async with self._lock(ref):
             claim = self.claims.get(ref)
             fired = (message.fired or message.t).timestamp()
@@ -1192,7 +1197,12 @@ class Executor:
                 claim = None
             if claim is not None and message.outcome == "put_back":
                 lever = self.lever(ref)
-                if claim.drift is not None and lever is not None and self._as_found(ref, lever):
+                put = self._put_elsewhere(claim, lever, message.put)
+                if (
+                    claim.drift is not None
+                    and lever is not None
+                    and self._as_found(ref, lever, put)
+                ):
                     log.info("%s: let go on a reading the gateway's put-back made: taken back", ref)
                     claim.drift = None
                 if claim.drift is None:
@@ -1201,6 +1211,10 @@ class Executor:
                     claim.last_t = self._clock()
                     claim.pending = None
                     self._unsettled.pop(ref, None)
+                    if put is not None:
+                        claim.pending = {"op": "set", "params": {"value": put}}
+                        self._unsettled[ref] = fired
+                        self._spawn(self._after_put_back(ref, claim))
                     await self._save(claim)
             elif claim is not None and message.outcome == "skipped" and claim.drift is None:
                 claim.drift = f"while Thermaestro was silent, it was changed to {message.found}"
@@ -1221,14 +1235,50 @@ class Executor:
         this run, or the latest one taken."""
         return max(self._sent.get(ref, 0.0), claim.last_t or 0.0)
 
-    def _as_found(self, ref: str, lever: Lever) -> bool:
-        """Whether the lever's latest good reading is its baseline."""
+    def _as_found(self, ref: str, lever: Lever, put: Value | None = None) -> bool:
+        """Whether the lever's latest good reading is its baseline, or `put`, what a
+        dead-man may have put back instead."""
         claim = self.claims.get(ref)
         back = self._readback(ref, lever)
         if claim is None or back is None or back.quality != "good":
             return False
         param = lever.params.get("value")
-        return same(reading(back, param), claim.baseline, param)
+        now = reading(back, param)
+        return same(now, claim.baseline, param) or (put is not None and same(now, put, param))
+
+    @staticmethod
+    def _put_elsewhere(claim: Claim, lever: Lever | None, put: Value | None) -> Value | None:
+        """What a dead-man's put-back may have written in place of a setting's baseline,
+        where that is something else; None otherwise."""
+        if put is None or claim.baseline is None or claim.mode != "control":
+            return None
+        if lever is None or lever.kind == "hold":
+            return None
+        return None if same(put, claim.baseline, lever.params.get("value")) else put
+
+    async def _after_put_back(self, ref: str, claim: Claim) -> None:
+        """A dead-man's put-back that may have left a value of Thermaestro's own other than
+        the baseline: once a fresh reading says which, the baseline is put back where it
+        is that value. A baseline read means nothing is left to do, and someone else's
+        value is let be (`_settle_now`)."""
+        while True:
+            await asyncio.sleep(self._poll_s)
+            async with self._lock(ref):
+                if self.claims.get(ref) is not claim or claim.drift is not None:
+                    return
+                if claim.pending is not None:
+                    lever = self.lever(ref)
+                    if lever is None:
+                        continue
+                    why = await self._settle_now(ref, claim, lever)
+                    if why == UNSETTLED:
+                        continue
+                    if why is not None:
+                        return  # someone else's: let go
+                if not claim.changed:
+                    return
+            await self.restore(ELSEWHERE, [ref])
+            return
 
     async def _let_go(self, ref: str, why: str) -> None:
         claim = self.claims.get(ref)

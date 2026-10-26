@@ -675,6 +675,59 @@ async def test_a_value_held_taken_as_the_baseline_waits_for_the_gateway_to_disar
         assert [k["expected"] for k in p.armed["hp1/cs1/heating.offset"]] == [3, 5]
 
 
+@pytest.mark.parametrize("answering", [False, True])
+async def test_a_refused_baseline_the_gateway_may_hold_is_told_with_its_put_back(
+    stocked: SimPump,
+    gateway_with_psk: Gateway,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    answering: bool,
+) -> None:
+    """A baseline chosen anew reaches the gateway, but its answer is lost, and so is the
+    arming that puts the old one back: the change is refused, and the gateway may put back
+    the refused baseline. Its put-back is told with that value, for the core to read which
+    it was. Answering again before its silence, the gateway holds the old baseline, and the
+    put-back is told as one."""
+    monkeypatch.setattr(plugin_module, "DEADMAN_RETRY_S", 0.2)
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+            client = p._transport
+            assert isinstance(client, TgwClient)
+            arm, sent = client.arm, [0]
+
+            async def answers_lost(entry: int, *args: Any) -> Armed | None:
+                sent[0] += 1
+                if sent[0] == 1:
+                    await arm(entry, *args)  # it reaches the gateway
+                return None
+
+            monkeypatch.setattr(client, "arm", answers_lost)
+            fate = await act(link, "cs1/heating.offset", "baseline", {"value": 1})
+            assert fate.stage == "dropped"
+            assert armed(gateway_with_psk) == [(47011, 3, 1)]
+            if answering:
+                monkeypatch.setattr(client, "arm", arm)
+                await until(lambda: armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)], 5)
+                await until(lambda: not p.may_hold)
+        held.silence_us = 200_000
+        await until(lambda: bool(held.fired), 10)
+        assert signed(stocked.registers[47011]) == (-4 if answering else 1)
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events):
+            await until(lambda: any(isinstance(e, DeadmanFired) for e in events), 10)
+        told = next(e for e in events if isinstance(e, DeadmanFired))
+        assert (told.outcome, told.put) == ("put_back", None if answering else 1)
+        assert again.may_hold == {}
+
+
 async def test_a_disarm_the_gateway_didnt_confirm_is_sent_again(
     stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

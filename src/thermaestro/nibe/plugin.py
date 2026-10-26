@@ -242,7 +242,12 @@ class NibePlugin:
         self.reported: dict[int, dict[str, Any]] = {}
         """Per entry, a dead-man report taken in and not yet both told to the core and
         acknowledged: the lever's `path`, the `register`, the `outcome`, the value `found`,
-        and when it `fired` and when it came in (`t`). Kept across restarts."""
+        what it may have `put` back instead of the baseline, and when it `fired` and when
+        it came in (`t`). Kept across restarts."""
+        self.may_hold: dict[int, list[int]] = {}
+        """Per entry, values to put back that it was armed with and the gateway didn't
+        answer: until it confirms what it holds, it may put back any of them instead of the
+        entry's own. Kept across restarts."""
         self.disarming: set[int] = set()
         """Entries no lever has any more that the gateway hasn't confirmed dropped: none is
         given to another value until it has, as it may still put back what it holds. Kept
@@ -653,6 +658,17 @@ class NibePlugin:
             self.disarming.update(disarming)
         else:
             log.error("the dead-man entries kept to disarm can't be read: %r", disarming)
+        may_hold = data.get("deadman_may_hold", {})
+        for entry, values in may_hold.items() if isinstance(may_hold, dict) else ():
+            if (
+                str(entry).isdigit()
+                and isinstance(values, list)
+                and values
+                and all(isinstance(v, int) for v in values)
+            ):
+                self.may_hold[int(entry)] = list(values)
+                continue
+            log.error("what the dead-man may hold for entry %s can't be read: %r", entry, values)
 
     def _save_meters(self, now: float) -> None:
         """Keep the heat meters' counts and the heat taken from the ground for a restart,
@@ -685,6 +701,9 @@ class NibePlugin:
                     str(entry): dict(kept) for entry, kept in self.reported.items()
                 },
                 "deadman_disarming": sorted(self.disarming),
+                "deadman_may_hold": {
+                    str(entry): list(values) for entry, values in self.may_hold.items()
+                },
             }
             if data == self._last_saved:
                 return  # nothing new: no write, which on a Pi's SD card counts
@@ -1368,8 +1387,13 @@ class NibePlugin:
 
     def _new_session(self) -> None:
         """The gateway may have restarted without its state: nothing is taken as armed there
-        until it is armed again."""
+        until it is armed again, and what it confirmed it may still put back until then."""
+        for entry, armed_as in self._confirmed.items():
+            held = self.may_hold.get(entry, [])
+            if armed_as[2] not in held:
+                self.may_hold[entry] = [*held, armed_as[2]]
         self._confirmed.clear()
+        self._spawn(self._save())
         self._spawn(self._rearm())
 
     async def _arm(
@@ -1416,6 +1440,7 @@ class NibePlugin:
                 "expected": written & 0xFFFF,
                 "back": back,
             }
+            self.may_hold.pop(entry, None)  # a number the gateway confirmed it let go of
             self.armed[path] = [*entries, record]
             await self._save()
             why = await self._send_arm(client, path, record)
@@ -1529,6 +1554,8 @@ class NibePlugin:
                 dropped.add(entry)
         if dropped:
             self.disarming -= dropped
+            for entry in dropped:
+                self.may_hold.pop(entry, None)
             await self._save()
         if self.disarming:
             self._mend_soon()
@@ -1570,17 +1597,34 @@ class NibePlugin:
 
     async def _send_arm(self, client: TgwClient, path: str, kept: dict[str, int]) -> str | None:
         """Arm an entry at the gateway: why it isn't armed (and it is tried again soon), or
-        None."""
+        None. Until the gateway confirms what it holds, it may put back what it held
+        before, and what it was sent and didn't answer (`may_hold`)."""
+        entry = kept["entry"]
         frame = nibe.write_request(kept["register"], kept["back"])
-        answer = await client.arm(kept["entry"], 2, kept["register"], kept["expected"], frame)
+        answer = await client.arm(entry, 2, kept["register"], kept["expected"], frame)
         why = _unless(answer, ArmResult.ARMED)
+        before = self._confirmed.pop(entry, None)
         if why is None:
-            self._confirmed[kept["entry"]] = _armed_as(kept)
+            self._confirmed[entry] = _armed_as(kept)
+            if self.may_hold.pop(entry, None) is not None:
+                await self._save()
             return None
-        self._confirmed.pop(kept["entry"], None)
+        await self._unsure(
+            entry,
+            *([] if before is None else [before[2]]),
+            *([kept["back"]] if answer is None else []),
+        )
         self._mend_soon()
         log.warning("%s: the gateway didn't arm its dead-man (%s)", path, why)
         return why
+
+    async def _unsure(self, entry: int, *values: int) -> None:
+        """Values the gateway may put back for an entry, kept until it confirms one."""
+        held = self.may_hold.get(entry, [])
+        added = [v for v in dict.fromkeys(values) if v not in held]
+        if added:
+            self.may_hold[entry] = [*held, *added]
+            await self._save()
 
     async def _send_disarm(self, client: TgwClient, entry: int) -> str | None:
         """Disarm an entry at the gateway: why it isn't disarmed, or None."""
@@ -1652,10 +1696,14 @@ class NibePlugin:
         ):
             self._drop(path, [record])
             return
+        put = None
         if outcome in ("put_back", "skipped"):
             self.armed.pop(path, None)
             self.holds.pop(path, None)
             self.disarming.update(k["entry"] for k in others)
+            instead = [v for v in self.may_hold.pop(report.entry, []) if v != record["back"]]
+            if outcome == "put_back" and instead:
+                put = self._read_value_of(report.register, instead[-1])  # the latest sent
         client = self._deadman_client()
         fired = self._fired_at(client, report)
         self.reported[report.entry] = {
@@ -1665,6 +1713,7 @@ class NibePlugin:
             "found": self._read_value_of(report.register, report.read)
             if outcome == "skipped"
             else None,
+            "put": put,
             "fired": None if fired is None else fired.isoformat(),
             "t": arrived.isoformat(),
         }
@@ -1682,6 +1731,7 @@ class NibePlugin:
                     outcome=kept["outcome"],
                     found=kept.get("found"),
                     fired=None if fired is None else datetime.fromisoformat(fired),
+                    put=kept.get("put"),
                 )
             )
         client = self._deadman_client()
