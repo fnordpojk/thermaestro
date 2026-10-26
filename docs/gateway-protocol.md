@@ -52,7 +52,7 @@ A plain NibeGW gateway takes requests on one UDP port per (address, token), by c
 |---|---|---|---|
 | 0 | 2 | `magic` | `0x54 0x47` ("TG") |
 | 2 | 1 | `ver_major` | incompatible changes; 0 for this version |
-| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 2 here |
+| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 3 here |
 | 4 | 1 | `type` | message type (§6) |
 | 5 | 1 | `flags` | bit 7: authenticated (§11); the others are 0 |
 | 6 | 2 | `body_len` | bytes after the header, not counting the authentication trailer |
