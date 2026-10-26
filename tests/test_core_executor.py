@@ -336,7 +336,9 @@ async def test_a_setting_is_sent_with_its_baseline(tmp_path: Path) -> None:
         assert [(a.op, a.baseline) for a in r.device.acts] == [("set", -4), ("engage", None)]
 
 
-def fired(outcome: str, found: Value | None = None, put: Value | None = None) -> DeadmanFired:
+def fired(
+    outcome: str, found: Value | None = None, put: Value | list[Value] | None = None
+) -> DeadmanFired:
     report = {"t": datetime.now(UTC), "lever": "hp1/offset", "outcome": outcome, "found": found}
     if put is not None:
         report["put"] = put
@@ -420,6 +422,71 @@ async def test_a_put_back_that_may_not_be_the_baseline_is_read_first(
         assert not claim.changed
         assert device.registers["x.fake.offset"] == found
         assert len(device.acts) == 1  # nothing written
+
+
+@pytest.mark.parametrize(
+    ("put", "written"), [([-4], False), ([1, -4], True), ([-4, 1], True), (1, True)]
+)
+async def test_a_put_back_names_every_value_it_may_have_written(
+    tmp_path: Path, put: Value | list[Value], written: bool
+) -> None:
+    """The route names every value its dead-man may have written, its entry's own among
+    them, which an edit stopped half-way may have left other than the core's baseline:
+    any that isn't the baseline is read for, and set back; only the baseline is a plain
+    put-back. One value alone, as protocol 0.9 sent it, is taken as before."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        device.quiet = True
+        device.registers["x.fake.offset"] = 1 if written else -4
+        r.executor._on_event("dev", fired("put_back", put=put))
+        device.quiet = False
+        await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
+        await until(lambda: not r.executor.claims[OFFSET].changed)
+        await asyncio.sleep(0.2)
+        assert device.registers["x.fake.offset"] == -4
+        assert len(device.acts) == (2 if written else 1)
+
+
+@pytest.mark.parametrize("overlap", [False, True])
+async def test_a_newer_change_ends_the_recovery_of_a_put_back(
+    tmp_path: Path, overlap: bool
+) -> None:
+    """A change sent while a put-back's recovery waits is newer: it stands, and the recovery
+    doesn't set the baseline over it. Sent after the recovery, it stands too."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device, min_hold_s=0) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        device.registers["x.fake.offset"] = 1  # the gateway put back a refused baseline
+        if overlap:
+            r.executor._poll_s = 0.5  # the recovery waits: the change comes first
+        r.executor._on_event("dev", fired("put_back", put=1))
+        await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
+        if not overlap:
+            await until(lambda: device.registers["x.fake.offset"] == -4)
+        newer = await r.executor.act(OFFSET, "set", {"value": 3}, who="planner")
+        assert newer.outcome == "verified"
+        await asyncio.sleep(0.8)
+        assert device.registers["x.fake.offset"] == 3
+        assert r.executor.claims[OFFSET].last == 3
+
+
+async def test_a_change_sent_after_a_restart_isnt_put_back_by_the_reconciliation(
+    tmp_path: Path,
+) -> None:
+    """What an earlier run left changed is put back once a reading says so; a change sent
+    in this run before then is newer, and stands."""
+    device = LeverDevice()
+    modes: dict[str, LeverMode] = {OFFSET: "control"}
+    async with rig(tmp_path, modes, device, min_hold_s=0) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.stop()  # no restore: as if the process died
+    async with rig(tmp_path, modes, device, min_hold_s=0) as r:
+        newer = await r.executor.act(OFFSET, "set", {"value": 3}, who="planner")
+        assert newer.outcome == "verified"
+        await asyncio.sleep(0.5)
+        assert device.registers["x.fake.offset"] == 3
+        assert r.executor.claims[OFFSET].last == 3
 
 
 async def test_a_put_back_that_may_not_be_the_baseline_outlives_a_restart(tmp_path: Path) -> None:

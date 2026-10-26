@@ -256,6 +256,8 @@ class NibePlugin:
         """Per entry, what the gateway confirmed armed in this session (`_armed_as`). A new
         session, or an answer not had, forgets it."""
         self._mending = False
+        self._granted = False
+        """Whether the gateway granted the dead-man when the units were last described."""
         self._deadman_lock = asyncio.Lock()
         self._deadman_stops: list[Callable[[], None]] = []
         self._act_lock = asyncio.Lock()
@@ -1376,18 +1378,30 @@ class NibePlugin:
         return None
 
     def _hook_deadman(self) -> None:
-        client = self._deadman_client()
-        if client is None:
+        """Over the protocol with a key, the gateway's dead-man is used in each session that
+        grants it: also where it is granted only later (a gateway updated meanwhile, or
+        without one when the plugin started)."""
+        transport = self._transport
+        if not isinstance(transport, TgwClient) or transport.psk is None:
             return
+        self._granted = transport.deadman is not None
         self._deadman_stops = [
-            client.on_fired(lambda report: self._spawn(self._take_fired(report, _now()))),
-            client.on_session(self._new_session),
+            transport.on_fired(lambda report: self._spawn(self._take_fired(report, _now()))),
+            transport.on_session(self._new_session),
         ]
-        self._spawn(self._rearm())
+        if self._granted:
+            self._spawn(self._rearm())
 
     def _new_session(self) -> None:
         """The gateway may have restarted without its state: nothing is taken as armed there
-        until it is armed again, and what it confirmed it may still put back until then."""
+        until it is armed again, and what it confirmed it may still put back until then.
+        A dead-man granted now and not before, or the other way round, is described anew,
+        so the core knows which settings it covers."""
+        granted = self._deadman_client() is not None
+        if granted != self._granted:
+            self._granted = granted
+            log.info("the gateway's dead-man is %s", "granted" if granted else "no longer granted")
+            self._describe_units()
         for entry, armed_as in self._confirmed.items():
             held = self.may_hold.get(entry, [])
             if armed_as[2] not in held:
@@ -1598,22 +1612,26 @@ class NibePlugin:
     async def _send_arm(self, client: TgwClient, path: str, kept: dict[str, int]) -> str | None:
         """Arm an entry at the gateway: why it isn't armed (and it is tried again soon), or
         None. Until the gateway confirms what it holds, it may put back what it held
-        before, and what it was sent and didn't answer (`may_hold`)."""
+        before, or what it is sent (`may_hold`): kept before it is sent, so a stop while
+        the answer is awaited still knows it. Refused, it holds what it held."""
         entry = kept["entry"]
+        before = self._confirmed.pop(entry, None)
+        held = [*self.may_hold.get(entry, []), *([] if before is None else [before[2]])]
+        await self._unsure(entry, *held, kept["back"])
         frame = nibe.write_request(kept["register"], kept["back"])
         answer = await client.arm(entry, 2, kept["register"], kept["expected"], frame)
         why = _unless(answer, ArmResult.ARMED)
-        before = self._confirmed.pop(entry, None)
         if why is None:
             self._confirmed[entry] = _armed_as(kept)
-            if self.may_hold.pop(entry, None) is not None:
-                await self._save()
+            self.may_hold.pop(entry, None)
+            await self._save()
             return None
-        await self._unsure(
-            entry,
-            *([] if before is None else [before[2]]),
-            *([kept["back"]] if answer is None else []),
-        )
+        if answer is not None:
+            if held:
+                self.may_hold[entry] = list(dict.fromkeys(held))
+            else:
+                self.may_hold.pop(entry, None)
+            await self._save()
         self._mend_soon()
         log.warning("%s: the gateway didn't arm its dead-man (%s)", path, why)
         return why
@@ -1696,14 +1714,17 @@ class NibePlugin:
         ):
             self._drop(path, [record])
             return
-        put = None
+        put: list[float | int] | None = None
         if outcome in ("put_back", "skipped"):
             self.armed.pop(path, None)
             self.holds.pop(path, None)
             self.disarming.update(k["entry"] for k in others)
-            instead = [v for v in self.may_hold.pop(report.entry, []) if v != record["back"]]
-            if outcome == "put_back" and instead:
-                put = self._read_value_of(report.register, instead[-1])  # the latest sent
+            may = self.may_hold.pop(report.entry, [])
+            if outcome == "put_back":
+                # Every value it may have written, its own first: an edit that stopped
+                # half-way may have left the entry's own one not the core's baseline.
+                values = (self._read_value_of(report.register, v) for v in [record["back"], *may])
+                put = list(dict.fromkeys(v for v in values if v is not None)) or None
         client = self._deadman_client()
         fired = self._fired_at(client, report)
         self.reported[report.entry] = {
@@ -1891,6 +1912,10 @@ class NibePlugin:
     def _named(self) -> None:
         """The pump named its product after it was identified by the model set: the unit's
         label and the documented ratings that come with the product are described anew."""
+        self._describe_units()
+
+    def _describe_units(self) -> None:
+        """The units described anew, once they have been described."""
         if self.model is None or self.layout is None or self._send_event is None:
             return
         nodes = tuple(self._nodes(self.model, self.layout))

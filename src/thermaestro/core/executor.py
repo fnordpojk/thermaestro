@@ -245,6 +245,9 @@ class Executor:
         self._loops: dict[str, asyncio.Task[None]] = {}
         """The loops the write path runs while it does, by name."""
         self._unsettled: dict[str, float] = {}
+        self._recovering: dict[str, object] = {}
+        """Per lever, the put-back a dead-man may have made with another value, while it is
+        still to be settled and set back (`_after_put_back`): a newer change sent ends it."""
         self._sent: dict[str, float] = {}
         """When each lever's latest change was sent, in this run."""
         self._born = self._clock()
@@ -473,10 +476,17 @@ class Executor:
             del self.claims[ref]
         await self._db.run(lambda t: _drop_claims(t, gone))
 
-    async def restore(self, why: str, refs: Collection[str] | None = None) -> dict[str, Result]:
+    async def restore(
+        self,
+        why: str,
+        refs: Collection[str] | None = None,
+        *,
+        still: Callable[[str], bool] | None = None,
+    ) -> dict[str, Result]:
         """Put levers back as they were found: release holds, set settings to their
         baselines. Nothing a person changed meanwhile is written over. One that can't be
-        put back is owed, and tried again until it is."""
+        put back is owed, and tried again until it is. With `still`, only a lever for which
+        it holds once its turn comes."""
         results: dict[str, Result] = {}
         for ref, claim in list(self.claims.items()):
             if refs is not None and ref not in refs:
@@ -488,6 +498,8 @@ class Executor:
                 await self._save(claim)
                 continue
             async with self._lock(ref):
+                if still is not None and not still(ref):
+                    continue
                 other = self._other_device(claim)
                 if other is not None:
                     await self._let_go(ref, other)
@@ -604,6 +616,8 @@ class Executor:
             return await self._record(
                 ref, op, params, who, why, mode, Result("shadowed", "nothing was changed"), found
             )
+        if not restoring:
+            self._recovering.pop(ref, None)  # this change is newer than any recovery
         # Kept before it is sent: a process that stops before its fate is known still
         # knows the device may have taken it.
         claim.pending = {"op": op, "params": params}
@@ -1187,8 +1201,9 @@ class Executor:
         report is about: that stands.
 
         A put-back that may have written a value of Thermaestro's own other than the
-        baseline (`put`: a baseline chosen anew and refused, the gateway's answers lost) is
-        a change whose fate isn't known, until a reading says which (`_after_put_back`)."""
+        baseline (in `put`: a baseline chosen anew and not taken, the gateway's answers lost
+        or Thermaestro stopped meanwhile) is a change whose fate isn't known, until a
+        reading says which (`_after_put_back`)."""
         async with self._lock(ref):
             claim = self.claims.get(ref)
             fired = (message.fired or message.t).timestamp()
@@ -1214,7 +1229,8 @@ class Executor:
                     if put is not None:
                         claim.pending = {"op": "set", "params": {"value": put}}
                         self._unsettled[ref] = fired
-                        self._spawn(self._after_put_back(ref, claim))
+                        token = self._recovering[ref] = object()
+                        self._spawn(self._after_put_back(ref, claim, token))
                     await self._save(claim)
             elif claim is not None and message.outcome == "skipped" and claim.drift is None:
                 claim.drift = f"while Thermaestro was silent, it was changed to {message.found}"
@@ -1247,38 +1263,55 @@ class Executor:
         return same(now, claim.baseline, param) or (put is not None and same(now, put, param))
 
     @staticmethod
-    def _put_elsewhere(claim: Claim, lever: Lever | None, put: Value | None) -> Value | None:
+    def _put_elsewhere(
+        claim: Claim, lever: Lever | None, put: Value | list[Value] | None
+    ) -> Value | None:
         """What a dead-man's put-back may have written in place of a setting's baseline,
-        where that is something else; None otherwise."""
+        where that is something else: of the values it may have written, the latest that
+        isn't the baseline. None where all are."""
         if put is None or claim.baseline is None or claim.mode != "control":
             return None
         if lever is None or lever.kind == "hold":
             return None
-        return None if same(put, claim.baseline, lever.params.get("value")) else put
+        param = lever.params.get("value")
+        values = put if isinstance(put, list) else [put]
+        others = [v for v in values if not same(v, claim.baseline, param)]
+        return others[-1] if others else None
 
-    async def _after_put_back(self, ref: str, claim: Claim) -> None:
+    async def _after_put_back(self, ref: str, claim: Claim, token: object) -> None:
         """A dead-man's put-back that may have left a value of Thermaestro's own other than
         the baseline: once a fresh reading says which, the baseline is put back where it
         is that value. A baseline read means nothing is left to do, and someone else's
-        value is let be (`_settle_now`)."""
-        while True:
-            await asyncio.sleep(self._poll_s)
-            async with self._lock(ref):
-                if self.claims.get(ref) is not claim or claim.drift is not None:
-                    return
-                if claim.pending is not None:
-                    lever = self.lever(ref)
-                    if lever is None:
-                        continue
-                    why = await self._settle_now(ref, claim, lever)
-                    if why == UNSETTLED:
-                        continue
-                    if why is not None:
-                        return  # someone else's: let go
-                if not claim.changed:
-                    return
-            await self.restore(ELSEWHERE, [ref])
-            return
+        value is let be (`_settle_now`). A newer change sent meanwhile ends it: that change
+        stands, and is put back as any other."""
+
+        def mine(ref: str) -> bool:
+            return self._recovering.get(ref) is token
+
+        try:
+            while True:
+                await asyncio.sleep(self._poll_s)
+                async with self._lock(ref):
+                    if not mine(ref) or self.claims.get(ref) is not claim:
+                        return
+                    if claim.drift is not None:
+                        return
+                    if claim.pending is not None:
+                        lever = self.lever(ref)
+                        if lever is None:
+                            continue
+                        why = await self._settle_now(ref, claim, lever)
+                        if why == UNSETTLED:
+                            continue
+                        if why is not None:
+                            return  # someone else's: let go
+                    if not claim.changed:
+                        return
+                await self.restore(ELSEWHERE, [ref], still=mine)
+                return
+        finally:
+            if mine(ref):
+                self._recovering.pop(ref, None)
 
     async def _let_go(self, ref: str, why: str) -> None:
         claim = self.claims.get(ref)
@@ -1315,11 +1348,18 @@ class Executor:
         run says so: a plugin may send one taken before, which says nothing of what the
         earlier run changed. A change that was in flight was taken if the device reads it;
         where it can't be read, it is taken as taken, so it is put back either way. The
-        planner then sets what it wants again."""
+        planner then sets what it wants again. A change sent in this run meanwhile is newer
+        than what the earlier run left: it stands, and is put back as any other."""
+
+        def unsent(ref: str) -> bool:
+            return ref not in self._sent
+
         while True:
             await asyncio.sleep(self._poll_s)
             claim = self.claims.get(ref)
             if claim is None or claim.drift is not None or not claim.changed:
+                return
+            if not unsent(ref):
                 return
             lever = self.lever(ref)
             instance, _ = split(ref)
@@ -1340,7 +1380,8 @@ class Executor:
             elif pending is not None:
                 claim.pending = None
                 self._assume(claim, pending["op"], pending["params"])
-            await self.restore("Thermaestro restarted without putting this back", [ref])
+            why = "Thermaestro restarted without putting this back"
+            await self.restore(why, [ref], still=unsent)
             return
 
     async def _since_restart(self, ref: str, claim: Claim, lever: Lever) -> bool | None:
