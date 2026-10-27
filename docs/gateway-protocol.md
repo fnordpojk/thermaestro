@@ -52,7 +52,7 @@ A plain NibeGW gateway takes requests on one UDP port per (address, token), by c
 |---|---|---|---|
 | 0 | 2 | `magic` | `0x54 0x47` ("TG") |
 | 2 | 1 | `ver_major` | incompatible changes; 0 for this version |
-| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 3 here |
+| 3 | 1 | `ver_minor` | informational: the registry revision the sender was built against (§7); 4 here |
 | 4 | 1 | `type` | message type (§6) |
 | 5 | 1 | `flags` | bit 7: authenticated (§11); the others are 0 |
 | 6 | 2 | `body_len` | bytes after the header, not counting the authentication trailer |
@@ -126,9 +126,9 @@ A message body is a **fixed core**, the few fields that message type always has 
 | `0xB0` | HEALTH | none | the values of §10, one option each |
 | `0xE0` | ERROR | `code` u16 | `ERR_TAG` (the offending option), `ERR_DETAIL`. The header `id` echoes the offending message's |
 
-## 7. Registry, revision 3
+## 7. Registry, revision 4
 
-Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8). Revision 3 added the dead-man (§15): `DEADMAN`, the messages ARM, DISARM, ACK_FIRED, ARMED and FIRED, and `FEATURES` bit 7.
+Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8). Revision 3 added the dead-man (§15): `DEADMAN`, the messages ARM, DISARM, ACK_FIRED, ARMED and FIRED, and `FEATURES` bit 7. Revision 4 reserves `PROTOCOL_SLOTS` entries for each protocol client, rather than for all of them together, so two protocol clients don't push each other's requests out.
 
 ### 7.1 FATE `stage` (u8)
 
@@ -179,7 +179,7 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0109` | `TIMESTAMP_LAG_MAX_US` | u32 | WELCOME | §9 |
 | `0x010A` | `PLAIN_PORTS` | u16 read, u16 write | WELCOME | 0 where a plain port is off |
 | `0x010B` | `ACK_ADDRESS` | u16, R | WELCOME | the addresses the gateway answers for |
-| `0x010C` | `PROTOCOL_SLOTS` | u8 | WELCOME | entries per (address, token) reserved for protocol requests, on top of `QUEUE_CAP` (revision 2) |
+| `0x010C` | `PROTOCOL_SLOTS` | u8 | WELCOME | entries per (address, token) reserved for each protocol client's requests, on top of `QUEUE_CAP` (revision 2; for each client since revision 4) |
 | `0x0200` | `ERR_TAG` | u16 | ERROR | the option that caused it |
 | `0x0201` | `ERR_DETAIL` | str | ERROR | human-readable |
 | `0x0301`–`0x0319` | HEALTH values | §10 | HEALTH | |
@@ -194,7 +194,7 @@ FATE and ANSWER carry the request's id. ARMED echoes the ARM, DISARM or ACK_FIRE
 
 ### 7.9 Defaults
 
-Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request per (address, token), datagrams of at most 512 bytes. The dead-man: silence 900 s (granted between 300 and 7200), 16 entries.
+Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request of each client per (address, token), datagrams of at most 512 bytes. The dead-man: silence 900 s (granted between 300 and 7200), 16 entries.
 
 ### 7.10 The dead-man's codes
 
@@ -222,8 +222,8 @@ REQUEST ─► validate ─► DROPPED(INVALID_FRAME | TOKEN_MISMATCH | UNKNOWN_
 
 - One queue per (address, token), **shared with plain requests**, and sent in the order the requests arrived.
 - **Plain requests behave as in plain NibeGW**: at most `QUEUE_CAP` (3) of them, and a new one drops the oldest plain entry.
-- **On top of those, `PROTOCOL_SLOTS` (1) entries are reserved for protocol requests.** When they are taken, a protocol request is refused with `QUEUE_FULL`, and the client decides whether to try again.
-- **Neither kind pushes the other out**, so a plain client that keeps its entries full doesn't keep protocol requests out, and a queue holds at most `QUEUE_CAP` + `PROTOCOL_SLOTS`.
+- **On top of those, each protocol client has `PROTOCOL_SLOTS` (1) entries of its own.** When its own are taken, its next request is refused with `QUEUE_FULL`, and the client decides whether to try again. Another protocol client's requests don't take its entries. The gateway's dead-man (§15) is a client of its own in this.
+- **Nobody pushes anybody out**, so a plain client that keeps its entries full doesn't keep protocol requests out, nor does one protocol client keep out another's. A queue holds at most `QUEUE_CAP` + `PROTOCOL_SLOTS` for each protocol client, the dead-man included.
 - `PRIORITY` puts a request at the front of its queue.
 - **The ttl is checked when a token arrives** (and periodically): an expired request is dropped and the next one is tried, so a write that arrives after its client gave up never reaches the pump.
 - When the gateway stops, every queued protocol request gets `DROPPED(SHUTDOWN)`.

@@ -1,13 +1,13 @@
 {
-  "note": "The Thermaestro gateway protocol, registry revision 3; see docs/gateway-protocol.md \u00a73 to \u00a77 and \u00a711. Hex strings are whole datagrams. Options keep their full tag, critical bit included.",
+  "note": "The Thermaestro gateway protocol, registry revision 4; see docs/gateway-protocol.md \u00a73 to \u00a77 and \u00a711. Hex strings are whole datagrams. Options keep their full tag, critical bit included.",
   "messages": [
     {
       "name": "HELLO with name, subscription, lease and health interval",
-      "hex": "5447000301002500010000000000000000000000000001000b00746865726d61657374726f0300040005000000040002007800050002000a00",
+      "hex": "5447000401002500010000000000000000000000000001000b00746865726d61657374726f0300040005000000040002007800050002000a00",
       "message": {
         "type": "HELLO",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 1,
         "gw_time_us": 0,
@@ -37,11 +37,11 @@
     },
     {
       "name": "HELLO insisting on authentication (critical CLIENT_NONCE)",
-      "hex": "5447000301001600020000000000000000000000000002801000101112131415161718191a1b1c1d1e1f",
+      "hex": "5447000401001600020000000000000000000000000002801000101112131415161718191a1b1c1d1e1f",
       "message": {
         "type": "HELLO",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 2,
         "gw_time_us": 0,
@@ -59,11 +59,11 @@
     },
     {
       "name": "HELLO with an unknown option that isn't critical",
-      "hex": "54470003010008000300000000000000000000000000420002000102",
+      "hex": "54470004010008000300000000000000000000000000420002000102",
       "message": {
         "type": "HELLO",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 3,
         "gw_time_us": 0,
@@ -81,11 +81,11 @@
     },
     {
       "name": "KEEPALIVE",
-      "hex": "5447000302000000070000000000000000000000",
+      "hex": "5447000402000000070000000000000000000000",
       "message": {
         "type": "KEEPALIVE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 7,
         "gw_time_us": 0,
@@ -95,11 +95,11 @@
     },
     {
       "name": "BYE",
-      "hex": "5447000303000000080000000000000000000000",
+      "hex": "5447000403000000080000000000000000000000",
       "message": {
         "type": "BYE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 8,
         "gw_time_us": 0,
@@ -109,11 +109,11 @@
     },
     {
       "name": "SUBSCRIBE to own frames only",
-      "hex": "54470003040008000900000000000000000000000300040002000000",
+      "hex": "54470004040008000900000000000000000000000300040002000000",
       "message": {
         "type": "SUBSCRIBE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 9,
         "gw_time_us": 0,
@@ -128,11 +128,11 @@
     },
     {
       "name": "REQUEST: read 47134, expect an answer, ttl 10 s",
-      "hex": "5447000310000f002a0000000000000000000000200069021027000006c069021eb80d",
+      "hex": "5447000410000f002a0000000000000000000000200069021027000006c069021eb80d",
       "message": {
         "type": "REQUEST",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 42,
         "gw_time_us": 0,
@@ -149,11 +149,11 @@
     },
     {
       "name": "REQUEST: write 47387 = 1, priority and expect an answer",
-      "hex": "54470003100013002b000000000000000000000020006b038813b80b0ac06b061bb9010000000e",
+      "hex": "54470004100013002b000000000000000000000020006b038813b80b0ac06b061bb9010000000e",
       "message": {
         "type": "REQUEST",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 43,
         "gw_time_us": 0,
@@ -170,11 +170,11 @@
     },
     {
       "name": "CANCEL request 42",
-      "hex": "54470003110000002a0000000000000000000000",
+      "hex": "54470004110000002a0000000000000000000000",
       "message": {
         "type": "CANCEL",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 42,
         "gw_time_us": 0,
@@ -184,17 +184,17 @@
     },
     {
       "name": "WELCOME from the Python gateway",
-      "hex": "54470003810077000100000015cd5b0700000000000300010400efbeadde050104003f00000002011300746865726d61657374726f2d6761746577617903010500302e302e3006010100030c01010001070101000408010200881309010400204e00000a0104000f2710270b01020020000b01020019000300040005000000040002007800050002000a00",
+      "hex": "54470004810077000100000015cd5b0700000000000400010400efbeadde050104003f00000002011300746865726d61657374726f2d6761746577617903010500302e302e3006010100030c01010001070101000408010200881309010400204e00000a0104000f2710270b01020020000b01020019000300040005000000040002007800050002000a00",
       "message": {
         "type": "WELCOME",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 1,
         "gw_time_us": 123456789,
         "core": {
           "ver_major": 0,
-          "ver_minor": 3
+          "ver_minor": 4
         },
         "options": [
           {
@@ -262,11 +262,11 @@
     },
     {
       "name": "FATE: queued, one request ahead",
-      "hex": "5447000390000c002a00000040420f00000000000100010040420f0000000000",
+      "hex": "5447000490000c002a00000040420f00000000000100010040420f0000000000",
       "message": {
         "type": "FATE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 42,
         "gw_time_us": 1000000,
@@ -280,11 +280,11 @@
     },
     {
       "name": "FATE: dropped, queue full",
-      "hex": "5447000390000c002c00000034440f00000000000600040034440f0000000000",
+      "hex": "5447000490000c002c00000034440f00000000000600040034440f0000000000",
       "message": {
         "type": "FATE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 44,
         "gw_time_us": 1000500,
@@ -298,11 +298,11 @@
     },
     {
       "name": "FATE: pump ACKed the request",
-      "hex": "5447000390000c002a00000080841e00000000000300000080841e0000000000",
+      "hex": "5447000490000c002a00000080841e00000000000300000080841e0000000000",
       "message": {
         "type": "FATE",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 42,
         "gw_time_us": 2000000,
@@ -316,11 +316,11 @@
     },
     {
       "name": "ANSWER: OK with the pump's 0x6A telegram",
-      "hex": "5447000391000e002a000000c0c62d0000000000010c5c00206a061eb82d000000c7",
+      "hex": "5447000491000e002a000000c0c62d0000000000010c5c00206a061eb82d000000c7",
       "message": {
         "type": "ANSWER",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 42,
         "gw_time_us": 3000000,
@@ -333,11 +333,11 @@
     },
     {
       "name": "ANSWER: timeout",
-      "hex": "54470003910002002d00000000127a00000000000200",
+      "hex": "54470004910002002d00000000127a00000000000200",
       "message": {
         "type": "ANSWER",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 45,
         "gw_time_us": 8000000,
@@ -350,11 +350,11 @@
     },
     {
       "name": "FRAME: our read token answered with this client's request",
-      "hex": "54470003a000250011000000e4841e000000000001032a00000080841e0000000000f8701e00000000000d005c0020690049c069021eb80d06",
+      "hex": "54470004a000250011000000e4841e000000000001032a00000080841e0000000000f8701e00000000000d005c0020690049c069021eb80d06",
       "message": {
         "type": "FRAME",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 17,
         "gw_time_us": 2000100,
@@ -371,11 +371,11 @@
     },
     {
       "name": "HEALTH with counters and repeatable structured values",
-      "hex": "54470003b00046000300000000a493d60000000000010400efbeadde04010400100e0000010301000104030400e80300000c0306000400020000000c030600050001000000100304000c000000150304002000690118030100c3",
+      "hex": "54470004b00046000300000000a493d60000000000010400efbeadde04010400100e0000010301000104030400e80300000c0306000400020000000c030600050001000000100304000c000000150304002000690118030100c3",
       "message": {
         "type": "HEALTH",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 3,
         "gw_time_us": 3600000000,
@@ -422,11 +422,11 @@
     },
     {
       "name": "HELLO asking for the dead-man: 15 minutes, 16 entries",
-      "hex": "5447000301000b000400000000000000000000000000010805008403100000",
+      "hex": "5447000401000b000400000000000000000000000000010805008403100000",
       "message": {
         "type": "HELLO",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 4,
         "gw_time_us": 0,
@@ -444,17 +444,17 @@
     },
     {
       "name": "WELCOME granting the dead-man, 2 entries armed and 1 fired unreported",
-      "hex": "544700038100130004000000bc02000000000000000305010400ff000000010805008403100201",
+      "hex": "544700048100130004000000bc02000000000000000405010400ff000000010805008403100201",
       "message": {
         "type": "WELCOME",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 4,
         "gw_time_us": 700,
         "core": {
           "ver_major": 0,
-          "ver_minor": 3
+          "ver_minor": 4
         },
         "options": [
           {
@@ -470,11 +470,11 @@
     },
     {
       "name": "ARM entry 0: 47011, 2 bytes, expected -2, put back to -4",
-      "hex": "54470003200013003200000000000000000000000002a3b7feff00000ac06b06a3b7fcff0000ba",
+      "hex": "54470004200013003200000000000000000000000002a3b7feff00000ac06b06a3b7fcff0000ba",
       "message": {
         "type": "ARM",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 50,
         "gw_time_us": 0,
@@ -490,11 +490,11 @@
     },
     {
       "name": "DISARM entry 0",
-      "hex": "544700032100010033000000000000000000000000",
+      "hex": "544700042100010033000000000000000000000000",
       "message": {
         "type": "DISARM",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 51,
         "gw_time_us": 0,
@@ -506,11 +506,11 @@
     },
     {
       "name": "ACK_FIRED entry 3",
-      "hex": "544700032200010034000000000000000000000003",
+      "hex": "544700042200010034000000000000000000000003",
       "message": {
         "type": "ACK_FIRED",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 52,
         "gw_time_us": 0,
@@ -522,11 +522,11 @@
     },
     {
       "name": "ARMED: entry 0 armed",
-      "hex": "544700039200040032000000881300000000000000010000",
+      "hex": "544700049200040032000000881300000000000000010000",
       "message": {
         "type": "ARMED",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 50,
         "gw_time_us": 5000,
@@ -540,11 +540,11 @@
     },
     {
       "name": "ARMED: refused, the frame writes another register",
-      "hex": "544700039200040035000000ec1300000000000001030400",
+      "hex": "544700049200040035000000ec1300000000000001030400",
       "message": {
         "type": "ARMED",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 53,
         "gw_time_us": 5100,
@@ -558,11 +558,11 @@
     },
     {
       "name": "FIRED: entry 0 put back",
-      "hex": "5447000393001000000000008033023b000000000001a3b7feff00000070383900000000",
+      "hex": "5447000493001000000000008033023b000000000001a3b7feff00000070383900000000",
       "message": {
         "type": "FIRED",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 0,
         "gw_time_us": 990000000,
@@ -578,11 +578,11 @@
     },
     {
       "name": "FIRED: entry 3 skipped, someone set 47044 to 45.0 \u00b0C",
-      "hex": "544700039300100000000000e02e0000000000000303c4b7c20100000000000000000000",
+      "hex": "544700049300100000000000e02e0000000000000303c4b7c20100000000000000000000",
       "message": {
         "type": "FIRED",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 0,
         "gw_time_us": 12000,
@@ -598,11 +598,11 @@
     },
     {
       "name": "ERROR: unsupported option",
-      "hex": "54470003e0002300050000000a00000000000000050000020200018801021700756e6b6e6f776e20637269746963616c206f7074696f6e",
+      "hex": "54470004e0002300050000000a00000000000000050000020200018801021700756e6b6e6f776e20637269746963616c206f7074696f6e",
       "message": {
         "type": "ERROR",
         "ver_major": 0,
-        "ver_minor": 3,
+        "ver_minor": 4,
         "flags": 0,
         "id": 5,
         "gw_time_us": 10,
@@ -625,83 +625,83 @@
   "invalid": [
     {
       "name": "bad magic",
-      "hex": "54580003010008000100000000000000000000000000040002007800",
+      "hex": "54580004010008000100000000000000000000000000040002007800",
       "error": "bad_magic"
     },
     {
       "name": "header cut short",
-      "hex": "544700030100080001000000",
+      "hex": "544700040100080001000000",
       "error": "malformed"
     },
     {
       "name": "body_len longer than the datagram",
-      "hex": "54470003010009000100000000000000000000000000040002007800",
+      "hex": "54470004010009000100000000000000000000000000040002007800",
       "error": "malformed"
     },
     {
       "name": "unknown message type",
-      "hex": "5447000355000000010000000000000000000000",
+      "hex": "5447000455000000010000000000000000000000",
       "error": "unknown_type"
     },
     {
       "name": "another major version",
-      "hex": "54470703010008000100000000000000000000000000040002007800",
+      "hex": "54470704010008000100000000000000000000000000040002007800",
       "error": "bad_version"
     },
     {
       "name": "HELLO core cut short",
-      "hex": "544700030100010001000000000000000000000000",
+      "hex": "544700040100010001000000000000000000000000",
       "error": "malformed"
     },
     {
       "name": "option length runs past the body",
-      "hex": "5447000301000600010000000000000000000000000004000900",
+      "hex": "5447000401000600010000000000000000000000000004000900",
       "error": "malformed"
     },
     {
       "name": "non-repeatable option twice",
-      "hex": "5447000301000e000100000000000000000000000000040002007800040002003c00",
+      "hex": "5447000401000e000100000000000000000000000000040002007800040002003c00",
       "error": "malformed"
     },
     {
       "name": "known option with the wrong length",
-      "hex": "5447000301000a0001000000000000000000000000000400040078000000",
+      "hex": "5447000401000a0001000000000000000000000000000400040078000000",
       "error": "malformed"
     },
     {
       "name": "unknown critical option",
-      "hex": "5447000301000600010000000000000000000000000042800000",
+      "hex": "5447000401000600010000000000000000000000000042800000",
       "error": "unsupported_option",
       "tag": 32834
     },
     {
       "name": "client name longer than 32 bytes",
-      "hex": "5447000301002700010000000000000000000000000001002100787878787878787878787878787878787878787878787878787878787878787878",
+      "hex": "5447000401002700010000000000000000000000000001002100787878787878787878787878787878787878787878787878787878787878787878",
       "error": "malformed"
     },
     {
       "name": "client name not UTF-8",
-      "hex": "5447000301000800010000000000000000000000000001000200fffe",
+      "hex": "5447000401000800010000000000000000000000000001000200fffe",
       "error": "malformed"
     },
     {
       "name": "REQUEST frame_len runs past the body",
-      "hex": "5447000310000f00010000000000000000000000200069020000000009c069021eb80d",
+      "hex": "5447000410000f00010000000000000000000000200069020000000009c069021eb80d",
       "error": "malformed"
     },
     {
       "name": "ARM frame_len runs past the body",
-      "hex": "54470003200013000100000000000000000000000002a3b7000000000cc06b06a3b7fcff0000ba",
+      "hex": "54470004200013000100000000000000000000000002a3b7000000000cc06b06a3b7fcff0000ba",
       "error": "malformed"
     },
     {
       "name": "DEADMAN option with the wrong length",
-      "hex": "54470003010008000100000000000000000000000000010802008403",
+      "hex": "54470004010008000100000000000000000000000000010802008403",
       "error": "malformed"
     },
     {
       "name": "authenticated flag without a trailer",
-      "hex": "54470003018008000100000000000000000000000000040002007800",
+      "hex": "54470004018008000100000000000000000000000000040002007800",
       "error": "malformed"
     }
   ],
@@ -716,20 +716,20 @@
         "name": "HELLO signed with the PSK",
         "key": "psk",
         "seq": 1,
-        "hex": "5447000301801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f010000009c50252a51d79fe932898047254f5e97"
+        "hex": "5447000401801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f01000000cf96d6b30887f70f683dd4bc29ca8def"
       },
       {
         "name": "WELCOME signed with the session key",
         "key": "session_key",
         "seq": 1,
-        "hex": "544700038180260001000000f401000000000000000300010400efbeadde050104007f00000001011000202122232425262728292a2b2c2d2e2f01000000ec8c569ccb7c571c5f4f68a0306c5f85"
+        "hex": "544700048180260001000000f401000000000000000400010400efbeadde050104007f00000001011000202122232425262728292a2b2c2d2e2f01000000ef749f22d8342a0b2f7d328e7d4a75b8"
       }
     ],
     "bad": [
       {
         "name": "HELLO with one bit of the MAC flipped",
         "key": "psk",
-        "hex": "5447000301801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f010000009c50252a51d79fe932898047254f5e96",
+        "hex": "5447000401801600010000000000000000000000000002801000101112131415161718191a1b1c1d1e1f01000000cf96d6b30887f70f683dd4bc29ca8dee",
         "error": "auth_failed"
       }
     ]

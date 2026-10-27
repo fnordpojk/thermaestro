@@ -176,7 +176,7 @@ def nibe_vectors() -> dict[str, Any]:
 # --- The Thermaestro gateway protocol (docs/gateway-protocol.md) ---------------------------------
 
 VER_MAJOR = 0
-VER_MINOR = 3
+VER_MINOR = 4
 CRITICAL = 0x8000
 
 HELLO, KEEPALIVE, BYE, SUBSCRIBE, REQUEST, CANCEL = 0x01, 0x02, 0x03, 0x04, 0x10, 0x11
@@ -688,7 +688,7 @@ def gw_vectors() -> dict[str, Any]:
 
     return {
         "note": (
-            "The Thermaestro gateway protocol, registry revision 3; see "
+            "The Thermaestro gateway protocol, registry revision 4; see "
             "docs/gateway-protocol.md §3 to §7 and §11. Hex strings are whole "
             "datagrams. Options keep their full tag, critical bit included."
         ),

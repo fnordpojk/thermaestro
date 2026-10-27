@@ -6,9 +6,10 @@ collect in an outbox.
 
 - One queue per (address, token), shared by plain NibeGW and protocol requests and sent
   in the order they arrived. Plain requests behave as on esphome-nibe: at most three, and
-  a new one drops the oldest plain entry. On top of those, one entry is reserved for
-  protocol requests, which are refused when it is taken. Neither kind pushes the other
-  out, so a busy plain client doesn't keep protocol requests waiting for a slot.
+  a new one drops the oldest plain entry. On top of those, each protocol client has one
+  entry of its own, and its next request is refused while that is taken. Nobody pushes
+  anybody else out, so neither a busy plain client nor another protocol client keeps a
+  protocol client's requests waiting for a slot.
 - Reads are paired with the pump's 0x6A answers first in, first out per register: the
   read requests the pump took, from every client and plain ones included, wait in the
   order it took them, and an answer belongs to the oldest. A read-back after a write
@@ -29,7 +30,7 @@ from thermaestro_gateway.bus import Exchange, Reply
 DEFAULT_QUEUE_CAP = 3
 """Plain requests per queue."""
 DEFAULT_PROTOCOL_SLOTS = 1
-"""Entries per queue reserved for protocol requests, on top of the plain ones."""
+"""Entries per queue reserved for each protocol client's requests, on top of the plain ones."""
 DEFAULT_ANSWER_TIMEOUT_US = 5_000_000
 
 Key = tuple[int, int]
@@ -103,7 +104,7 @@ class Engine:
         key = (request.address, request.token)
         reason = self._invalid(request.frame, key)
         if reason is None:
-            taken = sum(1 for e in self._queues[key] if e.client is not None)
+            taken = sum(1 for e in self._queues[key] if e.client is client)
             if taken >= self.protocol_slots:
                 reason = p.DropReason.QUEUE_FULL
         if reason is not None:

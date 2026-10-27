@@ -2,7 +2,7 @@
 
 One message per UDP datagram: a 20-byte header, a fixed core per message type, then TLV
 options. An authenticated message ends with a trailer: a sequence number and a MAC.
-Numbers are little-endian. The registry is the spec's §7, revision 3.
+Numbers are little-endian. The registry is the spec's §7, revision 4.
 """
 
 import hashlib
@@ -14,7 +14,7 @@ from typing import ClassVar
 
 MAGIC = b"TG"
 VERSION_MAJOR = 0
-REGISTRY_REVISION = 3
+REGISTRY_REVISION = 4
 MAX_DATAGRAM = 512
 FLAG_AUTHENTICATED = 0x80
 CRITICAL = 0x8000

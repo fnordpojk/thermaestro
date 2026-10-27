@@ -147,15 +147,22 @@ def sent_order(e: Engine) -> list[int]:
     return order
 
 
-def test_one_slot_is_reserved_for_protocol_requests() -> None:
+def test_each_protocol_client_has_a_slot_of_its_own() -> None:
+    """A client's second request waits for its first to go; another client's isn't kept
+    out by it (revision 4), so Thermaestro and the rig, say, can both read."""
     e = Engine(keys={READ_KEY, WRITE_KEY})
     e.submit("a", read(1), 0)
-    e.submit("b", read(2, register=40004), 0)
+    e.submit("a", read(2, register=40004), 0)
+    e.submit("b", read(3, register=40005), 0)
     assert fates(e.take_outbox()) == [
         ("a", 1, p.Stage.QUEUED, 0),
-        ("b", 2, p.Stage.DROPPED, p.DropReason.QUEUE_FULL),
+        ("a", 2, p.Stage.DROPPED, p.DropReason.QUEUE_FULL),
+        ("b", 3, p.Stage.QUEUED, 1),
     ]
     assert e.stats.drops[p.DropReason.QUEUE_FULL] == 1
+    assert sent_order(e) == [47134, 40005]
+    e.submit("a", read(4, register=40004), 1)  # its slot is free again
+    assert fates(e.take_outbox())[-1] == ("a", 4, p.Stage.QUEUED, 0)
 
 
 def test_a_protocol_request_gets_in_when_plain_requests_fill_theirs() -> None:
