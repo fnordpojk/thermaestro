@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 from thermaestro.core.values import Sample
 from thermaestro.learn import tank
 from thermaestro.learn.heating import _hour
+from thermaestro.learn.records import HouseHour
 
 DAY = date(2026, 10, 15)
 T0 = datetime(2026, 10, 15, tzinfo=UTC).timestamp()
@@ -32,10 +33,13 @@ def test_the_first_day_is_never_before_the_raw_history() -> None:
 
 
 def test_the_water_is_the_same_on_every_day() -> None:
-    body = {"t": T0, "supply": 40.0, "back": 32.0, "water": 40.0}
+    def kept(**fields: float | None) -> HouseHour:
+        return HouseHour.model_validate({"t": T0, "room": 21.0, "outdoor": 0.0, **fields})
+
+    body = kept(supply=40.0, back=32.0, water=40.0)
     assert _hour(body, back=True).water == 36.0
     assert _hour(body, back=False).water == 40.0
-    no_return = {"t": T0, "supply": 40.0, "back": None, "water": 40.0}
+    no_return = kept(supply=40.0, back=None, water=40.0)
     assert _hour(no_return, back=True).water is None  # not mixed in as supply alone
-    old = {"t": T0, "supply": 40.0, "water": 38.0}
+    old = kept(supply=40.0, water=38.0)
     assert _hour(old, back=True).water == 38.0  # kept before the return was: as it was

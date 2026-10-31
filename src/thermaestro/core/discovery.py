@@ -49,6 +49,8 @@ from .. import version
 from ..cap.model import Envelope, Node, Point
 from ..cap.vocabulary import STATES, bare
 from ..store import Database, Discovery, Location, PriceLayer, Vat
+from .events import mark
+from .failures import failures
 from .gridrules import household
 from .host import PluginHost, State
 from .mqtt import MqttClient, Wanted
@@ -58,6 +60,7 @@ from .series import Series
 from .values import Key, Values
 
 log = logging.getLogger(__name__)
+ASKING = mark("A request over MQTT")
 
 SUPPORT_URL = "https://github.com/fnordpojk/thermaestro"
 MIN_INTERVAL_S = 10.0
@@ -629,8 +632,8 @@ class Publisher:
             answer = await asker(body)
         except ValueError as e:
             answer = {"accepted": False, "messages": [f"not a request: {e}"]}
-        except Exception:
-            log.exception("an MQTT request failed")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("mqtt.request", ASKING, e, logger=log, moment=True)
             answer = {"accepted": False, "messages": ["it failed; see Thermaestro's log"]}
         await client.publish(topics.result, json.dumps(answer, ensure_ascii=False), qos=1)
         self._controlled = None  # shown at the next round, not in half a minute

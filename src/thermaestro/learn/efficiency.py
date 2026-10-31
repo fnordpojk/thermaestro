@@ -14,7 +14,6 @@ its heat: its heating share stays as documented, and its hours are kept for what
 emitters give.
 """
 
-import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
@@ -23,19 +22,22 @@ from typing import Any
 
 from .. import clock
 from ..cap.model import Rating
+from ..core.failures import failures
 from ..core.host import PluginHost
 from ..core.values import Key, Sample, Values
 from ..store import Database, Rated, Transaction
-from . import cop, tank
+from . import cop, records, tank
 from .electric import counter_kwh
 from .energy import DRAW
-from .hotwater import KEEP_S, LOSS, house
+from .hotwater import LOSS, house
 from .inputs import Span, intersect, seconds, spans
 from .meters import pump_meters
-from .model import Learned, State
+from .model import Learned, State, mark
+from .records import CopCharge, CopDay, CopRun
 from .store import Learnings
 
 log = logging.getLogger(__name__)
+LEARNING_COP = mark("Learning a compressor's COP")
 
 DHW = "cop.dhw"
 HEATING = "cop.heating"
@@ -127,10 +129,13 @@ class Efficiency:
         meters = await pump_meters(self._db)
         for keys in self.pumps():
             keys = replace(keys, meter=meters.get(keys.scope))
+            part = f"learn.cop:{keys.scope}"
             try:
                 await self._learn(keys, rated, calendar.zone, now)
-            except Exception:
-                log.exception("learning the COP of %s failed; trying again later", keys.scope)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(part, LEARNING_COP, e, where=keys.scope, logger=log)
+            else:
+                failures.worked(part)
 
     def starting(self, keys: PumpKeys, rated: Rated) -> tuple[float | None, float | None]:
         """The documented shares of the ideal: heating's and hot water's."""
@@ -208,9 +213,7 @@ class Efficiency:
         on_dhw = intersect(ran, spans(demand, until, lambda s: s.text == "dhw"))
         on_heat = intersect(ran, spans(demand, until, lambda s: s.text == "heating"))
         draws = await self._draws(keys.tank, since, until) if keys.tank else []
-        rows: list[tuple[str, float, dict[str, Any]]] = [
-            ("cop_day", start, {"day": day.isoformat()})
-        ]
+        rows = [records.row(records.COP_DAY, start, CopDay(day=day))]
         for c in tank.charges(demand, until, top):
             if not start <= c.start < end:
                 continue
@@ -224,17 +227,21 @@ class Efficiency:
                 continue
             # The loss is added when judged, as known then: one learned later still counts.
             loss_kh = ((before + after) / 2 - tank.ROOM_C) * (settled - c.start) / 3600
-            extra = {"rise_c": round(after - before, 3), "loss_kh": round(loss_kh, 3)}
-            rows.append(("cop_charge", c.start, _body(run) | extra))
+            charge = CopCharge(
+                **_body(run).model_dump(),
+                rise_c=round(after - before, 3),
+                loss_kh=round(loss_kh, 3),
+            )
+            rows.append(records.row(records.COP_CHARGE, c.start, charge))
         if supply is not None:
             t = start
             while t < end:
                 stretch = intersect(on_heat, [(t, t + 3600)])
                 run = _run(t, stretch, supply, source, returning, counter)
                 if run is not None and run.run_s >= cop.RUN_LEAST_S:
-                    rows.append(("cop_hour", t, _body(run)))
+                    rows.append(records.row(records.COP_HOUR, t, _body(run)))
                 t += 3600
-        await self._db.run(lambda tr: _events(tr, keys.scope, rows))
+        await self._db.run(lambda tr: records.keep(tr, keys.scope, rows))
 
     async def _judge(
         self,
@@ -247,13 +254,14 @@ class Efficiency:
         draw = self._learnings.used(DRAW, keys.scope)
         liters = self.volume(keys, rated)
         k = self._loss(keys.tank)
+        since = now - DAYS * 86_400
         charges = [
-            _unbody(t, b, k)
-            for t, b in await self._events(keys.scope, "cop_charge", now - DAYS * 86_400)
+            unbody(t, c, rise(c, k))
+            for t, c in await records.read(self._db, keys.scope, records.COP_CHARGE, since)
         ]
         hours = [
-            _unbody(t, b)
-            for t, b in await self._events(keys.scope, "cop_hour", now - DAYS * 86_400)
+            unbody(t, h)
+            for t, h in await records.read(self._db, keys.scope, records.COP_HOUR, since)
         ]
         dhw_kw = draw.get("dhw") if isinstance(draw, dict) else None
         heat_kw = draw.get("heating") if isinstance(draw, dict) else None
@@ -358,8 +366,8 @@ class Efficiency:
         return float(value) if isinstance(value, int | float) else 0.0
 
     async def _draws(self, tank_scope: str, since: float, until: float) -> list[Span]:
-        found = await self._events(tank_scope, "draw", since - 3600)
-        return [(b["start"], b["end"]) for t, b in found if t < until]
+        found = await records.read(self._db, tank_scope, records.DRAW, since - 3600)
+        return [(d.start, d.end) for t, d in found if t < until]
 
     async def _first_raw(self, key: Key) -> float | None:
         def read(t: Transaction) -> float | None:
@@ -372,21 +380,8 @@ class Efficiency:
         return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
-        found = await self._events(scope, "cop_day", 0.0)
-        return date.fromisoformat(found[-1][1]["day"]) if found else None
-
-    async def _events(
-        self, scope: str, kind: str, since: float
-    ) -> list[tuple[float, dict[str, Any]]]:
-        def read(t: Transaction) -> list[tuple[float, dict[str, Any]]]:
-            rows = t.execute(
-                "SELECT t, body FROM learn_events WHERE scope = ? AND kind = ? AND t >= ?"
-                " ORDER BY t",
-                (scope, kind, since),
-            )
-            return [(at, json.loads(body)) for at, body in rows]
-
-        return await self._db.run(read)
+        found = await records.last(self._db, scope, records.COP_DAY)
+        return found[1].day if found else None
 
 
 def _below(nodes: dict[str, Any], unit: str, kind: str) -> list[str]:
@@ -441,34 +436,23 @@ def _run(
     )
 
 
-def _body(run: cop.Run) -> dict[str, Any]:
-    return {
-        "run_s": run.run_s,
-        "supply_c": round(run.supply_c, 2),
-        "source_c": round(run.source_c, 2),
-        "brine_ks": round(run.brine_ks, 1),
-        "kwh": None if run.measured_kwh is None else round(run.measured_kwh, 4),
-    }
-
-
-def _unbody(t: float, body: dict[str, Any], loss: float = 0.0) -> cop.Run:
-    """A kept run; a charge's rise with the tank's standing loss (per hour, per degree
-    over the room) added as `loss` says. One kept before the loss was kept apart has it
-    in its rise already."""
-    return cop.Run(
-        t,
-        body["run_s"],
-        body["supply_c"],
-        body["source_c"],
-        body["brine_ks"],
-        body.get("rise_c", 0.0) + loss * body.get("loss_kh", 0.0),
-        body.get("kwh"),
+def _body(run: cop.Run) -> CopRun:
+    return CopRun(
+        run_s=run.run_s,
+        supply_c=round(run.supply_c, 2),
+        source_c=round(run.source_c, 2),
+        brine_ks=round(run.brine_ks, 1),
+        kwh=None if run.measured_kwh is None else round(run.measured_kwh, 4),
     )
 
 
-def _events(t: Transaction, scope: str, rows: list[tuple[str, float, dict[str, Any]]]) -> None:
-    t.executemany(
-        "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, ?, ?, ?)",
-        [(scope, kind, at, json.dumps(body)) for kind, at, body in rows],
-    )
-    t.execute("DELETE FROM learn_events WHERE t < ?", (clock.time() - KEEP_S,))
+def unbody(t: float, kept: CopRun, rise_c: float = 0.0) -> cop.Run:
+    """A kept run."""
+    return cop.Run(t, kept.run_s, kept.supply_c, kept.source_c, kept.brine_ks, rise_c, kept.kwh)
+
+
+def rise(charge: CopCharge, loss: float) -> float:
+    """What a charge made: its rise with the tank's standing loss over it added, as `loss`
+    (per hour, per degree over the room) says when judged. One kept before the loss was
+    kept apart has it in its rise already, and nothing apart."""
+    return charge.rise_c + loss * charge.loss_kh

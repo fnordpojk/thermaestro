@@ -30,7 +30,8 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 from ..auth import Accounts, User
 from ..auth.permissions import allows
 from ..cap.messages import TargetId
-from ..core.events import Event, Events
+from ..core.events import Event, Events, mark
+from ..core.failures import failures
 from ..store import Database
 from . import i18n
 from .labels import summary_lines
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from ..core.host import PluginHost
 
 log = logging.getLogger(__name__)
+SENDING = mark("Sending a notification")
 
 Condition = Literal["mine", "everyone", "rooms", "summary", "house"]
 NEEDS: dict[Condition, tuple[str, ...]] = {
@@ -163,8 +165,11 @@ class Notifier:
             event = await self._queue.get()
             try:
                 await self.handle(event)
-            except Exception:
-                log.exception("notifications: %s couldn't be sent", event.key)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                # A moment, at most once an hour: its own notification may fail the same way.
+                failures.failed(
+                    "notifications", SENDING, e, where=event.key, logger=log, moment=True
+                )
 
     async def drain(self) -> None:
         """Send whatever is waiting: for tests."""

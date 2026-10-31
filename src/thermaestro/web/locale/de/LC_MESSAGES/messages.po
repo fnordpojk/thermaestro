@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-31 23:26+0100\n"
+"POT-Creation-Date: 2026-11-01 00:06+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -258,6 +258,10 @@ msgid "%(offset)s °C on whatever band is in force"
 msgstr "%(offset)s °C auf dem jeweils geltenden Band"
 
 #, python-format
+msgid "%(part)s couldn't be shown: something went wrong (error %(id)s)."
+msgstr "%(part)s konnte nicht angezeigt werden: Etwas ist schiefgelaufen (Fehler %(id)s)."
+
+#, python-format
 msgid "%(part)s: cooler, please"
 msgstr "%(part)s: kühler, bitte"
 
@@ -338,6 +342,14 @@ msgid "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over out
 msgstr ""
 "%(warm)s °C pro Stunde beim Heizen; %(cool)s °C pro Stunde Verlust bei 20 °C über "
 "außen"
+
+#, python-format
+msgid "%(what_label)s failed on %(where)s: %(error)s (error %(id)s)"
+msgstr "%(what_label)s ist für %(where)s fehlgeschlagen: %(error)s (Fehler %(id)s)"
+
+#, python-format
+msgid "%(what_label)s failed: %(error)s (error %(id)s)"
+msgstr "%(what_label)s ist fehlgeschlagen: %(error)s (Fehler %(id)s)"
 
 #, python-format
 msgid "%(writes)s settings written, %(starts)s compressor starts."
@@ -434,6 +446,9 @@ msgstr "Ein eigener Brunnen"
 msgid "A public holiday counts as"
 msgstr "Ein Feiertag zählt als"
 
+msgid "A request over MQTT"
+msgstr "Eine Anfrage über MQTT"
+
 msgid "A room below its band"
 msgstr "Ein Raum unter seinem Band"
 
@@ -470,6 +485,9 @@ msgstr ""
 "Ein einfaches Thermostat schaltet den Raum bei seiner eigenen Einstellung ab. Wo "
 "Thermaestro den Raum steuert, drehen Sie das Thermostat ganz auf, damit es den Raum "
 "nicht abschaltet, bevor Thermaestros Bereich erreicht ist."
+
+msgid "A step of stopping Thermaestro"
+msgstr "Ein Schritt beim Beenden von Thermaestro"
 
 msgid "A test notification: this is where Thermaestro's notifications reach you."
 msgstr "Eine Testbenachrichtigung: hier erreichen Sie die Benachrichtigungen von Thermaestro."
@@ -611,6 +629,9 @@ msgstr "Eine andere Wärmequelle heizt das Haus: der Komfort gibt nach."
 
 msgid "Another price"
 msgstr "Ein anderer Preis"
+
+msgid "Answering the API"
+msgstr "Die Antwort der API"
 
 msgid "Area"
 msgstr "Bereich"
@@ -1552,6 +1573,9 @@ msgstr "Beurteilt, sobald es zwei Tage gibt, an denen es geprüft werden kann."
 msgid "Judged once there are two more days to test it on."
 msgstr "Beurteilt, sobald es zwei weitere Tage gibt, an denen es geprüft werden kann."
 
+msgid "Judging the requests in the plan"
+msgstr "Die Beurteilung der Anfragen im Plan"
+
 msgid "Keep heating until it is met, or the next one is due"
 msgstr "Weiterheizen, bis sie erreicht ist oder die nächste fällig wird"
 
@@ -1560,6 +1584,24 @@ msgstr "Behalten"
 
 msgid "Keep the change, and take it over from there"
 msgstr "Die Änderung behalten und von dort übernehmen"
+
+msgid "Keeping a plugin's restart in the audit log"
+msgstr "Das Eintragen eines Plugin-Neustarts ins Prüfprotokoll"
+
+msgid "Keeping forecasts to score them"
+msgstr "Das Speichern von Vorhersagen, um sie zu bewerten"
+
+msgid "Keeping how often each sensor reports"
+msgstr "Das Speichern, wie oft jeder Sensor meldet"
+
+msgid "Keeping the intents up to date"
+msgstr "Das Aktualisieren der Anfragen"
+
+msgid "Keeping the round's decisions"
+msgstr "Das Speichern der Entscheidungen der Runde"
+
+msgid "Keeping what a plugin described"
+msgstr "Das Speichern dessen, was ein Plugin beschrieb"
 
 msgid "Key"
 msgstr "Schlüssel"
@@ -1617,7 +1659,22 @@ msgid "Learned once the tank's volume is known: enter it under House."
 msgstr "Wird gelernt, sobald das Volumen des Speichers bekannt ist: unter Haus eingeben."
 
 msgid "Learning"
-msgstr "Lernt"
+msgstr "Das Lernen"
+
+msgid "Learning a climate system's house"
+msgstr "Das Lernen des Hauses eines Heizkreises"
+
+msgid "Learning a compressor's COP"
+msgstr "Das Lernen der COP eines Verdichters"
+
+msgid "Learning a compressor's electricity"
+msgstr "Das Lernen des Stromverbrauchs eines Verdichters"
+
+msgid "Learning a hot-water tank"
+msgstr "Das Lernen eines Warmwasserspeichers"
+
+msgid "Learning a pool"
+msgstr "Das Lernen eines Pools"
 
 msgid "Learning isn't running here."
 msgstr "Das Lernen läuft hier nicht."
@@ -1706,12 +1763,21 @@ msgstr "Anlegen"
 msgid "Make rooms of the ticked ones"
 msgstr "Räume aus den angekreuzten machen"
 
+msgid "Making the daily summary"
+msgstr "Die tägliche Zusammenfassung"
+
+msgid "Making the optimizer's problem"
+msgstr "Das Aufstellen des Problems des Optimierers"
+
 msgid ""
 "Many national and global models through one service, sunlight included. Free for non-"
 "commercial use, which includes personal home automation."
 msgstr ""
 "Viele nationale und globale Modelle über einen Dienst, Sonnenlicht inbegriffen. Frei "
 "für nichtkommerzielle Nutzung, wozu die eigene Hausautomation gehört."
+
+msgid "Marking quiet sensors as stale"
+msgstr "Das Markieren stiller Sensoren als veraltet"
 
 msgid "Measured per"
 msgstr "Gemessen je"
@@ -2308,6 +2374,9 @@ msgstr "Plan"
 msgid "Planner"
 msgstr "Planer"
 
+msgid "Planning"
+msgstr "Die Planung"
+
 #, python-format
 msgid "Plugin %(name)s"
 msgstr "Plugin %(name)s"
@@ -2411,6 +2480,9 @@ msgstr "Wärmepumpe"
 msgid "Put back to"
 msgstr "Zurückgesetzt auf"
 
+msgid "Putting a setting back"
+msgstr "Das Zurücksetzen einer Einstellung"
+
 msgid "Putting it back is recommended."
 msgstr "Ihn zurückzusetzen wird empfohlen."
 
@@ -2466,9 +2538,18 @@ msgstr "Einstellungen der Pumpe lesen"
 msgid "Read them again"
 msgstr "Erneut lesen"
 
+msgid "Reading a forecast for learning"
+msgstr "Das Lesen einer Vorhersage zum Lernen"
+
+msgid "Reading a forecast for the optimizer"
+msgstr "Das Lesen einer Vorhersage für den Optimierer"
+
 #, python-format
 msgid "Reading the pump: %(done)s of %(total)s."
 msgstr "Lese die Pumpe: %(done)s von %(total)s."
+
+msgid "Reading the temperature forecast for heating ahead"
+msgstr "Das Lesen der Temperaturvorhersage, um vorauszuheizen"
 
 #, python-format
 msgid "Ready about %(minutes)s minutes late, at %(later)s; or %(temp)s °C at %(time)s"
@@ -2492,6 +2573,9 @@ msgstr "Entfernen"
 
 msgid "Remove this user"
 msgstr "Diesen Benutzer entfernen"
+
+msgid "Renewing the HTTPS certificate"
+msgstr "Das Erneuern des HTTPS-Zertifikats"
 
 msgid "Requirements"
 msgstr "Anforderungen"
@@ -2537,6 +2621,9 @@ msgstr "Räume: %(name)s"
 msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
 msgstr "Stieg bei %(warmed)s von %(charges)s Warmwasserladungen."
 
+msgid "Running a plugin"
+msgstr "Das Ausführen eines Plugins"
+
 #, python-format
 msgid "Running while the demand said idle, for %(share)s %% of its running time."
 msgstr "Lief, während der Bedarf Ruhe anzeigte, während %(share)s %% seiner Laufzeit."
@@ -2566,6 +2653,9 @@ msgstr "Ersparnis: %(percent)s %%"
 msgid "Say what you want"
 msgstr "Sagen Sie, was Sie möchten"
 
+msgid "Saying what the plan does for a request"
+msgstr "Das Sagen, was der Plan für eine Anfrage tut"
+
 msgid "Season from"
 msgstr "Saison von"
 
@@ -2586,6 +2676,9 @@ msgstr "Senden"
 
 msgid "Send a test"
 msgstr "Test senden"
+
+msgid "Sending a notification"
+msgstr "Das Senden einer Benachrichtigung"
 
 msgid "Sensor"
 msgstr "Sensor"
@@ -2688,6 +2781,9 @@ msgstr "Quellen der Zone zeigen"
 msgid "Show the grid companies"
 msgstr "Die Netzbetreiber zeigen"
 
+msgid "Showing a page"
+msgstr "Das Anzeigen einer Seite"
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr "Nur angezeigt; Thermaestro plant nicht damit."
 
@@ -2700,8 +2796,20 @@ msgstr "Seit"
 msgid "Sky: drawn from the cloud cover, precipitation and the sun's height."
 msgstr "Himmel: gezeichnet aus Bewölkung, Niederschlag und Sonnenhöhe."
 
+msgid "Solving the optimizer's problem"
+msgstr "Das Lösen des Problems des Optimierers"
+
 msgid "Someone home"
 msgstr "Jemand zu Hause"
+
+#, python-format
+msgid ""
+"Something went wrong on Thermaestro's side (error %(id)s). It is on the Events page, "
+"for those who may see the house's workings, and in Thermaestro's log."
+msgstr ""
+"Bei Thermaestro ist etwas schiefgelaufen (Fehler %(id)s). Es steht auf der Seite "
+"Ereignisse, für alle, die die Abläufe des Hauses sehen dürfen, und im Protokoll von "
+"Thermaestro."
 
 msgid "Source"
 msgstr "Quelle"
@@ -2794,6 +2902,9 @@ msgstr "System"
 msgid "Table"
 msgstr "Tabelle"
 
+msgid "Talking to the MQTT broker"
+msgstr "Die Verbindung zum MQTT-Broker"
+
 msgid "Temperature"
 msgstr "Temperatur"
 
@@ -2839,6 +2950,9 @@ msgstr "Der Verdichter wurde in der letzten Woche nicht stehend gesehen."
 msgid "The daily summary"
 msgstr "Die tägliche Zusammenfassung"
 
+msgid "The day before"
+msgstr "Der Vortag"
+
 #, python-format
 msgid "The day before, %(day)s"
 msgstr "Der Vortag, %(day)s"
@@ -2851,6 +2965,9 @@ msgstr ""
 "Der Day-Ahead-Preis Ihrer Gebotszone. Thermaestro schlägt eine Quelle für die Zone "
 "vor, und einen Ersatz für einen Tag, an dem die erste keine Preise hat; alle Zonen "
 "eines Landes nehmen ihre Preise aus derselben Quelle."
+
+msgid "The events"
+msgstr "Die Ereignisse"
 
 #, python-format
 msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
@@ -3048,6 +3165,9 @@ msgstr "Die Bereiche der Pools"
 msgid "The power limit"
 msgstr "Die Leistungsgrenze"
 
+msgid "The price and weather at a glance"
+msgstr "Preis und Wetter auf einen Blick"
+
 msgid "The pump"
 msgstr "Die Pumpe"
 
@@ -3129,6 +3249,9 @@ msgstr "Die Werte konnten nicht geladen werden."
 
 msgid "The warmest a charge has made the top"
 msgstr "Das Wärmste, das eine Ladung oben erreicht hat"
+
+msgid "The watchdog putting the settings back"
+msgstr "Das Zurücksetzen der Einstellungen durch den Watchdog"
 
 msgid "The water"
 msgstr "Das Wasser"
@@ -3349,6 +3472,9 @@ msgstr ""
 
 msgid "Warmer, please"
 msgstr "Wärmer, bitte"
+
+msgid "Watching for events"
+msgstr "Das Beobachten von Ereignissen"
 
 msgid "Water"
 msgstr "Wasser"
@@ -3592,8 +3718,14 @@ msgstr ""
 "Ohne es kommt die Reserve für feste Ziele nur aus den eigenen Vorhersagefehlern "
 "dieses Hauses."
 
+msgid "Working out the prices"
+msgstr "Das Berechnen der Preise"
+
 msgid "Write port"
 msgstr "Schreibport"
+
+msgid "Writing the value history"
+msgstr "Das Schreiben des Werteverlaufs"
 
 msgid "You don't have the right to do that."
 msgstr "Dazu haben Sie nicht das Recht."

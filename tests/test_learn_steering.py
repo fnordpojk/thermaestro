@@ -120,7 +120,14 @@ async def test_the_emitters_are_learned_from_the_kept_hours(tmp_path: Path) -> N
         t = t0 + i * 3600
         warmer = rng.uniform(5, 15)
         house_hours.append(
-            {"t": t, "room": 21.0, "water": 21.0 + warmer, "skip": None, "heating": 0.5}
+            {
+                "t": t,
+                "room": 21.0,
+                "outdoor": None,
+                "water": 21.0 + warmer,
+                "skip": None,
+                "heating": 0.5,
+            }
         )
         # 0.4 kW/K: the heat is the metered electricity times a COP of half the ideal.
         supply, source = 21 + warmer + 2, 4.0
@@ -129,7 +136,14 @@ async def test_the_emitters_are_learned_from_the_kept_hours(tmp_path: Path) -> N
         body = {"run_s": 1800, "supply_c": supply, "source_c": source, "brine_ks": 0, "kwh": kwh}
         runs.append((t, body))
     async with await Database.open(tmp_path / "t.db") as db:
-        rows = [("dev:hp1/cs1", "house_day", t0, json.dumps({"day": "x", "hours": house_hours}))]
+        rows = [
+            (
+                "dev:hp1/cs1",
+                "house_day",
+                t0,
+                json.dumps({"day": START.date().isoformat(), "hours": house_hours}),
+            )
+        ]
         rows += [("dev:hp1", "cop_hour", t, json.dumps(b)) for t, b in runs]
         await db.run(
             lambda tr: tr.executemany(

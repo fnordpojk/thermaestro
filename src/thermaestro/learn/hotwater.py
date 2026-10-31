@@ -10,25 +10,37 @@ A tank is learned only once its top, its charge sensor and the pump's demand hav
 behaved as they should (the input checks).
 """
 
-import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from .. import clock
+from ..core.failures import failures
 from ..core.host import PluginHost
 from ..core.values import Key, Values
 from ..intents.calendar import Calendar
 from ..store import Climate, Database, Home, Location, Transaction
-from . import tank, water
+from . import records, tank, water
 from .model import Learned, State, mark
+from .records import (
+    CHARGE,
+    DRAW,
+    KEEP_S,
+    OFFER_DISMISSED,
+    TANK_DAY,
+    ChargeSeen,
+    DrawSeen,
+    Gap,
+    OfferDismissed,
+    TankDay,
+)
 from .store import Learnings
 from .validate import held_out
 
 log = logging.getLogger(__name__)
+LEARNING_TANK = mark("Learning a hot-water tank")
 
 LOSS = "tank.loss"
 DEMAND = "tank.demand"
@@ -38,7 +50,6 @@ JUDGED_DAYS = 14
 LOSS_DAYS = 13
 LOSS_TEST_S = 2 * 86_400.0
 """The standing loss is judged on the last two days, fitted on the days before."""
-KEEP_S = 400 * 86_400.0
 
 NOT_USABLE = mark("Not learned: %(what)s isn't usable on this pump yet.")
 LEARNING = mark("Days learned from: %(days)s. Judged once each weekday has been seen.")
@@ -105,10 +116,13 @@ class HotWater:
         now = clock.time() if now is None else now
         calendar, season = await house(self._db)
         for keys in self.tanks():
+            part = f"learn.tank:{keys.scope}"
             try:
                 await self._learn(keys, calendar, season, now)
-            except Exception:
-                log.exception("learning the tank %s failed; trying again later", keys.scope)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(part, LEARNING_TANK, e, where=keys.scope, logger=log)
+            else:
+                failures.worked(part)
 
     async def _learn(
         self, keys: TankKeys, calendar: Calendar, season: Callable[[date], float], now: float
@@ -143,8 +157,8 @@ class HotWater:
         if not (tank.covers(top.samples, start, end) and tank.covers(low.samples, start, end)):
             # Thermaestro or the pump's connection was down: what was drawn isn't known,
             # which isn't the same as nothing drawn. Marked read, learned from nothing.
-            gap = {"day": day.isoformat(), "skipped": "gap"}
-            await self._db.run(lambda t: _events(t, keys.scope, [("day", start, gap)]))
+            gap = [records.row(TANK_DAY, start, Gap(day=day, skipped="gap"))]
+            await self._db.run(lambda t: records.keep(t, keys.scope, gap))
             return
         demand = await self._values.history(keys.demand, since - 3600, end + 3600)
         found = tank.charges(demand, end + 3600, top)
@@ -177,39 +191,39 @@ class HotWater:
                 since=learned.since if learned and learned.since else start,
             )
         )
-        rows: list[tuple[str, float, dict[str, Any]]] = [
-            (
-                "day",
-                start,
-                {
-                    "day": day.isoformat(),
-                    "hourly": list(read.hourly),
-                    "predicted": predicted,
-                    "baseline": baseline,
-                    "draws": len(read.draws),
-                    "drawn": round(sum(d.size for d in read.draws), 3),
-                    "charges": len(read.charges),
-                    "k": k,
-                    "opens": opens,
-                    "season": round(scale, 3),
-                },
-            ),
-            *(("draw", d.at, {"start": d.start, "end": d.end, "size": d.size}) for d in read.draws),
+        seen = TankDay(
+            day=day,
+            hourly=list(read.hourly),
+            predicted=predicted,
+            baseline=baseline,
+            draws=len(read.draws),
+            drawn=round(sum(d.size for d in read.draws), 3),
+            charges=len(read.charges),
+            k=k,
+            opens=opens,
+            season=round(scale, 3),
+        )
+        rows = [
+            records.row(TANK_DAY, start, seen),
             *(
-                ("charge", c.start, {"end": c.end, "top0": c.top0, "top1": c.top1})
+                records.row(DRAW, d.at, DrawSeen(start=d.start, end=d.end, size=d.size))
+                for d in read.draws
+            ),
+            *(
+                records.row(CHARGE, c.start, ChargeSeen(end=c.end, top0=c.top0, top1=c.top1))
                 for c in read.charges
             ),
         ]
-        await self._db.run(lambda t: _events(t, keys.scope, rows))
+        await self._db.run(lambda t: records.keep(t, keys.scope, rows))
 
     async def _judge(self, keys: TankKeys, now: float) -> None:
         """The demand's proof from the days kept; the standing loss fitted and judged; the
         ceiling."""
-        days = await self._events(keys.scope, "day", now - JUDGED_DAYS * 86_400)
+        days = await self.days(keys.scope, now - JUDGED_DAYS * 86_400)
         judged = [
-            (b["predicted"], b["baseline"], b["hourly"])
-            for _, b in days
-            if b.get("predicted") is not None
+            (d.predicted, d.baseline, d.hourly)
+            for _, d in days
+            if isinstance(d, TankDay) and d.predicted is not None and d.baseline is not None
         ]
         learned = self._learnings.get(DEMAND, keys.scope)
         if learned is not None and learned.value is not None:
@@ -272,12 +286,11 @@ class HotWater:
         # stop changes with the mode, so a charge in a warmer mode would look like one.
         periodic_c = await self._stop(keys.periodic) if keys.periodic is not None else None
         bar = periodic_c if periodic_c is not None else await self._stop(keys.stop)
-        found = await self._events(keys.scope, "charge", now - KEEP_S)
+        found = await records.read(self._db, keys.scope, CHARGE, now - KEEP_S)
         ends = [
-            b["top1"]
-            for _, b in found
-            if isinstance(b.get("top1"), int | float)
-            and (bar is None or b["top1"] < bar + tank.PERIODIC_ABOVE)
+            c.top1
+            for _, c in found
+            if c.top1 is not None and (bar is None or c.top1 < bar + tank.PERIODIC_ABOVE)
         ]
         if not ends:
             return
@@ -334,31 +347,21 @@ class HotWater:
         return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
-        found = await self._events(scope, "day", 0.0)
-        return date.fromisoformat(found[-1][1]["day"]) if found else None
+        found = await records.last(self._db, scope, TANK_DAY)
+        return found[1].day if found else None
 
-    async def _events(
-        self, scope: str, kind: str, since: float
-    ) -> list[tuple[float, dict[str, Any]]]:
-        def read(t: Transaction) -> list[tuple[float, dict[str, Any]]]:
-            rows = t.execute(
-                "SELECT t, body FROM learn_events WHERE scope = ? AND kind = ? AND t >= ?"
-                " ORDER BY t",
-                (scope, kind, since),
-            )
-            return [(at, json.loads(body)) for at, body in rows]
+    async def days(self, scope: str, since: float) -> list[tuple[float, TankDay | Gap]]:
+        """The tank's days from `since` on: each read, or passed over for a gap."""
+        return await records.read(self._db, scope, TANK_DAY, since)
 
-        return await self._db.run(read)
+    async def dismiss(self, scope: str, offer: str) -> None:
+        """An offer the household turned down."""
+        kept = [records.row(OFFER_DISMISSED, clock.time(), OfferDismissed(id=offer))]
+        await self._db.run(lambda t: records.keep(t, scope, kept))
 
-    async def keep(self, scope: str, kind: str, body: dict[str, Any]) -> None:
-        """An event of the household's, such as an offer turned down."""
-        at = clock.time()
-        await self._db.run(lambda t: _events(t, scope, [(kind, at, body)]))
-
-    async def events(
-        self, scope: str, kind: str, since: float
-    ) -> list[tuple[float, dict[str, Any]]]:
-        return await self._events(scope, kind, since)
+    async def dismissed(self, scope: str, since: float) -> set[str]:
+        """The offers turned down since `since`."""
+        return {d.id for _, d in await records.read(self._db, scope, OFFER_DISMISSED, since)}
 
 
 def expected(
@@ -393,11 +396,3 @@ async def house(db: Database) -> tuple[Calendar, Callable[[date], float]]:
     well, south = home.water == "well", location is not None and location.latitude < 0
     mean, spread = climate.annual_mean, climate.monthly_spread
     return calendar, lambda day: water.season(day, mean, spread, well=well, south=south)
-
-
-def _events(t: Transaction, scope: str, rows: list[tuple[str, float, dict[str, Any]]]) -> None:
-    t.executemany(
-        "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, ?, ?, ?)",
-        [(scope, kind, at, json.dumps(body)) for kind, at, body in rows],
-    )
-    t.execute("DELETE FROM learn_events WHERE t < ?", (clock.time() - KEEP_S,))

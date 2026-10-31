@@ -13,6 +13,7 @@ from ..auth import AccountError
 from ..cap.vocabulary import WEATHER
 from . import labels
 from .app import action, caller, services
+from .failing import Parts
 from .i18n import mark
 from .operations import Caller, NeedsConfirmation
 from .pages import _message, back, render, time_zones
@@ -32,6 +33,11 @@ TOPICS = {
     "learned": mark("Learned"),
     "nibepi": mark("From NibePi"),
 }
+# The learned page's parts, by their headings.
+LEARNS_FROM = mark("What it learns from")
+SUGGESTED = mark("Suggested from the week")
+HOT_WATER = mark("Hot water, the last week")
+LEARNED = mark("What it has learned")
 
 FIXED_ROLES = (
     "energy.supplier",
@@ -296,7 +302,15 @@ async def _learned(request: Request, who: Caller) -> dict[str, Any]:
     s = services(request)
     if s.learning is None or not who.principal.allows("settings.read"):
         return {"learned": None}
-    return {"learned": await s.learned(who)}
+    parts = Parts(request)
+    return {
+        "learned": {
+            "inputs": await parts.get("inputs", LEARNS_FROM, s.learned_inputs(who), []),
+            "offers": await parts.get("offers", SUGGESTED, s.learned_offers(who), []),
+            "tanks": await parts.get("tanks", HOT_WATER, s.learned_tanks(who), []),
+            "values": await parts.get("values", LEARNED, s.learned_values(who), []),
+        }
+    }
 
 
 def _profile(request: Request, who: Caller) -> dict[str, Any]:

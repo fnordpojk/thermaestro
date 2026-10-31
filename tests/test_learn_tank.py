@@ -17,6 +17,7 @@ from thermaestro.learn import Learned, Learnings, water
 from thermaestro.learn import tank as t
 from thermaestro.learn.hotwater import DEMAND, LOSS, HotWater, expected
 from thermaestro.learn.inputs import Check
+from thermaestro.learn.records import Gap, TankDay
 from thermaestro.learn.service import KEPT, _kept_proof
 from thermaestro.planner.model import Tank
 from thermaestro.planner.rules import TANK_LOSS_C_H, expected_top
@@ -214,11 +215,11 @@ async def test_the_tank_is_learned_day_by_day_and_kept(tmp_path: Path) -> None:
         loss = learnings.get(LOSS, "dev:hp1/dhw")
         assert loss is not None
         assert isinstance(loss.value, float)
-        days = await hot.events("dev:hp1/dhw", "day", 0.0)
+        days = [d for _, d in await hot.days("dev:hp1/dhw", 0.0)]
         assert len(days) == DAYS - 1
-        assert sum(b["draws"] for _, b in days) >= 2 * (DAYS - 1)
+        assert sum(d.draws for d in days if isinstance(d, TankDay)) >= 2 * (DAYS - 1)
         await hot.run(end)  # nothing new to read
-        assert len(await hot.events("dev:hp1/dhw", "day", 0.0)) == DAYS - 1
+        assert len(await hot.days("dev:hp1/dhw", 0.0)) == DAYS - 1
         # Not used until proved: the loss alone, or a week not yet judged, isn't enough.
         calendar = SimpleNamespace(weekday=lambda d: d.weekday(), zone=UTC_ZONE)
         start = datetime.fromtimestamp(end, UTC)
@@ -290,8 +291,8 @@ async def test_a_day_not_seen_is_not_learned_as_one_without_use(tmp_path: Path) 
         await learnings.load()
         hot = HotWater(db, Values(db), host, learnings, lambda key: True)
         await hot.run(series["top"][-1].t)
-        days = await hot.events("dev:hp1/dhw", "day", 0.0)
-        skipped = [b for _, b in days if b.get("skipped")]
+        days = await hot.days("dev:hp1/dhw", 0.0)
+        skipped = [d for _, d in days if isinstance(d, Gap)]
         assert 1 <= len(skipped) <= 2  # the day the readings stopped in, and any after
         week = learnings.get(DEMAND, "dev:hp1/dhw")
         assert week is not None
@@ -334,8 +335,16 @@ async def test_the_ceiling_leaves_out_the_periodic_increase_after_a_restart(
             t.executemany(
                 "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, 'charge', ?, ?)",
                 [
-                    (keys.scope, now - 86_400, json_.dumps({"top1": 51.0})),
-                    (keys.scope, now - 3600, json_.dumps({"top1": 65.0})),  # periodic
+                    (
+                        keys.scope,
+                        now - 86_400,
+                        json_.dumps({"end": now - 86_400 + 1800, "top0": 45.0, "top1": 51.0}),
+                    ),
+                    (
+                        keys.scope,
+                        now - 3600,
+                        json_.dumps({"end": now - 3600 + 1800, "top0": 45.0, "top1": 65.0}),
+                    ),  # periodic
                 ],
             )
 
@@ -387,9 +396,21 @@ async def test_the_ceiling_tells_the_periodic_increase_by_its_own_stop(tmp_path:
             t.executemany(
                 "INSERT INTO learn_events (scope, kind, t, body) VALUES (?, 'charge', ?, ?)",
                 [
-                    (keys.scope, now - 86_400, json_.dumps({"top1": 55.6})),  # luxury
-                    (keys.scope, now - 7200, json_.dumps({"top1": 52.1})),  # normal
-                    (keys.scope, now - 3600, json_.dumps({"top1": 60.2})),  # periodic
+                    (
+                        keys.scope,
+                        now - 86_400,
+                        json_.dumps({"end": now - 86_400 + 1800, "top0": 45.0, "top1": 55.6}),
+                    ),  # luxury
+                    (
+                        keys.scope,
+                        now - 7200,
+                        json_.dumps({"end": now - 7200 + 1800, "top0": 45.0, "top1": 52.1}),
+                    ),  # normal
+                    (
+                        keys.scope,
+                        now - 3600,
+                        json_.dumps({"end": now - 3600 + 1800, "top0": 45.0, "top1": 60.2}),
+                    ),  # periodic
                 ],
             )
 

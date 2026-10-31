@@ -15,9 +15,12 @@ import aiomqtt
 
 from .. import durations
 from ..store import Database, Mqtt, SecretStore
+from .events import mark
+from .failures import failures
 from .sensors import SensorHub
 
 log = logging.getLogger(__name__)
+CONNECTING = mark("Talking to the MQTT broker")
 
 State = Literal["off", "connecting", "connected", "failed"]
 Wanted = Literal["publish", "sweep"] | None
@@ -67,7 +70,7 @@ class MqttClient:
         self._reload.set()
 
     async def run(self) -> None:
-        failures = 0
+        tries = 0
         while True:
             self._reload.clear()
             setting = await self._db.get(Mqtt)
@@ -80,12 +83,12 @@ class MqttClient:
             self.state = "connecting"
             try:
                 await self._session(setting, topics, wanted)
-                failures = 0
-            except Exception as e:
+                tries = 0
+            except Exception as e:  # noqa: BLE001 - logged; a fault, not the broker's, an event
                 # The broker going away, or anything else in a session: never the end of MQTT.
-                failures += 1
+                tries += 1
                 self.state, self.error = "failed", str(e) or type(e).__name__
-                pause = min(self._backoff[1], self._backoff[0] * 2 ** (failures - 1))
+                pause = min(self._backoff[1], self._backoff[0] * 2 ** (tries - 1))
                 if isinstance(e, aiomqtt.MqttError):
                     log.warning(
                         "MQTT broker %s: %s; trying again in %s",
@@ -94,7 +97,7 @@ class MqttClient:
                         durations.text(pause),
                     )
                 else:
-                    log.exception("MQTT failed; trying again in %s", durations.text(pause))
+                    failures.failed("mqtt", CONNECTING, e, logger=log)
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._reload.wait(), pause)
 
@@ -118,6 +121,7 @@ class MqttClient:
             for topic in topics:
                 await client.subscribe(topic)
             self.state, self.error = "connected", None
+            failures.worked("mqtt")
             log.info("MQTT broker %s: reading %d topics", setting.host, len(topics))
             tasks = {
                 asyncio.create_task(self._consume(client)),

@@ -22,19 +22,20 @@ them. Judged on the last four days, each hour's heat predicted, against the mean
 the hours before.
 """
 
-import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from .. import clock
 from ..core.host import PluginHost
-from ..store import Database, Transaction
-from .efficiency import HEATING, _unbody
+from ..store import Database
+from . import records
+from .efficiency import HEATING, unbody
 from .energy import DRAW
 from .heating import DAYS
 from .model import Learned, State, mark
 from .pump import _solve
+from .records import HouseHour
 from .store import Learnings
 from .validate import held_out
 
@@ -133,29 +134,31 @@ class Emitters:
         heat_kw = draw.get("heating") if isinstance(draw, dict) else None
         share = self._learnings.used(HEATING, unit)
         since = now - DAYS * 86_400
-        runs = {t: _unbody(t, b) for t, b in await self._events(unit, "cop_hour", since)}
+        runs = {
+            t: unbody(t, r) for t, r in await records.read(self._db, unit, records.COP_HOUR, since)
+        }
         metered = bool(runs) and all(r.measured_kwh is not None for r in runs.values())
         if not isinstance(share, int | float) or (heat_kw is None and not metered):
             await self._put(scope, None, "learning", NO_COP, {}, 0)
             return
-        hours: dict[float, dict[str, Any]] = {}
-        for _, body in await self._events(scope, "house_day", since):
-            for h in body["hours"]:
-                hours[float(h["t"])] = h
+        hours: dict[float, HouseHour] = {}
+        for _, day in await records.read(self._db, scope, records.HOUSE_DAY, since):
+            for h in day.hours:
+                hours[h.t] = h
         pairs = []
         for t, h in sorted(hours.items()):
             before = hours.get(t - 3600)
-            if h.get("skip") or h.get("room") is None or h.get("water") is None:
+            if h.skip or h.room is None or h.water is None:
                 continue
-            if before is None or before.get("water") is None:
+            if before is None or before.water is None:
                 continue
             if t in runs:
                 heat = runs[t].kwh(heat_kw or 0.0) * float(share) * runs[t].ideal
-            elif h.get("heating") is not None and h["heating"] < IDLE:
+            elif h.heating is not None and h.heating < IDLE:
                 heat = 0.0
             else:
                 continue  # it heated a little: too little for its heat to be known
-            pairs.append(Pair(t, h["water"] - h["room"], heat, h["water"] - before["water"]))
+            pairs.append(Pair(t, h.water - h.room, heat, h.water - before.water))
         found, verdict = judge(pairs, now - TEST_HOURS * 3600)
         if found is None:
             kept = sum(1 for p in pairs if p.warmer >= WARMER_LEAST)
@@ -196,16 +199,3 @@ class Emitters:
                 since=before.since if before and before.since else None,
             )
         )
-
-    async def _events(
-        self, scope: str, kind: str, since: float
-    ) -> list[tuple[float, dict[str, Any]]]:
-        def read(t: Transaction) -> list[tuple[float, dict[str, Any]]]:
-            rows = t.execute(
-                "SELECT t, body FROM learn_events WHERE scope = ? AND kind = ? AND t >= ?"
-                " ORDER BY t",
-                (scope, kind, since),
-            )
-            return [(at, json.loads(body)) for at, body in rows]
-
-        return await self._db.run(read)

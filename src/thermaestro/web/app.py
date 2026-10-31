@@ -16,6 +16,7 @@ from .. import clock
 from ..auth import AccountError, Forbidden, User
 from ..core.readiness import readiness
 from . import i18n
+from .failing import Unexpected
 from .operations import Caller, NeedsConfirmation, NotFound, Services
 from .security import (
     BACKGROUND_HEADER,
@@ -236,6 +237,8 @@ def create_app(services: Services, csrf_key: bytes) -> FastAPI:
     )
     app.state.services = services
     app.state.csrf_key = csrf_key
+    # Innermost of the three: an error's page is in the reader's language, with the headers.
+    app.add_middleware(Unexpected)
     app.add_middleware(Language)
     app.add_middleware(SecurityHeaders)
 

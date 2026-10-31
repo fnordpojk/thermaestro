@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, cast
 
 from .. import clock
 from ..core.audit import AuditLog
+from ..core.failures import failures
 from ..core.gridrules import GridLimits
 from ..core.host import PluginHost
 from ..core.sensors import SITE
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
+LEARNING = mark("Learning")
 
 CHECK_S = 3600.0
 KEPT = mark("Behaved as it should when last seen, %(seen)s; not seen since.")
@@ -132,8 +134,10 @@ class Learning:
             try:
                 await self.check_inputs()
                 await self.learn()
-            except Exception:
-                log.exception("learning failed; trying again later")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("learn", LEARNING, e, logger=log)
+            else:
+                failures.worked("learn")
             await asyncio.sleep(CHECK_S)
 
     async def learn(self) -> None:

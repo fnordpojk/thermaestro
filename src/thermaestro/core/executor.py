@@ -62,10 +62,13 @@ from ..cap.model import Envelope, Lever, Param, Value
 from ..store import Control, Database, LeverMode, Transaction
 from .audit import AuditLog
 from .events import PUT_BACK, Events, Raise, mark
+from .failures import failures
 from .host import PluginHost, State
 from .values import Key, Values
 
 log = logging.getLogger(__name__)
+PUTTING_BACK = mark("Putting a setting back")
+WATCHDOG = mark("The watchdog putting the settings back")
 
 DAY_S = 86_400.0
 WATCHDOG_S = 300.0
@@ -515,9 +518,9 @@ class Executor:
                         )
                     else:
                         continue
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
                     # One lever failing never keeps the others from being put back.
-                    log.exception("putting %s back failed", ref)
+                    failures.failed("restore", PUTTING_BACK, e, where=ref, logger=log, moment=True)
                     result = Result("dropped", f"putting it back failed: {e}")
                 if result.outcome == "unchanged":  # already as found
                     claim.held, claim.last, claim.last_t, claim.pending = False, None, None, None
@@ -1427,8 +1430,10 @@ class Executor:
                     if self.events is not None and self.put_back(results):
                         put_back = Raise("restore.watchdog", "house", PUT_BACK)
                         await self.events.moment("restore.watchdog", put_back)
-                except Exception:
-                    log.exception("the watchdog's restore failed; it keeps watching")
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed("watchdog", WATCHDOG, e, logger=log)
+                else:
+                    failures.worked("watchdog")
 
     async def _retry(self) -> None:
         """The levers that couldn't be put back, tried again until they are: in whatever
@@ -1445,8 +1450,8 @@ class Executor:
                     continue
                 try:
                     await self.restore(owed.why, [ref])
-                except Exception:
-                    log.exception("putting %s back again failed", ref)
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed("restore", PUTTING_BACK, e, where=ref, logger=log, moment=True)
 
     def _on_up(self, instance: str) -> None:
         """A plugin is back: what it owes is tried at once."""

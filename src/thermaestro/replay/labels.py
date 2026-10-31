@@ -7,13 +7,13 @@ draw matching one label at most, the nearest first.
 """
 
 import csv
-import json
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
-from ..store import Database, Transaction
+from ..learn import records
+from ..store import Database
 
 WITHIN_S = 3600.0
 
@@ -49,15 +49,12 @@ def read_labels(path: Path, zone: tzinfo) -> list[Label]:
 async def score(db: Database, labels: list[Label], zone: tzinfo) -> dict[str, Any]:
     """The draws found against `labels`, over the labels' span."""
 
-    def read(t: Transaction) -> list[tuple[str, float, str]]:
-        return list(t.execute("SELECT scope, t, body FROM learn_events WHERE kind = 'draw'"))
-
-    draws = [(scope, at, json.loads(body)) for scope, at, body in await db.run(read)]
+    draws = await records.every(db, records.DRAW)
     if labels:
         first, last = labels[0].t - WITHIN_S, labels[-1].t + WITHIN_S
         draws = [d for d in draws if first <= d[1] <= last]
     pairs = sorted(
-        (min(abs(d[2]["start"] - x.t), abs(d[1] - x.t)), i, j)
+        (min(abs(d[2].start - x.t), abs(d[1] - x.t)), i, j)
         for i, x in enumerate(labels)
         for j, d in enumerate(draws)
     )
@@ -83,7 +80,7 @@ async def score(db: Database, labels: list[Label], zone: tzinfo) -> dict[str, An
                 "draw_at": datetime.fromtimestamp(draw[1], zone).isoformat(timespec="minutes")
                 if draw
                 else None,
-                "size": draw[2]["size"] if draw else None,
+                "size": draw[2].size if draw else None,
             }
         )
     return {

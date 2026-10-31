@@ -26,17 +26,19 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from .. import clock
+from ..core.failures import failures
 from ..core.host import PluginHost
 from ..core.sensors import SITE
 from ..core.values import Key, Sample, Values
 from ..intents.calendar import Calendar
 from ..intents.entry import RESPONSE_H
 from ..store import Database, Home, Room, Sensor, Transaction
-from . import house, pump
+from . import house, pump, records
 from .hotwater import house as house_days
 from .hygiene import intervals
 from .inputs import intersect, seconds, spans
 from .model import Learned, State, mark
+from .records import HouseDay, HouseHour
 from .store import Learnings
 from .tank import bounds, first_day
 
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
+READING_FORECAST = mark("Reading a forecast for learning")
+LEARNING_HOUSE = mark("Learning a climate system's house")
 
 MODEL = "house.model"
 TAU = "house.tau_h"
@@ -194,10 +198,13 @@ class Heating:
         calendar, _ = await house_days(self._db)
         home = await self._db.get(Home) or Home()
         for keys in await self.systems():
+            part = f"learn.house:{keys.scope}"
             try:
                 await self._learn(keys, calendar, home, now)
-            except Exception:
-                log.exception("learning the house of %s failed; trying again later", keys.scope)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(part, LEARNING_HOUSE, e, where=keys.scope, logger=log)
+            else:
+                failures.worked(part)
 
     def _inputs(self, keys: SystemKeys) -> tuple[list[Key], list[Key], str | None]:
         """The usable outdoor temperatures, in order (the outdoor reference first), the
@@ -221,9 +228,10 @@ class Heating:
             if not weather and now - bounds(day, zone)[1] < POSTPONE_S:
                 break  # the weather couldn't be read: read again later, not as no sun
             # Kept even with nothing in it, so it isn't read again.
-            body = {"day": day.isoformat(), "hours": [_hour_body(h) for h in hours]}
+            kept = HouseDay(day=day, hours=[_hour_body(h) for h in hours])
             start = bounds(day, zone)[0]
-            await self._db.run(partial(_keep, scope=keys.scope, start=start, body=body))
+            rows = [records.row(records.HOUSE_DAY, start, kept)]
+            await self._db.run(partial(records.keep, scope=keys.scope, rows=rows))
             day += timedelta(days=1)
             read = True
         # Fitted again only with a new day: it takes seconds.
@@ -337,11 +345,13 @@ class Heating:
         from ..core.weather import INSTANT, value_at
 
         first = datetime.fromtimestamp(start, UTC)
+        part = f"learn.forecast:{quantity}"
         try:
             found = await self._weather.forecast(quantity, first, first + timedelta(hours=count))
-        except Exception:
-            log.exception("the %s forecast couldn't be read for learning", quantity)
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed(part, READING_FORECAST, e, where=quantity, logger=log)
             return None
+        failures.worked(part)
         return [
             value_at(found.spans, first + timedelta(hours=i, minutes=30), quantity in INSTANT)
             for i in range(count)
@@ -377,9 +387,9 @@ class Heating:
         return found
 
     async def _judge(self, keys: SystemKeys, home: Home, now: float, rooms: bool) -> None:
-        days = await self._events(keys.scope, now - DAYS * 86_400)
+        days = await records.read(self._db, keys.scope, records.HOUSE_DAY, now - DAYS * 86_400)
         back = self._usable(keys.back)
-        hours = [_hour(h, back) for _, body in days for h in body["hours"]]
+        hours = [_hour(h, back) for _, day in days for h in day.hours]
         hours.sort(key=lambda h: h.t)
         if not hours:
             if not rooms:
@@ -545,21 +555,8 @@ class Heating:
         return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
-        found = await self._events(scope, 0.0)
-        if not found:
-            return None
-        return date.fromisoformat(found[-1][1]["day"])
-
-    async def _events(self, scope: str, since: float) -> list[tuple[float, dict[str, Any]]]:
-        def read(t: Transaction) -> list[tuple[float, dict[str, Any]]]:
-            rows = t.execute(
-                "SELECT t, body FROM learn_events WHERE scope = ? AND kind = 'house_day'"
-                " AND t >= ? ORDER BY t",
-                (scope, since),
-            )
-            return [(at, json.loads(body)) for at, body in rows]
-
-        return await self._db.run(read)
+        found = await records.last(self._db, scope, records.HOUSE_DAY)
+        return found[1].day if found else None
 
 
 def _unit(name: str) -> str | None:
@@ -584,59 +581,52 @@ def _drops(samples: list[Sample]) -> list[float]:
     return found
 
 
-def _hour_body(h: house.Hour) -> dict[str, Any]:
-    return {
-        "t": h.t,
-        "room": _round(h.room),
-        "outdoor": _round(h.outdoor),
-        "water": _round(h.water),
-        "sun": _round(h.sun),
-        "wind": _round(h.wind),
-        "skip": h.skip,
-        "supply": _round(h.supply),
-        "offset": _round(h.offset),
-        "heating": _round(h.heating),
-        "target": _round(h.target),
-        "back": _round(h.back),
-    }
+def _hour_body(h: house.Hour) -> HouseHour:
+    return HouseHour(
+        t=h.t,
+        room=_round(h.room),
+        outdoor=_round(h.outdoor),
+        water=_round(h.water),
+        sun=_round(h.sun),
+        wind=_round(h.wind),
+        skip=h.skip,
+        supply=_round(h.supply),
+        offset=_round(h.offset),
+        heating=_round(h.heating),
+        target=_round(h.target),
+        back=_round(h.back),
+    )
 
 
-def _hour(body: dict[str, Any], back: bool = True) -> house.Hour:
+def _hour(kept: HouseHour, back: bool = True) -> house.Hour:
     """An hour as kept. Where its return was kept too, its water is the mean of supply and
     return while the return is usable (an hour without a return isn't used then), and the
     supply alone while it isn't: every day the same."""
-    water = body.get("water")
-    if "back" in body:
-        supply, ret = body.get("supply"), body.get("back")
+    water = kept.water
+    if "back" in kept.model_fields_set:
+        supply, ret = kept.supply, kept.back
         if not back:
             water = supply
         else:
             water = (supply + ret) / 2 if supply is not None and ret is not None else None
     return house.Hour(
-        float(body["t"]),
-        body.get("room"),
-        body.get("outdoor"),
+        kept.t,
+        kept.room,
+        kept.outdoor,
         water,
-        body.get("sun"),
-        body.get("wind"),
-        body.get("skip"),
-        body.get("supply"),
-        body.get("offset"),
-        body.get("heating"),
-        body.get("target"),
-        body.get("back"),
+        kept.sun,
+        kept.wind,
+        kept.skip,
+        kept.supply,
+        kept.offset,
+        kept.heating,
+        kept.target,
+        kept.back,
     )
 
 
 def _round(v: float | None) -> float | None:
     return None if v is None else round(v, 3)
-
-
-def _keep(t: Transaction, scope: str, start: float, body: dict[str, Any]) -> None:
-    t.execute(
-        "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, 'house_day', ?, ?)",
-        (scope, start, json.dumps(body)),
-    )
 
 
 def _step(node: Any) -> float | None:

@@ -35,6 +35,7 @@ from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
 from ..core.events import Events, Raise
 from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
+from ..core.failures import failures
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost, State
 from ..core.house import House
@@ -79,6 +80,13 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
+PLANNING = mark("Planning")
+SUMMING_UP = mark("Making the daily summary")
+WATCHING = mark("Watching for events")
+JUDGING = mark("Judging the requests in the plan")
+KEEPING = mark("Keeping the round's decisions")
+READING_AHEAD = mark("Reading the temperature forecast for heating ahead")
+PRICING = mark("Working out the prices")
 EXPLAIN_BUDGET_S = 30.0
 """The longest judging the intents in a plan may take, its solves again included."""
 JUDGE = ThreadPoolExecutor(max_workers=1, thread_name_prefix="thermaestro-judge")
@@ -261,8 +269,10 @@ class Planner:
         while True:
             try:
                 await self.check()
-            except Exception:
-                log.exception("planning failed; trying again")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("planning", PLANNING, e, logger=log)
+            else:
+                failures.worked("planning")
             await asyncio.sleep(self._check_s)
 
     async def check(self) -> Plan | None:
@@ -289,8 +299,10 @@ class Planner:
         if self.situation is not None:
             try:
                 await self.summaries.due(now, self.situation.zone)
-            except Exception:
-                log.exception("the daily summary couldn't be made")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("summary", SUMMING_UP, e, logger=log)
+            else:
+                failures.worked("summary")
         return planned
 
     def _pump_units(self) -> list[Pump]:
@@ -320,8 +332,10 @@ class Planner:
         if self._watch is not None:
             try:
                 await self._watch.look(sit)
-            except Exception:
-                log.exception("watching for events failed this round")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("planning.watch", WATCHING, e, logger=log)
+            else:
+                failures.worked("planning.watch")
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
             if floor is not None and floor.low is not None:
@@ -426,8 +440,10 @@ class Planner:
                 theirs = [] if hands_off else optimized.decisions
                 try:
                     await self._assure(optimized, sit)
-                except Exception:
-                    log.exception("judging the intents in the plan failed this round")
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed("planning.assure", JUDGING, e, logger=log)
+                else:
+                    failures.worked("planning.assure")
         elif self.optimizer.last is not None and self.optimizer.last.ok and not hands_off:
             optimized = self.optimizer.last
             theirs = await self.optimizer.between(sit)
@@ -442,8 +458,10 @@ class Planner:
         if slot:
             try:
                 await self._keep(sit, ruled, theirs, optimized, control.planner)
-            except Exception:
-                log.exception("keeping the round's decisions failed")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("planning.keep", KEEPING, e, logger=log)
+            else:
+                failures.worked("planning.keep")
         return chosen
 
     async def _assure(self, optimized: Optimized, sit: Situation) -> None:
@@ -761,9 +779,10 @@ class Planner:
             then = now + timedelta(hours=hours)
             try:
                 found = await self._weather.forecast("temperature", then, then + timedelta(hours=1))
-            except Exception:
-                log.exception("the temperature forecast couldn't be read for heating ahead")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("planning.ahead", READING_AHEAD, e, logger=log)
                 continue
+            failures.worked("planning.ahead")
             ahead = value_at(found.spans, then, True)
             if ahead is None:
                 continue
@@ -956,9 +975,11 @@ class Planner:
             return self._priced[1]
         try:
             prices = await self._prices(now)
-        except Exception:
-            log.exception("working out the prices failed: planning without them")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("planning.prices", PRICING, e, logger=log)
             prices = []
+        else:
+            failures.worked("planning.prices")
         self._priced = (now.timestamp(), prices)
         return prices
 

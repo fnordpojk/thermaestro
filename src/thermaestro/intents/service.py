@@ -14,6 +14,8 @@ from pydantic import JsonValue
 
 from .. import clock
 from ..auth.permissions import allows
+from ..core.events import mark
+from ..core.failures import failures
 from ..store import Database, Home, Location, Transaction
 from .calendar import Calendar
 from .entry import Capabilities, Said, Verdict, check
@@ -22,6 +24,7 @@ from .resolve import InForce, Resolver
 from .seed import SEED, Found, seed
 
 log = logging.getLogger(__name__)
+ANSWERING = mark("Saying what the plan does for a request")
 
 
 class Audit(Protocol):
@@ -230,8 +233,10 @@ class Intents:
             return verdict
         try:
             more = await self.answer(verdict.intent)
-        except Exception:
-            log.exception("the plan's answer to %s couldn't be made", verdict.intent.id)
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed(
+                "intents.answer", ANSWERING, e, where=verdict.intent.id, logger=log, moment=True
+            )
             return verdict
         return replace(verdict, said=(*verdict.said, *more))
 

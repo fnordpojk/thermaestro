@@ -409,10 +409,11 @@ async def test_a_learner_failing_stops_none_after_it(tmp_path: Path) -> None:
 def test_a_charges_loss_is_added_as_known_when_judged() -> None:
     """The tank's standing loss during a charge is added when the COP is worked out, so a
     loss learned after the charge was read still counts."""
-    from thermaestro.learn.efficiency import _unbody
+    from thermaestro.learn.efficiency import rise
+    from thermaestro.learn.records import COP_CHARGE
 
-    body = {"run_s": 1800, "supply_c": 50.0, "source_c": 2.0, "brine_ks": 9000.0}
-    kept = _unbody(0.0, body | {"rise_c": 10.0, "loss_kh": 20.0}, 0.05)
-    assert kept.rise_c == 11.0
-    old = _unbody(0.0, body | {"rise_c": 10.5}, 0.05)  # kept before: its loss already in
-    assert old.rise_c == 10.5
+    body = '{"run_s": 1800, "supply_c": 50.0, "source_c": 2.0, "brine_ks": 9000.0, '
+    kept = COP_CHARGE.read(body + '"rise_c": 10.0, "loss_kh": 20.0}')
+    assert rise(kept, 0.05) == 11.0
+    old = COP_CHARGE.read(body + '"rise_c": 10.5}')  # kept before: its loss already in
+    assert rise(old, 0.05) == 10.5

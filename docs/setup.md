@@ -347,7 +347,10 @@ Both planners decide every 15 minutes; [the optimizer](optimizer.md) says how it
 - every setting put back because the planner stopped answering;
 - a setting Thermaestro couldn't put back, until it is;
 - a plugin, a device or a feed of prices or weather missing for over an hour, or asking for something;
-- a device's own warnings, such as the brine near the pump's alarm limit.
+- a device's own warnings, such as the brine near the pump's alarm limit;
+- something in Thermaestro that failed: planning, learning a part, writing the history, a page or the API. It says what failed, the error, and an ID that is also in Thermaestro's log beside the details. It clears when that part next works; one that has no next time, such as a step of stopping, is over at once, and is told at most once an hour.
+
+A page that fails says so instead of showing an error from the server: "Something went wrong on Thermaestro's side", with the ID. A page made of parts shows the parts that work and says which couldn't be shown.
 
 From 07:00 the top of the page sums up the day before, midnight to midnight in the house's time: what the pump used and what it cost; each intent that ended, with what came of it; each request for a while that ran, with what the pump used while it ran and what that cost; and the minutes each room was below its band and the hot water below its floor. The energy comes from an electricity meter on the pump's supply where one is set up; else it is estimated for the time the compressor ran, from its learned draw, or until that has proved itself, from the maker's figures, and the summary says which. What a request used is what the pump used while it ran, not how much more than without it: that needs a reference, still to be built. A summary waits for the pump to be read after a restart, and for the day's prices until noon, then is made without the cost. Days missed while Thermaestro wasn't running are summed up once it runs again, up to a week back; a day before it ran isn't. Where nothing measures the pump's electricity, the summary leaves it out rather than say 0. Summaries are kept for 90 days.
 
@@ -357,7 +360,7 @@ The household sees its own: intents and rooms. Those who may read the settings (
 
 Nothing is sent to anyone until they turn it on, each on their own page (under their name in the menu), **Notifications**:
 
-- **What:** one's own requests at risk, giving way or missed; everyone's, for those who may end anyone's; a room below its band; the daily summary, all of it in the notification as the Events page shows it; and for those who may read the settings, the house's workings (the floor, settings let go, plugins, device warnings). What a user may turn on follows their rights.
+- **What:** one's own requests at risk, giving way or missed; everyone's, for those who may end anyone's; a room below its band; the daily summary, all of it in the notification as the Events page shows it; and for those who may read the settings, the house's workings (the floor, settings let go, plugins, device warnings, what failed in Thermaestro). What a user may turn on follows their rights.
 - **Where:** a Home Assistant notification target, such as the phone the Home Assistant app runs on, listed from the Home Assistant set up under **Setup → External**; and an MQTT topic of their own while discovery is on ([the topic](mqtt.md#notifications)). Either, or both.
 - Each is sent as it happens, again if what it says changes, and once more when it is over, in the user's language. At most ten an hour reach one person; the rest are held back, and the Events page has them.
 - **Send a test** sends one now. What couldn't be sent in the last week, and why, is listed below it.

@@ -15,9 +15,10 @@ from plant import begin, draw
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.sensors import SITE
 from thermaestro.core.values import Key, Sample
-from thermaestro.learn import Learnings
+from thermaestro.learn import Learnings, records
 from thermaestro.learn import electric as e
 from thermaestro.learn.energy import DRAW, STARTS, Energy, charge_kw
+from thermaestro.learn.records import CompressorDay
 from thermaestro.learn.tank import Series
 from thermaestro.store import Database
 
@@ -147,13 +148,13 @@ async def test_the_compressor_is_learned_day_by_day_and_kept(tmp_path: Path) -> 
         assert starts is not None
         assert isinstance(starts.value, float)
         assert starts.value > 0
-        days = await energy._events("dev:hp1", "compressor_day", 0.0)
+        days = [d for _, d in await records.read(db, "dev:hp1", records.COMPRESSOR_DAY)]
         # Every whole day: not the first, recorded only from a minute past midnight, nor
         # the last, which isn't over an hour yet.
         assert len(days) == DAYS - 2
-        assert all(b["run_s"].get("heating", 0) > 0 for _, b in days)
+        assert all(isinstance(d, CompressorDay) and d.run_s.get("heating", 0) > 0 for d in days)
         await energy.run(truth["end"])  # nothing new to read
-        assert len(await energy._events("dev:hp1", "compressor_day", 0.0)) == DAYS - 2
+        assert len(await records.read(db, "dev:hp1", records.COMPRESSOR_DAY)) == DAYS - 2
         # Used for a charge only once proved.
         await learnings.put(found.model_copy(update={"state": "learning"}))
         assert charge_kw(learnings) is None

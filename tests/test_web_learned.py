@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -15,9 +16,10 @@ from thermaestro import clock
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.values import Key
-from thermaestro.learn import Learned, Learning
-from thermaestro.learn.hotwater import TankKeys, _events
+from thermaestro.learn import Learned, Learning, records
+from thermaestro.learn.hotwater import TankKeys
 from thermaestro.learn.inputs import Check
+from thermaestro.learn.records import Gap, TankDay
 from thermaestro.learn.tank import Demand
 from thermaestro.store import Database, SecretStore
 from thermaestro.web import Services, create_app
@@ -182,10 +184,24 @@ async def test_a_day_not_read_for_a_gap_is_counted_apart(tmp_path: Path) -> None
         )
         cast(Any, learning.hot_water).tanks = lambda: iter([keys])
         now = clock.time()
-        read: dict[str, Any] = {"day": "2026-10-29", "draws": 3, "drawn": 4.5, "charges": 2}
-        gap: dict[str, Any] = {"day": "2026-10-30", "skipped": "gap"}
-        rows = [("day", now - 2 * 86_400, read), ("day", now - 86_400, gap)]
-        await learning.hot_water._db.run(lambda t: _events(t, keys.scope, rows))
+        read = TankDay(
+            day=date(2026, 10, 29),
+            hourly=[0.0] * 24,
+            predicted=None,
+            baseline=None,
+            draws=3,
+            drawn=4.5,
+            charges=2,
+            k=0.01,
+            opens=0.2,
+            season=1.0,
+        )
+        gap = Gap(day=date(2026, 10, 30), skipped="gap")
+        rows = [
+            records.row(records.TANK_DAY, now - 2 * 86_400, read),
+            records.row(records.TANK_DAY, now - 86_400, gap),
+        ]
+        await learning.hot_water._db.run(lambda t: records.keep(t, keys.scope, rows))
         await login(client, "admin")
         [tank] = (await client.get("/api/v1/learned")).json()["tanks"]
         assert (tank["days"], tank["gaps"]) == (1, 1)

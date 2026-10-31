@@ -22,11 +22,16 @@ from ..cap import Closed, Endpoint, Link, Message, pair, serve
 from ..cap.messages import FEATURES, Described, DeviceEvent, ForeignWrite, Health, Hello
 from ..store import Database, Plugin, SecretStore
 from .audit import AuditLog
+from .events import mark
+from .failures import failures
 from .plugins import Factory, PluginContext, PluginStore
 from .series import Series
 from .values import Values
 
 log = logging.getLogger(__name__)
+RUNNING = mark("Running a plugin")
+AUDITING = mark("Keeping a plugin's restart in the audit log")
+KEEPING_DESCRIBED = mark("Keeping what a plugin described")
 
 STABLE_S = 60.0
 """A session that lasted this long resets the failure count."""
@@ -186,8 +191,9 @@ class PluginHost:
                 error = "the plugin ended its connection"
             except asyncio.CancelledError:
                 raise
-            except Exception as e:
-                log.exception("plugin instance %s failed", instance.id)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                part = f"plugin:{instance.id}"
+                failures.failed(part, RUNNING, e, where=instance.id, logger=log)
                 error = f"{type(e).__name__}: {e}"
             if clock.monotonic() - started >= STABLE_S:
                 instance.failures = 0
@@ -208,8 +214,10 @@ class PluginHost:
                     outcome="failed",
                     details={"instance": instance.id, "error": error},
                 )
-            except Exception:
-                log.exception("the restart of %s couldn't be audited", instance.id)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(
+                    "audit.restart", AUDITING, e, where=instance.id, logger=log, moment=True
+                )
             await asyncio.sleep(pause)
 
     async def _run_in_process(self, instance: Instance, factory: Factory) -> None:
@@ -241,8 +249,10 @@ class PluginHost:
         """What the plugin described, kept for an export; a failure only logged."""
         try:
             await _write_described(self._db, instance, described)
-        except Exception:
-            log.exception("what %s described couldn't be kept", instance)
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed(
+                "plugin.described", KEEPING_DESCRIBED, e, where=instance, logger=log, moment=True
+            )
 
     async def _session(self, instance: Instance, link: Link) -> None:
         """Describe, subscribe to every point, and keep the values until the connection
@@ -251,6 +261,7 @@ class PluginHost:
         await self._keep(instance.id, instance.described)
         instance.state = State.UP
         instance.link = link
+        failures.worked(f"plugin:{instance.id}")
         for listener in self.on_up:
             listener(instance.id)
         await self._audit.record(

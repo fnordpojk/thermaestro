@@ -12,6 +12,7 @@ from ..learn import Learned, NotLearned, mark
 from ..learn.cop import carnot
 from ..learn.hotwater import DEMAND
 from ..learn.offers import DISMISSED_S, Offer, offers
+from ..learn.records import TankDay
 from ..learn.tank import Demand
 from ..nibe.profile import BRINE_HEAT
 from . import i18n
@@ -118,19 +119,35 @@ class LearnOperations:
         return self.learning
 
     async def learned(self, caller: "Caller") -> dict[str, Any]:
-        """Which inputs work here, what has been learned, and each tank's last week."""
+        """Which inputs work here, what has been learned, each tank's last week, and the
+        hot-water times offered."""
+        return {
+            "inputs": await self.learned_inputs(caller),
+            "values": await self.learned_values(caller),
+            "tanks": await self.learned_tanks(caller),
+            "offers": await self.learned_offers(caller),
+        }
+
+    async def learned_inputs(self, caller: "Caller") -> list[dict[str, Any]]:
+        caller.principal.require("settings.read")
+        checks = sorted(self._learning().checks.values(), key=lambda c: (c.instance, c.point))
+        return [self._input(caller, c) for c in checks]
+
+    async def learned_values(self, caller: "Caller") -> list[dict[str, Any]]:
+        caller.principal.require("settings.read")
+        return [self._value(caller, x) for x in self._learning().learnings.all()]
+
+    async def learned_tanks(self, caller: "Caller") -> list[dict[str, Any]]:
+        """Each tank's last week as read: a day its readings had a gap in counts apart."""
         caller.principal.require("settings.read")
         learning = self._learning()
-        checks = sorted(learning.checks.values(), key=lambda c: (c.instance, c.point))
-        values = [self._value(caller, x) for x in learning.learnings.all()]
         since = clock.time() - RECENT_DAYS * 86_400
         tanks = []
         for keys in learning.hot_water.tanks():
-            days = await learning.hot_water.events(keys.scope, "day", since)
+            days = [d for _, d in await learning.hot_water.days(keys.scope, since)]
             if not days:
                 continue
-            # A day the readings had a gap in is kept as not read, with nothing counted.
-            read = [b for _, b in days if "skipped" not in b]
+            read = [d for d in days if isinstance(d, TankDay)]
             instance, path = split(keys.scope)
             tanks.append(
                 {
@@ -138,18 +155,16 @@ class LearnOperations:
                     "part": self.node_label(caller, instance, path),
                     "days": len(read),
                     "gaps": len(days) - len(read),
-                    "draws": sum(int(b["draws"]) for b in read),
-                    "drawn": round(sum(float(b["drawn"]) for b in read), 1),
-                    "charges": sum(int(b["charges"]) for b in read),
+                    "draws": sum(d.draws for d in read),
+                    "drawn": round(sum(d.drawn for d in read), 1),
+                    "charges": sum(d.charges for d in read),
                 }
             )
+        return tanks
+
+    async def learned_offers(self, caller: "Caller") -> list[dict[str, Any]]:
         levels: dict[str, Any] = await self.intents.levels() if self.intents is not None else {}
-        return {
-            "inputs": [self._input(caller, c) for c in checks],
-            "values": values,
-            "tanks": tanks,
-            "offers": [self._offer(caller, o, levels) for o in await self.offers(caller)],
-        }
+        return [self._offer(caller, o, levels) for o in await self.offers(caller)]
 
     def _offer(self, caller: "Caller", o: Offer, levels: dict[str, Any]) -> dict[str, Any]:
         instance, path = split(o.scope)
@@ -188,10 +203,7 @@ class LearnOperations:
                 if d.scope in (keys.scope, "house"):
                     local = d.t.astimezone(zone)
                     covered.add((resolver.calendar.weekday(local.date()), local.hour))
-            dismissed = {
-                str(b["id"])
-                for _, b in await learning.hot_water.events(keys.scope, "offer_dismissed", since)
-            }
+            dismissed = await learning.hot_water.dismissed(keys.scope, since)
             level = next(
                 (lv.id for lv in levels.values() if lv.scope == keys.scope and lv.top is not None),
                 None,
@@ -218,7 +230,7 @@ class LearnOperations:
         offer = next((o for o in await self.offers(caller) if o.id == id), None)
         if offer is None:
             raise AccountError("that suggestion isn't offered now")
-        await self._learning().hot_water.keep(offer.scope, "offer_dismissed", {"id": id})
+        await self._learning().hot_water.dismiss(offer.scope, id)
         await self.audit.record(
             _who(caller), "learned.offer_dismissed", details={"offer": offer.request()}
         )

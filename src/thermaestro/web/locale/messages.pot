@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-31 23:26+0100\n"
+"POT-Creation-Date: 2026-11-01 00:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -256,6 +256,10 @@ msgid "%(offset)s °C on whatever band is in force"
 msgstr ""
 
 #, python-format
+msgid "%(part)s couldn't be shown: something went wrong (error %(id)s)."
+msgstr ""
+
+#, python-format
 msgid "%(part)s: cooler, please"
 msgstr ""
 
@@ -335,6 +339,14 @@ msgstr ""
 msgid ""
 "%(warm)s °C an hour heated; %(cool)s °C an hour lost at 20 °C over "
 "outdoors"
+msgstr ""
+
+#, python-format
+msgid "%(what_label)s failed on %(where)s: %(error)s (error %(id)s)"
+msgstr ""
+
+#, python-format
+msgid "%(what_label)s failed: %(error)s (error %(id)s)"
 msgstr ""
 
 #, python-format
@@ -419,6 +431,9 @@ msgstr ""
 msgid "A public holiday counts as"
 msgstr ""
 
+msgid "A request over MQTT"
+msgstr ""
+
 msgid "A room below its band"
 msgstr ""
 
@@ -445,6 +460,9 @@ msgid ""
 "Thermaestro steers the room, turn the thermostat up to its highest "
 "setting, so it doesn't stop the room before Thermaestro's band is "
 "reached."
+msgstr ""
+
+msgid "A step of stopping Thermaestro"
 msgstr ""
 
 msgid "A test notification: this is where Thermaestro's notifications reach you."
@@ -574,6 +592,9 @@ msgid "Another heat source is warming the house: comfort eases off."
 msgstr ""
 
 msgid "Another price"
+msgstr ""
+
+msgid "Answering the API"
 msgstr ""
 
 msgid "Area"
@@ -1456,6 +1477,9 @@ msgstr ""
 msgid "Judged once there are two more days to test it on."
 msgstr ""
 
+msgid "Judging the requests in the plan"
+msgstr ""
+
 msgid "Keep heating until it is met, or the next one is due"
 msgstr ""
 
@@ -1463,6 +1487,24 @@ msgid "Keep it"
 msgstr ""
 
 msgid "Keep the change, and take it over from there"
+msgstr ""
+
+msgid "Keeping a plugin's restart in the audit log"
+msgstr ""
+
+msgid "Keeping forecasts to score them"
+msgstr ""
+
+msgid "Keeping how often each sensor reports"
+msgstr ""
+
+msgid "Keeping the intents up to date"
+msgstr ""
+
+msgid "Keeping the round's decisions"
+msgstr ""
+
+msgid "Keeping what a plugin described"
 msgstr ""
 
 msgid "Key"
@@ -1521,6 +1563,21 @@ msgid "Learned once the tank's volume is known: enter it under House."
 msgstr ""
 
 msgid "Learning"
+msgstr ""
+
+msgid "Learning a climate system's house"
+msgstr ""
+
+msgid "Learning a compressor's COP"
+msgstr ""
+
+msgid "Learning a compressor's electricity"
+msgstr ""
+
+msgid "Learning a hot-water tank"
+msgstr ""
+
+msgid "Learning a pool"
 msgstr ""
 
 msgid "Learning isn't running here."
@@ -1610,9 +1667,18 @@ msgstr ""
 msgid "Make rooms of the ticked ones"
 msgstr ""
 
+msgid "Making the daily summary"
+msgstr ""
+
+msgid "Making the optimizer's problem"
+msgstr ""
+
 msgid ""
 "Many national and global models through one service, sunlight included. "
 "Free for non-commercial use, which includes personal home automation."
+msgstr ""
+
+msgid "Marking quiet sensors as stale"
 msgstr ""
 
 msgid "Measured per"
@@ -2154,6 +2220,9 @@ msgstr ""
 msgid "Planner"
 msgstr ""
 
+msgid "Planning"
+msgstr ""
+
 #, python-format
 msgid "Plugin %(name)s"
 msgstr ""
@@ -2254,6 +2323,9 @@ msgstr ""
 msgid "Put back to"
 msgstr ""
 
+msgid "Putting a setting back"
+msgstr ""
+
 msgid "Putting it back is recommended."
 msgstr ""
 
@@ -2306,8 +2378,17 @@ msgstr ""
 msgid "Read them again"
 msgstr ""
 
+msgid "Reading a forecast for learning"
+msgstr ""
+
+msgid "Reading a forecast for the optimizer"
+msgstr ""
+
 #, python-format
 msgid "Reading the pump: %(done)s of %(total)s."
+msgstr ""
+
+msgid "Reading the temperature forecast for heating ahead"
 msgstr ""
 
 #, python-format
@@ -2333,6 +2414,9 @@ msgid "Remove"
 msgstr ""
 
 msgid "Remove this user"
+msgstr ""
+
+msgid "Renewing the HTTPS certificate"
 msgstr ""
 
 msgid "Requirements"
@@ -2379,6 +2463,9 @@ msgstr ""
 msgid "Rose in %(warmed)s of %(charges)s hot-water charges."
 msgstr ""
 
+msgid "Running a plugin"
+msgstr ""
+
 #, python-format
 msgid "Running while the demand said idle, for %(share)s %% of its running time."
 msgstr ""
@@ -2408,6 +2495,9 @@ msgstr ""
 msgid "Say what you want"
 msgstr ""
 
+msgid "Saying what the plan does for a request"
+msgstr ""
+
 msgid "Season from"
 msgstr ""
 
@@ -2427,6 +2517,9 @@ msgid "Send"
 msgstr ""
 
 msgid "Send a test"
+msgstr ""
+
+msgid "Sending a notification"
 msgstr ""
 
 msgid "Sensor"
@@ -2523,6 +2616,9 @@ msgstr ""
 msgid "Show the grid companies"
 msgstr ""
 
+msgid "Showing a page"
+msgstr ""
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr ""
 
@@ -2535,7 +2631,17 @@ msgstr ""
 msgid "Sky: drawn from the cloud cover, precipitation and the sun's height."
 msgstr ""
 
+msgid "Solving the optimizer's problem"
+msgstr ""
+
 msgid "Someone home"
+msgstr ""
+
+#, python-format
+msgid ""
+"Something went wrong on Thermaestro's side (error %(id)s). It is on the "
+"Events page, for those who may see the house's workings, and in "
+"Thermaestro's log."
 msgstr ""
 
 msgid "Source"
@@ -2627,6 +2733,9 @@ msgstr ""
 msgid "Table"
 msgstr ""
 
+msgid "Talking to the MQTT broker"
+msgstr ""
+
 msgid "Temperature"
 msgstr ""
 
@@ -2669,6 +2778,9 @@ msgstr ""
 msgid "The daily summary"
 msgstr ""
 
+msgid "The day before"
+msgstr ""
+
 #, python-format
 msgid "The day before, %(day)s"
 msgstr ""
@@ -2677,6 +2789,9 @@ msgid ""
 "The day-ahead price of your bidding zone. Thermaestro suggests a source "
 "for the zone, and one to stand in on a day the first has no prices; every"
 " zone of a country takes its prices from the same source."
+msgstr ""
+
+msgid "The events"
 msgstr ""
 
 #, python-format
@@ -2855,6 +2970,9 @@ msgstr ""
 msgid "The power limit"
 msgstr ""
 
+msgid "The price and weather at a glance"
+msgstr ""
+
 msgid "The pump"
 msgstr ""
 
@@ -2926,6 +3044,9 @@ msgid "The values could not be loaded."
 msgstr ""
 
 msgid "The warmest a charge has made the top"
+msgstr ""
+
+msgid "The watchdog putting the settings back"
 msgstr ""
 
 msgid "The water"
@@ -3120,6 +3241,9 @@ msgid "Warmer or cooler lasts until the pattern next changes, at most a day."
 msgstr ""
 
 msgid "Warmer, please"
+msgstr ""
+
+msgid "Watching for events"
 msgstr ""
 
 msgid "Water"
@@ -3335,7 +3459,13 @@ msgid ""
 " errors only."
 msgstr ""
 
+msgid "Working out the prices"
+msgstr ""
+
 msgid "Write port"
+msgstr ""
+
+msgid "Writing the value history"
 msgstr ""
 
 msgid "You don't have the right to do that."

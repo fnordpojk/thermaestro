@@ -20,8 +20,9 @@ from ..intents import Intents
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .discovery import Publisher
-from .events import Events
+from .events import Events, mark
 from .executor import Executor
+from .failures import failures
 from .host import PluginHost
 from .house import House
 from .mqtt import MqttClient
@@ -43,6 +44,10 @@ INTENTS_S = 60.0
 """How often intents move along with time, and the house's capabilities are read again."""
 SEED_EVERY = 10
 """Seeding is tried every this many rounds, until every part of the house has been."""
+SHUTTING_DOWN = mark("A step of stopping Thermaestro")
+KEEPING_INTENTS = mark("Keeping the intents up to date")
+MARKING_STALE = mark("Marking quiet sensors as stale")
+KEEPING_RHYTHMS = mark("Keeping how often each sensor reports")
 
 ShutdownHook = Callable[[], Awaitable[None]]
 
@@ -172,9 +177,12 @@ async def _serve(
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
     await core.audit.record("core", "core.start")
+    if core.events is not None:
+        await failures.attach(core.events)
     history = core.startup.history
     await core.sensors.load()
     sensor_tasks = [
+        asyncio.create_task(failures.run()),
         asyncio.create_task(core.mqtt.run()),
         asyncio.create_task(_tick(core.sensors)),
         asyncio.create_task(core.weather.run()),
@@ -210,8 +218,9 @@ async def _serve(
         for hook in core.shutdown_hooks:
             try:
                 await hook()
-            except Exception:
-                log.exception("a shutdown step failed")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("shutdown", SHUTTING_DOWN, e, logger=log, moment=True)
+        await failures.settle()
         await core.executor.stop()
         await core.host.stop()
         if server is not None:
@@ -224,6 +233,7 @@ async def _serve(
         writer.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await writer
+        failures.detach()
         await core.audit.record("core", "core.stop")
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
@@ -335,8 +345,10 @@ async def _intents(core: Core, every_s: float = INTENTS_S) -> None:
             await core.intents.advance()
             if rounds % SEED_EVERY == 0:
                 await core.intents.seed(await core.house.found())
-        except Exception:
-            log.exception("keeping intents failed")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("intents", KEEPING_INTENTS, e, logger=log)
+        else:
+            failures.worked("intents")
         rounds += 1
 
 
@@ -346,13 +358,17 @@ async def _tick(sensors: SensorHub, every_s: float = 30.0) -> None:
         await asyncio.sleep(every_s)
         try:
             sensors.tick()
-        except Exception:
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
             # Never the end of marking sensors stale: a dead one would stay good.
-            log.exception("marking the sensors stale failed; trying again in %s s", every_s)
+            failures.failed("sensors.stale", MARKING_STALE, e, logger=log)
+        else:
+            failures.worked("sensors.stale")
         try:
             await sensors.save()
-        except Exception:
-            log.exception("keeping the sensors' rhythms failed; trying again later")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("sensors.rhythms", KEEPING_RHYTHMS, e, logger=log)
+        else:
+            failures.worked("sensors.rhythms")
 
 
 async def _plugin_socket(core: Core) -> asyncio.Server | None:

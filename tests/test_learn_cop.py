@@ -14,7 +14,7 @@ from plant import begin, draw
 from thermaestro.cap.model import RatedPoint, Rating
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.values import Sample
-from thermaestro.learn import Learned, Learnings
+from thermaestro.learn import Learned, Learnings, records
 from thermaestro.learn import cop as c
 from thermaestro.learn.efficiency import BRINE, DHW, HEATING, Efficiency
 from thermaestro.learn.energy import DRAW
@@ -283,11 +283,11 @@ async def test_a_pump_without_brine_or_tank_has_its_hours_read(tmp_path: Path) -
         )
         efficiency = Efficiency(db, Values(db), air_source(RATED), learnings, lambda key: True)
         await efficiency.run(truth["end"])
-        hours = await efficiency._events("dev:hp1", "cop_hour", 0.0)
+        hours = [x for _, x in await records.read(db, "dev:hp1", records.COP_HOUR)]
         assert len(hours) > 20
-        assert all(body["brine_ks"] == 0 for _, body in hours)
+        assert all(x.brine_ks == 0 for x in hours)
         outdoor = statistics.median(s.value for s in series["outdoor"] if s.value is not None)
-        assert statistics.median(b["source_c"] for _, b in hours) == pytest.approx(outdoor, abs=4)
+        assert statistics.median(x.source_c for x in hours) == pytest.approx(outdoor, abs=4)
         heating = learnings.get(HEATING, "dev:hp1")
         assert heating is not None
         assert heating.why == c.NO_SOURCE

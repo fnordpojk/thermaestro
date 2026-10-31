@@ -136,6 +136,8 @@ Nothing in the tests reaches a real device or the internet. They use stand-ins:
 
 `tests/test_plant_stack.py` shows the pattern with a stand-in; `tests/test_planner_plant.py` with the planner; `tests/test_rig.py` runs the rig's checks on the plant, its own small core over `plant/bus.py`.
 
+`tests/test_web_lived_in.py` loads every page and every read of the API, in each language, over a house the plant has run for three days with an outage on the second, the learners run over what was recorded. None may answer with a server error, and no failure may be left open. A new page or endpoint is in it without more: its path parameters need a value in `PARAMS`. A test over an empty site shows a page renders; this one shows it renders with what a running installation collects.
+
 ## Generated files
 
 These files are checked in and generated. Don't edit them by hand.
@@ -202,6 +204,8 @@ To change the schema, append a script to `MIGRATIONS`, with a comment saying wha
 - Every commit signed off (`git commit -s`), as [CONTRIBUTING.md](../CONTRIBUTING.md) says. CI runs `scripts/check-signoff.sh` on the commits a push or pull request brings; to check a branch yourself, `scripts/check-signoff.sh main..HEAD`.
 - Secrets live in the secrets file (`store/secrets.py`), never in settings. Their values never appear in a repr, a log line or an error message; logs name a secret only.
 - A change that adds a translatable message updates the catalogs and both translations in the same commit, or the tests fail.
+- **No error only in the log.** Where code catches an error and goes on, it hands it to `core.failures`: `failures.failed(part, what, error)` logs it with its traceback and raises it as an event, and `failures.worked(part)` clears it when that part next works (`moment=True` where there is no next time). The web UI and the API answer an error nothing else handled with an ID instead of a bare 500 (`web/failing.py`), and a page made of independent parts builds each through `Parts`, so one failing doesn't take the page with it.
+- **The learners' rows are typed.** What the learners keep in `learn_events` is written and read through `learn/records.py` only, each kind a model. A day passed over for a gap is its own model (`Gap`), so a reader that takes a day's counts has to tell the two apart, or the type check fails. A field added to a kind needs a default: rows are kept 400 days.
 
 ## More
 

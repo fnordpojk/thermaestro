@@ -27,9 +27,12 @@ from itertools import groupby
 from .. import clock
 from ..cap.model import Envelope, Point
 from ..store import Database, Transaction
+from .events import mark
+from .failures import failures
 from .plausible import Plausibility
 
 log = logging.getLogger(__name__)
+WRITING = mark("Writing the value history")
 
 SLOT_S = 900.0
 DAY_S = 86_400.0
@@ -272,8 +275,10 @@ class Values:
                         await self.prune(raw_days, aggregate_days)
                         last_prune = clock.monotonic()
                     self.flushed = clock.time()
-                except Exception:
-                    log.exception("writing the value history failed; trying again later")
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed("history", WRITING, e, logger=log)
+                else:
+                    failures.worked("history")
         finally:
             self.flush_s = None
             await self.flush()

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..cap.model import Rating
 from ..core.executor import COUNTED, split
+from ..core.failures import failures
 from ..core.gridrules import GridLimits
 from ..core.host import PluginHost
 from ..core.values import Key, Sample, Values
@@ -63,6 +64,9 @@ if TYPE_CHECKING:
     from ..core.weather import Weather
 
 log = logging.getLogger(__name__)
+MAKING = mark("Making the optimizer's problem")
+SOLVING = mark("Solving the optimizer's problem")
+READING = mark("Reading a forecast for the optimizer")
 
 HORIZON_H = 48
 SLOTS = 4 * HORIZON_H
@@ -238,18 +242,19 @@ class Optimizer:
     async def _run(self, sit: Situation, resolver: Resolver, deadline: float) -> Optimized:
         try:
             problem, covered, notes = await self.problem(sit, resolver)
-        except Exception as e:
-            log.exception("the optimizer's problem couldn't be made")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("optimizer.problem", MAKING, e, logger=log)
             self.last = Optimized(False, f"{e}")
             return self.last
+        failures.worked("optimizer.problem")
         watched = self._watched
         if not covered:
             self.last = Optimized(False, NOTHING, problem, notes=notes, watched=watched)
             return self.last
         try:
             found = await self._solve(problem, deadline)
-        except Exception as e:
-            log.exception("the optimizer's solve failed")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("optimizer.solve", SOLVING, e, logger=log)
             self.last = Optimized(False, f"{e}", problem, notes=notes, watched=watched)
             return self.last
         if found is None:
@@ -279,8 +284,8 @@ class Optimizer:
             async with asyncio.timeout_at(deadline):
                 try:
                     problem, covered, notes = await self.problem(sit, resolver, preview=True)
-                except Exception as e:
-                    log.exception("the optimizer's problem couldn't be made")
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed("optimizer.problem", MAKING, e, logger=log)
                     return Optimized(False, f"{e}")
                 watched = self._watched
                 if not covered:
@@ -473,10 +478,13 @@ class Optimizer:
         found: dict[str, Any] = {}
         if self._weather is not None:
             for quantity in ("temperature", "irradiance.global", "wind_speed"):
+                part = f"optimizer.forecast:{quantity}"
                 try:
                     found[quantity] = await self._weather.forecast(quantity, first, last)
-                except Exception:
-                    log.exception("the %s forecast couldn't be read for the optimizer", quantity)
+                except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                    failures.failed(part, READING, e, where=quantity, logger=log)
+                else:
+                    failures.worked(part)
         out = []
         for t in starts:
             mid = datetime.fromtimestamp(t + 450, UTC)

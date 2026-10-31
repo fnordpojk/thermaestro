@@ -24,6 +24,8 @@ from starlette.responses import RedirectResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..auth import Accounts, SetupCode
+from ..core.events import mark
+from ..core.failures import failures
 from ..store import StoreError
 from . import certificate
 from .app import create_app
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
 NOTIFY_DRAIN_S = 10.0
 """How long the way out waits for notifications still to be sent."""
 log = logging.getLogger(__name__)
+RENEWING = mark("Renewing the HTTPS certificate")
 
 RENEW_CHECK_S = 86_400.0
 
@@ -225,8 +228,10 @@ async def _renew(directory: Path, config: uvicorn.Config, services: Services) ->
                 if own is not None:
                     services.fingerprint = own.fingerprint
                     log.info("HTTPS certificate renewed, SHA-256 %s", own.fingerprint)
-        except Exception:
-            log.exception("the HTTPS certificate couldn't be renewed; trying again tomorrow")
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed("https.renew", RENEWING, e, logger=log)
+        else:
+            failures.worked("https.renew")
 
 
 async def _stop(

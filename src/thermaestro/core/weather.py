@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING
 
 from ..cap.model import Interval, Provider, SeriesInfo
 from ..store import Database, Location, Transaction, WeatherChoice
+from .events import mark
+from .failures import failures
 from .sensors import SITE, dew_point, relative_humidity
 from .series import Key, Series
 from .sun import sunlight
@@ -41,6 +43,7 @@ if TYPE_CHECKING:
     from .host import PluginHost
 
 log = logging.getLogger(__name__)
+SCORING = mark("Keeping forecasts to score them")
 
 LEADS_H = (1, 6, 24, 48)
 SCORED = ("temperature", "dew_point")
@@ -392,8 +395,10 @@ class Weather:
                 if time.monotonic() - last_prune >= prune_s:
                     await self.prune()
                     last_prune = time.monotonic()
-            except Exception:
-                log.exception("keeping forecasts for scoring failed; trying again later")
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed("forecast.scoring", SCORING, e, logger=log)
+            else:
+                failures.worked("forecast.scoring")
 
 
 def _spans(intervals: Iterable[Interval]) -> list[Span]:

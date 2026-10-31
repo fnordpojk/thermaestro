@@ -12,7 +12,6 @@ once its temperature, the demand, the compressor and an outdoor temperature are 
 """
 
 import itertools
-import json
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -21,20 +20,24 @@ from functools import partial
 from typing import Any
 
 from .. import clock
+from ..core.failures import failures
 from ..core.host import PluginHost
 from ..core.sensors import SITE
 from ..core.values import Key, Values
-from ..store import Database, Transaction
+from ..store import Database
+from . import records
 from .hotwater import house as house_days
 from .hygiene import intervals
 from .inputs import intersect, seconds, spans
 from .model import Learned, State, mark
 from .pump import _solve
+from .records import PoolDay, PoolHour
 from .store import Learnings
 from .tank import bounds, first_day
 from .validate import held_out
 
 log = logging.getLogger(__name__)
+LEARNING_POOL = mark("Learning a pool")
 
 POOL = "pool.model"
 DAYS = 28
@@ -188,10 +191,13 @@ class Pools:
         now = clock.time() if now is None else now
         calendar, _ = await house_days(self._db)
         for keys in self.pools():
+            part = f"learn.pool:{keys.scope}"
             try:
                 await self._learn(keys, calendar.zone, now)
-            except Exception:
-                log.exception("learning the pool %s failed; trying again later", keys.scope)
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(part, LEARNING_POOL, e, where=keys.scope, logger=log)
+            else:
+                failures.worked(part)
 
     async def _learn(self, keys: PoolKeys, zone: Any, now: float) -> None:
         outdoor = next((k for k in keys.outdoor if self._usable(k)), None)
@@ -213,9 +219,10 @@ class Pools:
         read = False
         while bounds(day, zone)[1] <= now - 3600:
             hours = await self._day(keys, outdoor, keys.compressor, day, zone)
-            body = {"day": day.isoformat(), "hours": [_body(h) for h in hours]}
+            kept = PoolDay(day=day, hours=[_body(h) for h in hours])
             start = bounds(day, zone)[0]
-            await self._db.run(partial(_keep, scope=keys.scope, start=start, body=body))
+            rows = [records.row(records.POOL_DAY, start, kept)]
+            await self._db.run(partial(records.keep, scope=keys.scope, rows=rows))
             day += timedelta(days=1)
             read = True
         if read or self._learnings.get(POOL, keys.scope) is None:
@@ -249,15 +256,8 @@ class Pools:
     async def _judge(self, scope: str, now: float) -> None:
         since = now - DAYS * 86_400
 
-        def read(t: Transaction) -> list[dict[str, Any]]:
-            rows = t.execute(
-                "SELECT body FROM learn_events WHERE scope = ? AND kind = 'pool_day'"
-                " AND t >= ? ORDER BY t",
-                (scope, since),
-            )
-            return [json.loads(body) for (body,) in rows]
-
-        hours = [_hour(h) for body in await self._db.run(read) for h in body["hours"]]
+        days = await records.read(self._db, scope, records.POOL_DAY, since)
+        hours = [_hour(h) for _, day in days for h in day.hours]
         if not hours:
             return
         whole, verdict, why, args = judge(hours, now - TEST_HOURS * 3600)
@@ -310,33 +310,18 @@ class Pools:
         return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
-        def read(t: Transaction) -> str | None:
-            row = t.execute(
-                "SELECT body FROM learn_events WHERE scope = ? AND kind = 'pool_day'"
-                " ORDER BY t DESC LIMIT 1",
-                (scope,),
-            ).fetchone()
-            return None if row is None else row[0]
-
-        found = await self._db.run(read)
-        return date.fromisoformat(json.loads(found)["day"]) if found else None
+        found = await records.last(self._db, scope, records.POOL_DAY)
+        return found[1].day if found else None
 
 
-def _body(h: Hour) -> dict[str, Any]:
-    return {
-        "t": h.t,
-        "pool": None if h.pool is None else round(h.pool, 3),
-        "outdoor": None if h.outdoor is None else round(h.outdoor, 3),
-        "share": None if h.share is None else round(h.share, 3),
-    }
-
-
-def _hour(body: dict[str, Any]) -> Hour:
-    return Hour(float(body["t"]), body.get("pool"), body.get("outdoor"), body.get("share"))
-
-
-def _keep(t: Transaction, scope: str, start: float, body: dict[str, Any]) -> None:
-    t.execute(
-        "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, 'pool_day', ?, ?)",
-        (scope, start, json.dumps(body)),
+def _body(h: Hour) -> PoolHour:
+    return PoolHour(
+        t=h.t,
+        pool=None if h.pool is None else round(h.pool, 3),
+        outdoor=None if h.outdoor is None else round(h.outdoor, 3),
+        share=None if h.share is None else round(h.share, 3),
     )
+
+
+def _hour(kept: PoolHour) -> Hour:
+    return Hour(kept.t, kept.pool, kept.outdoor, kept.share)

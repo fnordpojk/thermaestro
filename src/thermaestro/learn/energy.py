@@ -13,7 +13,6 @@ It is learned only once the compressor's state, the pump's demand and a power re
 (the pump's meter, or the house's) have each behaved as they should (the input checks).
 """
 
-import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
@@ -22,17 +21,20 @@ from functools import partial
 from typing import Any
 
 from .. import clock
+from ..core.failures import failures
 from ..core.host import PluginHost
 from ..core.values import Key, Values
 from ..store import Database, Transaction
-from . import electric, tank
-from .hotwater import KEEP_S, house
+from . import electric, records, tank
+from .hotwater import house
 from .inputs import intersect, spans
 from .meters import pump_meters
 from .model import Learned, State, mark
+from .records import CompressorDay, Gap, PowerRun, PowerStep
 from .store import Learnings
 
 log = logging.getLogger(__name__)
+LEARNING_COMPRESSOR = mark("Learning a compressor's electricity")
 
 DRAW = "compressor.draw"
 STARTS = "compressor.starts"
@@ -123,12 +125,13 @@ class Energy:
         meters = await pump_meters(self._db)
         for keys in self.units():
             keys = replace(keys, meter=meters.get(keys.scope))
+            part = f"learn.compressor:{keys.scope}"
             try:
                 await self._learn(keys, found, calendar.zone, now)
-            except Exception:
-                log.exception(
-                    "learning the compressor of %s failed; trying again later", keys.scope
-                )
+            except Exception as e:  # noqa: BLE001 - logged and raised as an event
+                failures.failed(part, LEARNING_COMPRESSOR, e, where=keys.scope, logger=log)
+            else:
+                failures.worked(part)
 
     async def _learn(
         self, keys: UnitKeys, found: tuple[Key, float] | None, zone: Any, now: float
@@ -175,8 +178,8 @@ class Energy:
             await self._values.history(watched, since, until), start, end
         ):
             # Not seen whole: its starts and energy aren't known, not nought.
-            gap = {"day": day.isoformat(), "skipped": "gap"}
-            await self._db.run(lambda t: _events(t, keys.scope, [("compressor_day", start, gap)]))
+            gap = [records.row(records.COMPRESSOR_DAY, start, Gap(day=day, skipped="gap"))]
+            await self._db.run(lambda t: records.keep(t, keys.scope, gap))
             return
         compressor = await self._values.history(state, since, until)
         demand = await self._values.history(keys.demand, since, until)
@@ -191,12 +194,12 @@ class Energy:
             seen = electric.steps(
                 ran, power, demand, factor=found[1], addition=addition, start=start, end=end
             )
-        body: dict[str, Any] = {
-            "day": day.isoformat(),
-            "starts": electric.starts(ran, start, end),
-            "run_s": electric.run_seconds(ran, demand, start, end),
-            "steps": len(seen),
-        }
+        body = CompressorDay(
+            day=day,
+            starts=electric.starts(ran, start, end),
+            run_s=electric.run_seconds(ran, demand, start, end),
+            steps=len(seen),
+        )
         stretches: list[electric.Step] = []
         if meter is not None:
             counter = tank.Series(await self._values.history(meter, since, until))
@@ -209,35 +212,42 @@ class Energy:
             stretches = electric.meter_runs(
                 serving, counter, standby, addition=addition, start=start, end=end
             )
+            metered: dict[str, float] = {}
             kwh = electric.counter_kwh(counter, start, end)
             if kwh is not None:
-                body["kwh"] = round(kwh, 3)
                 during = [
                     electric.counter_kwh(counter, max(a0, start), min(a1, end))
                     for a0, a1 in addition
                     if a0 < end and start < a1
                 ]
-                body["addition_kwh"] = round(sum(k for k in during if k is not None), 3)
-            body["standby_kw"] = round(standby, 3)
-        rows: list[tuple[str, float, dict[str, Any]]] = [
-            ("compressor_day", start, body),
+                metered["kwh"] = round(kwh, 3)
+                metered["addition_kwh"] = round(sum(k for k in during if k is not None), 3)
+            metered["standby_kw"] = round(standby, 3)
+            body = body.model_copy(update=metered)
+        rows = [
+            records.row(records.COMPRESSOR_DAY, start, body),
             *(
-                ("power_step", s.t, {"edge": s.edge, "purpose": s.purpose, "kw": s.kw})
+                records.row(
+                    records.POWER_STEP, s.t, PowerStep(edge=s.edge, purpose=s.purpose, kw=s.kw)
+                )
                 for s in seen
             ),
-            *(("power_run", s.t, {"purpose": s.purpose, "kw": s.kw}) for s in stretches),
+            *(
+                records.row(records.POWER_RUN, s.t, PowerRun(purpose=s.purpose, kw=s.kw))
+                for s in stretches
+            ),
         ]
-        await self._db.run(lambda t: _events(t, keys.scope, rows))
+        await self._db.run(lambda t: records.keep(t, keys.scope, rows))
 
     async def _judge(self, scope: str, now: float) -> None:
         since_ = now - STEP_DAYS * 86_400
         steps = [
-            electric.Step(t, b["edge"], b["purpose"], b["kw"])
-            for t, b in await self._events(scope, "power_step", since_)
+            electric.Step(t, s.edge, s.purpose, s.kw)
+            for t, s in await records.read(self._db, scope, records.POWER_STEP, since_)
         ]
         metered = [
-            electric.Step(t, "run", b["purpose"], b["kw"])
-            for t, b in await self._events(scope, "power_run", since_)
+            electric.Step(t, "run", r.purpose, r.kw)
+            for t, r in await records.read(self._db, scope, records.POWER_RUN, since_)
         ]
         found = metered if electric.draws(metered) else steps
         draws = electric.draws(found)
@@ -274,10 +284,12 @@ class Energy:
                     since=since,
                 )
             )
-        days = await self._events(scope, "compressor_day", now - (STARTS_DAYS + 1) * 86_400)
-        recent = [d for d in days if "starts" in d[1]][-STARTS_DAYS:]
+        days = await records.read(
+            self._db, scope, records.COMPRESSOR_DAY, now - (STARTS_DAYS + 1) * 86_400
+        )
+        recent = [(t, d) for t, d in days if isinstance(d, CompressorDay)][-STARTS_DAYS:]
         if recent:
-            mean = sum(b["starts"] for _, b in recent) / len(recent)
+            mean = sum(d.starts for _, d in recent) / len(recent)
             await self._learnings.put(
                 Learned(
                     name=STARTS,
@@ -292,15 +304,15 @@ class Energy:
                     since=recent[0][0],
                 )
             )
-        used = [b for _, b in recent if "kwh" in b]
+        used = [d for _, d in recent if d.kwh is not None]
         if used:
-            addition = sum(b.get("addition_kwh", 0.0) for b in used) / len(used)
+            addition = sum(d.addition_kwh or 0.0 for d in used) / len(used)
             await self._learnings.put(
                 Learned(
                     name=PUMP_ENERGY,
                     scope=scope,
                     kind="observed",
-                    value=round(sum(b["kwh"] for b in used) / len(used), 1),
+                    value=round(sum(d.kwh or 0.0 for d in used) / len(used), 1),
                     unit="kWh/day",
                     state="learning",
                     why=ENERGY_WHY,
@@ -337,21 +349,8 @@ class Energy:
         return await self._db.run(read)
 
     async def _last_day(self, scope: str) -> date | None:
-        found = await self._events(scope, "compressor_day", 0.0)
-        return date.fromisoformat(found[-1][1]["day"]) if found else None
-
-    async def _events(
-        self, scope: str, kind: str, since: float
-    ) -> list[tuple[float, dict[str, Any]]]:
-        def read(t: Transaction) -> list[tuple[float, dict[str, Any]]]:
-            rows = t.execute(
-                "SELECT t, body FROM learn_events WHERE scope = ? AND kind = ? AND t >= ?"
-                " ORDER BY t",
-                (scope, kind, since),
-            )
-            return [(at, json.loads(body)) for at, body in rows]
-
-        return await self._db.run(read)
+        found = await records.last(self._db, scope, records.COMPRESSOR_DAY)
+        return found[1].day if found else None
 
 
 def _serves(purpose: str, s: Any) -> bool:
@@ -367,11 +366,3 @@ def charge_kw(learnings: Learnings) -> float | None:
         if x.name == DRAW and isinstance(used := x.used, dict) and "dhw" in used
     ]
     return max(found) if found else None
-
-
-def _events(t: Transaction, scope: str, rows: list[tuple[str, float, dict[str, Any]]]) -> None:
-    t.executemany(
-        "INSERT OR REPLACE INTO learn_events (scope, kind, t, body) VALUES (?, ?, ?, ?)",
-        [(scope, kind, at, json.dumps(body)) for kind, at, body in rows],
-    )
-    t.execute("DELETE FROM learn_events WHERE t < ?", (clock.time() - KEEP_S,))

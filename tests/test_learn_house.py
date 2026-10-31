@@ -19,7 +19,7 @@ from thermaestro.core.sensors import SITE
 from thermaestro.core.values import Key, Sample
 from thermaestro.core.weather import Forecast, Span
 from thermaestro.intents import Capabilities
-from thermaestro.learn import Learned, Learnings, pump
+from thermaestro.learn import Learned, Learnings, pump, records
 from thermaestro.learn import house as h
 from thermaestro.learn.forecast import BIAS
 from thermaestro.learn.heating import MODEL, PUMP, RESPONSE, TAU, Heating
@@ -321,10 +321,10 @@ async def test_the_house_is_read_day_by_day_and_kept(tmp_path: Path) -> None:
         curve = learnings.get(PUMP, "dev:hp1/cs1")
         assert curve is not None
         assert curve.why == pump.FEW  # no heating offset or compressor read here
-        days = await heating._events("dev:hp1/cs1", 0.0)
+        days = await records.read(db, "dev:hp1/cs1", records.HOUSE_DAY)
         assert len(days) >= 11
         await heating.run(end)
-        assert len(await heating._events("dev:hp1/cs1", 0.0)) == len(days)
+        assert len(await records.read(db, "dev:hp1/cs1", records.HOUSE_DAY)) == len(days)
 
 
 async def test_a_system_without_a_room_sensor_learns_its_pumps_curve(tmp_path: Path) -> None:
@@ -481,7 +481,7 @@ async def test_an_hour_without_the_outdoor_reference_takes_the_pumps_sensor(
             db, Values(db), host, learnings, lambda key: key.point != "hp1/cs1/return.temp"
         )
         await heating.run(hours[-1].t + 3600)
-        kept = [h for _, body in await heating._events("dev:hp1/cs1", 0.0) for h in body["hours"]]
-        late = [h for h in kept if h["t"] >= half + 3 * 3600]
+        days = await records.read(db, "dev:hp1/cs1", records.HOUSE_DAY)
+        late = [x for _, day in days for x in day.hours if x.t >= half + 3 * 3600]
         assert late
-        assert all(h["outdoor"] is not None for h in late)
+        assert all(x.outdoor is not None for x in late)

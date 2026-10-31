@@ -3,6 +3,7 @@ API counterpart, then redirects (or shows the page again with what went wrong)."
 
 import time
 import zoneinfo
+from collections.abc import Callable
 from functools import cache
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -15,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from ..auth import PERMISSIONS, AccountError, LoginFailed
 from . import i18n, labels
 from .app import action, anonymous, caller, identify, local_path, services
+from .failing import Parts
 from .notifications import CHANNELS, LABELS
 from .operations import Caller, NeedsConfirmation
 from .security import (
@@ -32,6 +34,13 @@ from .sessions import (
 )
 
 router = APIRouter(default_response_class=HTMLResponse)
+
+# Parts of pages, each built on its own (`failing.Parts`), named as the page heads them.
+AT_A_GLANCE = i18n.mark("The price and weather at a glance")
+ASK_FOR_A_WHILE = i18n.mark("Ask for a while")
+PLUGINS = i18n.mark("Plugins")
+EVENTS = i18n.mark("The events")
+SUMMARY = i18n.mark("The day before")
 
 Logged = Annotated[Caller, Depends(caller)]
 Anyone = Annotated[Caller | None, Depends(anonymous)]
@@ -106,6 +115,7 @@ def render(
             "can": (lambda right: who is not None and who.principal.allows(right)),
             "error": None,
             "notice": None,
+            "broken": _broken(request),
             **context,
         },
         status_code=status_code,
@@ -123,6 +133,12 @@ def render(
         keep_display_cookie(request, response)
     response.headers["cache-control"] = "no-store"
     return response
+
+
+def _broken(request: Request) -> list[str]:
+    """What the page's parts that failed say (`failing.Parts`)."""
+    parts = getattr(request.state, "parts", None)
+    return list(parts.broken) if parts is not None else []
 
 
 THEMES = ("auto", "light", "dark")
@@ -306,37 +322,44 @@ def _overview(request: Request, who: Caller) -> dict[str, Any]:
 
 @router.get("/")
 async def status_page(request: Request, who: Logged) -> Response:
-    glance: dict[str, Any] = {}
-    if who.principal.allows("settings.read"):
-        # The price and weather at a glance, drawn again with each refresh of the page.
-        from .price_pages import chart_config
-        from .weather_pages import meteogram_config
-
-        glance = {
-            "price_chart": await chart_config(request, who),
-            "meteogram": await meteogram_config(request, who),
-            "decimal": i18n.decimal_symbol(),
-            "zone": i18n.zone_name(),
-            "formats": i18n.formats.get(),
-        }
-    asking: dict[str, Any] = {}
-    s = services(request)
-    if who.principal.allows("plan.read") and s.intents is not None:
-        views = await s.intent_views(who)
-        asking = {
-            "scopes": s.intent_scopes(who),
-            "levels": await s.level_list(who),
-            "temporary": [v for v in views if v["intent"].tier in ("temporary", "hands_off")],
-        }
+    parts = Parts(request)
     return render(
         request,
         "status.html",
         who,
-        glance=glance,
-        asking=asking,
+        glance=await parts.get("glance", AT_A_GLANCE, _glance(request, who), {}),
+        asking=await parts.get("asking", ASK_FOR_A_WHILE, _asking(request, who), {}),
         part=None,
         **_overview(request, who),
     )
+
+
+async def _glance(request: Request, who: Caller) -> dict[str, Any]:
+    """The price and weather at a glance, drawn again with each refresh of the page."""
+    if not who.principal.allows("settings.read"):
+        return {}
+    from .price_pages import chart_config
+    from .weather_pages import meteogram_config
+
+    return {
+        "price_chart": await chart_config(request, who),
+        "meteogram": await meteogram_config(request, who),
+        "decimal": i18n.decimal_symbol(),
+        "zone": i18n.zone_name(),
+        "formats": i18n.formats.get(),
+    }
+
+
+async def _asking(request: Request, who: Caller) -> dict[str, Any]:
+    s = services(request)
+    if not who.principal.allows("plan.read") or s.intents is None:
+        return {}
+    views = await s.intent_views(who)
+    return {
+        "scopes": s.intent_scopes(who),
+        "levels": await s.level_list(who),
+        "temporary": [v for v in views if v["intent"].tier in ("temporary", "hands_off")],
+    }
 
 
 @router.get("/status/values")
@@ -760,12 +783,15 @@ async def system_page(who: Logged) -> Response:
 async def health_page(request: Request, who: Logged) -> Response:
     s = services(request)
     who.principal.require("settings.read")
+    parts = Parts(request)
+    instances = await parts.get("plugins", PLUGINS, _now(lambda: s.status(who)), [])
+    devices = {d["instance"] for d in s.devices(who)} if instances else set()
     return render(
         request,
         "health.html",
         who,
-        instances=s.status(who),
-        devices={d["instance"] for d in s.devices(who)},
+        instances=instances,
+        devices=devices,
         fingerprint=s.fingerprint,
     )
 
@@ -774,10 +800,16 @@ async def health_page(request: Request, who: Logged) -> Response:
 async def events_page(request: Request, who: Logged) -> Response:
     days = 7
     s = services(request)
-    found = await s.events(who, days)
-    latest = await s.summaries(who, 1)
+    parts = Parts(request)
+    found = await parts.get("events", EVENTS, s.events(who, days), [])
+    latest = await parts.get("summary", SUMMARY, s.summaries(who, 1), [])
     summary = latest[0] if latest else None
     return render(request, "events.html", who, events=found, days=days, summary=summary)
+
+
+async def _now[T](made: Callable[[], T]) -> T:
+    """What `made` makes, to be awaited as a part."""
+    return made()
 
 
 @router.get("/audit")
