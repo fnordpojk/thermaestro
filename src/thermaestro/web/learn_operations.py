@@ -129,15 +129,18 @@ class LearnOperations:
             days = await learning.hot_water.events(keys.scope, "day", since)
             if not days:
                 continue
+            # A day the readings had a gap in is kept as not read, with nothing counted.
+            read = [b for _, b in days if "skipped" not in b]
             instance, path = split(keys.scope)
             tanks.append(
                 {
                     "scope": keys.scope,
                     "part": self.node_label(caller, instance, path),
-                    "days": len(days),
-                    "draws": sum(int(b["draws"]) for _, b in days),
-                    "drawn": round(sum(float(b["drawn"]) for _, b in days), 1),
-                    "charges": sum(int(b["charges"]) for _, b in days),
+                    "days": len(read),
+                    "gaps": len(days) - len(read),
+                    "draws": sum(int(b["draws"]) for b in read),
+                    "drawn": round(sum(float(b["drawn"]) for b in read), 1),
+                    "charges": sum(int(b["charges"]) for b in read),
                 }
             )
         levels: dict[str, Any] = await self.intents.levels() if self.intents is not None else {}

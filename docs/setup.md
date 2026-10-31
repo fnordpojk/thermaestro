@@ -259,7 +259,7 @@ What Thermaestro has learned, and what it learns from. Learning only watches: it
 
 Each is **Usable**, **Not usable on this pump** (with what was seen, such as "Always 0 in the last week"), or **Not seen enough yet** (no hot-water charge in the week, the addition never running). One that isn't usable is left out. A week that shows nothing doesn't undo an earlier proof: the addition may run only for the periodic hot-water increase and on the coldest days, so it stays usable, with when it was last seen. The check runs every hour, ten minutes after a start the first time, and **Check now** runs it at once.
 
-**Hot water, the last week** counts the draws and charges read for each hot-water tank. Once a day is over, it is read from the tank's two temperatures and the pump's demand:
+**Hot water, the last week** counts the draws and charges read for each hot-water tank, and the days passed over because its readings had a gap. Once a day is over, it is read from the tank's two temperatures and the pump's demand:
 
 - a **charge** is the demand on hot water for ten minutes or more; during one, and for 15 minutes after, the charge sensor shows the charge rather than the tank, so it isn't read;
 - the **standing loss** is how fast the tank cools by itself, from its slowest hours outside charges;

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-25 02:23+0100\n"
+"POT-Creation-Date: 2026-10-31 23:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -230,6 +230,12 @@ msgstr[1] ""
 #, python-format
 msgid "%(num)s day"
 msgid_plural "%(num)s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)s day not read: its readings have a gap"
+msgid_plural "%(num)s days not read: their readings have gaps"
 msgstr[0] ""
 msgstr[1] ""
 

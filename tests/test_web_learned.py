@@ -11,10 +11,12 @@ import pytest
 from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, form
 from test_web_control import login
 
+from thermaestro import clock
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.values import Key
 from thermaestro.learn import Learned, Learning
+from thermaestro.learn.hotwater import TankKeys, _events
 from thermaestro.learn.inputs import Check
 from thermaestro.learn.tank import Demand
 from thermaestro.store import Database, SecretStore
@@ -167,6 +169,30 @@ async def test_the_tanks_week_and_loss_are_shown(tmp_path: Path) -> None:
             headers=headers,
         )
         assert demand.status_code == 400
+
+
+async def test_a_day_not_read_for_a_gap_is_counted_apart(tmp_path: Path) -> None:
+    async with site(tmp_path) as (learning, client):
+        keys = TankKeys(
+            "dev:hp1/dhw",
+            Key("dev", "hp1/dhw/temp.top"),
+            Key("dev", "hp1/dhw/temp.charge"),
+            Key("dev", "hp1/demand"),
+            Key("dev", "hp1/dhw/temp.stop"),
+        )
+        cast(Any, learning.hot_water).tanks = lambda: iter([keys])
+        now = clock.time()
+        read: dict[str, Any] = {"day": "2026-10-29", "draws": 3, "drawn": 4.5, "charges": 2}
+        gap: dict[str, Any] = {"day": "2026-10-30", "skipped": "gap"}
+        rows = [("day", now - 2 * 86_400, read), ("day", now - 86_400, gap)]
+        await learning.hot_water._db.run(lambda t: _events(t, keys.scope, rows))
+        await login(client, "admin")
+        [tank] = (await client.get("/api/v1/learned")).json()["tanks"]
+        assert (tank["days"], tank["gaps"]) == (1, 1)
+        assert (tank["draws"], tank["drawn"], tank["charges"]) == (3, 4.5, 2)
+        page = (await client.get("/setup/learned")).text
+        assert "1 day read" in page
+        assert "1 day not read: its readings have a gap" in page
 
 
 async def test_the_household_sees_but_doesnt_change(tmp_path: Path) -> None:

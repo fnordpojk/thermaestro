@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 02:23+0100\n"
+"POT-Creation-Date: 2026-10-31 23:26+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -234,6 +234,12 @@ msgid "%(num)s day"
 msgid_plural "%(num)s days"
 msgstr[0] "%(num)s Tag"
 msgstr[1] "%(num)s Tage"
+
+#, python-format
+msgid "%(num)s day not read: its readings have a gap"
+msgid_plural "%(num)s days not read: their readings have gaps"
+msgstr[0] "%(num)s Tag nicht gelesen: seine Messwerte haben eine Lücke"
+msgstr[1] "%(num)s Tage nicht gelesen: ihre Messwerte haben Lücken"
 
 #, python-format
 msgid "%(num)s day read"
