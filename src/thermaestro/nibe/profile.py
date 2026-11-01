@@ -59,7 +59,7 @@ DEMAND = {
 COMPRESSOR_STATE = {20: "stopped", 40: "starting", 60: "running", 100: "stopping"}
 PUMP_STATE = {10: "off", 15: "starting", 20: "on", 40: "10-day mode", 80: "calibration"}
 
-UNITS = {"°C": "degC"}
+UNITS = {"°C": "degC", "l/m": "L/min"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,13 +87,19 @@ METERS = {
     42443: "pool",
 }
 """The heat meters, and what they count: production for this demand. The pump calculates
-them from a flow meter, built in on some models or an accessory; without one they don't
-count."""
+them from its flow sensor (BF1), built in on some models, an accessory (an EMK) on others,
+and absent on the rest; without one they measure nothing, though some still count."""
+FLOW = 40072
+"""BF1, the heating medium's flow, in every bus-family table. It reads "not connected"
+where no flow sensor is fitted: the heat meters are then left out."""
 METER_IDLE_S = 1800.0
 """A meter that hasn't moved in this much production has no flow meter behind it, and is
 left out: some answer with a value that never changes (an F1245's hot-water total, over
 several hot-water runs)."""
-METER_VALIDITY = f"left out when it hasn't changed in {durations.text(METER_IDLE_S)} of production"
+METER_VALIDITY = (
+    f"left out where the flow sensor ({FLOW}) reads not connected, and when it hasn't changed"
+    f" in {durations.text(METER_IDLE_S)} of production"
+)
 
 
 Rule = Callable[[Snapshot], tuple[Quality, str] | None]
@@ -322,6 +328,7 @@ UNIT_POINTS = (
     ),
     PointDef("degree_minutes", 43005),
     PointDef("alarm", 45001),
+    PointDef("flow", FLOW),
     *(
         PointDef(
             path,
@@ -648,6 +655,8 @@ class Family:
     """Settings of the whole pump under standard names: the heating stop."""
     rule_registers: tuple[int, ...] = ()
     """Registers further rules read, where the model has them: a pool valve, defrosting."""
+    flow: int | None = None
+    """The flow sensor the heat meters are calculated from, where the family reads it."""
 
     @property
     def brine_derived(self) -> tuple[Derived, ...]:
@@ -664,12 +673,20 @@ class Family:
             *self.rule_registers,
         )
 
-    def layout(self, model: ModelMap, systems: list[int], pools: Iterable[int] = ()) -> Layout:
+    def layout(
+        self,
+        model: ModelMap,
+        systems: list[int],
+        pools: Iterable[int] = (),
+        flow_sensor: bool | None = None,
+    ) -> Layout:
         """The nodes and points a model has, with climate systems `systems` (1 always) and
-        pools `pools`."""
+        pools `pools`. Without a flow sensor (`flow_sensor` False), neither the flow nor the
+        heat meters calculated from it; where it isn't known (None), both."""
         out = Layout(systems=sorted(set(systems) | {1}), pools=sorted(set(pools)))
+        unmeasured = {self.flow, *self.meters} if flow_sensor is False else set()
         for node, kind, defs in self.groups(out.systems, out.pools):
-            present = [p for p in defs if p.register in model]
+            present = [p for p in defs if p.register in model and p.register not in unmeasured]
             if not present:
                 continue
             if node is not None:
@@ -1132,6 +1149,7 @@ BUS = Family(
     firmware=FIRMWARE,
     unit_settings=UNIT_SETTINGS,
     rule_registers=(DEFROST,),
+    flow=FLOW,
     answers_carry_next=True,
     pools=POOLS,
     hot_water_mode=HOT_WATER_MODE,

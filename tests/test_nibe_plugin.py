@@ -71,6 +71,7 @@ PUMP = {
 @pytest.fixture
 def stocked(pump: SimPump) -> SimPump:
     pump.registers.update(PUMP)
+    pump.registers[40072] = 120  # a flow sensor (BF1): 12.0 L/min
     pump.registers32[42437] = 12_345  # heat meter, hot water: 1234.5 kWh
     pump.registers32[42439] = 0xFFFF_FFFF  # a heat meter the pump doesn't keep
     pump.info_interval_s = 0.2
@@ -269,6 +270,33 @@ async def test_a_heat_meter_is_calculated(plugin: NibePlugin) -> None:
     await until(lambda: value(plugin, meter)[1] == "good")
     assert plugin.envelope(f"hp1/{meter}").source == "calculated"
     assert plugin.envelope("hp1/outdoor.temp").source == "measured"
+
+
+async def test_without_a_flow_sensor_the_heat_meters_are_left_out(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """A pump whose flow sensor reads not connected has nothing to calculate its heat
+    meters from: neither they nor the flow are described, though a meter answers."""
+    stocked.registers[40072] = 0x8000
+    p = NibePlugin(
+        settings(gateway),
+        transport_settings={"plain_settings": FAST_PLAIN},
+        identify_timeout_s=5,
+        health_interval_s=0.5,
+    )
+    async with running_plugin(p):
+        paths = {pt.path for pt in p.describe().points}
+        assert "hp1/outdoor.temp" in paths
+        assert not [path for path in paths if "heat.produced" in path or path == "hp1/flow"]
+
+
+async def test_a_flow_sensor_is_a_point(plugin: NibePlugin) -> None:
+    """Where a flow sensor is fitted, its flow is a point, and the heat meters stay."""
+    await until(lambda: value(plugin, "flow")[1] == "good")
+    assert value(plugin, "flow")[0] == 12.0
+    points = {pt.path: pt for pt in plugin.describe().points}
+    assert points["hp1/flow"].unit == "L/min"
+    assert "hp1/heat.produced{purpose=dhw,by=total}" in points
 
 
 async def test_a_heat_meter_that_doesnt_count_is_left_out(

@@ -83,6 +83,7 @@ POINTS: dict[str, PointName] = {
     "pump.speed": _p(None, CS, "brine_circuit"),
     "power": _p(None, "addition"),
     "degree_minutes": _p("degC.min", UNIT),
+    "flow": _p("L/min", UNIT),
     "heat.produced": _p("kWh", UNIT),
     "elec.used": _p("kWh", UNIT),
     "elec.power": _p("kW", UNIT, "meter"),

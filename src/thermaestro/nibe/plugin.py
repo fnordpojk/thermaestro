@@ -422,14 +422,29 @@ class NibePlugin:
                     pools.append(pool.number)
         if (mode := self.family.hot_water_mode) is not None and mode in self.model:
             await self._read(mode)  # the hot-water block's description names it
-        self.layout = self.family.layout(self.model, systems, pools)
+        flow_sensor = await self._flow_sensor()
+        self.layout = self.family.layout(self.model, systems, pools, flow_sensor)
         log.info(
-            "pump %s, firmware %s, climate systems %s, pools %s",
+            "pump %s, firmware %s, climate systems %s, pools %s, flow sensor %s",
             name,
             self.firmware,
             systems,
             pools or "none",
+            {True: "yes", False: "none", None: "not known"}[flow_sensor],
         )
+
+    async def _flow_sensor(self) -> bool | None:
+        """Whether a flow sensor is fitted, as the pump reads it: built in on some models,
+        an accessory on others. None where it didn't answer, or the model hasn't the
+        register."""
+        flow = self.family.flow
+        if flow is None or self.model is None or flow in self._refused or flow not in self.model:
+            return None
+        words_ = await self._tried(flow, IDENTIFY_TRIES)
+        if words_ is None:
+            return None
+        found = decode(self.model.register(flow), *words_, high_word_first=True)
+        return found.status is not Status.NOT_CONNECTED
 
     async def _identify_modbus(self) -> None:
         """The user's model; a 32-bit value's words come back put in order by the transport.

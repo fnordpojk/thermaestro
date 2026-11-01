@@ -34,6 +34,7 @@ POINTS = {
     "pump.speed": mark("Circulation pump speed"),
     "power": mark("Power"),
     "degree_minutes": mark("Degree minutes"),
+    "flow": mark("Heating medium flow"),
     "heat.produced": mark("Heat produced"),
     "elec.used": mark("Electricity used"),
     "elec.power": mark("Electrical power"),
