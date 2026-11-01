@@ -196,7 +196,8 @@ class LearnOperations:
         since = clock.time() - DISMISSED_S
         for keys in learning.hot_water.tanks():
             learned = learning.learnings.get(DEMAND, keys.scope)
-            if learned is None or learned.state != "proved" or not isinstance(learned.value, dict):
+            proved = learned.used if learned is not None and learned.state == "proved" else None
+            if not isinstance(proved, dict):
                 continue
             covered = set()
             for d in resolver.deadlines(now, now + timedelta(days=8)):
@@ -210,7 +211,7 @@ class LearnOperations:
             )
             stop = self.values.latest.get(keys.stop)
             temp = float(stop.value) if stop and isinstance(stop.value, int | float) else 50.0
-            week = Demand.from_value(learned.value)
+            week = Demand.from_value(proved)
             found += offers(keys.scope, week, covered, dismissed, level=level, temp=temp)
         return found
 

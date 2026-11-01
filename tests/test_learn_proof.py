@@ -2,13 +2,16 @@
 model again keeps it proved; a failed test, or other inputs, doesn't."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from thermaestro import clock
-from thermaestro.core import AuditLog
-from thermaestro.learn import Learned, Learnings, electric, heating, hotwater, house
+from thermaestro.core import AuditLog, Values
+from thermaestro.learn import Learned, Learnings, electric, heating, hotwater, house, records
+from thermaestro.learn.energy import DRAW as EDRAW
+from thermaestro.learn.energy import Energy, charge_kw
+from thermaestro.learn.records import PowerRun
 from thermaestro.learn.validate import FEW, NOT_BETTER, PROVED, UNJUDGED
 from thermaestro.store import Database
 
@@ -40,18 +43,62 @@ async def test_a_proof_stands_until_a_test_with_enough_fails(
         from thermaestro.learn.store import KEPT_PROOF
 
         assert (kept.why, kept.args) == (KEPT_PROOF, {"seen": proved_at})
-        assert kept.value == {"heating": 2.0}  # the newest value, still used
-        assert learnings.used(DRAW, "dev:hp1") == {"heating": 2.0}
+        assert kept.value == {"heating": 2.0}  # the newest value learns on
+        assert kept.proved == {"heating": 1.9}
+        assert learnings.used(DRAW, "dev:hp1") == {"heating": 1.9}  # what was proved is used
         now[0] += 86_400  # still too little: when it was proved stays as it was
         again = await learnings.put(_draw("learning", FEW, None, args={"n": 3, "least": 24}))
         assert again.args == {"seen": proved_at}
         assert again.value == {"heating": 2.0}  # nothing new: the last one kept
+        assert learnings.used(DRAW, "dev:hp1") == {"heating": 1.9}
+        now[0] += 86_400  # judged with enough, and better: the newest is proved and used
+        judged = await learnings.put(_draw("proved", PROVED, {"heating": 2.1}, args=args, n=30))
+        assert (judged.proved, learnings.used(DRAW, "dev:hp1")) == (None, {"heating": 2.1})
         now[0] += 86_400  # judged, and not better: it isn't used any more
         failed = await learnings.put(
             _draw("learning", NOT_BETTER, {"heating": 2.4}, args={"error": 0.3, "baseline": 0.2})
         )
         assert failed.state == "learning"
         assert learnings.used(DRAW, "dev:hp1") is None
+
+
+async def test_a_purpose_added_since_the_proof_isnt_used_until_proved(tmp_path: Path) -> None:
+    """The compressor's draw proved for heating; hot-water runs seen since, with none older
+    to test them against: heating's draw stays in use, hot water's isn't until a test with
+    enough proves it. Kept so across a restart."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        energy = Energy(db, Values(db), cast(Any, None), learnings, lambda key: True, lambda: None)
+        scope, now = "dev:hp1", 2_000_000_000.0
+
+        async def runs(purpose: str, kw: float, start: float, count: int) -> None:
+            rows = [
+                records.row(records.POWER_RUN, start + i * 600, PowerRun(purpose=purpose, kw=kw))
+                for i in range(count)
+            ]
+            await db.run(lambda t: records.keep(t, scope, rows))
+
+        await runs("heating", 1.9, now - 4 * 86_400, 20)
+        await runs("heating", 1.9, now - 86_400, 24)
+        await energy._judge(scope, now)
+        assert learnings.used(EDRAW, scope) == {"heating": 1.9}
+        now += 4 * 86_400  # heating out of the test's two days; hot water seen, all new
+        await runs("dhw", 3.2, now - 86_400, 10)
+        await energy._judge(scope, now)
+        found = learnings.get(EDRAW, scope)
+        assert found is not None
+        assert found.state == "proved"
+        assert found.value == {"heating": 1.9, "dhw": 3.2}  # learned, not yet proved
+        assert learnings.used(EDRAW, scope) == {"heating": 1.9}
+        assert charge_kw(learnings) is None  # hot water: the planner's own guess
+        restarted = Learnings(db, AuditLog(tmp_path / "audit"))
+        await restarted.load()
+        assert restarted.used(EDRAW, scope) == {"heating": 1.9}
+        now += 3 * 86_400  # hot water seen before the test's days, and enough in them
+        await runs("dhw", 3.2, now - 86_400, 24)
+        await energy._judge(scope, now)
+        assert charge_kw(learnings) == 3.2
 
 
 async def test_other_inputs_start_the_proof_over(tmp_path: Path) -> None:

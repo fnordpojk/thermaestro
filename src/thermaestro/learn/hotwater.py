@@ -178,16 +178,19 @@ class HotWater:
         else:
             predicted = baseline = None
         demand_now.learn(weekday, read.hourly)
+        n = (learned.n if learned else 0) + 1
         await self._learnings.put(
+            # Not judged yet: a week proved before stays in use until the judge proves this.
             Learned(
                 name=DEMAND,
                 scope=keys.scope,
                 kind="model",
                 value=demand_now.to_value(),
                 unit="tank_c",
-                state=learned.state if learned and learned.state != "starting" else "learning",
-                why=learned.why if learned else None,
-                n=(learned.n if learned else 0) + 1,
+                state="learning",
+                why=LEARNING,
+                args={"days": n},
+                n=n,
                 since=learned.since if learned and learned.since else start,
             )
         )

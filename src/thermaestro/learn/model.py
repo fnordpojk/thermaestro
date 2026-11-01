@@ -54,6 +54,9 @@ class Learned(BaseModel):
     """A number the household set instead."""
     fingerprint: str | None = None
     """What it was learned from (sensors, answers): a change there starts it over."""
+    proved: Number | None = None
+    """The value last proved, in use while there has been too little since to judge the
+    newest (`value`) by. None where `value` is itself what was judged."""
 
     @property
     def key(self) -> str:
@@ -63,11 +66,13 @@ class Learned(BaseModel):
     def used(self) -> Number | None:
         """What decisions use: the pinned number; else, for an observed value, what was
         seen; for a model, its value once proved (and while frozen, which only a proved one
-        is), else its starting value."""
+        is), else its starting value. A proof kept for too little to judge by is the value
+        proved, not the newest: what was added since (a purpose, a weekday) hasn't been."""
         if self.pinned is not None:
             return self.pinned
         if self.kind == "observed" or self.state in ("proved", "frozen"):
-            return self.value if self.value is not None else self.starting
+            found = self.proved if self.proved is not None else self.value
+            return found if found is not None else self.starting
         return self.starting
 
 

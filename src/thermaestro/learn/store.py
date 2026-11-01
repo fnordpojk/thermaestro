@@ -59,12 +59,14 @@ class Learnings:
         pinned = before.pinned if before is not None else None
         kept = learned.model_copy(update={"pinned": pinned, "updated": clock.time()})
         if before is not None and _proof_stands(kept, before):
-            # The newest value where there is one: a model learned day by day (the tank's
-            # week) goes on learning; the last one proved otherwise.
+            # What was proved stays in use; the newest value goes on learning beside it (a
+            # model learned day by day, the tank's week, learns from it), and is used once
+            # a test with enough to judge by proves it.
             seen = before.args.get("seen") if before.why == KEPT_PROOF else before.updated
             kept = kept.model_copy(
                 update={
                     "value": kept.value if kept.value is not None else before.value,
+                    "proved": before.proved if before.proved is not None else before.value,
                     "state": "proved",
                     "why": KEPT_PROOF,
                     "args": {"seen": seen if seen is not None else clock.time()},
@@ -72,6 +74,8 @@ class Learnings:
                     "since": before.since or kept.since,
                 }
             )
+        else:
+            kept = kept.model_copy(update={"proved": None})  # judged now, or not proved
         await self._write(kept)
         return kept
 
