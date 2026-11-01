@@ -437,4 +437,3 @@ def test_the_week_is_judged_by_the_hours_around_a_draw() -> None:
     verdict = t.judge(days)
     assert verdict.proved, verdict
     assert verdict.n == 7 * 8
-
