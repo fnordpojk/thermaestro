@@ -28,6 +28,9 @@
 <p>{{ _("Left to the rules, until what they rest on has been learned:") }}</p>
 <ul>{% for scope, why in o.notes %}<li>{{ scope }}: {{ _(why) }}</li>{% endfor %}</ul>
 {% endif %}
+{% if o.price_left_out %}
+<p class="hint">{{ _("The price both planners plan with leaves out %(parts)s: each kWh is priced too low, so a plan that uses more electricity can look cheaper than it is. Add it under Setup → Prices.", parts=o.price_left_out | join(", ")) }}</p>
+{% endif %}
 {% endif %}
 {% if can("levers.control") %}
 <form method="post" action="/settings/planner" class="inline">

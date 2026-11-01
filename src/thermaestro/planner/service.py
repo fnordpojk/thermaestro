@@ -226,6 +226,8 @@ class Planner:
         self._near: dict[str, bool] = {}
         """Whether the last round saw the tank near it."""
         self._priced: tuple[float, list[Price]] | None = None
+        self._price_left_out: tuple[str, ...] = ()
+        """What the price stack last left out."""
         self._task: asyncio.Task[None] | None = None
         self._judging: asyncio.Future[Any] | None = None
         self._situation_levers: dict[str, LeverState] = {}
@@ -741,6 +743,7 @@ class Planner:
             memory=self.memory,
             response_h=self._responses(caps.systems),
             lead=await self._leads(caps, now, outdoor),
+            price_left_out=self._price_left_out,
         )
 
     def _response(self, system: str, emitters: Mapping[str, str]) -> float:
@@ -1013,6 +1016,7 @@ class Planner:
         assert self._series is not None  # noqa: S101 - the caller checked
         rules, holiday = await household(self._db, zone)
         stack = await assemble(layers, vat, self._series, day, zone, rules, holiday)
+        self._price_left_out = tuple(stack.left_out)
         if estimated:
             stack = await estimate(layers, vat, self._series, stack, zone)
         return [Price(s.start, s.total, s.estimated) for s in stack.slots if s.total is not None]

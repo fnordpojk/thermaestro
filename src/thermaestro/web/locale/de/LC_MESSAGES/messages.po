@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-01 01:43+0100\n"
+"POT-Creation-Date: 2026-11-01 22:52+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -3171,6 +3171,13 @@ msgstr "Die Leistungsgrenze"
 
 msgid "The price and weather at a glance"
 msgstr "Preis und Wetter auf einen Blick"
+
+#, python-format
+msgid ""
+"The price both planners plan with leaves out %(parts)s: each kWh is priced too low, "
+"so a plan that uses more electricity can look cheaper than it is. Add it under Setup "
+"→ Prices."
+msgstr "Der Preis, mit dem beide Planer planen, lässt %(parts)s aus: jede kWh ist zu niedrig bepreist, sodass ein Plan, der mehr Strom verbraucht, günstiger aussehen kann, als er ist. Fügen Sie es unter Einrichtung → Preise hinzu."
 
 msgid "The pump"
 msgstr "Die Pumpe"

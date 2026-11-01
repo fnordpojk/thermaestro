@@ -281,6 +281,9 @@ class Situation:
     """Per climate system without a room sensor: offset steps that heat now for the
     weather one response ahead, the outdoor temperature expected then, and the hours
     ahead; where the pump's curve is learned and proved."""
+    price_left_out: tuple[str, ...] = ()
+    """The parts of a kWh's price no layer gives (an energy tax, a grid fee): the prices
+    planned with are too low by them."""
 
 
 @dataclass(frozen=True)

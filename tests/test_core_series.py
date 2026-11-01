@@ -3,7 +3,7 @@ import contextlib
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -20,10 +20,12 @@ from thermaestro.cap.messages import (
     SeriesUpdate,
 )
 from thermaestro.cap.model import Interval, Knowledge, Publication, SeriesInfo
+from thermaestro.core import AuditLog, Values
 from thermaestro.core import series as series_module
 from thermaestro.core.prices import assemble, estimate, slots
 from thermaestro.core.series import Key, Series
-from thermaestro.store import Database, PriceLayer, Vat
+from thermaestro.planner import Planner
+from thermaestro.store import Database, Location, PriceLayer, Vat
 
 STOCKHOLM = ZoneInfo("Europe/Stockholm")
 SPOT = SeriesInfo(
@@ -325,9 +327,34 @@ async def test_a_missing_layer_is_a_warning_and_a_gap_shows(db: Database) -> Non
         vat="excl",
     )
     stack = await assemble({"spot": spot}, None, series, date(2026, 9, 30), STOCKHOLM)
-    assert "no layer for tax.energy" in stack.warnings
+    assert stack.left_out == ["tax.energy", "grid.transfer"]
+    assert (
+        "no layer for tax.energy: each kWh is priced too low, for the plan as for the bill"
+        in stack.warnings
+    )
     assert "some layers exclude VAT, and no VAT is set" in stack.warnings
     assert all(s.total is None and s.missing == ["spot"] for s in stack.slots)  # no prices that day
+
+
+async def test_the_planner_knows_what_the_price_leaves_out(db: Database, tmp_path: Path) -> None:
+    """What the stack leaves out reaches the planner, which Setup → Control shows."""
+    series = await stocked(db)
+    await db.put(Location(latitude=59.33, longitude=18.07, timezone="Europe/Stockholm"))
+    spot = PriceLayer(
+        role="energy.spot",
+        source="series",
+        plugin="tibber",
+        series=SPOT.id,
+        unit="SEK/kWh",
+        vat="excl",
+    )
+    await db.put(spot, "spot")
+    nothing = cast(Any, None)
+    planner = Planner(
+        db, Values(db), nothing, nothing, nothing, nothing, AuditLog(tmp_path / "a"), series=series
+    )
+    await planner._stack(datetime(2026, 9, 29, 12, tzinfo=UTC))
+    assert planner._price_left_out == ("tax.energy", "grid.transfer")
 
 
 OTHER_SPOT = SeriesInfo(

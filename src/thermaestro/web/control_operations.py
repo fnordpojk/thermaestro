@@ -467,11 +467,14 @@ class ControlOperations:
         found = planner.optimized if planner is not None else None
         if planner is None or planner.optimizer is None:
             return {"running": False}
+        sit = planner.situation
+        left_out = list(sit.price_left_out) if sit is not None else []
         if found is None:
-            return {"running": True, "ok": None}
+            return {"running": True, "ok": None, "price_left_out": left_out}
         plan = found.plan
         return {
             "running": True,
+            "price_left_out": left_out,
             "ok": found.ok,
             "why": found.why,
             "covered": sorted(found.covered),

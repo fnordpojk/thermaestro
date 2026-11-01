@@ -10,8 +10,10 @@ role it plays and whether VAT is in it. The stack is refused, rather than comput
 - a layer's fallback isn't the same kind of price as the layer's own series;
 - a rule layer's rule isn't there, isn't a time-of-use rule, or is in another unit.
 
-A missing role is allowed, with a warning: a flat layer left out changes how much a kWh
-costs, not when it is cheapest.
+A missing role is allowed, with a warning, and the stack names it (`left_out`). A part
+left out matters to the plan as much as to the bill, even a flat one: a tank and a house
+lose heat and the COP varies, so plans differ in how much electricity they use, and a kWh
+priced too low makes one that uses more look cheaper than it is.
 
 Slots are 15 minutes, from the local midnight to the next one, so a day that changes to
 or from summer time has 92 or 100 of them. A series layer's value for a slot is that of
@@ -106,6 +108,8 @@ class Stack:
     """Why the stack is refused; no totals while there are any."""
     warnings: list[str]
     checks: list[Check] = field(default_factory=list)
+    left_out: list[str] = field(default_factory=list)
+    """The roles a kWh's price is expected to have that no layer gives."""
 
 
 @dataclass(frozen=True)
@@ -175,8 +179,9 @@ def check(
     vat: Vat | None,
     series: Series,
     rules: Mapping[str, GridRule] | None = None,
-) -> tuple[list[str], list[str], str | None]:
-    """The refusals and warnings for a set of layers, and their common unit."""
+) -> tuple[list[str], list[str], str | None, list[str]]:
+    """The refusals and warnings for a set of layers, their common unit, and the expected
+    roles no layer gives."""
     problems: list[str] = []
     counted: dict[str, str] = {}
     units: set[str] = set()
@@ -214,7 +219,11 @@ def check(
             problems.append(f"VAT would be charged on {id}, which already includes it")
     if len(units) > 1:
         problems.append(f"the layers are in different units: {', '.join(sorted(units))}")
-    warnings = [f"no layer for {role}" for role in EXPECTED_ROLES if role not in counted]
+    left_out = [role for role in EXPECTED_ROLES if role not in counted]
+    warnings = [
+        f"no layer for {role}: each kWh is priced too low, for the plan as for the bill"
+        for role in left_out
+    ]
     if layers and vat is None and any(layer.vat == "excl" for layer in layers.values()):
         warnings.append("some layers exclude VAT, and no VAT is set")
     if vat is not None:
@@ -223,7 +232,7 @@ def check(
             for id, layer in sorted(layers.items())
             if layer.vat == "excl" and not _charged(vat, id, layer)
         ]
-    return problems, warnings, (units.pop() if len(units) == 1 else None)
+    return problems, warnings, (units.pop() if len(units) == 1 else None), left_out
 
 
 def _rule_problems(id: str, layer: PriceLayer, rule: GridRule | None) -> list[str]:
@@ -308,10 +317,10 @@ async def assemble(
 ) -> Stack:
     """The day's stack. `rules`: the grid rules a rule layer names; `holiday`: the public
     holidays, for a rule's working days."""
-    problems, warnings, unit = check(layers, vat, series, rules)
+    problems, warnings, unit, left_out = check(layers, vat, series, rules)
     day_slots = slots(day, zone)
     if problems or not layers:
-        return Stack(unit, [], problems, warnings)
+        return Stack(unit, [], problems, warnings, left_out=left_out)
     first, last = day_slots[0][0].timestamp(), day_slots[-1][1].timestamp()
     split = splits(layers, series)
     rate = vat.rate if vat is not None else 0.0
@@ -367,7 +376,7 @@ async def assemble(
                 f"{c.series} differs from the stack's {' + '.join(c.layers)} in {c.differing}"
                 f" of {c.compared} quarters, by up to {abs(c.largest):.4f} {unit}"
             )
-    return Stack(unit, out, problems, warnings, checks)
+    return Stack(unit, out, problems, warnings, checks, left_out)
 
 
 async def _checks(
@@ -483,7 +492,7 @@ async def estimate(
             continue
         total = sum(p.value or 0.0 for p in parts)
         out.append(Slot(slot.start, slot.end, total, parts, [], estimated=True))
-    return Stack(stack.unit, out, stack.problems, stack.warnings, stack.checks)
+    return Stack(stack.unit, out, stack.problems, stack.warnings, stack.checks, stack.left_out)
 
 
 def _at(intervals: list[Interval], moment: datetime) -> float | None:

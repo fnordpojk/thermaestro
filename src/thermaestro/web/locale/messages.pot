@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-01 01:43+0100\n"
+"POT-Creation-Date: 2026-11-01 22:52+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2975,6 +2975,13 @@ msgid "The power limit"
 msgstr ""
 
 msgid "The price and weather at a glance"
+msgstr ""
+
+#, python-format
+msgid ""
+"The price both planners plan with leaves out %(parts)s: each kWh is "
+"priced too low, so a plan that uses more electricity can look cheaper "
+"than it is. Add it under Setup → Prices."
 msgstr ""
 
 msgid "The pump"
