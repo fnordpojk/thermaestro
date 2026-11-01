@@ -837,8 +837,10 @@ async def test_a_disarm_the_gateway_didnt_confirm_is_sent_again(
             "device_accepted"
         )
         assert lost[0]
-        await until(lambda: armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC)], 5)
-        assert p.disarming == set()
+        # The gateway disarms first, and the plugin hears its answer after: both are waited for.
+        await until(
+            lambda: armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC)] and not p.disarming, 5
+        )
 
 
 async def test_what_isnt_sent(stocked: SimPump, gateway: Gateway) -> None:

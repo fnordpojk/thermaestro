@@ -2,6 +2,7 @@
 ID; cleared when the part works again; a moment at most once an hour."""
 
 import logging
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -106,6 +107,63 @@ async def test_a_failure_left_open_clears_after_a_restart_once_it_works(tmp_path
         restarted.worked("planning")
         await restarted.settle()
         assert await events.open(PREFIX) == []
+
+
+async def test_a_clear_that_couldnt_be_kept_is_tried_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The part works, but the clear can't be written: the failure stays open until the
+    part next works, then clears, with no restart."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = Events(db)
+        with attached_for_tests(events) as failures:
+            failures.failed("history", "Writing the value history", _raised("no"))
+            await failures.settle()
+            clear, broken = events.clear, [True]
+
+            async def once_broken(key: str, **kw: Any) -> Any:
+                if broken[0]:
+                    broken[0] = False
+                    raise sqlite3.OperationalError("database is locked")
+                return await clear(key, **kw)
+
+            monkeypatch.setattr(events, "clear", once_broken)
+            failures.worked("history")
+            await failures.settle()
+            assert [e.key for e in await events.open(PREFIX)] == ["failure:history"]
+            failures.worked("history")
+            await failures.settle()
+            assert await events.open(PREFIX) == []
+
+
+async def test_a_failure_raised_after_a_lost_clear_stays_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Worked, then failed again before the clear was written, and the clear lost: the
+    newer failure is what stands, and it too clears once the part works."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = Events(db)
+        with attached_for_tests(events) as failures:
+            failures.failed("history", "Writing the value history", _raised("no"))
+            await failures.settle()
+            clear = events.clear
+            broken = [True]
+
+            async def once_broken(key: str, **kw: Any) -> Any:
+                if broken[0]:
+                    broken[0] = False
+                    raise sqlite3.OperationalError("database is locked")
+                return await clear(key, **kw)
+
+            monkeypatch.setattr(events, "clear", once_broken)
+            failures.worked("history")
+            failures.failed("history", "Writing the value history", _raised("again"))
+            await failures.settle()
+            [event] = await events.open(PREFIX)
+            assert event.args["error"] == "RuntimeError: again"
+            failures.worked("history")
+            await failures.settle()
+            assert await events.open(PREFIX) == []
 
 
 def test_the_same_fault_has_the_same_id() -> None:

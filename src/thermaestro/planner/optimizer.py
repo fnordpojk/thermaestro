@@ -260,6 +260,7 @@ class Optimizer:
         if found is None:
             self.last = Optimized(False, BUSY, problem, notes=notes, watched=watched)
             return self.last
+        failures.worked("optimizer.solve")  # a solve ran to its end, plan or not
         if found.ok:
             for scope, planned in found.systems.items():
                 if planned.room:

@@ -14,6 +14,7 @@ import pytest
 from thermaestro import clock
 from thermaestro.core import AuditLog, State, Values
 from thermaestro.core.events import Events, Raise
+from thermaestro.core.failures import PREFIX, attached_for_tests
 from thermaestro.optimize import Problem, Slot
 from thermaestro.planner import Planner, rules, service
 from thermaestro.planner import optimizer as optimizing
@@ -107,14 +108,21 @@ async def test_a_failed_solve_changes_no_intent(tmp_path: Path) -> None:
         assert reported == []  # at risk stays at risk: no plan said otherwise
 
 
-async def test_a_failing_solve_is_a_failed_plan(
+async def test_a_failing_solve_is_a_failed_plan_until_a_solve_ends(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def broken(problem: Problem, limit: float) -> Any:
-        raise RuntimeError("the solver crashed")
+    """A solve that crashed is a failed plan and a failure on the Events page; the failure
+    clears once a solve runs to its end again, whether or not it found a plan."""
+    crashing = [True]
 
-    monkeypatch.setattr(optimizing, "solve", broken)
+    def solver(problem: Problem, limit: float) -> Any:
+        if crashing[0]:
+            raise RuntimeError("the solver crashed")
+        return SimpleNamespace(ok=False, why="no plan within the limits", systems={})
+
+    monkeypatch.setattr(optimizing, "solve", solver)
     async with await Database.open(tmp_path / "t.db") as db:
+        events = Events(db)
         opt = Optimizer(db, Values(db), cast(Any, None), cast(Any, None))
         problem = Problem((Slot(NOW.timestamp(), price=0.5),))
 
@@ -122,9 +130,18 @@ async def test_a_failing_solve_is_a_failed_plan(
             return problem, frozenset({"pump:hp1/cs1/heating.offset"}), []
 
         opt.problem = made  # type: ignore[method-assign]
-        found = await opt.run(cast(Any, SimpleNamespace(now=NOW + timedelta(0))), cast(Any, None))
-        assert not found.ok
-        assert "the solver crashed" in found.why
+        sit = cast(Any, SimpleNamespace(now=NOW + timedelta(0)))
+        with attached_for_tests(events) as failures:
+            found = await opt.run(sit, cast(Any, None))
+            assert not found.ok
+            assert "the solver crashed" in found.why
+            await failures.settle()
+            assert [e.key for e in await events.open(PREFIX)] == ["failure:optimizer.solve"]
+            crashing[0] = False
+            found = await opt.run(sit, cast(Any, None))
+            assert found.why == "no plan within the limits"
+            await failures.settle()
+            assert await events.open(PREFIX) == []
 
 
 async def test_a_plan_over_its_budget_leaves_it_to_the_rules(

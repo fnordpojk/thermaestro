@@ -117,7 +117,8 @@ class Failures:
         return id
 
     def worked(self, part: str) -> None:
-        """`part` did what it does: its failure, if open, clears."""
+        """`part` did what it does: its failure, if open, clears. A clear that couldn't be
+        kept is tried again the next time it works."""
         key = f"{PREFIX}{part}"
         if key not in self._open or self._events is None:
             return
@@ -150,6 +151,10 @@ class Failures:
         except Exception:
             # Not raised through itself: that could go round for ever.
             log.exception("the failure %s couldn't be kept as an event", change.key)
+            if change.what is None:
+                # Still open: cleared the next time it works. A failure raised since is
+                # already marked open, and its raise follows this clear.
+                self._open.add(change.key)
 
 
 failures = Failures()
