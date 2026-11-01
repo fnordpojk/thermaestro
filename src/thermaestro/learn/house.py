@@ -43,7 +43,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from .model import mark
-from .validate import Verdict, held_out
+from .validate import Verdict, held_out, unjudged
 
 LAGS = (1, 2, 3, 4, 6, 8, 12, 18, 24)
 """The responses tried, hours."""
@@ -61,7 +61,7 @@ TEST_HOURS = 48
 TAU_H = (3.0, 500.0)
 """A house's time constant lies within these, hours."""
 
-FEW = mark("%(hours)s usable hours of %(least)s.")
+FEW = unjudged(mark("%(hours)s usable hours of %(least)s."))
 NARROW = mark("The outdoor temperature has hardly changed: a spread of %(spread)s °C.")
 STILL = mark("The rooms have hardly moved: nothing to learn the house from yet.")
 TOGETHER = mark(

@@ -34,7 +34,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from .model import mark
-from .validate import Verdict, held_out
+from .validate import Verdict, held_out, unjudged
 
 KELVIN = 273.15
 LIFT_LEAST = 5.0
@@ -49,7 +49,7 @@ WARM = 5
 LEAST = 8
 """Comparisons a verdict needs: a charge with no draw near it may come once a day."""
 
-FEW = mark("%(seen)s of %(least)s charges or hours seen to learn from.")
+FEW = unjudged(mark("%(seen)s of %(least)s charges or hours seen to learn from."))
 NO_DRAW = mark("Learned once the compressor's draw has proved itself.")
 NO_VOLUME = mark("Learned once the tank's volume is known: enter it under House.")
 NO_BRINE = mark("Learned once the brine's heat per kelvin has proved itself.")

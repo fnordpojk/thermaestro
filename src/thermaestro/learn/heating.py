@@ -41,6 +41,7 @@ from .model import Learned, State, mark
 from .records import HouseDay, HouseHour
 from .store import Learnings
 from .tank import bounds, first_day
+from .validate import unjudged
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
@@ -79,7 +80,7 @@ TAU_START = {"poorly_insulated": 20.0, "average": 40.0, "well_insulated": 70.0, 
 """A start for the house's time constant, hours, from setup's answer, until it is learned."""
 
 NOT_FITTED = mark("Not fitted yet.")
-TESTING = mark("Judged once there are two more days to test it on.")
+TESTING = unjudged(mark("Judged once there are two more days to test it on."))
 FROZEN = mark("Heating is held off by the pump's heating stop: kept as learned until it heats.")
 MISSING = mark("Not learned: %(what)s isn't usable on this pump yet.")
 WHAT = {

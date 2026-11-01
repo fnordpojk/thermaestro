@@ -303,13 +303,22 @@ def read_day(
     return Day(day, tuple(seen), in_day, hourly(seen, day, zone, scale))
 
 
+JUDGED_HOURS = 3
+"""The week is judged on what is drawn in blocks of this many hours: a household's times
+move by an hour or so from day to day, and the plan needs how much by when, not the hour."""
+
+
 def judge(days: Sequence[tuple[Sequence[float], Sequence[float], Sequence[float]]]) -> Verdict:
-    """The demand's proof: each day's hours as predicted, as the flat guess had them, and
-    as drawn."""
-    predicted = [p for d in days for p in d[0]]
-    baseline = [b for d in days for b in d[1]]
-    actual = [a for d in days for a in d[2]]
-    return held_out(predicted, baseline, actual, least=7 * 24)
+    """The demand's proof: each day's draws in blocks of `JUDGED_HOURS`, as predicted, as
+    the flat guess had them, and as drawn."""
+
+    def blocks(hours: Sequence[float]) -> list[float]:
+        return [sum(hours[i : i + JUDGED_HOURS]) for i in range(0, len(hours), JUDGED_HOURS)]
+
+    predicted = [p for d in days for p in blocks(d[0])]
+    baseline = [b for d in days for b in blocks(d[1])]
+    actual = [a for d in days for a in blocks(d[2])]
+    return held_out(predicted, baseline, actual, least=7 * 24 // JUDGED_HOURS)
 
 
 def expected(

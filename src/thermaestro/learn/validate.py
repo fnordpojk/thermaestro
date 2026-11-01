@@ -1,6 +1,11 @@
 """Whether a learned model has earned its place: on data it wasn't fitted on, it must
 predict better than a simple baseline (a flat guess, the setup answer), by a margin. A
-model that can't be judged yet isn't used either."""
+model that can't be judged yet isn't used either.
+
+A proof stands until a test with enough to judge by fails: too little since to judge it
+again (warm days the compressor hardly ran, days nobody was home) keeps it proved
+(`store.Learnings.put`). Each message saying there is too little to judge a model by is
+marked with `unjudged`."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -12,7 +17,17 @@ MARGIN = 0.10
 LEAST = 24
 """How many held-out comparisons a verdict needs."""
 
-FEW = mark("%(n)s of %(least)s comparisons so far.")
+UNJUDGED: set[str] = set()
+"""The messages saying a model couldn't be judged: too little to judge it by."""
+
+
+def unjudged(message: str) -> str:
+    """Marks `message` as saying there is too little to judge a model by."""
+    UNJUDGED.add(message)
+    return message
+
+
+FEW = unjudged(mark("%(n)s of %(least)s comparisons so far."))
 PROVED = mark("Off by %(error)s on average where a simple guess is off by %(baseline)s.")
 NOT_BETTER = mark(
     "Off by %(error)s on average, not clearly better than a simple guess, off by %(baseline)s."

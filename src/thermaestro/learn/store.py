@@ -8,10 +8,25 @@ from .. import clock
 from ..core.audit import AuditLog
 from ..store import Database, Transaction
 from .model import Learned, Number, key, mark
+from .validate import UNJUDGED
+
+KEPT_PROOF = mark("Proved when last judged, %(seen)s; too little since to judge it again.")
 
 
 class NotLearned(KeyError):
     pass
+
+
+def _proof_stands(now: Learned, before: Learned) -> bool:
+    """A model proved before, now only not judged for too little to judge it by, and
+    learned from the same inputs."""
+    return (
+        before.state == "proved"
+        and now.kind == "model"
+        and now.state == "learning"
+        and now.why in UNJUDGED
+        and now.fingerprint == before.fingerprint
+    )
 
 
 class Learnings:
@@ -38,10 +53,25 @@ class Learnings:
         return None if found is None else found.used
 
     async def put(self, learned: Learned) -> Learned:
-        """Keep what a learner found. A pin stays: only the household sets or lifts it."""
+        """Keep what a learner found. A pin stays: only the household sets or lifts it. A
+        proof stands until a test with enough to judge by fails (`validate`)."""
         before = self._kept.get(learned.key)
         pinned = before.pinned if before is not None else None
         kept = learned.model_copy(update={"pinned": pinned, "updated": clock.time()})
+        if before is not None and _proof_stands(kept, before):
+            # The newest value where there is one: a model learned day by day (the tank's
+            # week) goes on learning; the last one proved otherwise.
+            seen = before.args.get("seen") if before.why == KEPT_PROOF else before.updated
+            kept = kept.model_copy(
+                update={
+                    "value": kept.value if kept.value is not None else before.value,
+                    "state": "proved",
+                    "why": KEPT_PROOF,
+                    "args": {"seen": seen if seen is not None else clock.time()},
+                    "n": max(kept.n, before.n),
+                    "since": before.since or kept.since,
+                }
+            )
         await self._write(kept)
         return kept
 

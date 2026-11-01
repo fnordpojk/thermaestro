@@ -33,7 +33,7 @@ from dataclasses import dataclass
 
 from .house import Hour, minimize
 from .model import mark
-from .validate import Verdict, held_out
+from .validate import Verdict, held_out, unjudged
 
 HEATING_LEAST = 0.5
 HELD_LEAST = 12
@@ -44,7 +44,7 @@ DOCUMENTED = mark(
     "What a step of the offset does as the maker documents it, %(step)s K: the offset"
     " hasn't moved enough to learn it."
 )
-FEW = mark("%(hours)s usable hours of %(least)s.")
+FEW = unjudged(mark("%(hours)s usable hours of %(least)s."))
 LEAST = 48
 
 

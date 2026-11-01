@@ -37,7 +37,7 @@ from .model import Learned, State, mark
 from .pump import _solve
 from .records import HouseHour
 from .store import Learnings
-from .validate import held_out
+from .validate import held_out, unjudged
 
 EMITTERS = "house.emitter_kw_k"
 STORED = "house.emitter_kwh_k"
@@ -49,7 +49,7 @@ WARMER_LEAST = 0.5
 IDLE = 0.02
 """An hour the compressor heated less than this share of counts as no heat at all."""
 
-FEW = mark("%(hours)s hours of heating with the heat known, of %(least)s.")
+FEW = unjudged(mark("%(hours)s hours of heating with the heat known, of %(least)s."))
 SEVERAL = mark("Not learned: the pump heats several climate systems, and its heat can't be split.")
 NO_COP = mark("Learned once the compressor's draw and COP are known.")
 

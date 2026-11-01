@@ -421,3 +421,20 @@ async def test_the_ceiling_tells_the_periodic_increase_by_its_own_stop(tmp_path:
         found = learnings.get(CEILING, keys.scope)
         assert found is not None
         assert found.value == 55.6
+
+
+def test_the_week_is_judged_by_the_hours_around_a_draw() -> None:
+    """A shower the week puts at 07 that comes at 06 or 08 is missed hour by hour, but is
+    where the plan needs it: drawn by 09."""
+    predicted = [0.0] * 24
+    predicted[7] = 3.0
+    flat = [3.0 / 24] * 24
+    days = []
+    for i in range(7):
+        actual = [0.0] * 24
+        actual[6 if i % 2 else 8] = 3.0
+        days.append((predicted, flat, actual))
+    verdict = t.judge(days)
+    assert verdict.proved, verdict
+    assert verdict.n == 7 * 8
+

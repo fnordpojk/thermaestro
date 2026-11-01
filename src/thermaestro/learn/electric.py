@@ -29,7 +29,7 @@ from ..core.values import Sample
 from .inputs import Span, spans
 from .model import mark
 from .tank import Series
-from .validate import Verdict, held_out
+from .validate import Verdict, held_out, unjudged
 
 WINDOW_S = 300.0
 """How long each mean, before and after an edge, runs."""
@@ -45,7 +45,9 @@ GUESS_KW = 2.0
 """What the planner reckoned a hot-water charge draws, until this is learned."""
 TEST_S = 2 * 86_400.0
 
-FEW = mark("%(steps)s steps of the house's power seen at the compressor's starts and stops.")
+FEW = unjudged(
+    mark("%(steps)s steps of the house's power seen at the compressor's starts and stops.")
+)
 
 Edge = Literal["start", "stop", "run"]
 

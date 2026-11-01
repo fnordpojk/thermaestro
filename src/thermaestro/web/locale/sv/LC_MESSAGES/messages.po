@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-01 00:06+0100\n"
+"POT-Creation-Date: 2026-11-01 01:43+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -2411,6 +2411,12 @@ msgstr "Protokoll"
 
 msgid "Proved"
 msgstr "Bevisad"
+
+#, python-format
+msgid "Proved when last judged, %(seen)s; too little since to judge it again."
+msgstr ""
+"Bevisad när den senast bedömdes, %(seen)s; för lite sedan dess för att bedöma den "
+"igen."
 
 msgid "Provider"
 msgstr "Leverantör"

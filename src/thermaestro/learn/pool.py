@@ -34,7 +34,7 @@ from .pump import _solve
 from .records import PoolDay, PoolHour
 from .store import Learnings
 from .tank import bounds, first_day
-from .validate import held_out
+from .validate import held_out, unjudged
 
 log = logging.getLogger(__name__)
 LEARNING_POOL = mark("Learning a pool")
@@ -47,7 +47,7 @@ HEATED_LEAST = 6
 """Hours the compressor heated the pool, at least, among them."""
 TEST_HOURS = 96
 
-FEW = mark("%(hours)s hours of %(least)s to learn the pool from.")
+FEW = unjudged(mark("%(hours)s hours of %(least)s to learn the pool from."))
 UNHEATED = mark("The pool hasn't been heated enough to learn how fast it warms.")
 MISSING = mark("Not learned: %(what)s isn't usable on this pump yet.")
 WHAT = {

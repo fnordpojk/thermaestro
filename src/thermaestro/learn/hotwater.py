@@ -37,7 +37,7 @@ from .records import (
     TankDay,
 )
 from .store import Learnings
-from .validate import held_out
+from .validate import held_out, unjudged
 
 log = logging.getLogger(__name__)
 LEARNING_TANK = mark("Learning a hot-water tank")
@@ -52,8 +52,8 @@ LOSS_TEST_S = 2 * 86_400.0
 """The standing loss is judged on the last two days, fitted on the days before."""
 
 NOT_USABLE = mark("Not learned: %(what)s isn't usable on this pump yet.")
-LEARNING = mark("Days learned from: %(days)s. Judged once each weekday has been seen.")
-LOSS_LEARNING = mark("Judged once there are two days to test it on.")
+LEARNING = unjudged(mark("Days learned from: %(days)s. Judged once each weekday has been seen."))
+LOSS_LEARNING = unjudged(mark("Judged once there are two days to test it on."))
 CEILING_WHY = mark(
     "The highest the top has reached at the end of a charge, the periodic increase left out."
 )
