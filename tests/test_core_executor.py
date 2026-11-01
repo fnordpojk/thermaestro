@@ -395,6 +395,8 @@ async def test_a_refused_baseline_the_gateway_put_back_is_set_back_to_the_baseli
         await until(lambda: device.registers["x.fake.offset"] == -4)
         await until(lambda: not r.executor.claims[OFFSET].changed)
         assert r.executor.claims[OFFSET].drift is None
+        # Kept in the audit log once the restore is over: after the lever is let go.
+        await until(lambda: any(e["what"] == "lever.restore" for e in audited(r)))
         restore = [e for e in audited(r) if e["what"] == "lever.restore"]
         assert (
             restore[-1]["why"] == "the gateway's dead-man put back a value that isn't its baseline"
