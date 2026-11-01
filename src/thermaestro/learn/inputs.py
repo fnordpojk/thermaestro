@@ -158,7 +158,9 @@ async def warms_in_charges(
     ]
     rises = []
     for t0, t1 in charges:
-        first, last = value_at(samples, t0), value_at(samples, t1)
+        # The last good readings before: the plugin may mark the sensor transitional as a
+        # charge starts, while tank-bottom water passes it.
+        first, last = good_before(samples, t0), good_before(samples, t1)
         if first is not None and last is not None:
             rises.append(last - first)
     if not rises:
@@ -291,6 +293,17 @@ def value_at(samples: Sequence[Sample], t: float) -> float | None:
     if found is None or found.quality != "good" or found.value is None:
         return None
     return found.value if t - found.t <= HOLD_S else None
+
+
+def good_before(samples: Sequence[Sample], t: float) -> float | None:
+    """The last good reading at or before `t`, from within `HOLD_S` of it."""
+    found = None
+    for s in samples:
+        if s.t > t:
+            break
+        if s.quality == "good" and s.value is not None:
+            found = s
+    return found.value if found is not None and t - found.t <= HOLD_S else None
 
 
 def _held(samples: Sequence[Sample], end: float) -> Iterable[tuple[float, float, float]]:

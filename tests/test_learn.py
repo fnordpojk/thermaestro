@@ -267,6 +267,13 @@ async def test_the_tank_warms_in_charges() -> None:
     assert flat[1] == "Rose in %(warmed)s of %(charges)s hot-water charges."
     none = await judged(every(60, warming), expect, demand=lambda t: "heating")
     assert none[:2] == ("not_yet", "No hot-water charge seen in the last week.")
+    # As the pump's plugin marks the charge sensor: transitional for a while after a charge
+    # starts, while tank-bottom water passes it. The charge counts from the reading before.
+    settling = [
+        s(x.t, x.value, q="transitional" if (x.t % H) / 60 < 5 else "good")
+        for x in every(60, warming)
+    ]
+    assert (await judged(settling, expect))[0] == "usable"
 
 
 async def test_the_supply_is_warmer_while_the_compressor_heats() -> None:

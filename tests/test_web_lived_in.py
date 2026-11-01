@@ -31,7 +31,14 @@ from thermaestro.core.events import Events
 from thermaestro.core.failures import PREFIX, Failures, attached_for_tests
 from thermaestro.intents import Level, kinds
 from thermaestro.learn import Learning
-from thermaestro.learn.records import COMPRESSOR_DAY, CompressorDay, Gap, read
+from thermaestro.learn.records import (
+    COMPRESSOR_DAY,
+    TANK_DAY,
+    CompressorDay,
+    Gap,
+    TankDay,
+    read,
+)
 from thermaestro.store import Plugin, SecretStore
 from thermaestro.web import Services, create_app
 from thermaestro.web.failing import Parts
@@ -76,8 +83,12 @@ async def _lived_in(
     await learning.load()
     await learning.check_inputs()
     await learning.learn()
+    # The house has both kinds of day, or this shows less than it says: the tank's (whose
+    # page showed a 500 for a day not read) and the compressor's.
+    tank = [d for _, d in await read(sim.db, "pump:hp1/dhw", TANK_DAY)]
+    assert any(isinstance(d, Gap) for d in tank), tank
+    assert any(isinstance(d, TankDay) for d in tank), tank
     days = [d for _, d in await read(sim.db, "pump:hp1", COMPRESSOR_DAY)]
-    # The house has both kinds of day, or this shows less than it says.
     assert any(isinstance(d, Gap) for d in days), days
     assert any(isinstance(d, CompressorDay) for d in days), days
 
