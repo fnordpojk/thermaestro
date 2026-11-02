@@ -1,6 +1,7 @@
 """A proof stands until a test with enough to judge by fails: too little since to judge a
 model again keeps it proved; a failed test, or other inputs, doesn't."""
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -15,6 +16,7 @@ from thermaestro.learn.energy import DRAW as EDRAW
 from thermaestro.learn.energy import Energy, charge_kw
 from thermaestro.learn.heating import MODEL, RESPONSE, TAU, TESTING, Heating, SystemKeys
 from thermaestro.learn.records import HouseDay, HouseHour, PowerRun
+from thermaestro.learn.store import KEPT_PROOF, SET_ASIDE
 from thermaestro.learn.validate import FEW, NOT_BETTER, PROVED, UNJUDGED
 from thermaestro.store import Database, Home
 
@@ -102,6 +104,36 @@ async def test_a_purpose_added_since_the_proof_isnt_used_until_proved(tmp_path: 
         await runs("dhw", 3.2, now - 86_400, 24)
         await energy._judge(scope, now)
         assert charge_kw(learnings) == 3.2
+
+
+async def test_a_proof_kept_the_earlier_way_is_set_aside_when_loaded(tmp_path: Path) -> None:
+    """A row in the shape the earlier version wrote a kept proof in (no value proved beside
+    it), found after the migration: judged again, not used."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        body = {
+            "name": DRAW,
+            "scope": "dev:hp1",
+            "kind": "model",
+            "value": {"heating": 1.9, "dhw": 3.2},
+            "state": "proved",
+            "why": KEPT_PROOF,
+            "args": {"seen": 1.0},
+        }
+        await db.run(
+            lambda t: t.execute(
+                "INSERT INTO learned (key, body, updated) VALUES (?, ?, ?)",
+                (f"{DRAW}@dev:hp1", json.dumps(body), 1.0),
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        found = learnings.get(DRAW, "dev:hp1")
+        assert found is not None
+        assert (found.state, found.why) == ("learning", SET_ASIDE)
+        assert learnings.used(DRAW, "dev:hp1") is None
+        again = Learnings(db, AuditLog(tmp_path / "audit"))
+        await again.load()  # written back: the same after a restart
+        assert again.used(DRAW, "dev:hp1") is None
 
 
 async def test_other_inputs_start_the_proof_over(tmp_path: Path) -> None:

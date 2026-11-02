@@ -46,6 +46,13 @@ class Learnings:
             return {k: Learned.model_validate_json(body) for k, body in rows}
 
         self._kept = await self._db.run(read)
+        for found in list(self._kept.values()):
+            if found.why == KEPT_PROOF and found.proved is None:
+                # Kept by an earlier version, which used values added since (migration 31
+                # does this on upgrade; a row written so afterward is set aside here).
+                await self._write(
+                    found.model_copy(update={"state": "learning", "why": SET_ASIDE, "args": {}})
+                )
 
     def all(self) -> list[Learned]:
         return sorted(self._kept.values(), key=lambda x: (x.scope, x.name))
