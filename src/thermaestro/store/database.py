@@ -448,6 +448,20 @@ MIGRATIONS: tuple[str, ...] = (
     """
     DELETE FROM learned WHERE key LIKE 'tank.periodic@%';
     """,
+    # 31: a proof kept for too little to judge by put the newest value in use, values added
+    # since it was proved among them; which those were isn't known: judged again
+    """
+    UPDATE learned SET body = json_set(
+        body,
+        '$.state', 'learning',
+        '$.why', 'An earlier version kept this proof for values it may not have tested: '
+            || 'it is judged again.',
+        '$.args', json('{}')
+    )
+    WHERE json_extract(body, '$.why') = 'Proved when last judged, %(seen)s; too little '
+            || 'since to judge it again.'
+      AND json_type(body, '$.proved') IS NULL;
+    """,
 )
 VERSION = len(MIGRATIONS)
 

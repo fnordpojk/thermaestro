@@ -11,6 +11,11 @@ from .model import Learned, Number, key, mark
 from .validate import UNJUDGED
 
 KEPT_PROOF = mark("Proved when last judged, %(seen)s; too little since to judge it again.")
+SET_ASIDE = mark(
+    "An earlier version kept this proof for values it may not have tested: it is judged again."
+)
+"""Why a proof kept by an earlier version is no longer: it used values added since it was
+proved (database migration 31)."""
 
 
 class NotLearned(KeyError):
@@ -18,10 +23,10 @@ class NotLearned(KeyError):
 
 
 def _proof_stands(now: Learned, before: Learned) -> bool:
-    """A model proved before, now only not judged for too little to judge it by, and
-    learned from the same inputs."""
+    """A model proved before (and kept while frozen), now only not judged for too little to
+    judge it by, and learned from the same inputs."""
     return (
-        before.state == "proved"
+        before.state in ("proved", "frozen")
         and now.kind == "model"
         and now.state == "learning"
         and now.why in UNJUDGED
@@ -74,6 +79,9 @@ class Learnings:
                     "since": before.since or kept.since,
                 }
             )
+        elif before is not None and kept.state == "frozen":
+            # Frozen isn't judged: what was in use stays in use.
+            kept = kept.model_copy(update={"proved": before.proved})
         else:
             kept = kept.model_copy(update={"proved": None})  # judged now, or not proved
         await self._write(kept)
@@ -86,6 +94,7 @@ class Learnings:
         kept = before.model_copy(
             update={
                 "value": None,
+                "proved": None,
                 "state": "starting",
                 "why": mark("Started over."),
                 "args": {},

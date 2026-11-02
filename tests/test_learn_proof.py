@@ -1,6 +1,7 @@
 """A proof stands until a test with enough to judge by fails: too little since to judge a
 model again keeps it proved; a failed test, or other inputs, doesn't."""
 
+from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
@@ -8,12 +9,14 @@ import pytest
 
 from thermaestro import clock
 from thermaestro.core import AuditLog, Values
+from thermaestro.core.values import Key
 from thermaestro.learn import Learned, Learnings, electric, heating, hotwater, house, records
 from thermaestro.learn.energy import DRAW as EDRAW
 from thermaestro.learn.energy import Energy, charge_kw
-from thermaestro.learn.records import PowerRun
+from thermaestro.learn.heating import MODEL, RESPONSE, TAU, TESTING, Heating, SystemKeys
+from thermaestro.learn.records import HouseDay, HouseHour, PowerRun
 from thermaestro.learn.validate import FEW, NOT_BETTER, PROVED, UNJUDGED
-from thermaestro.store import Database
+from thermaestro.store import Database, Home
 
 DRAW = "compressor.draw"
 
@@ -121,3 +124,62 @@ def test_each_learners_too_little_to_judge_is_marked() -> None:
     ):
         assert message in UNJUDGED
     assert NOT_BETTER not in UNJUDGED
+
+
+async def test_freezing_keeps_what_was_proved_in_use(tmp_path: Path) -> None:
+    """The house's values proved, newer ones learned since and not yet judged: heating
+    stopping freezes what was proved, not the newer ones, across a restart; heating back with
+    too little to judge by keeps it; a test with enough puts the newest in use."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        scope, now = "dev:hp1/cs1", 2_000_000_000.0
+        old_fit = house.Fit(0.2, 0.1, 0.01, 0.0, 0.0, 0.25, 4, 100, 0.1)
+        new_fit = house.Fit(0.2, 0.1, 0.01, 0.0, 0.0, 0.125, 8, 110, 0.1)
+        previous = {MODEL: old_fit.as_value(), TAU: 40.0, RESPONSE: 4.0}
+        newer = {MODEL: new_fit.as_value(), TAU: 80.0, RESPONSE: 8.0}
+        for name, value in previous.items():
+            await learnings.put(
+                Learned(
+                    name=name, scope=scope, kind="model", value=value, state="proved", why=PROVED
+                )
+            )
+            await learnings.put(
+                Learned(
+                    name=name,
+                    scope=scope,
+                    kind="model",
+                    value=newer[name],
+                    state="learning",
+                    why=TESTING,
+                )
+            )
+        stopped = HouseDay(
+            day=date(2033, 5, 17),
+            hours=[
+                HouseHour(t=now - 3600, room=21.0, outdoor=20.0, water=25.0, skip="heating_off")
+            ],
+        )
+        await db.run(
+            lambda t: records.keep(t, scope, [records.row(records.HOUSE_DAY, now - 7200, stopped)])
+        )
+        point = Key("dev", "hp1/cs1/supply.temp")
+        keys = SystemKeys(scope, point, point, [], point, point, [])
+        learner = Heating(db, Values(db), cast(Any, None), learnings, lambda key: True)
+        await learner._judge(keys, Home(), now, True)
+        for name, value in previous.items():
+            found = learnings.get(name, scope)
+            assert found is not None
+            assert found.state == "frozen"
+            assert learnings.used(name, scope) == value
+        restarted = Learnings(db, AuditLog(tmp_path / "audit"))
+        await restarted.load()
+        assert {name: restarted.used(name, scope) for name in previous} == previous
+        back = await restarted.put(
+            Learned(name=TAU, scope=scope, kind="model", value=90.0, state="learning", why=TESTING)
+        )
+        assert (back.state, restarted.used(TAU, scope)) == ("proved", 40.0)
+        judged = await restarted.put(
+            Learned(name=TAU, scope=scope, kind="model", value=90.0, state="proved", why=PROVED)
+        )
+        assert (judged.proved, restarted.used(TAU, scope)) == (None, 90.0)

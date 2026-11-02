@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from thermaestro.learn.store import KEPT_PROOF, SET_ASIDE
 from thermaestro.store import (
     VERSION,
     Database,
@@ -294,3 +295,53 @@ async def test_periodic_increases_seen_from_the_modes_stop_are_forgotten(tmp_pat
     async with await Database.open(path) as db:
         left = await db.run(lambda t: [k for (k,) in t.execute("SELECT key FROM learned")])
     assert left == ["tank.ceiling@pump:hp1/dhw"]
+
+
+async def test_a_proof_an_earlier_version_kept_is_judged_again(tmp_path: Path) -> None:
+    """Rows the earlier version kept proved for too little to judge by may use values added
+    since (hot water's draw beside heating's): set aside, to be judged again. A pin stays,
+    and a proof judged as such is untouched."""
+    path = tmp_path / "thermaestro.db"
+    kept = {
+        "name": "compressor.draw",
+        "kind": "model",
+        "value": {"heating": 1.9, "dhw": 3.2},
+        "state": "proved",
+        "why": KEPT_PROOF,
+        "args": {"seen": 1.0},
+        "n": 30,
+    }
+    rows = [
+        ("compressor.draw@dev:hp1", json.dumps({**kept, "scope": "dev:hp1"}), 1.0),
+        ("compressor.draw@dev:hp2", json.dumps({**kept, "scope": "dev:hp2", "pinned": 2.5}), 1.0),
+        (
+            "house.tau_h@dev:hp1/cs1",
+            json.dumps(
+                {
+                    "name": "house.tau_h",
+                    "scope": "dev:hp1/cs1",
+                    "kind": "model",
+                    "value": 40.0,
+                    "state": "proved",
+                    "why": "proved",
+                }
+            ),
+            1.0,
+        ),
+    ]
+    async with await Database.open(path) as db:
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO learned (key, body, updated) VALUES (?, ?, ?)", rows
+            )
+        )
+    with closing(sqlite3.connect(path, autocommit=True)) as raw:
+        raw.execute("PRAGMA user_version = 30")
+    async with await Database.open(path) as db:
+        found = await db.run(
+            lambda t: {k: json.loads(b) for k, b in t.execute("SELECT key, body FROM learned")}
+        )
+    one, pinned, tau = (found[k] for k, _, _ in rows)
+    assert (one["state"], one["why"], one["args"]) == ("learning", SET_ASIDE, {})
+    assert (pinned["state"], pinned["pinned"]) == ("learning", 2.5)
+    assert (tau["state"], tau["why"]) == ("proved", "proved")
