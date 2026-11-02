@@ -74,7 +74,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.2",
     "types-jsonschema>=4.26.0.20261006",
-    "types-pyserial>=3.5.0.20260712",
+    "types-pyserial>=3.5.0.20261030",
 ]
 
 [tool.ruff]
