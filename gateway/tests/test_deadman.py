@@ -3,6 +3,7 @@ changed it since (docs/gateway-protocol.md §15). Each client has its own entrie
 and reports."""
 
 import json
+import tempfile
 from pathlib import Path
 
 from thermaestro_gateway import nibe
@@ -24,9 +25,13 @@ OFFSET = 47011
 SET, FOUND = 0xFFFE, 0xFFFC  # Thermaestro's -2, the household's -4
 
 
-def make(state: Path | None = None, *, psk: bytes | None = PSK) -> Control:
+def make(state: Path | None = None, *, psk: bytes | None = PSK, kept: bool = True) -> Control:
+    """A gateway with a state file for the dead-man (a temporary one unless `state` is
+    given), or, `kept` False, without one."""
     from thermaestro_gateway.engine import Engine
 
+    if state is None and kept:
+        state = Path(tempfile.mkdtemp()) / "deadman.json"
     engine = Engine(keys={(nibe.MODBUS40, nibe.READ_TOKEN), (nibe.MODBUS40, nibe.WRITE_TOKEN)})
     settings = Settings(psk=psk, boot_id=BOOT, plain_ports=(9999, 0), deadman_state=state)
     return Control(engine, BusStats(), settings)
@@ -380,6 +385,22 @@ def test_after_a_restart_a_register_already_back_or_changed_isnt_written(tmp_pat
 
 
 # --- each client its own ---------------------------------------------------------------------
+
+
+def test_not_offered_without_a_state_file() -> None:
+    """A restart would forget what a client was told is armed: no dead-man rather than one
+    that may lose its entries."""
+    control = make(kept=False)
+    assert control.deadman is None
+    client = Client(control, A, 0, asking())
+    assert p.find(client.welcome.options, p.Tag.DEADMAN) is None
+    features = p.find(client.welcome.options, p.Tag.FEATURES)
+    assert features is not None
+    assert p.Feature.DEADMAN not in p.Feature(features.as_int())
+    assert p.Feature.AUTH in p.Feature(features.as_int())
+    (refused,) = client.send(arm(), 1 * S)
+    assert isinstance(refused, p.Armed)
+    assert (refused.result, refused.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.NOT_GRANTED)
 
 
 def test_granted_only_to_a_client_that_says_who_it_is() -> None:

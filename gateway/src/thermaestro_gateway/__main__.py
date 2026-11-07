@@ -86,7 +86,8 @@ def parse(argv: list[str] | None = None) -> tuple[Config, str]:
     ap.add_argument(
         "--state-file",
         type=Path,
-        help="where the dead-man keeps what is armed, so a restart of the gateway keeps it",
+        help="where the dead-man keeps what is armed, so a restart of the gateway keeps it;"
+        " with --psk-file, the dead-man is offered only with it",
     )
     ap.add_argument("--max-clients", type=int, default=4)
     ap.add_argument("--log-level", default="INFO")
@@ -133,6 +134,10 @@ async def _serve(config: Config) -> None:
 def main(argv: list[str] | None = None) -> None:
     config, level = parse(argv)
     logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
+    if config.psk is not None and config.state_file is None:
+        logging.warning(
+            "no dead-man without --state-file: what a client armed would be lost in a restart"
+        )
     try:
         asyncio.run(_serve(config))
     except (serial.SerialException, OSError) as e:

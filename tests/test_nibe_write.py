@@ -201,6 +201,7 @@ async def routed(
             write_port=0,
             control_port=0,
             psk=TEST_PSK if protocol else None,
+            state_file=tmp_path / "deadman.json" if protocol else None,
         )
     )
     await gateway.start()

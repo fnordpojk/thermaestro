@@ -1,6 +1,7 @@
 """A simulated pump with the Python gateway in front of it, on localhost."""
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 from simpump import TEST_PSK, PtyEnd, SimPump
@@ -24,7 +25,7 @@ async def pump() -> AsyncIterator[SimPump]:
     end.close()
 
 
-async def _gateway(pump: SimPump, psk: bytes | None) -> Gateway:
+async def _gateway(pump: SimPump, psk: bytes | None, state_file: Path | None = None) -> Gateway:
     gateway = Gateway(
         Config(
             serial_port=pump.end.path,
@@ -33,6 +34,7 @@ async def _gateway(pump: SimPump, psk: bytes | None) -> Gateway:
             write_port=0,
             control_port=0,
             psk=psk,
+            state_file=state_file,
         )
     )
     await gateway.start()
@@ -49,8 +51,10 @@ async def gateway(pump: SimPump) -> AsyncIterator[Gateway]:
 
 
 @pytest.fixture
-async def gateway_with_psk(pump: SimPump) -> AsyncIterator[Gateway]:
-    gateway = await _gateway(pump, TEST_PSK)
+async def gateway_with_psk(pump: SimPump, tmp_path: Path) -> AsyncIterator[Gateway]:
+    """With a key, and a state file for the dead-man, which it is offered only with."""
+    (tmp_path / "gateway").mkdir()
+    gateway = await _gateway(pump, TEST_PSK, tmp_path / "gateway" / "deadman.json")
     yield gateway
     await pump.stop()
     await gateway.close()

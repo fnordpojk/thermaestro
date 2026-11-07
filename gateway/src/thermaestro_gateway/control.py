@@ -57,7 +57,7 @@ class Settings:
     timestamp_lag_max_us: int = 20_000
     started_us: int = 0
     deadman_state: Path | None = None
-    """Where the dead-man keeps what is armed through a reboot; None keeps it in memory."""
+    """Where the dead-man keeps what is armed through a reboot; None: no dead-man."""
 
 
 @dataclass(eq=False, slots=True)
@@ -101,10 +101,11 @@ class Control:
         self._bus_active = False
         self.deadman = (
             DeadMan(engine.submit, settings.started_us, state=settings.deadman_state)
-            if settings.psk is not None
+            if settings.psk is not None and settings.deadman_state is not None
             else None
         )
-        """Only with a key: without one, anyone could arm writes."""
+        """Only with a key, without which anyone could arm writes, and a state file, without
+        which a restart would forget what a client was told is armed."""
 
     @property
     def clients(self) -> int:
@@ -233,7 +234,11 @@ class Control:
             expires_us=now_us + lease_s * 1_000_000,
             next_health_us=now_us + health_s * 1_000_000,
         )
-        features = BASE_FEATURES | (p.Feature.AUTH | p.Feature.DEADMAN if s.psk else 0)
+        features = (
+            BASE_FEATURES
+            | (p.Feature.AUTH if s.psk else 0)
+            | (p.Feature.DEADMAN if self.deadman is not None else 0)
+        )
         options = [
             p.Option.u32(p.Tag.BOOT_ID, s.boot_id),
             p.Option.u32(p.Tag.FEATURES, features),
