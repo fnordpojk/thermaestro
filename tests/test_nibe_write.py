@@ -14,6 +14,8 @@ from typing import Any
 import pytest
 from simpump import TEST_PSK, OtherClient, SimPump
 from test_nibe_plugin import FAST_PLAIN, FAST_TGW, PUMP, settings, until
+from thermaestro_gateway.deadman import Client as DeadManClient
+from thermaestro_gateway.deadman import Outcome
 from thermaestro_gateway.protocol import Arm, Armed, ArmRefusal, ArmResult, Request
 from thermaestro_gateway.server import Config, Gateway, now_us
 
@@ -273,12 +275,51 @@ async def act_from(
 def armed(gateway: Gateway) -> list[tuple[int, int, int]]:
     """What the gateway's dead-man holds armed: each register, the word it expects there,
     and the value its write puts back."""
-    held = gateway.control.deadman
-    assert held is not None
     return sorted(
         (e.register, e.expected, int.from_bytes(e.frame[5:9], "little"))
-        for e in held.armed.values()
+        for c in clients(gateway)
+        for e in c.armed.values()
     )
+
+
+def clients(gateway: Gateway) -> list[DeadManClient]:
+    """The clients the gateway's dead-man holds for: here, Thermaestro alone."""
+    held = gateway.control.deadman
+    assert held is not None
+    return list(held.clients.values())
+
+
+def fired(gateway: Gateway) -> dict[int, Outcome]:
+    """What the gateway's dead-man fired and holds unacknowledged."""
+    return {n: o for c in clients(gateway) for n, o in c.fired.items()}
+
+
+def set_silence(gateway: Gateway, us: int) -> None:
+    for c in clients(gateway):
+        c.silence_us = us
+
+
+async def test_a_restart_is_the_same_client_to_the_gateway(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """The plugin's client id is made once and kept with its state: after a restart, the
+    entries the gateway holds are still its own, not another client's."""
+    held = gateway_with_psk.control.deadman
+    assert held is not None
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            fate = await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)
+            assert fate.stage == "device_accepted"
+        (first,) = held.clients
+        assert (await state.load())["deadman_client"] == first.hex()
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again) as link:
+            fate = await act_from(link, "cs1/heating.offset", "set", {"value": 5}, -4)
+            assert fate.stage == "device_accepted"
+        assert list(held.clients) == [first]
+        assert armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC)]
 
 
 async def test_each_change_arms_the_gateways_dead_man(
@@ -342,14 +383,14 @@ async def test_the_gateway_puts_back_what_a_silent_thermaestro_left(
             )
         if meanwhile is not None:
             stocked.registers[47011] = meanwhile  # the pump's menu
-        held.silence_us = 200_000  # the silence, shortened
-        await until(lambda: bool(held.fired), 10)
+        set_silence(gateway_with_psk, 200_000)  # the silence, shortened
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
         assert signed(stocked.registers[47011]) == (-4 if meanwhile is None else meanwhile)
         events: list[object] = []
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
         async with served(again, events) as link:
             await until(lambda: any(isinstance(e, DeadmanFired) for e in events), 10)
-            await until(lambda: not held.fired)
+            await until(lambda: not fired(gateway_with_psk))
         told = next(e for e in events if isinstance(e, DeadmanFired))
         assert (told.lever, told.outcome, told.found) == ("hp1/cs1/heating.offset", outcome, found)
         assert told.fired is not None
@@ -403,18 +444,18 @@ async def test_a_change_cut_off_before_its_write_is_still_put_back(
             )
             await asyncio.wait_for(reached.wait(), 10)
             # The new entry is the lower: it fires first and finds 5, not its 7.
-            assert sorted(held.armed) == [0, 1]
+            assert sorted(n for c in clients(gateway_with_psk) for n in c.armed) == [0, 1]
             assert armed(gateway_with_psk) == [(47011, 5, 0xFFFF_FFFC), (47011, 7, 0xFFFF_FFFC)]
             changing.cancel()
             await asyncio.gather(changing, return_exceptions=True)
         assert signed(stocked.registers[47011]) == 5
-        held.silence_us = 200_000
-        await until(lambda: len(held.fired) == 2, 10)
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: len(fired(gateway_with_psk)) == 2, 10)
         assert signed(stocked.registers[47011]) == -4
         events: list[object] = []
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
         async with served(again, events) as link:
-            await until(lambda: not held.fired, 10)
+            await until(lambda: not fired(gateway_with_psk), 10)
             await asyncio.sleep(0.3)
         told = [(e.outcome, e.found) for e in events if isinstance(e, DeadmanFired)]
         assert told == [("put_back", None)]
@@ -470,8 +511,8 @@ async def test_a_report_outlives_a_stop_before_the_core_was_told(
             assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
                 "device_accepted"
             )
-        held.silence_us = 200_000
-        await until(lambda: bool(held.fired), 10)
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
         stopping = await over_the_protocol(gateway_with_psk, tmp_path, state)
         reached = asyncio.Event()
 
@@ -488,11 +529,11 @@ async def test_a_report_outlives_a_stop_before_the_core_was_told(
         monkeypatch.setattr(stopping, "events", lambda send: events_of(until_told(send)))
         async with served(stopping):
             await asyncio.wait_for(reached.wait(), 10)
-        assert held.fired  # not acknowledged
+        assert fired(gateway_with_psk)  # not acknowledged
         events: list[object] = []
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
         async with served(again, events):
-            await until(lambda: not held.fired, 10)
+            await until(lambda: not fired(gateway_with_psk), 10)
         told = [(e.lever, e.outcome) for e in events if isinstance(e, DeadmanFired)]
         assert told == [("hp1/cs1/heating.offset", "put_back")]
         assert again.reported == {}
@@ -559,15 +600,15 @@ async def test_a_number_still_owed_a_report_isnt_given_to_a_new_value(
         submit = held._submit
 
         def stall_entry_1(client: object, request: Request, now: int) -> None:
-            if held._current is not None and held._current.number == 1:
+            if held._current is not None and held._current[1].number == 1:
                 stalled.append((client, request))  # its read waits on the bus
             else:
                 submit(client, request, now)
 
         held._submit = stall_entry_1
-        held.silence_us = 200_000
-        await until(lambda: 0 in held.fired and bool(stalled), 10)
-        held.silence_us = 900_000_000
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: 0 in fired(gateway_with_psk) and bool(stalled), 10)
+        set_silence(gateway_with_psk, 900_000_000)
         assert signed(stocked.registers[47011]) == -4
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
         reached, deliver = asyncio.Event(), asyncio.Event()
@@ -590,14 +631,14 @@ async def test_a_number_still_owed_a_report_isnt_given_to_a_new_value(
             assert fate.stage == "device_accepted"
             for client, request in stalled:  # entry 1 finds 7, not its 5, and leaves it
                 submit(client, request, now_us())
-            await until(lambda: 1 not in held.fired and not held._current, 10)
+            await until(lambda: 1 not in fired(gateway_with_psk) and not held._current, 10)
             deliver.set()
-            await until(lambda: not held.fired, 10)
+            await until(lambda: not fired(gateway_with_psk), 10)
             await asyncio.sleep(0.3)
             assert armed(gateway_with_psk) == [(47011, 7, 0xFFFF_FFFC)]
         told = [(e.lever, e.outcome) for e in events if isinstance(e, DeadmanFired)]
         assert told == [("hp1/cs1/heating.offset", "put_back")]
-        held.silence_us = 200_000
+        set_silence(gateway_with_psk, 200_000)
         await until(lambda: signed(stocked.registers[47011]) == -4, 10)
 
 
@@ -619,10 +660,10 @@ async def test_an_entry_kept_but_not_armed_in_this_session_is_armed_before_a_cha
             )
             p._send_write = uncertain  # type: ignore[method-assign]
             await act_from(link, "cs1/heating.offset", "set", {"value": 5}, -4)
-        held.armed.clear()
+        held.clients.clear()
         arm = held.arm
 
-        def refused(msg: Arm, entries: int) -> Armed:
+        def refused(client: bytes, msg: Arm, entries: int, silence_s: int, now: int) -> Armed:
             return Armed(
                 entry=msg.entry, result=ArmResult.REFUSED, detail=ArmRefusal.NOT_GRANTED, id=msg.id
             )
@@ -716,8 +757,8 @@ async def test_a_refused_baseline_the_gateway_may_hold_is_told_with_its_put_back
                 monkeypatch.setattr(client, "arm", arm)
                 await until(lambda: armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)], 5)
                 await until(lambda: not p.may_hold)
-        held.silence_us = 200_000
-        await until(lambda: bool(held.fired), 10)
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
         assert signed(stocked.registers[47011]) == (-4 if answering else 1)
         events: list[object] = []
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
@@ -759,8 +800,8 @@ async def test_a_stop_while_an_arming_is_answered_still_knows_what_the_gateway_m
             await until(lambda: armed(gateway_with_psk) == [(47011, 3, 1)], 10)
             choosing.cancel()
             await asyncio.gather(choosing, return_exceptions=True)
-        held.silence_us = 200_000
-        await until(lambda: bool(held.fired), 10)
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
         assert signed(stocked.registers[47011]) == 1
         events: list[object] = []
         again = await over_the_protocol(gateway_with_psk, tmp_path, state)
@@ -806,7 +847,7 @@ async def test_a_dead_man_granted_later_is_used_from_then_on(
             "device_accepted"
         )
         assert armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)]
-        held.armed.clear()  # restarted without its state
+        held.clients.clear()  # restarted without its state
         client._lose_session("the gateway restarted", gone=True)
         await until(lambda: armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)], 10)
 

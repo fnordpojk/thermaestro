@@ -103,7 +103,7 @@ A message body is a **fixed core**, the few fields that message type always has 
 
 | type | name | fixed core | options |
 |---|---|---|---|
-| `0x01` | HELLO | `ver_min` u8, `ver_max` u8: the range of major versions the client speaks | `CLIENT_NAME`, `CLIENT_NONCE` (§11), `SUBSCRIBE`, `LEASE_S`, `HEALTH_INTERVAL_S`, feature options |
+| `0x01` | HELLO | `ver_min` u8, `ver_max` u8: the range of major versions the client speaks | `CLIENT_NAME`, `CLIENT_NONCE` (§11), `CLIENT_ID` (§15), `SUBSCRIBE`, `LEASE_S`, `HEALTH_INTERVAL_S`, feature options |
 | `0x02` | KEEPALIVE | none | none. Renews the lease |
 | `0x03` | BYE | none | none. Ends the session |
 | `0x04` | SUBSCRIBE | none | `SUBSCRIBE`: the new mask |
@@ -126,9 +126,9 @@ A message body is a **fixed core**, the few fields that message type always has 
 | `0xB0` | HEALTH | none | the values of §10, one option each |
 | `0xE0` | ERROR | `code` u16 | `ERR_TAG` (the offending option), `ERR_DETAIL`. The header `id` echoes the offending message's |
 
-## 7. Registry, revision 4
+## 7. Registry, revision 5
 
-Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8). Revision 3 added the dead-man (§15): `DEADMAN`, the messages ARM, DISARM, ACK_FIRED, ARMED and FIRED, and `FEATURES` bit 7. Revision 4 reserves `PROTOCOL_SLOTS` entries for each protocol client, rather than for all of them together, so two protocol clients don't push each other's requests out.
+Revision 2 added `PROTOCOL_SLOTS` and the queue entries reserved for protocol requests (§8). Revision 3 added the dead-man (§15): `DEADMAN`, the messages ARM, DISARM, ACK_FIRED, ARMED and FIRED, and `FEATURES` bit 7. Revision 4 reserves `PROTOCOL_SLOTS` entries for each protocol client, rather than for all of them together, so two protocol clients don't push each other's requests out. Revision 5 gives each client of the dead-man its own entries, silence and reports, known by `CLIENT_ID`, and has an ARM saved before it is confirmed; it adds the refusals `NO_ROOM` and `NOT_KEPT`.
 
 ### 7.1 FATE `stage` (u8)
 
@@ -167,6 +167,7 @@ Types are little-endian; "str" is UTF-8; R = repeatable.
 | `0x0003` | `SUBSCRIBE` | u32 | HELLO, SUBSCRIBE; WELCOME | bit 0 `FRAMES_ALL`, bit 1 `FRAMES_OWN`, bit 2 `HEALTH` |
 | `0x0004` | `LEASE_S` | u16 | HELLO; WELCOME | session lease |
 | `0x0005` | `HEALTH_INTERVAL_S` | u16 | HELLO; WELCOME | HEALTH period |
+| `0x0006` | `CLIENT_ID` | 16 bytes | HELLO | who the client is to the dead-man, the same in every session: random, made once by the client and kept (§15; revision 5) |
 | `0x0100` | `BOOT_ID` | u32 | WELCOME, HEALTH | random per gateway boot |
 | `0x0101` | `GATEWAY_NONCE` | 16 bytes | WELCOME | §11 |
 | `0x0102` | `IMPL` | str | WELCOME | e.g. `esphome-nibe`, `thermaestro-gateway` |
@@ -194,11 +195,11 @@ FATE and ANSWER carry the request's id. ARMED echoes the ARM, DISARM or ACK_FIRE
 
 ### 7.9 Defaults
 
-Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request of each client per (address, token), datagrams of at most 512 bytes. The dead-man: silence 900 s (granted between 300 and 7200), 16 entries.
+Lease 120 s (granted between 10 and 600), health interval 10 s (1 to 3600), answer timeout 5 s, 4 clients, 3 plain requests and 1 protocol request of each client per (address, token), datagrams of at most 512 bytes. The dead-man: silence 900 s (granted between 300 and 7200), 16 entries for each client, entries or reports held for at most 4 clients, a report kept 30 days unacknowledged.
 
 ### 7.10 The dead-man's codes
 
-ARMED `result` (u8): 1 `ARMED`, 2 `DISARMED` (also the answer to ACK_FIRED), 3 `REFUSED`. Its `detail` for a refusal (u16): 1 `NOT_GRANTED` (the session wasn't granted the dead-man), 2 `NO_SUCH_ENTRY` (past the entries granted), 3 `INVALID_FRAME` (not a valid `C0 6B` write of 6 data bytes), 4 `REGISTER_MISMATCH` (the frame writes another register), 5 `BAD_WIDTH`, 6 `FIRED` (the entry is being fired, or its outcome isn't acknowledged yet).
+ARMED `result` (u8): 1 `ARMED`, 2 `DISARMED` (also the answer to ACK_FIRED), 3 `REFUSED`. Its `detail` for a refusal (u16): 1 `NOT_GRANTED` (the session wasn't granted the dead-man), 2 `NO_SUCH_ENTRY` (past the entries granted), 3 `INVALID_FRAME` (not a valid `C0 6B` write of 6 data bytes), 4 `REGISTER_MISMATCH` (the frame writes another register), 5 `BAD_WIDTH`, 6 `FIRED` (the entry is being fired, or its outcome isn't acknowledged yet), 7 `NO_ROOM` (the gateway holds entries or reports for as many other clients as it can), 8 `NOT_KEPT` (the entry couldn't be saved, so it isn't armed).
 
 FIRED `outcome` (u8): 1 `PUT_BACK` (the pump's `0x6C` was 1), 2 `REFUSED` (it was 0), 3 `SKIPPED` (the register no longer held `expected`; `read` is what it held), 4 `NO_ANSWER` (the read or the write got no answer, an ambiguous one, or was dropped).
 
@@ -332,7 +333,7 @@ Without a key, the control port works unauthenticated, like plain NibeGW. With o
 4. **ERROR `unsupported_option`:** the gateway doesn't know a critical option. The client retries without it if it can live without the feature, or stops and reports what is missing. It doesn't fall back to plain NibeGW when the missing option was the authentication it insisted on.
 5. **WELCOME without an option the client asked for:** that feature isn't granted, and the client works without it.
 6. **A new `BOOT_ID`**, `no_session`, or no HEALTH for a lease: send HELLO again. The fates of requests made before are unknown.
-7. **The dead-man:** with a key, ask for it in HELLO (`DEADMAN`). A WELCOME that grants it is followed by a FIRED report for each entry fired while the client was away (§15).
+7. **The dead-man:** with a key, ask for it in HELLO (`DEADMAN`), saying who you are (`CLIENT_ID`). A WELCOME that grants it is followed by a FIRED report for each of your entries fired while you were away (§15).
 
 ## 14. Implementations and test vectors
 
@@ -345,7 +346,9 @@ Without a key, the control port works unauthenticated, like plain NibeGW. With o
 
 A Nibe pump keeps every setting written to it; nothing in it expires. A client that changes a setting and then goes silent (it crashed, its machine lost power, the network between them failed) leaves the setting changed. The dead-man lets the gateway, which keeps running on the pump's bus, put it back.
 
-**Granted only with a key.** A client asks for it in HELLO with `DEADMAN` (the silence in seconds, and how many entries it wants). A gateway with a key grants it to an authenticated session in WELCOME, possibly with a shorter or longer silence (300 to 7200 s) and fewer entries (at most 16). In WELCOME, `armed` and `fired` say how many entries it holds armed, and how many have fired without a session having acknowledged them. Without a key, a gateway never grants it: anyone could arm writes.
+**Granted only with a key, to a client that says who it is.** A client asks for it in HELLO with `DEADMAN` (the silence in seconds, and how many entries it wants) and `CLIENT_ID`: 16 random bytes it made once and keeps, so that each of its sessions, after a restart or from another address, is the same client. A gateway with a key grants it to an authenticated session in WELCOME, possibly with a shorter or longer silence (300 to 7200 s) and fewer entries (at most 16). In WELCOME, `armed` and `fired` say how many of that client's entries the gateway holds armed, and how many have fired without the client having acknowledged them. Without a key, a gateway never grants it: anyone could arm writes. Without `CLIENT_ID`, a gateway of revision 5 doesn't grant it.
+
+**Each client its own.** A client's entries are its own: entry 0 of one client is not entry 0 of another, and ARM, DISARM and ACK_FIRED from a session touch only the entries of its client. Its silence is its own: another client's traffic doesn't keep its entries from firing. Its reports are its own: they go only to its sessions, and only it can acknowledge them. A gateway holds entries or reports for at most 4 clients; a client is forgotten once it has nothing armed and no report waiting. A fifth is granted no dead-man while four hold some, and an ARM that would make a fifth is refused with `NO_ROOM`. A report no session of its client acknowledges within 30 days is dropped, so a client that never comes back doesn't hold a place for good.
 
 **Arming.** When the client writes a value it will want put back, it sends ARM:
 - `entry`, a number below the entries granted, of its choosing;
@@ -353,18 +356,20 @@ A Nibe pump keeps every setting written to it; nothing in it expires. A client t
 - `expected`, the raw value it wrote;
 - `frame`, the `C0 6B` write that puts the register back to the value it found.
 
+**An ARM is saved before it is confirmed.** A gateway that keeps entries through a restart saves the entry before it answers `ARMED`, so a client that stops right after, with the gateway rebooting meanwhile, still has it fired. An entry that couldn't be saved isn't armed, and the answer is `NOT_KEPT`.
+
 A second ARM for an entry replaces the first. DISARM drops an entry: the client put the register back itself, or let another writer's value stand. The gateway answers each with ARMED, giving `ARMED`, `DISARMED` or `REFUSED` with why (§7.10). An entry being fired, or one that has fired and whose outcome the client hasn't acknowledged, keeps its number: ARM and DISARM for it are refused with `FIRED`. So a FIRED report is always for what the client armed last under that number, and a client never gives a number to a new value while an outcome for the old one may still come. Every authenticated message renews the session; ARM, DISARM and ACK_FIRED are no exception.
 
-**Firing.** Once no session granted the dead-man has sent anything for the granted silence, the gateway fires each armed entry in turn, in entry order:
+**Firing.** Once no session of a client has sent anything for that client's silence, the gateway fires each of its armed entries in turn, in entry order, one write at a time whatever the client:
 1. It reads the register, as a protocol read of its own, paired as any other (§8).
 2. It compares the answer's value with `expected`. A 2-byte entry compares the first word after the register; a 4-byte entry compares both, the first as the low half.
 3. **If they match,** it sends `frame`, as a protocol write of its own, waiting for the write in flight as any other. **If not,** someone changed the register while the client was away, and the gateway leaves it as it is (`SKIPPED`).
 
-Each entry fires once, and then holds an outcome (§7.10) instead of being armed. A register that already holds what `frame` writes (a firing before a restart wrote it, or someone put it back) counts as `PUT_BACK`, and isn't written again. A session granted the dead-man that starts meanwhile stops the firing after the entry under way; the rest stay armed. There is no read-back after the write: accepted isn't applied (§2), so the client reads the register when it returns.
+Each entry fires once, and then holds an outcome (§7.10) instead of being armed. A register that already holds what `frame` writes (a firing before a restart wrote it, or someone put it back) counts as `PUT_BACK`, and isn't written again. A session of that client that starts meanwhile stops the firing of its entries after the one under way; the rest stay armed. There is no read-back after the write: accepted isn't applied (§2), so the client reads the register when it returns.
 
-**Coming back.** After a WELCOME that grants the dead-man, the gateway sends one FIRED for each entry that has fired since a session last acknowledged it: `outcome`, the `register`, `read` (the value found), and `fired_us`, the gateway's clock when it fired (0 when that was before the gateway restarted). An entry that finishes firing after that (the one under way as the session started) is reported at once to every session granted the dead-man, as is any that fires while a session lingers. The client answers each with ACK_FIRED once it has taken it in. Until then, every later WELCOME reports it again.
+**Coming back.** After a WELCOME that grants the dead-man, the gateway sends one FIRED for each of the client's entries that has fired since it last acknowledged it: `outcome`, the `register`, `read` (the value found), and `fired_us`, the gateway's clock when it fired (0 when that was before the gateway restarted). An entry that finishes firing after that (the one under way as the session started) is reported at once to that client's sessions, as is any that fires while one lingers. The client answers each with ACK_FIRED once it has taken it in. Until then, every later WELCOME reports it again.
 
-**Through a restart of the gateway.** A gateway may keep the armed entries and the unacknowledged outcomes through a restart, saving them now and then. `thermaestro-gateway` saves them at most every 10 minutes when they changed, and at once when entries fire, to the file given with `--state-file`. An entry being fired is saved as still armed until its outcome is kept, so a restart in the middle of a firing fires it again. After a restart, the silence counts from the boot. An entry the client disarmed after the last save comes back; if it fires, its register no longer holds `expected`, or already holds what `frame` writes, so it changes nothing but the client's own value.
+**Through a restart of the gateway.** A gateway may keep each client's armed entries and unacknowledged outcomes through a restart. `thermaestro-gateway` keeps them in the file given with `--state-file`: an ARM at once, before it is confirmed, and an entry that fires at once; a DISARM or an ACK_FIRED within 10 minutes. An entry being fired is saved as still armed until its outcome is kept, so a restart in the middle of a firing fires it again. After a restart, each client's silence counts from the boot. An entry the client disarmed after the last save comes back; if it fires, its register no longer holds `expected`, or already holds what `frame` writes, so it changes nothing but the client's own value. Entries saved by a gateway of revision 4, which knew no clients, go to the first client granted the dead-man after the upgrade.
 
 **What it doesn't cover.** A plain NibeGW gateway has no dead-man. A gateway that loses power with the pump comes back with it, and the client's own start (§13) then puts things back as it would. The dead-man writes only what a client armed, and only to the register named in its frame.
 

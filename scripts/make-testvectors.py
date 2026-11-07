@@ -176,13 +176,15 @@ def nibe_vectors() -> dict[str, Any]:
 # --- The Thermaestro gateway protocol (docs/gateway-protocol.md) ---------------------------------
 
 VER_MAJOR = 0
-VER_MINOR = 4
+VER_MINOR = 5
 CRITICAL = 0x8000
 
 HELLO, KEEPALIVE, BYE, SUBSCRIBE, REQUEST, CANCEL = 0x01, 0x02, 0x03, 0x04, 0x10, 0x11
 WELCOME, FATE, ANSWER, FRAME, HEALTH, ERROR = 0x81, 0x90, 0x91, 0xA0, 0xB0, 0xE0
 ARM, DISARM, ACK_FIRED, ARMED, FIRED = 0x20, 0x21, 0x22, 0x92, 0x93
 DEADMAN = 0x0801
+CLIENT_ID = 0x0006
+CLIENT = bytes(range(0xC0, 0xD0))
 TYPE_NAMES = {
     HELLO: "HELLO",
     KEEPALIVE: "KEEPALIVE",
@@ -445,11 +447,11 @@ def gw_vectors() -> dict[str, Any]:
             gw_time_us=3_600_000_000,
         ),
         described(
-            "HELLO asking for the dead-man: 15 minutes, 16 entries",
+            "HELLO asking for the dead-man: 15 minutes, 16 entries, as client c0..cf",
             HELLO,
             {"ver_min": 0, "ver_max": 0},
             struct.pack("<BB", 0, 0),
-            [(DEADMAN, struct.pack("<HBBB", 900, 16, 0, 0))],
+            [(CLIENT_ID, CLIENT), (DEADMAN, struct.pack("<HBBB", 900, 16, 0, 0))],
             msg_id=4,
         ),
         described(
@@ -499,6 +501,24 @@ def gw_vectors() -> dict[str, Any]:
             [],
             msg_id=53,
             gw_time_us=5_100,
+        ),
+        described(
+            "ARMED: refused, entries are held for as many other clients as there is room for",
+            ARMED,
+            {"entry": 0, "result": 3, "detail": 7},
+            struct.pack("<BBH", 0, 3, 7),
+            [],
+            msg_id=54,
+            gw_time_us=5_200,
+        ),
+        described(
+            "ARMED: refused, the entry couldn't be saved",
+            ARMED,
+            {"entry": 2, "result": 3, "detail": 8},
+            struct.pack("<BBH", 2, 3, 8),
+            [],
+            msg_id=55,
+            gw_time_us=5_300,
         ),
         described(
             "FIRED: entry 0 put back",
@@ -613,6 +633,11 @@ def gw_vectors() -> dict[str, Any]:
             "error": "malformed",
         },
         {
+            "name": "CLIENT_ID option with the wrong length",
+            "hex": message(HELLO, struct.pack("<BB", 0, 0), [(CLIENT_ID, CLIENT[:8])], 1).hex(),
+            "error": "malformed",
+        },
+        {
             "name": "authenticated flag without a trailer",
             "hex": header(HELLO, hello[20:], 1, flags=0x80).hex() + hello[20:].hex(),
             "error": "malformed",
@@ -688,7 +713,7 @@ def gw_vectors() -> dict[str, Any]:
 
     return {
         "note": (
-            "The Thermaestro gateway protocol, registry revision 4; see "
+            "The Thermaestro gateway protocol, registry revision 5; see "
             "docs/gateway-protocol.md §3 to §7 and §11. Hex strings are whole "
             "datagrams. Options keep their full tag, critical bit included."
         ),

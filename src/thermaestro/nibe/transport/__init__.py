@@ -28,10 +28,14 @@ class GatewayConfig:
     control_port: int | None = 10090
     """None: the gateway is known not to speak the protocol."""
     psk: bytes | None = None
+    client_id: bytes | None = None
+    """Who this client is to the gateway's dead-man, the same across restarts (spec §15)."""
 
     def __post_init__(self) -> None:
         if self.psk is not None and self.control_port is None:
             raise ValueError("a gateway key is only used on the control port")
+        if self.client_id is not None and len(self.client_id) != 16:
+            raise ValueError("a client id is 16 bytes")
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +65,13 @@ async def connect(
             raise
         return modbus
     if config.control_port is not None:
-        client = TgwClient(config.host, config.control_port, psk=config.psk, settings=tgw_settings)
+        client = TgwClient(
+            config.host,
+            config.control_port,
+            psk=config.psk,
+            client_id=config.client_id,
+            settings=tgw_settings,
+        )
         try:
             await client.start()
         except HandshakeFailed as e:

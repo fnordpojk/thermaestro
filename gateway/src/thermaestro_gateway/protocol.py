@@ -2,7 +2,7 @@
 
 One message per UDP datagram: a 20-byte header, a fixed core per message type, then TLV
 options. An authenticated message ends with a trailer: a sequence number and a MAC.
-Numbers are little-endian. The registry is the spec's §7, revision 4.
+Numbers are little-endian. The registry is the spec's §7, revision 5.
 """
 
 import hashlib
@@ -14,7 +14,7 @@ from typing import ClassVar
 
 MAGIC = b"TG"
 VERSION_MAJOR = 0
-REGISTRY_REVISION = 4
+REGISTRY_REVISION = 5
 MAX_DATAGRAM = 512
 FLAG_AUTHENTICATED = 0x80
 CRITICAL = 0x8000
@@ -117,6 +117,8 @@ class ArmRefusal(IntEnum):
     REGISTER_MISMATCH = 4
     BAD_WIDTH = 5
     FIRED = 6
+    NO_ROOM = 7
+    NOT_KEPT = 8
 
 
 class FiredOutcome(IntEnum):
@@ -159,6 +161,7 @@ class Tag(IntEnum):
     SUBSCRIBE = 0x0003
     LEASE_S = 0x0004
     HEALTH_INTERVAL_S = 0x0005
+    CLIENT_ID = 0x0006
     BOOT_ID = 0x0100
     GATEWAY_NONCE = 0x0101
     IMPL = 0x0102
@@ -220,6 +223,7 @@ _SPECS: dict[int, _Spec] = {
     Tag.SUBSCRIBE: _U32,
     Tag.LEASE_S: _U16,
     Tag.HEALTH_INTERVAL_S: _U16,
+    Tag.CLIENT_ID: _Spec(size=16),
     Tag.BOOT_ID: _U32,
     Tag.GATEWAY_NONCE: _Spec(size=16),
     Tag.IMPL: _Spec(text=True),

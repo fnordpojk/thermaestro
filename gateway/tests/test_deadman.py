@@ -1,5 +1,6 @@
 """The dead-man: what a silent client changed is put back, and only where nobody else has
-changed it since (docs/gateway-protocol.md §15)."""
+changed it since (docs/gateway-protocol.md §15). Each client has its own entries, silence
+and reports."""
 
 import json
 from pathlib import Path
@@ -8,10 +9,13 @@ from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
 from thermaestro_gateway.bus import BusStats, Exchange
 from thermaestro_gateway.control import Control, Settings
-from thermaestro_gateway.deadman import SAVE_EVERY_US
+from thermaestro_gateway.deadman import MAX_CLIENTS, REPORT_KEPT_US, SAVE_EVERY_US
 
 A = ("192.0.2.10", 40000)
 B = ("192.0.2.10", 40001)
+C = ("192.0.2.11", 40000)
+THERMAESTRO = bytes([0xA1] * 16)
+RIG = bytes([0xB2] * 16)
 PSK = bytes(range(32))
 NONCE = bytes(range(0x10, 0x20))
 BOOT = 0xDEADBEEF
@@ -31,8 +35,17 @@ def make(state: Path | None = None, *, psk: bytes | None = PSK) -> Control:
 class Client:
     """An authenticated session, with its signing state."""
 
-    def __init__(self, control: Control, addr: tuple[str, int], now_us: int, *options: p.Option):
+    def __init__(
+        self,
+        control: Control,
+        addr: tuple[str, int],
+        now_us: int,
+        *options: p.Option,
+        client: bytes | None = THERMAESTRO,
+    ):
         self.control, self.addr = control, addr
+        if client is not None:
+            options = (*options, p.Option(p.Tag.CLIENT_ID, client))
         hello = p.Hello(id=1, options=(p.Option(p.Tag.CLIENT_NONCE | p.CRITICAL, NONCE), *options))
         out = control.handle(p.encode(hello, key=PSK, seq=1), addr, now_us)
         welcome = p.decode(out[0][1]).message
@@ -241,7 +254,7 @@ def test_a_client_back_meanwhile_stops_the_firing_after_the_entry_under_way() ->
     assert back.welcome is not None
     pump.run(902 * S, 920 * S)
     assert pump.writes == [(OFFSET, FOUND)]
-    assert set(control.deadman.armed) == {1}  # type: ignore[union-attr]
+    assert set(control.deadman.clients[THERMAESTRO].armed) == {1}  # type: ignore[union-attr]
 
 
 def test_an_entry_keeps_its_number_until_its_outcome_is_acknowledged() -> None:
@@ -285,14 +298,19 @@ def test_an_entry_that_fires_once_a_client_is_back_is_reported_at_once() -> None
     ]
 
 
+def saved(state: Path) -> dict[str, dict[str, object]]:
+    """The state file's clients, by id."""
+    return {c["id"]: c for c in json.loads(state.read_text())["clients"]}
+
+
 def test_kept_through_a_restart_of_the_gateway(tmp_path: Path) -> None:
     state = tmp_path / "deadman.json"
     control = make(state)
-    Client(control, A, 0, asking()).send(arm(), 1 * S)
-    control.tick(2 * S)
-    assert not state.exists()  # saved now and then, not on every change
-    control.tick(SAVE_EVERY_US + 2 * S)
-    assert json.loads(state.read_text())["armed"][0]["register"] == OFFSET
+    (armed,) = Client(control, A, 0, asking()).send(arm(), 1 * S)
+    assert isinstance(armed, p.Armed)
+    assert armed.result == p.ArmResult.ARMED
+    # Saved before it was confirmed: the gateway may reboot right after, the client gone.
+    assert saved(state)[THERMAESTRO.hex()]["armed"][0]["register"] == OFFSET  # type: ignore[index]
     restarted = make(state)  # the silence counts from the restart
     pump = Pump(restarted, {OFFSET: SET})
     pump.run(0, 899 * S, step_us=60 * S)
@@ -315,13 +333,13 @@ def test_stopping_mid_firing_keeps_the_entry_armed(tmp_path: Path) -> None:
     Client(control, A, 0, asking()).send(arm(), 1 * S)
     control.tick(901 * S)  # its read is queued
     control.shutdown(902 * S)
-    assert [e["number"] for e in json.loads(state.read_text())["armed"]] == [0]
+    kept = saved(state)[THERMAESTRO.hex()]["armed"]
+    assert [e["number"] for e in kept] == [0]  # type: ignore[attr-defined]
 
 
 def firing_saved(tmp_path: Path, *, past_read: bool) -> tuple[Path, Pump]:
-    """Armed and silent for 300 s, so fired at 599 s; saved at 600 s, ten minutes after the
-    gateway started, while its read (or, with `past_read`, its write) is still out; then
-    the gateway gone without a word."""
+    """Armed (and saved) at 299 s and silent for 300 s, so fired at 599 s; the gateway gone
+    without a word while its read (or, with `past_read`, its write) is still out."""
     tmp_path.mkdir(parents=True, exist_ok=True)
     state = tmp_path / "deadman.json"
     control = make(state)
@@ -359,3 +377,166 @@ def test_after_a_restart_a_register_already_back_or_changed_isnt_written(tmp_pat
         (fired,) = Client(restarted, A, 1000 * S, asking()).after_welcome
         assert isinstance(fired, p.Fired)
         assert (fired.outcome, fired.read) == (outcome, value)
+
+
+# --- each client its own ---------------------------------------------------------------------
+
+
+def test_granted_only_to_a_client_that_says_who_it_is() -> None:
+    control = make()
+    anonymous = Client(control, A, 0, asking(), client=None)
+    assert p.find(anonymous.welcome.options, p.Tag.DEADMAN) is None
+    (refused,) = anonymous.send(arm(), 1 * S)
+    assert isinstance(refused, p.Armed)
+    assert (refused.result, refused.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.NOT_GRANTED)
+
+
+def test_two_clients_entries_of_one_number_are_each_their_own() -> None:
+    control = make()
+    thermaestro = Client(control, A, 0, asking())
+    rig = Client(control, B, 0, asking(), client=RIG)
+    thermaestro.send(arm(0), 1 * S)
+    rig.send(arm(0, register=47376, expected=0xFF6A, put=0x0096), 2 * S)
+    rig.send(p.Disarm(id=30, entry=0), 3 * S)  # the rig puts its own back
+    pump = Pump(control, {OFFSET: SET, 47376: 0xFF6A})
+    pump.run(904 * S, 910 * S)
+    assert pump.writes == [(OFFSET, FOUND)]  # Thermaestro's entry 0: not replaced, not dropped
+
+
+def test_another_client_talking_doesnt_keep_a_silent_ones_entries_from_firing() -> None:
+    control = make()
+    Client(control, A, 0, asking()).send(arm(0), 1 * S)
+    rig = Client(control, B, 0, asking(), client=RIG)
+    rig.send(arm(0, register=47376, expected=0xFF6A, put=0x0096), 1 * S)
+    pump = Pump(control, {OFFSET: SET, 47376: 0xFF6A})
+    for t in range(60, 1200, 60):
+        rig.send(p.Keepalive(), t * S)
+        pump.run(t * S, t * S + 10 * S)
+    assert pump.writes == [(OFFSET, FOUND)]  # Thermaestro's, after its own silence; not the rig's
+
+
+def test_a_client_back_from_another_address_is_the_same_client() -> None:
+    """A restart of Thermaestro binds another port: its entries are still its own."""
+    control = make()
+    Client(control, A, 0, asking()).send(arm(0), 1 * S)
+    pump = Pump(control, {OFFSET: SET})
+    back = Client(control, C, 600 * S, asking())
+    option = p.find(back.welcome.options, p.Tag.DEADMAN)
+    assert option is not None
+    assert option.unpack() == (900, 16, 1, 0)  # its entry, held for it
+    pump.run(901 * S, 1400 * S, step_us=60 * S)
+    assert pump.writes == []  # its silence started again at 600 s
+    back = Client(control, C, 1401 * S, asking())  # its lease ended meanwhile
+    (disarmed,) = back.send(p.Disarm(id=31, entry=0), 1401 * S)
+    assert isinstance(disarmed, p.Armed)
+    assert disarmed.result == p.ArmResult.DISARMED
+    pump.run(1402 * S, 4000 * S, step_us=60 * S)
+    assert pump.writes == []
+
+
+def test_a_report_goes_to_its_own_client_only() -> None:
+    control = make()
+    Client(control, A, 0, asking(300)).send(arm(0), 1 * S)
+    pump = Pump(control, {OFFSET: SET})
+    rig = Client(control, B, 0, asking(), client=RIG)
+    for t in range(60, 400, 60):
+        rig.send(p.Keepalive(), t * S)
+        pump.run(t * S, t * S + 10 * S)
+    assert pump.writes == [(OFFSET, FOUND)]
+    assert not [d for to, d in pump.sent if to == B and isinstance(p.decode(d).message, p.Fired)]
+    rig.send(p.AckFired(id=32, entry=0), 401 * S)  # the rig's entry 0 has no report: no effect
+    back = Client(control, A, 402 * S, asking(300))
+    (fired,) = back.after_welcome
+    assert isinstance(fired, p.Fired)
+    assert (fired.entry, fired.outcome) == (0, p.FiredOutcome.PUT_BACK)
+    welcome = Client(control, B, 403 * S, asking(), client=RIG)
+    assert welcome.after_welcome == []
+
+
+def test_a_revision_4_state_file_is_the_first_granted_clients(tmp_path: Path) -> None:
+    state = tmp_path / "deadman.json"
+    frame = nibe.write_request(OFFSET, FOUND).hex()
+    entry = {"number": 3, "width": 2, "register": OFFSET, "expected": SET, "frame": frame}
+    state.write_text(json.dumps({"silence_s": 300, "armed": [entry], "fired": []}))
+    control = make(state)
+    first = Client(control, A, 0, asking(300))
+    option = p.find(first.welcome.options, p.Tag.DEADMAN)
+    assert option is not None
+    assert option.unpack() == (300, 16, 1, 0)
+    (disarmed,) = first.send(p.Disarm(id=33, entry=3), 1 * S)
+    assert isinstance(disarmed, p.Armed)
+    assert disarmed.result == p.ArmResult.DISARMED
+    pump = Pump(control, {OFFSET: SET})
+    pump.run(2 * S, 2000 * S, step_us=60 * S)
+    assert pump.writes == []
+
+
+def test_a_revision_4_state_file_fires_if_nobody_comes(tmp_path: Path) -> None:
+    state = tmp_path / "deadman.json"
+    frame = nibe.write_request(OFFSET, FOUND).hex()
+    entry = {"number": 3, "width": 2, "register": OFFSET, "expected": SET, "frame": frame}
+    state.write_text(json.dumps({"silence_s": 300, "armed": [entry], "fired": []}))
+    control = make(state)
+    pump = Pump(control, {OFFSET: SET})
+    pump.run(0, 310 * S)
+    assert pump.writes == [(OFFSET, FOUND)]
+    (fired,) = Client(control, A, 400 * S, asking(300)).after_welcome
+    assert isinstance(fired, p.Fired)
+    assert (fired.entry, fired.outcome) == (3, p.FiredOutcome.PUT_BACK)
+
+
+def test_no_dead_man_for_a_client_past_those_held_for() -> None:
+    control = make()
+    for n in range(MAX_CLIENTS):
+        held = Client(control, A, n * S, asking(), client=bytes([n] * 16))
+        held.send(arm(0), n * S + 1)
+        held.send(p.Bye(), n * S + 2)
+    late = Client(control, A, 10 * S, asking(), client=bytes([0xEE] * 16))
+    assert p.find(late.welcome.options, p.Tag.DEADMAN) is None
+    again = Client(control, B, 11 * S, asking(), client=bytes([0] * 16))
+    assert p.find(again.welcome.options, p.Tag.DEADMAN) is not None  # one it holds for
+
+
+def test_an_arm_past_the_clients_held_for_is_refused() -> None:
+    """Granted while there was room, and another took it meanwhile."""
+    control = make()
+    for n in range(MAX_CLIENTS - 1):
+        held = Client(control, A, n * S, asking(), client=bytes([n] * 16))
+        held.send(arm(0), n * S + 1)
+        held.send(p.Bye(), n * S + 2)
+    first = Client(control, A, 10 * S, asking(), client=bytes([0xE0] * 16))
+    second = Client(control, B, 10 * S, asking(), client=bytes([0xE1] * 16))
+    (armed,) = first.send(arm(0), 11 * S)
+    assert isinstance(armed, p.Armed)
+    assert armed.result == p.ArmResult.ARMED
+    (refused,) = second.send(arm(0), 12 * S)
+    assert isinstance(refused, p.Armed)
+    assert (refused.result, refused.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.NO_ROOM)
+
+
+def test_an_arm_that_cant_be_saved_is_refused(tmp_path: Path) -> None:
+    control = make(tmp_path / "gone" / "deadman.json")  # a directory that isn't there
+    client = Client(control, A, 0, asking())
+    (refused,) = client.send(arm(0), 1 * S)
+    assert isinstance(refused, p.Armed)
+    assert (refused.result, refused.detail) == (p.ArmResult.REFUSED, p.ArmRefusal.NOT_KEPT)
+    pump = Pump(control, {OFFSET: SET})
+    pump.run(901 * S, 910 * S)
+    assert pump.writes == []  # not armed: the client doesn't make the change
+
+
+def test_a_report_nobody_acknowledges_is_dropped_in_time() -> None:
+    control = make()
+    Client(control, A, 0, asking(300), client=RIG).send(arm(0), 1 * S)
+    pump = Pump(control, {OFFSET: SET})
+    pump.run(302 * S, 310 * S)
+    assert pump.writes == [(OFFSET, FOUND)]
+    deadman = control.deadman
+    assert deadman is not None
+    kept_us = deadman.clients[RIG].fired[0].kept_us
+    control.tick(kept_us + REPORT_KEPT_US - S)
+    assert RIG in deadman.clients
+    control.tick(kept_us + REPORT_KEPT_US)
+    assert RIG not in deadman.clients  # nothing left for it: forgotten
+    back = Client(control, A, kept_us + REPORT_KEPT_US + S, asking(300), client=RIG)
+    assert back.after_welcome == []

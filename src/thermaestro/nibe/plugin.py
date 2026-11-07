@@ -27,6 +27,7 @@ still holds what Thermaestro wrote. What it did is passed on as `deadman.fired`.
 import asyncio
 import contextlib
 import logging
+import os
 import re
 from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable
@@ -255,6 +256,8 @@ class NibePlugin:
         self._confirmed: dict[int, tuple[int, int, int]] = {}
         """Per entry, what the gateway confirmed armed in this session (`_armed_as`). A new
         session, or an answer not had, forgets it."""
+        self._client_id = b""
+        """Who this instance is to the gateway's dead-man: made once, kept with the state."""
         self._mending = False
         self._granted = False
         """Whether the gateway granted the dead-man when the units were last described."""
@@ -376,6 +379,7 @@ class NibePlugin:
             if self.gateway.protocol == "thermaestro-gw"
             else None,
             psk=psk,
+            client_id=self._client_id if psk is not None else None,
         )
         settings = dict(self._transport_settings)
         settings.setdefault("plain_settings", PlainSettings(local_port=self.gateway.local_port))
@@ -620,8 +624,21 @@ class NibePlugin:
 
     async def _restore(self) -> None:
         if self._state is None:
+            self._client_id = os.urandom(16)  # nothing kept: this run is a client of its own
             return
         data = await self._state.load()
+        kept_id = data.get("deadman_client")
+        try:
+            self._client_id = bytes.fromhex(kept_id) if isinstance(kept_id, str) else b""
+        except ValueError:
+            self._client_id = b""
+        if len(self._client_id) != 16:
+            if kept_id is not None:
+                log.error("the gateway client id kept can't be read, so a new one is made")
+            # Made once and kept before the gateway hears it: a restart is the same client,
+            # whose entries the gateway still holds.
+            self._client_id = os.urandom(16)
+            await self._state.save({**data, "deadman_client": self._client_id.hex()})
         try:
             self._restored = {
                 int(register): ((int(m["words"][0]), int(m["words"][1])), float(m["idle"]))
@@ -710,6 +727,7 @@ class NibePlugin:
                 if register in self._samples
             }
             data: dict[str, Any] = {
+                "deadman_client": self._client_id.hex(),
                 "meters": meters,
                 "brine_kwh": round(self._extracted_kwh, 3),
                 "holds": {path: dict(hold) for path, hold in self.holds.items()},

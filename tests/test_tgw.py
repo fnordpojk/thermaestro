@@ -8,7 +8,7 @@ from simpump import TEST_PSK as PSK
 from simpump import SimPump
 from thermaestro_gateway import nibe
 from thermaestro_gateway import protocol as p
-from thermaestro_gateway.deadman import Outcome
+from thermaestro_gateway.deadman import Client, Outcome
 from thermaestro_gateway.protocol import Origin, Stage
 from thermaestro_gateway.server import Config, Gateway
 
@@ -34,8 +34,14 @@ FAST = TgwSettings(
 )
 
 
+CLIENT = bytes(range(0xC0, 0xD0))
+
+
 def client_for(gateway: Gateway, psk: bytes | None = None) -> TgwClient:
-    return TgwClient("127.0.0.1", gateway.ports["control"], psk=psk, settings=FAST)
+    client_id = CLIENT if psk is not None else None
+    return TgwClient(
+        "127.0.0.1", gateway.ports["control"], psk=psk, client_id=client_id, settings=FAST
+    )
 
 
 @pytest.fixture
@@ -163,7 +169,7 @@ async def test_arming_and_disarming(keyed: TgwClient, gateway_with_psk: Gateway)
     armed = await keyed.arm(0, 2, 47011, 0xFFFE, back)
     assert armed is not None
     assert armed.result == p.ArmResult.ARMED
-    assert held.armed[0].expected == 0xFFFE
+    assert held.clients[CLIENT].armed[0].expected == 0xFFFE
     elsewhere = await keyed.arm(1, 2, 47012, 0xFFFE, back)
     assert elsewhere is not None
     assert (elsewhere.result, elsewhere.detail) == (
@@ -173,7 +179,7 @@ async def test_arming_and_disarming(keyed: TgwClient, gateway_with_psk: Gateway)
     disarmed = await keyed.disarm(0)
     assert disarmed is not None
     assert disarmed.result == p.ArmResult.DISARMED
-    assert held.armed == {}
+    assert held.clients[CLIENT].armed == {}
 
 
 async def test_a_fired_report_waits_until_it_is_acknowledged(gateway_with_psk: Gateway) -> None:
@@ -181,7 +187,8 @@ async def test_a_fired_report_waits_until_it_is_acknowledged(gateway_with_psk: G
     later still hears it, and once acknowledged, the gateway forgets it."""
     held = gateway_with_psk.control.deadman
     assert held is not None
-    held.fired[3] = Outcome(3, p.FiredOutcome.PUT_BACK, 47011, 0xFFFC)
+    held.clients[CLIENT] = Client(900_000_000, 0)
+    held.clients[CLIENT].fired[3] = Outcome(3, p.FiredOutcome.PUT_BACK, 47011, 0xFFFC)
     c = client_for(gateway_with_psk, PSK)
     await c.start()
     try:
@@ -198,7 +205,7 @@ async def test_a_fired_report_waits_until_it_is_acknowledged(gateway_with_psk: G
         acknowledged = await c.ack_fired(3)
         assert acknowledged is not None
         assert acknowledged.result == p.ArmResult.DISARMED
-        assert held.fired == {}
+        assert held.clients[CLIENT].fired == {}
         assert c.fired == {}
     finally:
         await c.close()

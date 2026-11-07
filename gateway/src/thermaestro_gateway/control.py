@@ -9,8 +9,8 @@ completed bus exchange becomes a FRAME for the sessions subscribed to it.
 With a pre-shared key, authentication comes before anything else: a sender without a
 session only ever hears `auth_required` or `auth_failed`, and every message of an
 authenticated session is signed with its session key, in both directions. Only then is
-the dead-man granted (deadman.py): a session that asks for it may arm entries, and the
-silence it watches for is that of every session granted it.
+the dead-man granted (deadman.py), and only to a session that says which client it is: it
+may arm entries of that client's, and the silence watched for is that client's.
 """
 
 import dataclasses
@@ -76,6 +76,10 @@ class Session:
     reply_prep_max_us: int = 0
     deadman_entries: int = 0
     """The dead-man's entries granted to it; 0 if it wasn't."""
+    deadman_s: int = 0
+    """The silence granted to it."""
+    client: bytes = b""
+    """The client it said it is (`CLIENT_ID`), whose entries it may arm."""
 
 
 @dataclass(slots=True)
@@ -126,7 +130,7 @@ class Control:
                 return refusal
         session.expires_us = now_us + session.lease_us
         if session.deadman_entries and self.deadman is not None:
-            self.deadman.heard(now_us)
+            self.deadman.heard(session.client, now_us)
         out: list[Datagram] = []
         match msg:
             case p.Keepalive():
@@ -258,16 +262,25 @@ class Control:
         ]
         reports: list[p.Fired] = []
         deadman = p.find(msg.options, p.Tag.DEADMAN)
-        if deadman is not None and session.key is not None and self.deadman is not None:
+        client = p.find(msg.options, p.Tag.CLIENT_ID)
+        dm = self.deadman
+        if (
+            deadman is not None
+            and client is not None
+            and session.key is not None
+            and dm is not None
+        ):
             asked_s, asked_entries, _, _ = deadman.unpack()
-            seconds, entries = self.deadman.grant(asked_s, asked_entries)
-            session.deadman_entries = entries
-            self.deadman.heard(now_us)
-            dm = self.deadman
-            options.append(
-                p.Option.pack(p.Tag.DEADMAN, seconds, entries, len(dm.armed), len(dm.fired))
-            )
-            reports = dm.reports(now_us)
+            granted = dm.grant(client.value, asked_s, asked_entries, now_us)
+            if granted is not None:
+                seconds, entries = granted
+                session.deadman_entries = entries
+                session.deadman_s = seconds
+                session.client = client.value
+                dm.heard(client.value, now_us)
+                armed, fired = dm.counts(client.value)
+                options.append(p.Option.pack(p.Tag.DEADMAN, seconds, entries, armed, fired))
+                reports = dm.reports(client.value, now_us)
         self._sessions[addr] = session
         welcome = p.Welcome(id=msg.id, gw_time_us=now_us, options=tuple(options))
         return [self._send(session, welcome), *(self._send(session, r) for r in reports)]
@@ -283,11 +296,13 @@ class Control:
                 id=msg.id,
             )
         elif isinstance(msg, p.Arm):
-            answer = self.deadman.arm(msg, session.deadman_entries)
+            answer = self.deadman.arm(
+                session.client, msg, session.deadman_entries, session.deadman_s, now_us
+            )
         elif isinstance(msg, p.Disarm):
-            answer = self.deadman.disarm(msg.entry, msg.id)
+            answer = self.deadman.disarm(session.client, msg.entry, msg.id)
         else:
-            answer = self.deadman.ack_fired(msg.entry, msg.id)
+            answer = self.deadman.ack_fired(session.client, msg.entry, msg.id)
         return dataclasses.replace(answer, gw_time_us=now_us)
 
     # --- events out ----------------------------------------------------------------------
@@ -428,9 +443,9 @@ class Control:
                 if session is not None:
                     out.append(self._send(session, item.message))
         if self.deadman is not None:
-            for report in self.deadman.just_fired(now_us):
+            for client, report in self.deadman.just_fired(now_us):
                 for session in self._sessions.values():
-                    if session.deadman_entries:
+                    if session.deadman_entries and session.client == client:
                         out.append(self._send(session, report))
         return out
 

@@ -200,13 +200,19 @@ class TgwClient:
         control_port: int = 10090,
         *,
         psk: bytes | None = None,
+        client_id: bytes | None = None,
         settings: TgwSettings | None = None,
     ) -> None:
         if psk is not None and len(psk) != 32:
             raise ValueError("the gateway key is 32 bytes")
+        if client_id is not None and len(client_id) != 16:
+            raise ValueError("a client id is 16 bytes")
         self.host = host
         self.control_port = control_port
         self.psk = psk
+        self.client_id = client_id
+        """Who this client is to the dead-man, across sessions; a gateway of registry
+        revision 5 grants it only with one (spec §15)."""
         self.settings = settings or TgwSettings()
         self.counters: Counter[str] = Counter()
         self.boot_id: int | None = None
@@ -295,6 +301,10 @@ class TgwClient:
         ]
         if nonce is not None:
             options.append(p.Option(p.Tag.CLIENT_NONCE | p.CRITICAL, nonce))
+            if self.client_id is not None:
+                # Not critical: a gateway of an earlier revision ignores it, and grants the
+                # dead-man as it did.
+                options.append(p.Option(p.Tag.CLIENT_ID, self.client_id))
             options.append(
                 p.Option.pack(
                     p.Tag.DEADMAN, self.settings.deadman_s, self.settings.deadman_entries, 0, 0
