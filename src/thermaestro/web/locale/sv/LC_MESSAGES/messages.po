@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-02 02:02+0100\n"
+"POT-Creation-Date: 2026-11-08 00:23+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -3770,6 +3770,9 @@ msgstr "en väggskärm kan inte göra ändringar som kräver lösenord"
 msgid "a zoning controller"
 msgstr "en zonstyrning"
 
+msgid "about to sound"
+msgstr "larmar snart"
+
 msgid "accepted, but not kept"
 msgstr "accepterad, men inte behållen"
 
@@ -3811,6 +3814,24 @@ msgstr "och framledningen vid, °C"
 
 msgid "announced"
 msgstr "aviserad"
+
+msgid "armed for the night"
+msgstr "larmat för natten"
+
+msgid "armed, away"
+msgstr "larmat, borta"
+
+msgid "armed, partly"
+msgstr "delvis larmat"
+
+msgid "armed, someone home"
+msgstr "larmat, någon hemma"
+
+msgid "armed, vacation"
+msgstr "larmat, semester"
+
+msgid "arming"
+msgstr "larmas på"
 
 msgid "as NibePi had it; may be out of date"
 msgstr "som NibePi hade det; kan vara inaktuellt"
@@ -3917,6 +3938,12 @@ msgstr "härledd ur %(inputs)s"
 
 msgid "disabled"
 msgstr "avstängd"
+
+msgid "disarmed"
+msgstr "avlarmat"
+
+msgid "disarming"
+msgstr "larmas av"
 
 msgid "done, and read back"
 msgstr "gjort, och tillbakaläst"
@@ -4660,6 +4687,9 @@ msgstr "övergående"
 msgid "translated"
 msgstr "översatt"
 
+msgid "triggered"
+msgstr "utlöst"
+
 msgid "uncertain"
 msgstr "osäkert"
 
@@ -4744,18 +4774,11 @@ msgstr "din token"
 msgid "°C an hour at 50 °C"
 msgstr "°C i timmen vid 50 °C"
 
-#~ msgid ""
-#~ "What heat costs is reckoned from the "
-#~ "hot-water tank's volume and the compressor's "
-#~ "COP. A pump's plugin gives them for the"
-#~ " models it knows; otherwise enter them from"
-#~ " the pump's documentation. Until then the "
-#~ "COP is taken as half of what physics "
-#~ "allows."
-#~ msgstr ""
+#~ msgid "%(hours)s hours of heating of %(least)s."
+#~ msgstr "%(hours)s timmar med värmedrift av %(least)s."
 
-#~ msgid "a whole-house power reading"
-#~ msgstr "en mätning av hela husets effekt"
+#~ msgid "%(name)s has been %(state)s for over an hour"
+#~ msgstr ""
 
 #~ msgid ""
 #~ "What Thermaestro decides every 15 minutes, and"
@@ -4770,12 +4793,19 @@ msgstr "°C i timmen vid 50 °C"
 #~ " eller två dygn framåt kommer med husets"
 #~ " modell."
 
-#~ msgid "%(name)s has been %(state)s for over an hour"
+#~ msgid ""
+#~ "What heat costs is reckoned from the "
+#~ "hot-water tank's volume and the compressor's "
+#~ "COP. A pump's plugin gives them for the"
+#~ " models it knows; otherwise enter them from"
+#~ " the pump's documentation. Until then the "
+#~ "COP is taken as half of what physics "
+#~ "allows."
 #~ msgstr ""
-
-#~ msgid "%(hours)s hours of heating of %(least)s."
-#~ msgstr "%(hours)s timmar med värmedrift av %(least)s."
 
 #~ msgid "When the tank was last seen well above its stop temperature."
 #~ msgstr "När beredaren senast sågs väl över sin stopptemperatur."
+
+#~ msgid "a whole-house power reading"
+#~ msgstr "en mätning av hela husets effekt"
 

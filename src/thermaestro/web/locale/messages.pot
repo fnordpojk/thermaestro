@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-02 02:02+0100\n"
+"POT-Creation-Date: 2026-11-08 00:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3572,6 +3572,9 @@ msgstr ""
 msgid "a zoning controller"
 msgstr ""
 
+msgid "about to sound"
+msgstr ""
+
 msgid "accepted, but not kept"
 msgstr ""
 
@@ -3612,6 +3615,24 @@ msgid "and the supply at, °C"
 msgstr ""
 
 msgid "announced"
+msgstr ""
+
+msgid "armed for the night"
+msgstr ""
+
+msgid "armed, away"
+msgstr ""
+
+msgid "armed, partly"
+msgstr ""
+
+msgid "armed, someone home"
+msgstr ""
+
+msgid "armed, vacation"
+msgstr ""
+
+msgid "arming"
 msgstr ""
 
 msgid "as NibePi had it; may be out of date"
@@ -3718,6 +3739,12 @@ msgid "derived from %(inputs)s"
 msgstr ""
 
 msgid "disabled"
+msgstr ""
+
+msgid "disarmed"
+msgstr ""
+
+msgid "disarming"
 msgstr ""
 
 msgid "done, and read back"
@@ -4456,6 +4483,9 @@ msgid "transitional"
 msgstr ""
 
 msgid "translated"
+msgstr ""
+
+msgid "triggered"
 msgstr ""
 
 msgid "uncertain"

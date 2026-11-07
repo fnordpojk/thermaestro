@@ -23,7 +23,7 @@ from .discovery import Publisher
 from .events import Events, mark
 from .executor import Executor
 from .failures import failures
-from .host import PluginHost
+from .host import PluginHost, State
 from .house import House
 from .mqtt import MqttClient
 from .plugins import Factory, discover
@@ -105,7 +105,12 @@ async def run(
             series=series,
             factories=factories if factories is not None else discover(),
         )
-        sensors = SensorHub(db, values)
+
+        def up(instance: str) -> bool:
+            found = host.instances.get(instance)
+            return found is not None and found.state is State.UP
+
+        sensors = SensorHub(db, values, up=up)
         host.on_up.append(sensors.connected)
         mqtt = MqttClient(db, secrets, sensors)
         weather = Weather(db, series, values, host)

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-02 02:02+0100\n"
+"POT-Creation-Date: 2026-11-08 00:23+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -578,7 +578,7 @@ msgid "Airflow"
 msgstr "Luftstrom"
 
 msgid "Alarm"
-msgstr "Alarm"
+msgstr "Alarmanlage"
 
 msgid "All"
 msgstr "Alle"
@@ -3849,6 +3849,9 @@ msgstr "ein Wanddisplay kann keine Änderungen vornehmen, die ein Passwort erfor
 msgid "a zoning controller"
 msgstr "eine Zonenregelung"
 
+msgid "about to sound"
+msgstr "Alarm steht bevor"
+
 msgid "accepted, but not kept"
 msgstr "angenommen, aber nicht behalten"
 
@@ -3890,6 +3893,24 @@ msgstr "und der Vorlauf bei, °C"
 
 msgid "announced"
 msgstr "angekündigt"
+
+msgid "armed for the night"
+msgstr "scharf für die Nacht"
+
+msgid "armed, away"
+msgstr "scharf, abwesend"
+
+msgid "armed, partly"
+msgstr "teilweise scharf"
+
+msgid "armed, someone home"
+msgstr "scharf, jemand zu Hause"
+
+msgid "armed, vacation"
+msgstr "scharf, Urlaub"
+
+msgid "arming"
+msgstr "wird scharf geschaltet"
 
 msgid "as NibePi had it; may be out of date"
 msgstr "wie NibePi es hatte; vielleicht veraltet"
@@ -3996,6 +4017,12 @@ msgstr "abgeleitet aus %(inputs)s"
 
 msgid "disabled"
 msgstr "deaktiviert"
+
+msgid "disarmed"
+msgstr "unscharf"
+
+msgid "disarming"
+msgstr "wird unscharf geschaltet"
 
 msgid "done, and read back"
 msgstr "erledigt und zurückgelesen"
@@ -4743,6 +4770,9 @@ msgstr "im Übergang"
 msgid "translated"
 msgstr "übersetzt"
 
+msgid "triggered"
+msgstr "ausgelöst"
+
 msgid "uncertain"
 msgstr "unsicher"
 
@@ -4827,18 +4857,11 @@ msgstr "Ihr Token"
 msgid "°C an hour at 50 °C"
 msgstr "°C pro Stunde bei 50 °C"
 
-#~ msgid ""
-#~ "What heat costs is reckoned from the "
-#~ "hot-water tank's volume and the compressor's "
-#~ "COP. A pump's plugin gives them for the"
-#~ " models it knows; otherwise enter them from"
-#~ " the pump's documentation. Until then the "
-#~ "COP is taken as half of what physics "
-#~ "allows."
-#~ msgstr ""
+#~ msgid "%(hours)s hours of heating of %(least)s."
+#~ msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
 
-#~ msgid "a whole-house power reading"
-#~ msgstr "eine Messung der Leistung des ganzen Hauses"
+#~ msgid "%(name)s has been %(state)s for over an hour"
+#~ msgstr ""
 
 #~ msgid ""
 #~ "What Thermaestro decides every 15 minutes, and"
@@ -4853,12 +4876,19 @@ msgstr "°C pro Stunde bei 50 °C"
 #~ " oder zwei Tage vorausschaut, kommt mit dem"
 #~ " Modell des Hauses."
 
-#~ msgid "%(name)s has been %(state)s for over an hour"
+#~ msgid ""
+#~ "What heat costs is reckoned from the "
+#~ "hot-water tank's volume and the compressor's "
+#~ "COP. A pump's plugin gives them for the"
+#~ " models it knows; otherwise enter them from"
+#~ " the pump's documentation. Until then the "
+#~ "COP is taken as half of what physics "
+#~ "allows."
 #~ msgstr ""
-
-#~ msgid "%(hours)s hours of heating of %(least)s."
-#~ msgstr "%(hours)s Stunden Heizbetrieb von %(least)s."
 
 #~ msgid "When the tank was last seen well above its stop temperature."
 #~ msgstr "Wann der Speicher zuletzt deutlich über seiner Stopptemperatur gesehen wurde."
+
+#~ msgid "a whole-house power reading"
+#~ msgstr "eine Messung der Leistung des ganzen Hauses"
 

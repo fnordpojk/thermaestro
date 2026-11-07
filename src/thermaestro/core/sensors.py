@@ -29,7 +29,7 @@ from typing import Any, cast
 
 from .. import clock, durations
 from ..cap.model import Envelope, Quality
-from ..cap.vocabulary import QUANTITIES, STATES
+from ..cap.vocabulary import ALARM_PANEL, QUANTITIES, STATES
 from ..store import Database, Display, Names, Outdoor, Room, Sensor
 from .values import DAY_S, HELD_MAX_S, Key, Values
 
@@ -56,6 +56,10 @@ counted in between is in the next reading, and a Pi's SD card isn't written seve
 times a second. A counter that falls (it started over) is always kept."""
 ANY_OPEN = {"zone.open", "window.open", *STATES}
 """On/off quantities: a room's is on when any of its sensors is."""
+ON_CHANGE = {*ANY_OPEN, ALARM_PANEL}
+"""States reported only when they change: from a plugin, one is current for as long as the
+plugin is up, however long it stays the same (an alarm armed for a weekend, a window shut
+for a day). Over MQTT nothing says the device is alive, so a time limit stays."""
 
 Value = float | bool | str | None
 
@@ -125,10 +129,19 @@ def _coerce(data: Any) -> Value:
 
 
 class SensorHub:
-    def __init__(self, db: Database, values: Values, clock: Callable[[], float] = time.time):
+    def __init__(
+        self,
+        db: Database,
+        values: Values,
+        clock: Callable[[], float] = time.time,
+        *,
+        up: Callable[[str], bool] | None = None,
+    ):
         self._db = db
         self._values = values
         self._clock = clock
+        self._source_up = up
+        """Whether a plugin instance is up now; without it, every source counts as up."""
         self.sensors: dict[str, Sensor] = {}
         self.rooms: dict[str, Room] = {}
         self.outdoor = Outdoor()
@@ -321,17 +334,30 @@ class SensorHub:
                 del days[day]
 
     def _stale(self, id: str, reading: Reading) -> bool:
+        if self._on_change(id):
+            return not self._connected(id)
         return self._clock() - reading.received > self.freshness(id)[0]
+
+    def _on_change(self, id: str) -> bool:
+        """A state reported only when it changes, through a plugin that says when it's up."""
+        sensor = self.sensors[id]
+        return sensor.quantity in ON_CHANGE and _source(sensor) is not None
+
+    def _connected(self, id: str) -> bool:
+        """Whether the sensor's plugin is up now."""
+        source = _source(self.sensors[id])
+        return source is None or self._source_up is None or self._source_up(source)
 
     def _current(self, id: str) -> Reading | None:
         reading = self._readings.get(id)
         if reading is None:
             return None
         if reading.quality == "good" and self._stale(id, reading):
-            age = durations.text(int(self._clock() - reading.received))
-            return Reading(
-                reading.value, "stale", f"no report for {age}", reading.t, reading.received
-            )
+            if self._on_change(id):
+                why = f"{_source(self.sensors[id])} isn't connected"
+            else:
+                why = f"no report for {durations.text(int(self._clock() - reading.received))}"
+            return Reading(reading.value, "stale", why, reading.t, reading.received)
         return reading
 
     # --- what goes out ---------------------------------------------------------------------

@@ -48,7 +48,7 @@ Example: a sensor with the topic `zigbee2mqtt/sofa` and the JSON field `temperat
 
 A sensor with the topic `t/hall` and no JSON field reads 19.0 from the payload `19.0`.
 
-Each sensor also has its quantity, its place (a room, outdoors, or elsewhere), a calibration offset that is added to each value, and how long it may stay quiet before its value is stale. Left empty, that time is learned: twice the sensor's longest silence over the last week, at least one hour and at most twelve. A silence while Thermaestro was stopped, or while the broker or Home Assistant was away, isn't the sensor's and isn't counted.
+Each sensor also has its quantity, its place (a room, outdoors, or elsewhere), a calibration offset that is added to each value, and how long it may stay quiet before its value is stale. Left empty, that time is learned: twice the sensor's longest silence over the last week, at least one hour and at most twelve. A silence while Thermaestro was stopped, or while the broker or Home Assistant was away, isn't the sensor's and isn't counted. An on/off state or an alarm from Home Assistant, which is reported only when it changes, has no time limit: it counts while Home Assistant is connected, and is stale while it isn't. Over MQTT an on/off sensor keeps its time limit, since nothing there says the device is alive.
 
 After a restart each sensor starts from its last reading, as old as it is, so rooms are known at once and a sensor quiet for too long is stale at once. The broker sends what it kept for a topic (a retained message) at every connection, however old: the value already held is nothing new, and another is taken as stale until the sensor next reports.
 

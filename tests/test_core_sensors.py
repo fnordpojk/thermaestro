@@ -36,7 +36,7 @@ def site(values: Values, point: str) -> tuple[object, str, str | None]:
     return e.value, e.quality, e.why
 
 
-def envelope(point: str, value: float | bool | None, quality: str = "good") -> Envelope:
+def envelope(point: str, value: float | bool | str | None, quality: str = "good") -> Envelope:
     now = datetime.now(UTC)
     return Envelope.model_validate(
         {
@@ -244,6 +244,65 @@ async def test_a_quiet_sensor_is_stale_by_its_own_rhythm(db: Database) -> None:
     assert again.freshness("hall") == (3600, False)  # a week on, forgotten
     await again.save()
     assert await db.run(lambda t: list(t.execute("SELECT * FROM sensor_silences"))) == []
+
+
+async def test_a_state_from_a_plugin_stays_current_while_the_plugin_is_up(db: Database) -> None:
+    """An alarm armed for a weekend, or presence quiet for days, reports nothing: through a
+    plugin that is up, it stays good however long it stays the same, and is stale only
+    while the plugin is down. Over MQTT nothing says a door sensor is alive: its time limit
+    stays."""
+    clock = Clock()
+    up = {"ha": True}
+    await db.put(
+        Sensor(
+            name="Alarm",
+            source="point",
+            point="ha:alarm_control_panel.house",
+            quantity="alarm_panel",
+            placement="other",
+        ),
+        "alarm",
+    )
+    await db.put(
+        Sensor(
+            name="Sofa",
+            source="point",
+            point="ha:binary_sensor.sofa",
+            quantity="occupancy",
+            placement="other",
+        ),
+        "sofa",
+    )
+    await db.put(
+        Sensor(name="Door", source="mqtt", topic="z/door", quantity="door", placement="other"),
+        "door",
+    )
+    values = Values(db)
+    hub = SensorHub(db, values, clock=clock, up=lambda instance: up.get(instance, False))
+    await hub.load()
+    values.add("ha", envelope("alarm_control_panel.house", "armed_away"))
+    values.add("ha", envelope("binary_sensor.sofa", False))
+    hub.receive_mqtt("z/door", b"closed")
+
+    def held(path: str) -> tuple[object, str, str | None]:
+        e = values.latest[Key(SENSORS, path)]
+        return e.value, e.quality, e.why
+
+    clock.now += 3 * 86_400  # a long weekend away
+    hub.tick()
+    assert held("alarm/alarm_panel") == ("armed_away", "good", None)
+    assert held("sofa/occupancy") == (False, "good", None)
+    value, quality, why = held("door/door")
+    assert (value, quality) == (False, "stale")
+    assert why is not None
+    assert why.startswith("no report for")
+    up["ha"] = False  # Home Assistant away: what it said last is no longer known to hold
+    hub.tick()
+    assert held("alarm/alarm_panel") == ("armed_away", "stale", "ha isn't connected")
+    assert held("sofa/occupancy")[1] == "stale"
+    up["ha"] = True  # back, it sends every state again
+    values.add("ha", envelope("alarm_control_panel.house", "disarmed"))
+    assert held("alarm/alarm_panel") == ("disarmed", "good", None)
 
 
 async def test_a_set_limit_wins_up_to_twelve_hours(db: Database) -> None:

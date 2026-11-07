@@ -71,6 +71,17 @@ VALUES = {
     "off": mark("off"),
     "yes": mark("yes"),
     "no": mark("no"),
+    # a burglar alarm's states, as Home Assistant gives them
+    "disarmed": mark("disarmed"),
+    "armed_home": mark("armed, someone home"),
+    "armed_away": mark("armed, away"),
+    "armed_night": mark("armed for the night"),
+    "armed_vacation": mark("armed, vacation"),
+    "armed_custom_bypass": mark("armed, partly"),
+    "pending": mark("about to sound"),
+    "arming": mark("arming"),
+    "disarming": mark("disarming"),
+    "triggered": mark("triggered"),
 }
 
 NODES = {
@@ -154,6 +165,7 @@ QUANTITIES = {
     "occupancy": mark("Occupied"),
     "motion": mark("Motion"),
     "moisture": mark("Water leak"),
+    "alarm_panel": mark("Alarm"),
     # forecast quantities
     "temperature.p10": mark("Temperature, 10th percentile"),
     "temperature.p90": mark("Temperature, 90th percentile"),

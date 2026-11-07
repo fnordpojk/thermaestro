@@ -65,7 +65,7 @@ from ..cap.model import (
     SeriesInfo,
     Terms,
 )
-from ..cap.vocabulary import QUANTITIES, STATES, WEATHER
+from ..cap.vocabulary import ALARM_PANEL, QUANTITIES, STATES, WEATHER
 from ..core.plugins import PluginContext
 from ..forecast import instants, iso
 from ..seriesplugin import Held
@@ -281,6 +281,8 @@ async def list_entities(url: str, token: str) -> list[EntityInfo]:
 def _quantity(
     domain: str, device_class: str | None, unit: str | None, entity_id: str
 ) -> str | None:
+    if domain == "alarm_control_panel":
+        return ALARM_PANEL
     if domain == "binary_sensor":
         if device_class in ("window", "door", "opening"):
             return "window.open"

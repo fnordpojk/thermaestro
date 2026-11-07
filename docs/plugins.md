@@ -109,7 +109,7 @@ Standard names make points and levers findable. They are listed in [`cap/vocabul
 - **Points**, with their unit and the node kinds they belong on: `outdoor.temp`, `supply.temp`, `temp.top`, `demand`, `degree_minutes`, `heat.produced`, and so on.
 - **Sensor quantities**, by Home Assistant's sensor device classes, with the unit Thermaestro stores: `temperature` in `degC`, `humidity` in `%`, `carbon_dioxide` in `ppm`, and so on. Plugins convert.
 - **Forecast quantities**, with the unit a forecast series gives them in.
-- **On/off states**, by Home Assistant's binary sensor device classes.
+- **On/off states**, by Home Assistant's binary sensor device classes, and a burglar alarm's state (`alarm_panel`, one of Home Assistant's alarm panel states).
 - **Levers**, with the kinds each may have: `heating.offset` is a setting, `dhw.block` a hold, `dhw.boost_once` a trigger. A name ending in `_input`, such as `room.temp_input`, is a feed.
 
 Names are `area.quantity`. On a node of the area's own kind the area may be left out: `dhw.block` on a hot-water tank is written `hp1/dhw/block`. A name may carry qualifiers in braces, `heat.produced{purpose=dhw}`, and a suffix telling several of the same apart, `temperature#2`.

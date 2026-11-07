@@ -213,6 +213,39 @@ async def test_entities_to_choose_from() -> None:
     assert found[0].area == "Bedroom"  # by area, then name
 
 
+async def test_an_alarm_panel_is_offered_and_read_as_its_state(tmp_path: Path) -> None:
+    """A burglar alarm, as Home Assistant's alarm panels give it: offered as an alarm, read
+    as its state word; unavailable is not known."""
+    fake = stocked()
+    fake.set("alarm_control_panel.house", "armed_away", friendly_name="House alarm")
+    fake.set("alarm_control_panel.shed", "unavailable", friendly_name="Shed alarm")
+    async with running(fake) as url:
+        found = {e.entity_id: e for e in await list_entities(url, TOKEN)}
+    assert found["alarm_control_panel.house"].quantity == "alarm_panel"
+    assert found["alarm_control_panel.house"].points == (
+        (f"{OWN}alarm_control_panel.house", "alarm_panel"),
+    )
+    chosen = ("alarm_control_panel.house", "alarm_control_panel.shed")
+    async with (
+        running(fake) as url,
+        plugin(url, await secrets(tmp_path), entities=chosen) as (p, link),
+    ):
+        described = await link.describe(timeout=5)
+        labels = {pt.path: pt.label for pt in described.points}
+        assert labels[f"{OWN}alarm_control_panel.house"] == "House alarm"
+        assert value(p, f"{OWN}alarm_control_panel.house") == ("armed_away", None, "good", None)
+        shed = value(p, f"{OWN}alarm_control_panel.shed")
+        assert shed == (None, None, "unknown", "Home Assistant: unavailable")
+        async with link.subscribe([f"{OWN}alarm_control_panel.house"]) as sub:
+            await sub.next(timeout=5)
+            await fake.change("alarm_control_panel.house", "disarmed")
+            async with asyncio.timeout(5):
+                while True:
+                    update = await sub.next(timeout=5)
+                    if [e.value for e in update.values] == ["disarmed"]:
+                        break
+
+
 async def test_weather_entities_are_listed_as_providers() -> None:
     fake = stocked()
     with_weather(fake, datetime.now(UTC))

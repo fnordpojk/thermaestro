@@ -161,7 +161,9 @@ Each sensor also has:
 - **Where:** in a room, outdoors, or elsewhere, and which room;
 - **the room's reference:** this sensor alone gives the room's temperature;
 - **Calibration:** added to each value;
-- **Stale after (minutes):** when a value stops counting. Leave it empty and Thermaestro learns it from how often the sensor reports, between 60 and 720 minutes.
+- **Stale after (minutes):** when a value stops counting. Leave it empty and Thermaestro learns it from how often the sensor reports, between 60 and 720 minutes. An on/off sensor or an alarm from Home Assistant reports only when it changes: it counts for as long as Thermaestro is connected to Home Assistant, however long it stays the same, unless Home Assistant says it is unavailable.
+
+A burglar alarm in Home Assistant (an alarm panel) can be picked like any other entity, placed elsewhere: its state is shown and kept (disarmed, armed for the night, armed away, and so on).
 
 **Outdoor references** picks the outdoor sensor that counts for each quantity: forecasts are checked against it. Only sensors placed outdoors are offered. Without one for temperature, the pump's own outdoor sensor is used.
 

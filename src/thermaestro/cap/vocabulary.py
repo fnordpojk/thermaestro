@@ -147,6 +147,22 @@ from north; pressure is at sea level."""
 STATES = frozenset({"window", "door", "opening", "presence", "occupancy", "motion", "moisture"})
 """On/off states, by Home Assistant binary sensor device class."""
 
+ALARM_PANEL = "alarm_panel"
+"""A burglar alarm's state, as Home Assistant's alarm panels give it: one of
+`ALARM_STATES`."""
+ALARM_STATES = (
+    "disarmed",
+    "armed_home",
+    "armed_away",
+    "armed_night",
+    "armed_vacation",
+    "armed_custom_bypass",
+    "pending",
+    "arming",
+    "disarming",
+    "triggered",
+)
+
 LEVERS: dict[str, LeverName] = {
     "heating.offset": _l("setting"),
     "heating.curve": _l("setting"),
