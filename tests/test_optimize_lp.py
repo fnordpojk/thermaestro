@@ -127,6 +127,47 @@ def test_the_floor_holds_whatever_the_price() -> None:
     assert min(found.tanks[t.scope].level) >= 42.0 - 5e-3  # within the stage's tolerance
 
 
+def test_a_part_of_the_price_the_same_every_hour_can_change_when_to_charge() -> None:
+    """The energy tax and the transfer fee are the same every hour, but they are paid per
+    kWh, and a charge takes fewer kWh where the heat pump works more efficiently. Here the
+    spot price is lower in the hours with cold brine (a lower COP): on spot alone those are
+    cheapest, with the fixed part added the warm-brine ones are, and scored on what is
+    actually paid, planning without the fixed part costs more."""
+    cold, warm = 0.0, 10.0  # the brine, °C
+    spot = [0.29, 0.36] * 4  # cold-brine slots cheaper on spot
+    fixed = 0.6716  # the owner's energy tax and transfer fee, SEK/kWh
+    t = tank()
+    sources = [cold, warm] * 4
+    rises = [full_slot_rise(t, s) for s in sources]
+    need = t.level + 2 * min(rises)
+    t = replace(t, deadlines=(Deadline(slot=7, at_least=need, rank=3),))
+
+    def priced(prices: list[float]) -> tuple[Slot, ...]:
+        return tuple(
+            Slot(T0 + 900 * j, price=p, outdoor=0.0, source=s)
+            for j, (p, s) in enumerate(zip(prices, sources, strict=True))
+        )
+
+    def paid(shares: Sequence[float]) -> float:
+        """What a schedule actually costs: every kWh at spot and the fixed part."""
+        return sum(s * t.draw_kw * SLOT_H * (p + fixed) for s, p in zip(shares, spot, strict=True))
+
+    on_spot = plan(Problem(priced(spot), tanks=(t,), slider=1.0))
+    in_full = plan(Problem(priced([p + fixed for p in spot]), tanks=(t,), slider=1.0))
+    assert on_spot.ok, on_spot.why
+    assert in_full.ok, in_full.why
+    spot_shares = on_spot.tanks[t.scope].share
+    full_shares = in_full.tanks[t.scope].share
+    # On spot alone the charge goes to the cold-brine slots; in full, to the warm ones.
+    assert sum(spot_shares[0::2]) > sum(spot_shares[1::2])
+    assert sum(full_shares[1::2]) > sum(full_shares[0::2])
+    # Both make the deadline; planned in full, it is cheaper as paid, by fewer kWh.
+    assert in_full.stages["must_deadlines"] == pytest.approx(0.0, abs=2e-3)
+    assert on_spot.stages["must_deadlines"] == pytest.approx(0.0, abs=2e-3)
+    assert paid(full_shares) < paid(spot_shares) - 0.01
+    assert sum(full_shares) < sum(spot_shares)
+
+
 # --- the house ------------------------------------------------------------------------------
 
 

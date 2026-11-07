@@ -9,7 +9,7 @@ import itertools
 import json
 import math
 import warnings
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from functools import partial
@@ -30,6 +30,7 @@ from thermaestro.core import AuditLog, Values
 from thermaestro.core.events import Event, Events
 from thermaestro.intents import RANKS, Intent, Intents, Level, kinds
 from thermaestro.learn import Learnings
+from thermaestro.learn.heating import MODEL
 from thermaestro.planner.model import Price
 from thermaestro.planner.summary import Summaries
 from thermaestro.store import Control, Database, LeverMode, Plugin
@@ -93,13 +94,15 @@ def simulated(
     optimizer: bool = False,
     hindsight: bool = False,
     more: Callable[[], list[Intent]] | None = None,
+    unproved: Sequence[tuple[str, str]] = (),
 ) -> tuple[Sim, Intended]:
     """Run the planner on the plant for `days`; the sim, and the planner's intended writes.
     As in a house: each day's draws differ, and the prices are those published by then,
     estimated beyond. `optimizer`: what the learners would have made of the house is known,
     the forecast is off as a provider's is, and the optimizer drives. `hindsight`: the
     optimizer, told the truth: the weather as it comes, every price, each day's draws.
-    `more`: intents of the household's besides, made as the run starts."""
+    `more`: intents of the household's besides, made as the run starts. `unproved`: learned
+    values, by name and scope, started over, so not proved."""
 
     path.mkdir(parents=True, exist_ok=True)
     optimizer = optimizer or hindsight
@@ -129,6 +132,10 @@ def simulated(
                     await teach(learnings, s, when)
                 else:
                     await teach(learnings, s)
+                for name, scope in unproved:
+                    taught = learnings.get(name, scope)
+                    assert taught is not None, (name, scope)
+                    await learnings.start_over(taught.key, "user:test")
                 control = await sim.db.get(Control) or Control()
                 await sim.db.put(control.model_copy(update={"planner": "optimizer"}))
                 weather = PlantWeather(s, truth=hindsight)
@@ -422,6 +429,99 @@ def test_the_day_before_is_summed_up_at_seven(tmp_path: Path) -> None:
     assert "warmer" in [i["kind"] for i in day["ended"]]
     assert day["writes"] > 0
     assert day["starts"] > 0
+
+
+# --- what the optimizer plans with, and what it leaves to the rules ---------------------------
+
+SYSTEM_OFFSET = f"{CS}/heating.offset"
+TANK_LEVERS = {f"{TANK}/block", f"{TANK}/boost_once"}
+
+
+def plans(path: Path) -> list[dict[str, Any]]:
+    """The optimizer's plans kept, in time order."""
+
+    async def read() -> list[dict[str, Any]]:
+        async with await Database.open(path / "sim.db") as db:
+            rows = await db.run(lambda t: t.execute("SELECT body FROM plans ORDER BY t").fetchall())
+            return [json.loads(body) for (body,) in rows]
+
+    return asyncio.run(read())
+
+
+def drove(path: Path, lever: str) -> set[str]:
+    """Which planners' decisions for `lever` were the ones sent."""
+
+    async def read() -> set[str]:
+        async with await Database.open(path / "sim.db") as db:
+            rows = await db.run(
+                lambda t: t.execute(
+                    "SELECT DISTINCT planner FROM planned WHERE driving = 1 AND lever = ?",
+                    (lever,),
+                ).fetchall()
+            )
+            return {planner for (planner,) in rows}
+
+    return asyncio.run(read())
+
+
+def test_proved_models_are_what_the_optimizer_plans_with(tmp_path: Path) -> None:
+    """With the house, the tank and the pump proved, every plan covers the heating and the
+    hot water, leaves nothing to the rules, and is what drives them."""
+    s = draw(3, emitter="radiators")
+    simulated(tmp_path, s, 0.25, optimizer=True)
+    kept = plans(tmp_path)
+    assert kept
+    for body in kept:
+        assert body["ok"], body["why"]
+        assert body["notes"] == []
+        assert {SYSTEM_OFFSET, *TANK_LEVERS} <= set(body["covered"])
+        assert CS in body["systems"]
+        assert TANK in body["tanks"]
+    assert drove(tmp_path, SYSTEM_OFFSET) == {"optimizer"}
+    assert drove(tmp_path, f"{TANK}/block") <= {"optimizer"}
+
+
+def test_a_house_model_not_proved_is_left_to_the_rules_and_says_why(tmp_path: Path) -> None:
+    """The house model started over: the heating isn't planned with it, the plans say why,
+    and the rules drive the offset; the hot water, proved, is still the optimizer's."""
+    s = draw(3, emitter="radiators")
+    simulated(tmp_path, s, 0.25, optimizer=True, unproved=[(MODEL, CS)])
+    kept = plans(tmp_path)
+    assert kept
+    for body in kept:
+        assert SYSTEM_OFFSET not in body["covered"]
+        assert set(body["covered"]) >= TANK_LEVERS
+        [(scope, why)] = body["notes"]
+        assert scope == CS
+        assert why
+    assert drove(tmp_path, SYSTEM_OFFSET) == {"rules"}
+
+
+def test_an_accepted_bath_changes_the_plan(tmp_path: Path) -> None:
+    """A bath at 49 °C ten hours on, which this tank can make: the first plan meets it,
+    with the tank hot by then and more spent, where the same house without it lets the
+    tank cool well below that."""
+    s = draw(3, emitter="radiators")
+    hours, hot = 10, 49.0
+
+    def bath() -> list[Intent]:
+        now = clock.now()
+        made = {"principal": "user:test", "created": now - timedelta(minutes=1)}
+        return [kinds.bath(TANK, hot, now + timedelta(hours=hours), **made)]  # type: ignore[arg-type]
+
+    simulated(tmp_path / "bath", s, 0.05, optimizer=True, more=bath)
+    simulated(tmp_path / "none", s, 0.05, optimizer=True)
+    with_bath, without = plans(tmp_path / "bath")[0], plans(tmp_path / "none")[0]
+    assert with_bath["t0"] == without["t0"]
+    assert with_bath["stages"]["must_deadlines"] == 0.0  # met, not short
+    assert "must_deadlines" not in without["stages"]
+    # The tank's level by the end of each of the two hours before the bath is due.
+    before = slice(hours - 2, hours)
+    level = with_bath["tanks"][TANK]["level"]
+    plain = without["tanks"][TANK]["level"]
+    assert max(level[before]) >= hot - 0.5, level
+    assert max(plain[before]) < hot - 2.0, plain
+    assert with_bath["cost"] > without["cost"]
 
 
 def test_shadow_decides_as_the_optimizer_in_control(tmp_path: Path) -> None:
