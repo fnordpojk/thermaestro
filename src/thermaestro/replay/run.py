@@ -34,11 +34,14 @@ from zoneinfo import ZoneInfo
 from .. import clock
 from ..cap.messages import Described
 from ..cap.model import Envelope
-from ..cap.vocabulary import QUANTITIES
+from ..cap.vocabulary import ALARM_PANEL, QUANTITIES
 from ..core.audit import AuditLog
+from ..core.sensors import SENSORS, SensorHub
 from ..core.values import Key, Values
 from ..core.weather import Forecast, Span
+from ..intents import Intents
 from ..learn import Learning
+from ..occupancy import PRESENCE, TICK_S, Occupancy
 from ..store import Database, Location, Transaction
 from ..store.settings import SETTINGS
 from ..store.startup import History
@@ -183,10 +186,24 @@ async def replay(
                 db, values, cast(Any, host), AuditLog(out / "audit"), cast(Any, ReplayWeather(db))
             )
             await learning.load()
+            hub = SensorHub(db, values, clock=timer.time)
+            await hub.load()
+            occupancy = Occupancy(
+                db,
+                values,
+                hub,
+                hot_water=learning.hot_water,
+                usable=learning.usable,
+                learnings=learning.learnings,
+                intents=Intents(db, AuditLog(out / "audit")),
+                clock=timer.time,
+            )
+            weighed = Weighing(db, values, hub, occupancy, timer, start)
             timeline = (out / "learned.jsonl").open("w", encoding="utf-8")
             with timeline:
                 for day in every:
                     now = datetime.combine(day + timedelta(days=1), datetime.min.time(), zone)
+                    await weighed.until(now.timestamp() + AFTER_S)
                     timer.t = now.timestamp() + AFTER_S
                     await _feed(db, timer.t)
                     await values.prune(raw_days, History().aggregate_days, now=timer.t)
@@ -226,12 +243,26 @@ async def replay(
                 json.dumps({"replayed": ended, "exported": exported}, indent=1), encoding="utf-8"
             )
             coverage = await _coverage(db)
+            concluded = [
+                {
+                    "state": c.state,
+                    "why": c.why,
+                    "began": _iso(c.began),
+                    "concluded": _iso(c.concluded),
+                    "args": c.args,
+                }
+                for c in await occupancy.recent(0.0)
+            ]
+            with (out / "occupancy.jsonl").open("w", encoding="utf-8") as f:
+                for row in concluded:
+                    f.write(json.dumps(row) + "\n")
             summary: dict[str, Any] = {
                 "source": str(source),
                 "sha256": found.sha256,
                 "header": found.header,
                 "days": [d.isoformat() for d in every],
                 "coverage": coverage,
+                "occupancy": concluded,
             }
             if labels is not None:
                 card = await score(db, labels, zone)
@@ -350,6 +381,79 @@ async def _feed(db: Database, until: float) -> None:
         t.execute("DELETE FROM replay_leads WHERE valid < ?", (until,))
 
     await db.run(write)
+
+
+FEED_S = 300.0
+"""Between weighings, the history goes in this often."""
+
+
+def _iso(t: float | None) -> str | None:
+    return None if t is None else datetime.fromtimestamp(t, UTC).isoformat()
+
+
+class Weighing:
+    """Whether anyone is home, weighed minute by minute on the replay's clock, with the
+    history fed as it was recorded, presence turning on given as it came, and the alarm's
+    and presence sensors' last values as the core held them."""
+
+    def __init__(
+        self,
+        db: Database,
+        values: Values,
+        hub: SensorHub,
+        occupancy: Occupancy,
+        timer: Clock,
+        start: float,
+    ) -> None:
+        self._db = db
+        self._values = values
+        self._hub = hub
+        self._occupancy = occupancy
+        self._timer = timer
+        self._t = start
+        self._fed = start
+
+    def _keys(self) -> list[Key]:
+        wanted = {*PRESENCE, ALARM_PANEL}
+        return [
+            Key(SENSORS, f"{id}/{s.quantity}")
+            for id, s in self._hub.sensors.items()
+            if s.quantity in wanted
+        ]
+
+    async def until(self, end: float) -> None:
+        keys = self._keys()
+        while self._t + TICK_S <= end:
+            self._t += TICK_S
+            self._timer.t = self._t
+            if self._t - self._fed >= FEED_S:
+                await _feed(self._db, self._t)
+                for key in keys:
+                    for s in await self._values.history(key, self._fed, self._t):
+                        envelope = _envelope(key.point, s.t, s.value, s.text, s.quality)
+                        self._values.latest[key] = envelope
+                        self._occupancy.heard(key.instance, envelope)
+                self._fed = self._t
+            await self._occupancy.tick(self._t)
+
+
+def _envelope(
+    point: str, t: float, value: float | None, text: str | None, quality: str
+) -> Envelope:
+    seen = datetime.fromtimestamp(t, UTC)
+    shown: object = text if text is not None else value
+    if isinstance(shown, float) and shown in (0.0, 1.0) and point.rpartition("/")[2] in PRESENCE:
+        shown = bool(shown)  # on and off, as the history keeps them
+    return Envelope.model_validate(
+        {
+            "point": point,
+            "value": shown,
+            "t_observed": seen,
+            "t_received": seen,
+            "quality": quality,
+            "source": "measured",
+        }
+    )
 
 
 def _units(described: dict[str, Described]) -> dict[Key, str | None]:

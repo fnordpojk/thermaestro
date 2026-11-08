@@ -41,7 +41,7 @@ from .store import Database
 if TYPE_CHECKING:
     from .intents import Intents
     from .learn import Learnings
-    from .learn.hotwater import HotWater
+    from .learn.hotwater import HotWater, TankKeys
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,10 @@ GAP_S = 3 * TICK_S
 DRAWS_EVERY_S = 300.0
 """How often the tank's readings are searched for draws."""
 DRAWS_LOOK_S = 2 * 86_400.0
-"""How far back the search reads, for the tank's quiet noise and standing loss."""
+"""How far back the tank's quiet noise and standing loss are measured."""
+MEASURE_EVERY_S = 6 * 3600.0
+DRAWS_SCAN_S = 6 * 3600.0
+"""How far back each search for draws reads: a draw takes well under this."""
 QUIET_S = 12 * 3600.0
 QUIET_ONE_S = 24 * 3600.0
 SPREAD_S = 30 * 60.0
@@ -128,7 +131,11 @@ class Occupancy:
         """Activity heard since it was last weighed."""
         self._seen_since: float | None = None
         """During an absence: the latest activity, not yet enough to conclude a return."""
+        self._quiet_slot: tuple[float, bool] | None = None
+        self._measured: dict[str, tuple[float, float, float]] = {}
+        """Per tank: when measured, its standing loss and what opens a draw."""
         self._draws_at = 0.0
+        self._draws_state = SourceState(False, "not searched yet")
         self._last_draw: dict[str, float] = {}
         self._presence_at: dict[str, float] = {}
         """Per presence sensor, when it was last seen turning on."""
@@ -137,7 +144,7 @@ class Occupancy:
         isn't."""
         self.sources: dict[str, SourceState] = {}
         self._task: asyncio.Task[None] | None = None
-        values.listeners.append(self._heard)
+        values.listeners.append(self.heard)
 
     # --- starting and stopping -------------------------------------------------------------
 
@@ -164,7 +171,7 @@ class Occupancy:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
         with contextlib.suppress(ValueError):
-            self._values.listeners.remove(self._heard)
+            self._values.listeners.remove(self.heard)
 
     async def _run(self) -> None:
         while True:
@@ -186,7 +193,7 @@ class Occupancy:
             if s.quantity in wanted
         ]
 
-    def _heard(self, instance: str, envelope: Envelope) -> None:
+    def heard(self, instance: str, envelope: Envelope) -> None:
         """Presence turning on, as it comes: a sensor may be on for only a moment between
         two weighings. One remembered from before a restart isn't new, nor is one sent again
         unchanged (Home Assistant back, sending every state) with the time it was seen."""
@@ -235,34 +242,39 @@ class Occupancy:
     async def _draws(self, now: float) -> SourceState:
         """New draws from the tank's readings, as activity; whether the tank is read well
         enough to find them."""
-        from .learn import tank
-        from .learn.hotwater import LOSS
 
         if self._hot_water is None:
             return SourceState(False, "no tank")
+        if now - self._draws_at < DRAWS_EVERY_S:
+            return self._draws_state
+        self._draws_at = now
+        self._draws_state = await self._search(now)
+        return self._draws_state
+
+    async def _search(self, now: float) -> SourceState:
+        """Search each tank's readings for draws since the last search; whether they are
+        read well enough to find them: usable, and read within the last hour, without a
+        pause over an hour in the last two (as the history holds them, so a replay judges
+        them as it was then)."""
+        from .learn import tank
+
+        assert self._hot_water is not None  # noqa: S101 - checked by the caller
         tanks = list(self._hot_water.tanks())
         for keys in tanks:
             for key in (keys.top, keys.low, keys.demand):
                 if self._usable is not None and not self._usable(key):
                     return SourceState(False, "the tank's readings aren't usable yet")
-            top_now = self._values.latest.get(keys.top)
-            if top_now is None or top_now.quality != "good":
-                return SourceState(False, "the tank's top isn't read")
-        if now - self._draws_at < DRAWS_EVERY_S:
-            return SourceState(True)
-        self._draws_at = now
         for keys in tanks:
-            since = now - DRAWS_LOOK_S
+            k, opens = await self._measure(keys, now)
+            since = now - DRAWS_SCAN_S
             top = tank.Series(await self._values.history(keys.top, since, now))
             low = tank.Series(await self._values.history(keys.low, since, now))
+            for series in (top, low):
+                if not tank.covers(series.samples, now - 2 * 3600, now):
+                    return SourceState(False, "the tank isn't read")
             demand = await self._values.history(keys.demand, since - 3600, now)
             charges = tank.charges(demand, now, top)
-            hours = tank.steps(top, low, charges, since, now, step=3600)
-            learned = self._learnings.used(LOSS, keys.scope) if self._learnings else None
-            k = float(learned) if isinstance(learned, int | float) else None
-            k = k if k is not None else (tank.loss_rate(hours) or 0.0)
             quarters = tank.steps(top, low, charges, since, now)
-            opens = tank.threshold(quarters, k)
             last = self._last_draw.get(keys.scope, self._started)
             for draw in tank.draws(quarters, k, opens):
                 if draw.at > last:
@@ -270,12 +282,40 @@ class Occupancy:
                     self._last_draw[keys.scope] = max(self._last_draw.get(keys.scope, 0), draw.at)
         return SourceState(True)
 
+    async def _measure(self, keys: "TankKeys", now: float) -> tuple[float, float]:
+        """The tank's standing loss and what opens a draw, from its last two days, as the
+        daily learner finds them: again every `MEASURE_EVERY_S`, as they change slowly."""
+        from .learn import tank
+        from .learn.hotwater import LOSS
+
+        kept = self._measured.get(keys.scope)
+        if kept is not None and now - kept[0] < MEASURE_EVERY_S:
+            return kept[1], kept[2]
+        since = now - DRAWS_LOOK_S
+        top = tank.Series(await self._values.history(keys.top, since, now))
+        low = tank.Series(await self._values.history(keys.low, since, now))
+        demand = await self._values.history(keys.demand, since - 3600, now)
+        charges = tank.charges(demand, now, top)
+        learned = self._learnings.used(LOSS, keys.scope) if self._learnings else None
+        k = float(learned) if isinstance(learned, int | float) else None
+        if k is None:
+            k = tank.loss_rate(tank.steps(top, low, charges, since, now, step=3600)) or 0.0
+        opens = tank.threshold(tank.steps(top, low, charges, since, now), k)
+        self._measured[keys.scope] = (now, k, opens)
+        return k, opens
+
     async def _quiet_hours(self, now: float) -> bool:
+        """Whether the household's quiet hours are in force: asked once a quarter hour."""
         if self._intents is None:
             return False
+        slot = now // 900
+        if self._quiet_slot is not None and self._quiet_slot[0] == slot:
+            return self._quiet_slot[1]
         force = await self._intents.in_force(datetime.fromtimestamp(now, UTC))
         bound = force.bound("quiet", "house")
-        return bound is not None and bound.value is True
+        quiet = bound is not None and bound.value is True
+        self._quiet_slot = (slot, quiet)
+        return quiet
 
     # --- weighing --------------------------------------------------------------------------
 

@@ -29,11 +29,14 @@ thermaestro replay week.jsonl.gz replayed/ --labels hot-water.csv
 
 The replay loads the export into a new database in `replayed/` and steps through it a day at a time: at each day's end, an hour on, it adds what had been recorded by then, judges the inputs and runs every learner with the clock at that moment. The raw readings are kept as long as on the installation (14 days, or `--raw-days`) and older ones folded into 15-minute aggregates, so the learners see what they would have seen; the export's own aggregates come in day by day too. Nothing learns from what came after, so replaying fewer days (`--days 3`) gives the same values for those days. It needs no plugin and touches no device.
 
+Whether anyone was home is weighed as it would have been, minute by minute in between, with the readings added every five minutes and only what had been learned by then (see [Whether anyone is home](setup.md#whether-anyone-is-home)). Each conclusion is written with when what it concluded began, by the evidence, and when it was concluded.
+
 What it writes to `replayed/`:
 
 | file | what |
 |---|---|
-| `audit.json` | the export's SHA-256 and header, the days replayed, each point's coverage (first and last sample, how many, the hours between), and the scorecard's totals |
+| `audit.json` | the export's SHA-256 and header, the days replayed, each point's coverage (first and last sample, how many, the hours between), whether anyone was home as concluded, and the scorecard's totals |
+| `occupancy.jsonl` | whether anyone was home: each conclusion, its state, why, when what it concluded began, when it was concluded, and its details |
 | `learned.jsonl` | every learned value after each day: its state, value, what is used, and why |
 | `learned.json` | what was learned at the end, beside what the installation had learned when it was exported |
 | `inputs.json` | how each input was judged at the end |

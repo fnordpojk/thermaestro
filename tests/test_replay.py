@@ -108,6 +108,13 @@ async def test_the_tank_is_learned_on_replay_and_its_draws_scored(tmp_path: Path
     assert {i["point"]: i["verdict"] for i in inputs}["hp1/dhw/temp.top"] == "usable"
     learned = json.loads((tmp_path / "replayed" / "learned.json").read_text())["replayed"]
     assert "tank.demand@dev:hp1/dhw" in learned
+    # Whether anyone was home, weighed as it would have been: drawn from every day, so
+    # someone was, and never nobody.
+    concluded = [(c["state"], c["why"]) for c in summary["occupancy"]]
+    assert concluded[0] == ("home", "draw")
+    assert ("away", "quiet") not in concluded
+    kept = (tmp_path / "replayed" / "occupancy.jsonl").read_text().splitlines()
+    assert [json.loads(line) for line in kept] == summary["occupancy"]
 
 
 async def test_replaying_fewer_days_gives_the_same_for_those_days(tmp_path: Path) -> None:
@@ -128,6 +135,11 @@ async def test_replaying_fewer_days_gives_the_same_for_those_days(tmp_path: Path
     days = sorted({r["day"] for r in first})  # type: ignore[type-var]
     assert len(days) == 3
     assert [r for r in every if r["day"] in days] == first
+    # Whether anyone was home, too: the same for the days both weighed.
+    all_home = lines(tmp_path / "all" / "occupancy.jsonl")
+    three_home = lines(tmp_path / "three" / "occupancy.jsonl")
+    assert three_home
+    assert all_home[: len(three_home)] == three_home
 
 
 def test_labels_are_read_in_the_houses_time(tmp_path: Path) -> None:
