@@ -305,6 +305,53 @@ async def test_a_state_from_a_plugin_stays_current_while_the_plugin_is_up(db: Da
     assert held("alarm/alarm_panel") == ("disarmed", "good", None)
 
 
+async def test_an_alarm_placed_in_a_room_gives_the_room_its_state(db: Database) -> None:
+    """A state given as a word has no mean: the room has the word its alarms agree on, and
+    is unknown where they disagree, never a good value of nothing."""
+    await db.put(Room(name="Server room"), "server")
+    for id in ("a", "b"):
+        await db.put(
+            Sensor(
+                name=id,
+                source="point",
+                point=f"ha:alarm_control_panel.{id}",
+                quantity="alarm_panel",
+                room="server",
+            ),
+            id,
+        )
+    values = Values(db)
+    hub = SensorHub(db, values, up=lambda instance: True)
+    await hub.load()
+    values.add("ha", envelope("alarm_control_panel.a", "armed_away"))
+    assert site(values, "room.server/alarm_panel") == ("armed_away", "good", None)
+    values.add("ha", envelope("alarm_control_panel.b", "armed_away"))
+    assert site(values, "room.server/alarm_panel") == ("armed_away", "good", None)
+    values.add("ha", envelope("alarm_control_panel.b", "disarmed"))
+    assert site(values, "room.server/alarm_panel") == (None, "unknown", "its sensors disagree")
+
+
+async def test_a_failure_taking_in_a_reading_stays_with_its_sensor(
+    db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whatever goes wrong with a reading is the sensor's failure, never raised into what
+    delivered it: a plugin or the broker would stop with it, and every other sensor too."""
+    await db.put(Sensor(name="Hall", source="mqtt", topic="t/hall", placement="other"), "hall")
+    await db.put(Sensor(name="Shelf", source="point", point="ha:shelf", placement="other"), "shelf")
+    values = Values(db)
+    hub = SensorHub(db, values)
+    await hub.load()
+
+    def broken() -> None:
+        raise RuntimeError("deriving broke")
+
+    monkeypatch.setattr(hub, "_derive", broken)
+    hub.receive_mqtt("t/hall", b"20.5")  # neither raises
+    values.add("ha", envelope("shelf", 21.0))
+    assert values.latest[Key(SENSORS, "hall/temperature")].value == 20.5
+    assert values.latest[Key(SENSORS, "shelf/temperature")].value == 21.0
+
+
 async def test_a_set_limit_wins_up_to_twelve_hours(db: Database) -> None:
     await db.put(
         Sensor(name="Attic", source="mqtt", topic="t/attic", placement="other", freshness_s=86_400),

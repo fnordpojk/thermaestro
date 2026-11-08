@@ -31,9 +31,13 @@ from .. import clock, durations
 from ..cap.model import Envelope, Quality
 from ..cap.vocabulary import ALARM_PANEL, QUANTITIES, STATES
 from ..store import Database, Display, Names, Outdoor, Room, Sensor
+from .events import mark
+from .failures import failures
 from .values import DAY_S, HELD_MAX_S, Key, Values
 
 log = logging.getLogger(__name__)
+
+USING = mark("Taking in a sensor's reading")
 
 SENSORS = "sensors"
 SITE = "site"
@@ -203,7 +207,7 @@ class SensorHub:
         for key, envelope in list(self._values.latest.items()):
             if key.instance not in (SENSORS, SITE):
                 self._heard(key.instance, envelope)
-        self._derive()
+        self._guarded("rooms", self._derive)
 
     def topics(self) -> list[str]:
         return sorted(self._by_topic)
@@ -223,16 +227,20 @@ class SensorHub:
         for id in self._by_topic.get(topic, ()):
             sensor = self.sensors[id]
             value = parse(payload, sensor.json_key)
+            reading: Reading | None = None
             if value is None:
                 why = "the payload isn't a value"
-                self._accept(id, Reading(None, "unknown", why, now, now, not retained))
+                reading = Reading(None, "unknown", why, now, now, not retained)
             elif not retained:
-                self._accept(id, Reading(value, "good", None, now, now))
+                reading = Reading(value, "good", None, now, now)
             else:
                 held = self._readings.get(id)
                 if held is None or held.value != _calibrated(sensor, value):
                     why = "kept by the broker, of unknown age"
-                    self._accept(id, Reading(value, "stale", why, now, now, False))
+                    reading = Reading(value, "stale", why, now, now, False)
+            if reading is not None:
+                taken = reading
+                self._guarded(id, lambda: self._accept(id, taken))  # noqa: B023 - called at once
 
     def _heard(self, instance: str, envelope: Envelope) -> None:
         if instance in (SENSORS, SITE):
@@ -248,9 +256,21 @@ class SensorHub:
                 and isinstance(value, int | float)
             ):
                 value = float(value) / 1000  # kept in kWh, as the quantity is
-            self._accept(id, Reading(value, envelope.quality, envelope.why, t, now))
+            reading = Reading(value, envelope.quality, envelope.why, t, now)
+            self._guarded(id, lambda: self._accept(id, reading))  # noqa: B023 - called at once
         if not ids and envelope.point.endswith("/outdoor.temp"):
-            self._derive()  # the default outdoor reference
+            self._guarded("outdoor", self._derive)  # the default outdoor reference
+
+    def _guarded(self, where: str, step: Callable[[], None]) -> None:
+        """Take in a reading, or derive from it: a failure is raised as an event for the
+        sensor, never into what delivered it (a plugin, the broker), which would stop with
+        it and take every other sensor down too."""
+        try:
+            step()
+        except Exception as e:  # noqa: BLE001 - logged and raised as an event
+            failures.failed(f"sensors:{where}", USING, e, where=where, logger=log)
+            return
+        failures.worked(f"sensors:{where}")
 
     def _accept(self, id: str, reading: Reading) -> None:
         sensor = self.sensors[id]
@@ -416,9 +436,16 @@ class SensorHub:
             self._put(f"{node}/{quantity}", quantity, any(bool(v) for v in values), "good", None, t)
         else:
             numbers = [float(v) for v in values if isinstance(v, int | float)]
-            mean = sum(numbers) / len(numbers) if numbers else None
-            how = None if len(numbers) == 1 else f"mean of {len(numbers)} sensors"
-            self._put(f"{node}/{quantity}", quantity, mean, "good", how, t)
+            words = {v for v in values if isinstance(v, str)}
+            if numbers:
+                mean = sum(numbers) / len(numbers)
+                how = None if len(numbers) == 1 else f"mean of {len(numbers)} sensors"
+                self._put(f"{node}/{quantity}", quantity, mean, "good", how, t)
+            elif len(words) == 1:  # a state given as a word, as an alarm's: the one they give
+                self._put(f"{node}/{quantity}", quantity, words.pop(), "good", None, t)
+            else:
+                why = "its sensors disagree" if words else "no value to take a mean of"
+                self._put(f"{node}/{quantity}", quantity, None, "unknown", why, t)
 
     def _outdoor_references(self) -> dict[str, tuple[Value, Quality, str | None, float]]:
         out: dict[str, tuple[Value, Quality, str | None, float]] = {}
