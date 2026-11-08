@@ -146,6 +146,9 @@ class SensorHub:
         self._clock = clock
         self._source_up = up
         """Whether a plugin instance is up now; without it, every source counts as up."""
+        self._cut_off: set[str] = set()
+        """States shown stale only because their plugin was down: current again once it is
+        up, whether or not the plugin sends them again."""
         self.sensors: dict[str, Sensor] = {}
         self.rooms: dict[str, Room] = {}
         self.outdoor = Outdoor()
@@ -315,10 +318,11 @@ class SensorHub:
         return min(max(learned, DEFAULT_FRESHNESS_S), MAX_FRESHNESS_S), True
 
     def tick(self) -> None:
-        """Mark sensors that have gone quiet as stale; call regularly."""
+        """Mark sensors that have gone quiet as stale, and a state stale only while its
+        plugin was down as current again once it is up; call regularly."""
         changed = False
         for id, reading in self._readings.items():
-            if reading.quality == "good" and self._stale(id, reading):
+            if reading.quality == "good" and (self._stale(id, reading) or id in self._cut_off):
                 changed = True
                 self._publish(id)
         if changed:
@@ -374,10 +378,12 @@ class SensorHub:
             return None
         if reading.quality == "good" and self._stale(id, reading):
             if self._on_change(id):
+                self._cut_off.add(id)
                 why = f"{_source(self.sensors[id])} isn't connected"
             else:
                 why = f"no report for {durations.text(int(self._clock() - reading.received))}"
             return Reading(reading.value, "stale", why, reading.t, reading.received)
+        self._cut_off.discard(id)
         return reading
 
     # --- what goes out ---------------------------------------------------------------------

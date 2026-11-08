@@ -282,7 +282,31 @@ async def test_whether_anyone_is_home_from_home_assistant_through_the_api(
             stop.set()
 
         await asyncio.wait_for(run(lay, stop=stop, factories=discover(), started=started), 60)
-    assert [(a["state"], a["why"]) for a in answers] == [("away", "alarm"), ("home", "disarmed")]
+        assert [(a["state"], a["why"]) for a in answers] == [
+            ("away", "alarm"),
+            ("home", "disarmed"),
+        ]
+
+        # Started again: the sensors' last readings are remembered, and Home Assistant,
+        # once connected, sends the same states again. They are seen, not left stale.
+        stop = asyncio.Event()
+        seen: list[object] = []
+
+        async def again(core: Core) -> None:
+            async with httpx.AsyncClient() as client, asyncio.timeout(20):
+                while True:
+                    found = await answer(client)
+                    seen.append(found["sources"])
+                    if all(s["known"] for s in found["sources"]):  # type: ignore[attr-defined]
+                        break
+                    await asyncio.sleep(0.1)
+            stop.set()
+
+        await asyncio.wait_for(run(lay, stop=stop, factories=discover(), started=again), 60)
+    assert seen[-1] == [
+        {"source": "alarm", "known": True, "why": None},
+        {"source": "presence", "known": True, "why": None},
+    ]
 
 
 async def test_the_status_command_reads_through_the_api(tmp_path: Path) -> None:

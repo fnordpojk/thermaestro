@@ -305,6 +305,39 @@ async def test_a_state_from_a_plugin_stays_current_while_the_plugin_is_up(db: Da
     assert held("alarm/alarm_panel") == ("disarmed", "good", None)
 
 
+async def test_a_state_stale_while_its_plugin_started_is_current_once_it_is_up(
+    db: Database,
+) -> None:
+    """At a start the last reading is given again while the plugin isn't up yet, so it is
+    stale; once the plugin is up it is current again, whether or not the plugin sends it."""
+    await db.put(
+        Sensor(
+            name="Alarm",
+            source="point",
+            point="ha:alarm_control_panel.house",
+            quantity="alarm_panel",
+            placement="other",
+        ),
+        "alarm",
+    )
+    values = Values(db)
+    up = {"ha": True}
+    hub = SensorHub(db, values, clock=Clock(), up=lambda instance: up.get(instance, False))
+    await hub.load()
+    values.add("ha", envelope("alarm_control_panel.house", "armed_away"))
+    await values.flush()
+    up["ha"] = False  # Thermaestro started again, the plugin not up yet
+    again_values = Values(db)
+    again = SensorHub(db, again_values, clock=Clock(), up=lambda instance: up.get(instance, False))
+    await again.load()
+    held = again_values.latest[Key(SENSORS, "alarm/alarm_panel")]
+    assert (held.value, held.quality) == ("armed_away", "stale")
+    up["ha"] = True  # up, and nothing sent again yet
+    again.tick()
+    held = again_values.latest[Key(SENSORS, "alarm/alarm_panel")]
+    assert (held.value, held.quality, held.why) == ("armed_away", "good", None)
+
+
 async def test_an_alarm_placed_in_a_room_gives_the_room_its_state(db: Database) -> None:
     """A state given as a word has no mean: the room has the word its alarms agree on, and
     is unknown where they disagree, never a good value of nothing."""
