@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from ..auth import AccountError
-from ..cap.vocabulary import QUANTITIES, STATES
+from ..cap.vocabulary import ALARM_PANEL, QUANTITIES, STATES
 from ..store import Plugin
 from .app import action, caller, local_path, services
 from .operations import Caller
@@ -21,7 +21,9 @@ router = APIRouter(default_response_class=HTMLResponse)
 Logged = Annotated[Caller, Depends(caller)]
 
 ROOM_QUANTITIES = ("heat_demand", "setpoint", "zone.open", "window.open")
-SENSOR_QUANTITIES = (*QUANTITIES, *ROOM_QUANTITIES, *sorted(STATES))
+SENSOR_QUANTITIES = (*QUANTITIES, *ROOM_QUANTITIES, *sorted(STATES), ALARM_PANEL)
+"""What a sensor may measure: every kind a sensor can be made of, so its form shows its own
+(one missing is shown as the first, and saved as it)."""
 MQTT_PASSWORD = "mqtt.password"  # noqa: S105 - the name of the secret, not the secret
 
 

@@ -111,6 +111,24 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
         assert sensor.room is None
 
 
+async def test_an_alarms_form_shows_it_as_an_alarm(site: Site) -> None:
+    """Every kind a sensor can be made of is offered, so its form shows its own: one not
+    offered was shown as the first, Temperature, and saved as it."""
+    await site.services.db.put(
+        Sensor(
+            name="House alarm",
+            source="point",
+            point="homeassistant:ha/x.homeassistant.alarm_control_panel.house",
+            quantity="alarm_panel",
+            placement="other",
+        ),
+        "alarm",
+    )
+    async with logged_in(site) as client:
+        page = (await client.get("/setup/sensors")).text
+    assert re.search(r'<option value="alarm_panel" selected>Alarm</option>', page)
+
+
 async def test_room_cards_leave_out_what_is_derived(site: Site) -> None:
     """Dew point and absolute humidity, worked out from a room's temperature and humidity,
     are kept and in the API, but not on the overview's room card."""

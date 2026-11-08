@@ -331,6 +331,26 @@ async def test_an_alarm_placed_in_a_room_gives_the_room_its_state(db: Database) 
     assert site(values, "room.server/alarm_panel") == (None, "unknown", "its sensors disagree")
 
 
+async def test_words_are_no_on_off_value_for_a_room(db: Database) -> None:
+    """An alarm set to measure presence gives words: not on, as any word would be taken."""
+    await db.put(Room(name="Hall"), "hall")
+    await db.put(
+        Sensor(
+            name="Alarm",
+            source="point",
+            point="ha:alarm_control_panel.house",
+            quantity="presence",
+            room="hall",
+        ),
+        "alarm",
+    )
+    values = Values(db)
+    hub = SensorHub(db, values, up=lambda instance: True)
+    await hub.load()
+    values.add("ha", envelope("alarm_control_panel.house", "disarmed"))
+    assert site(values, "room.hall/presence") == (None, "unknown", "no on/off value")
+
+
 async def test_a_failure_taking_in_a_reading_stays_with_its_sensor(
     db: Database, monkeypatch: pytest.MonkeyPatch
 ) -> None:

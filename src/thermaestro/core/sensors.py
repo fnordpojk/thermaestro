@@ -433,7 +433,11 @@ class SensorHub:
         values = [r.value for _, r in good]
         t = max(r.t for _, r in good)
         if quantity in ANY_OPEN or all(isinstance(v, bool) for v in values):
-            self._put(f"{node}/{quantity}", quantity, any(bool(v) for v in values), "good", None, t)
+            states = [v for v in values if isinstance(v, bool)]
+            if states:
+                self._put(f"{node}/{quantity}", quantity, any(states), "good", None, t)
+            else:  # words, as an alarm set to measure presence gives: not on or off
+                self._put(f"{node}/{quantity}", quantity, None, "unknown", "no on/off value", t)
         else:
             numbers = [float(v) for v in values if isinstance(v, int | float)]
             words = {v for v in values if isinstance(v, str)}
