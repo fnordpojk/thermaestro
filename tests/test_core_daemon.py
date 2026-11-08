@@ -11,6 +11,7 @@ from contextlib import closing
 from pathlib import Path
 
 import httpx
+import pytest
 from capfake import FakePump
 from leverfake import LeverDevice
 
@@ -188,6 +189,100 @@ async def test_the_command_stops_cleanly_on_sigterm(tmp_path: Path) -> None:
             process.kill()
             await process.wait()
     assert audit_whats(lay.state)[-1] == "core.stop"
+
+
+async def test_whether_anyone_is_home_from_home_assistant_through_the_api(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """As a household sets it up: an alarm and a sofa sensor from Home Assistant, added as
+    sensors. The running core weighs them, and the API says what it concluded."""
+    from hafake import TOKEN, FakeHomeAssistant, running
+
+    import thermaestro.occupancy
+    from thermaestro.auth import Accounts, Principal
+    from thermaestro.core import AuditLog
+    from thermaestro.core.plugins import discover
+    from thermaestro.store import SecretStore, Sensor
+
+    monkeypatch.setattr(thermaestro.occupancy, "TICK_S", 0.1)
+    lay = layout(tmp_path)
+    http_port, _ = ports(lay)
+    lay.state.mkdir(mode=0o700)
+    fake = FakeHomeAssistant()
+    fake.set("alarm_control_panel.house", "disarmed", friendly_name="House alarm")
+    fake.set("binary_sensor.sofa", "off", device_class="occupancy", friendly_name="Sofa")
+    own = "homeassistant:ha/x.homeassistant."
+    async with running(fake) as url:
+        await SecretStore(lay.secrets).set("ha.token", TOKEN)
+        async with await Database.open(lay.database) as db:
+            entities = ["alarm_control_panel.house", "binary_sensor.sofa"]
+            await db.put(
+                Plugin(
+                    plugin="homeassistant",
+                    settings={"url": url, "token": "ha.token", "entities": entities},
+                ),
+                "homeassistant",
+            )
+            await db.put(
+                Sensor(
+                    name="House alarm",
+                    source="point",
+                    point=f"{own}alarm_control_panel.house",
+                    quantity="alarm_panel",
+                    placement="other",
+                ),
+                "house-alarm",
+            )
+            await db.put(
+                Sensor(
+                    name="Sofa",
+                    source="point",
+                    point=f"{own}binary_sensor.sofa",
+                    quantity="occupancy",
+                    placement="other",
+                ),
+                "sofa",
+            )
+            accounts = Accounts(db, AuditLog(lay.audit))
+            await accounts.set_group("Readers", ["points.read", "tokens.own"], by="cli")
+            anna = await accounts.create_user(
+                "anna", "correct horse battery staple", ["Readers"], by="cli"
+            )
+            token = await accounts.create_token(Principal(anna), "cli", ["points.read"])
+        stop = asyncio.Event()
+        answers: list[dict[str, object]] = []
+
+        async def answer(client: httpx.AsyncClient) -> dict[str, object]:
+            found = await client.get(
+                f"http://127.0.0.1:{http_port}/api/v1/occupancy",
+                headers={"authorization": f"Bearer {token}"},
+            )
+            assert found.status_code == 200
+            body: dict[str, object] = found.json()
+            return body
+
+        async def started(core: Core) -> None:
+            async with httpx.AsyncClient() as client:
+                async with asyncio.timeout(20):
+                    while (await answer(client))["sources"] != [
+                        {"source": "alarm", "known": True, "why": None},
+                        {"source": "presence", "known": True, "why": None},
+                    ]:
+                        await asyncio.sleep(0.1)
+                await fake.change("alarm_control_panel.house", "armed_away")
+                async with asyncio.timeout(10):
+                    while (await answer(client))["state"] != "away":
+                        await asyncio.sleep(0.1)
+                answers.append(await answer(client))
+                await fake.change("alarm_control_panel.house", "disarmed")
+                async with asyncio.timeout(10):
+                    while (await answer(client))["state"] != "home":
+                        await asyncio.sleep(0.1)
+                answers.append(await answer(client))
+            stop.set()
+
+        await asyncio.wait_for(run(lay, stop=stop, factories=discover(), started=started), 60)
+    assert [(a["state"], a["why"]) for a in answers] == [("away", "alarm"), ("home", "disarmed")]
 
 
 async def test_the_status_command_reads_through_the_api(tmp_path: Path) -> None:

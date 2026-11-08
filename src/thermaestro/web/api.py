@@ -131,6 +131,13 @@ async def status(request: Request, who: Logged) -> list[dict[str, Any]]:
     return services(request).status(who)
 
 
+@router.get("/occupancy")
+@action("occupancy")
+async def occupancy(request: Request, who: Logged) -> dict[str, Any] | None:
+    """Whether anyone is home, as concluded; nothing acts on it yet."""
+    return services(request).occupancy_now(who)
+
+
 @router.get("/history/{instance}/{point:path}")
 @action("history")
 async def history(

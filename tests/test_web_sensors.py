@@ -19,6 +19,7 @@ from thermaestro.core import AuditLog
 from thermaestro.core.host import Instance, PluginHost, State
 from thermaestro.core.sensors import SITE, SensorHub
 from thermaestro.core.values import Key, Values
+from thermaestro.occupancy import Conclusion, Occupancy, SourceState
 from thermaestro.store import Database, Names, Plugin, Room, SecretStore, Sensor
 from thermaestro.web import Services, create_app
 
@@ -111,6 +112,34 @@ async def test_rooms_and_their_sensors(site: Site) -> None:
         sensor = await site.services.db.get(Sensor, "sofa")
         assert sensor is not None
         assert sensor.room is None
+
+
+async def test_whether_anyone_is_home_is_shown(site: Site) -> None:
+    """On the overview and in the API: what is concluded, why, and each source of evidence
+    with whether it is seen."""
+    hub = site.services.sensors
+    assert hub is not None
+    found = Occupancy(site.services.db, site.services.values, hub)
+    now = datetime.now(UTC).timestamp()
+    found.now = Conclusion("away", now, now - 3600, "alarm")
+    found.sources = {
+        "alarm": SourceState(True),
+        "draws": SourceState(False, "the tank is not read"),
+    }
+    site.services.occupancy = found
+    async with logged_in(site) as client:
+        page = (await client.get("/")).text
+        api = (await client.get("/api/v1/occupancy")).json()
+    assert "Anyone home?" in page
+    assert "Nobody home since" in page
+    assert "the alarm is armed for away" in page
+    assert "Hot water drawn: not known (the tank is not read)" in page
+    assert api["state"] == "away"
+    assert api["why"] == "alarm"
+    assert api["sources"] == [
+        {"source": "alarm", "known": True, "why": None},
+        {"source": "draws", "known": False, "why": "the tank is not read"},
+    ]
 
 
 async def test_an_alarms_form_shows_it_as_an_alarm(site: Site) -> None:

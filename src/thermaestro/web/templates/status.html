@@ -30,6 +30,17 @@
 {% endif %}
 {# Asking for a while needs something to control: a climate system or a tank. After a
    restart they come once the pump has been read, and the page's refresh brings them. #}
+{% if occupancy %}
+<section class="card occupancy">
+  <h2>{{ _("Anyone home?") }}</h2>
+  <p>{{ labels.occupancy(occupancy) }}</p>
+  {% if occupancy.seen_since %}<p>{{ _("Activity at %(at)s, not yet enough to say someone is back.", at=occupancy.seen_since | when) }}</p>{% endif %}
+  {% if occupancy.sources %}<ul class="plain">
+    {% for s in occupancy.sources %}<li>{{ labels.occupancy_source(s.source) }}: {% if s.known %}{{ _("seen") }}{% else %}{{ _("not known") }}{% if s.why %} ({{ s.why }}){% endif %}{% endif %}</li>{% endfor %}
+  </ul>{% endif %}
+  <p class="hint">{{ _("Shown only; Thermaestro doesn't plan with it yet.") }}</p>
+</section>
+{% endif %}
 {% if asking and (asking.scopes.systems or asking.scopes.tanks) %}
 <section class="card asking">
   <h2><a href="/intents">{{ _("Ask for a while") }}</a></h2>

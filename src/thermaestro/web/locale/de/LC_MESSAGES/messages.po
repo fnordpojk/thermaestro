@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 01:02+0100\n"
+"POT-Creation-Date: 2026-11-08 02:45+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -526,6 +526,10 @@ msgstr "Über das Haus"
 msgid "Absolute humidity"
 msgstr "Absolute Luftfeuchte"
 
+#, python-format
+msgid "Activity at %(at)s, not yet enough to say someone is back."
+msgstr "Bewegung um %(at)s, noch nicht genug, um zu sagen, dass jemand zurück ist."
+
 msgid "Add"
 msgstr "Hinzufügen"
 
@@ -639,6 +643,9 @@ msgstr "Ein anderer Preis"
 
 msgid "Answering the API"
 msgstr "Die Antwort der API"
+
+msgid "Anyone home?"
+msgstr "Jemand zu Hause?"
 
 msgid "Area"
 msgstr "Bereich"
@@ -1434,6 +1441,9 @@ msgstr "Warmwasser bis"
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr "Warmwasser auf seine niedrigste Temperatur, und das Haus zur Rückkehr wieder bereit."
 
+msgid "Hot water drawn"
+msgstr "Gezapftes Warmwasser"
+
 msgid "Hot water drawn, through the week"
 msgstr "Gezapftes Warmwasser, über die Woche"
 
@@ -2083,6 +2093,16 @@ msgstr ""
 msgid "No values in this period."
 msgstr "Keine Werte in diesem Zeitraum."
 
+#, python-format
+msgid "Nobody home since %(began)s: the alarm is armed for away."
+msgstr "Niemand zu Hause seit %(began)s: die Alarmanlage ist für Abwesenheit scharf."
+
+#, python-format
+msgid "Nobody home since about %(began)s: no sign of anyone for %(hours)s hours."
+msgstr ""
+"Niemand zu Hause seit etwa %(began)s: seit %(hours)s Stunden kein Zeichen von "
+"jemandem."
+
 msgid "None given: power counts at all times."
 msgstr "Nichts angegeben: die Leistung zählt zu jeder Zeit."
 
@@ -2107,6 +2127,14 @@ msgstr "Nicht in teuren Stunden"
 
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Nicht gut genug bekannt, um an dieser Pumpe unbeaufsichtigt geändert zu werden."
+
+msgid "Not known yet: Thermaestro has only just started weighing the evidence."
+msgstr "Noch nicht bekannt: Thermaestro hat eben erst begonnen, die Anzeichen abzuwägen."
+
+msgid "Not known: there is no alarm, presence sensor or hot-water tank to tell it by."
+msgstr ""
+"Nicht bekannt: Es gibt keine Alarmanlage, keinen Präsenzsensor und keinen "
+"Warmwasserspeicher, an dem es sich zeigt."
 
 msgid "Not learned yet"
 msgstr "Noch nicht gelernt"
@@ -2436,6 +2464,9 @@ msgstr "Leistung ins Netz"
 
 msgid "Precipitation"
 msgstr "Niederschlag"
+
+msgid "Presence sensors"
+msgstr "Präsenzsensoren"
 
 msgid "Price"
 msgstr "Preis"
@@ -2798,6 +2829,9 @@ msgstr "Die Netzbetreiber zeigen"
 msgid "Showing a page"
 msgstr "Das Anzeigen einer Seite"
 
+msgid "Shown only; Thermaestro doesn't plan with it yet."
+msgstr "Nur angezeigt; Thermaestro plant noch nicht damit."
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr "Nur angezeigt; Thermaestro plant nicht damit."
 
@@ -2815,6 +2849,21 @@ msgstr "Das Lösen des Problems des Optimierers"
 
 msgid "Someone home"
 msgstr "Jemand zu Hause"
+
+#, python-format
+msgid "Someone home: activity for half an hour from %(began)s."
+msgstr "Jemand zu Hause: Bewegung eine halbe Stunde lang ab %(began)s."
+
+#, python-format
+msgid "Someone home: hot water was drawn at %(at)s."
+msgstr "Jemand zu Hause: um %(at)s wurde Warmwasser gezapft."
+
+msgid "Someone home: the alarm is armed for the night, or with someone home."
+msgstr "Jemand zu Hause: die Alarmanlage ist für die Nacht scharf, oder mit jemandem zu Hause."
+
+#, python-format
+msgid "Someone home: the alarm was disarmed at %(at)s."
+msgstr "Jemand zu Hause: die Alarmanlage wurde um %(at)s unscharf geschaltet."
 
 #, python-format
 msgid ""
@@ -2942,6 +2991,9 @@ msgstr "Der Zuheizer wurde in der letzten Woche nicht laufend gesehen."
 
 msgid "The addition, the pool, a power limit, quiet hours"
 msgstr "Der Zuheizer, der Pool, eine Leistungsgrenze, Ruhezeiten"
+
+msgid "The alarm"
+msgstr "Die Alarmanlage"
 
 msgid ""
 "The annual mean temperature and how far the warmest month's mean is from the "
@@ -3515,6 +3567,9 @@ msgstr "Wetter"
 msgid "Weather entity"
 msgstr "Wetter-Entität"
 
+msgid "Weighing whether anyone is home"
+msgstr "Abwägen, ob jemand zu Hause ist"
+
 msgid "Well insulated"
 msgstr "Gut gedämmt"
 
@@ -3647,6 +3702,9 @@ msgstr "Wo der Wert nicht gültig war, wird der letzte gültige in Grau weiterge
 
 msgid "Where you're logged in"
 msgstr "Wo Sie angemeldet sind"
+
+msgid "Whether anyone is home"
+msgstr "Ob jemand zu Hause ist"
 
 msgid ""
 "Which outdoor sensor counts for each quantity: forecasts are checked against it, and "
@@ -4534,6 +4592,9 @@ msgstr "Geräte, Werte und ihren Verlauf sehen"
 
 msgid "see the installation's settings"
 msgstr "die Einstellungen der Installation sehen"
+
+msgid "seen"
+msgstr "sichtbar"
 
 msgid "seen in its answers"
 msgstr "in seinen Antworten gesehen"

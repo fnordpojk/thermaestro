@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from ..core.executor import Executor
     from ..intents import Intents
     from ..learn import Learning
+    from ..occupancy import Occupancy
     from ..planner import Planner
     from .notifications import Notifier
 
@@ -125,6 +126,7 @@ class Services(
     planner: "Planner | None" = None
     learning: "Learning | None" = None
     notifier: "Notifier | None" = None
+    occupancy: "Occupancy | None" = None
 
     async def load_zone(self) -> None:
         location = await self.db.get(Location)
@@ -136,6 +138,28 @@ class Services(
             self._require_confirmed(caller)
 
     # --- status --------------------------------------------------------------------------
+
+    def occupancy_now(self, caller: Caller) -> dict[str, Any] | None:
+        """Whether anyone is home, as concluded: `state` (home, away, unknown), `why`, when
+        what it concludes `began` and when it was `concluded` (seconds since the epoch),
+        `args`, any activity `seen_since` during an absence, and each source of evidence
+        with whether it is `known` and why not. None where nothing weighs it."""
+        caller.principal.require("points.read")
+        if self.occupancy is None:
+            return None
+        found = self.occupancy.now
+        return {
+            "state": found.state,
+            "why": found.why,
+            "began": found.began,
+            "concluded": found.concluded,
+            "args": dict(found.args),
+            "seen_since": self.occupancy.seen_since,
+            "sources": [
+                {"source": name, "known": s.known, "why": s.why}
+                for name, s in self.occupancy.sources.items()
+            ],
+        }
 
     def status(self, caller: Caller) -> list[dict[str, Any]]:
         """Every plugin instance, its state and health, and its points' latest values."""

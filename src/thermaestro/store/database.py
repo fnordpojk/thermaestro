@@ -462,6 +462,18 @@ MIGRATIONS: tuple[str, ...] = (
             || 'since to judge it again.'
       AND json_type(body, '$.proved') IS NULL;
     """,
+    # 32: whether anyone is home, as concluded from the evidence: each conclusion, kept
+    """
+    CREATE TABLE IF NOT EXISTS occupancy (
+        id INTEGER PRIMARY KEY,
+        concluded REAL NOT NULL,
+        began REAL,
+        state TEXT NOT NULL CHECK (state IN ('home', 'away', 'unknown')),
+        why TEXT NOT NULL,
+        args TEXT NOT NULL CHECK (json_valid(args))
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS occupancy_by_time ON occupancy (concluded);
+    """,
 )
 VERSION = len(MIGRATIONS)
 

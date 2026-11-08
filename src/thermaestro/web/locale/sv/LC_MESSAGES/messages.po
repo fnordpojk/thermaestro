@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 01:02+0100\n"
+"POT-Creation-Date: 2026-11-08 02:45+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -516,6 +516,10 @@ msgstr "Om huset"
 msgid "Absolute humidity"
 msgstr "Absolut luftfuktighet"
 
+#, python-format
+msgid "Activity at %(at)s, not yet enough to say someone is back."
+msgstr "Rörelse kl. %(at)s, inte nog för att säga att någon är tillbaka."
+
 msgid "Add"
 msgstr "Lägg till"
 
@@ -628,6 +632,9 @@ msgstr "Ett annat pris"
 
 msgid "Answering the API"
 msgstr "Svaret från API:t"
+
+msgid "Anyone home?"
+msgstr "Någon hemma?"
 
 msgid "Area"
 msgstr "Område"
@@ -1408,6 +1415,9 @@ msgstr "Varmvatten till"
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr "Varmvattnet ner till sin lägsta temperatur, och huset klart igen till hemkomsten."
 
+msgid "Hot water drawn"
+msgstr "Tappat varmvatten"
+
 msgid "Hot water drawn, through the week"
 msgstr "Tappat varmvatten, veckan igenom"
 
@@ -2047,6 +2057,14 @@ msgstr "Ingen källa ger priser än. Välj källa för ditt elområdes spotpris 
 msgid "No values in this period."
 msgstr "Inga värden under den här perioden."
 
+#, python-format
+msgid "Nobody home since %(began)s: the alarm is armed for away."
+msgstr "Ingen hemma sedan %(began)s: larmet är tillkopplat för borta."
+
+#, python-format
+msgid "Nobody home since about %(began)s: no sign of anyone for %(hours)s hours."
+msgstr "Ingen hemma sedan ungefär %(began)s: inga tecken på någon på %(hours)s timmar."
+
 msgid "None given: power counts at all times."
 msgstr "Inget angivet: effekten räknas hela tiden."
 
@@ -2071,6 +2089,14 @@ msgstr "Inte under dyra timmar"
 
 msgid "Not known well enough to be changed unattended on this pump."
 msgstr "Inte tillräckligt känd för att ändras utan tillsyn på den här pumpen."
+
+msgid "Not known yet: Thermaestro has only just started weighing the evidence."
+msgstr "Inte känt än: Thermaestro har just börjat väga det som syns."
+
+msgid "Not known: there is no alarm, presence sensor or hot-water tank to tell it by."
+msgstr ""
+"Inte känt: det finns inget larm, ingen närvarogivare och ingen varmvattenberedare att"
+" se det på."
 
 msgid "Not learned yet"
 msgstr "Inte inlärt än"
@@ -2390,6 +2416,9 @@ msgstr "Effekt till nätet"
 
 msgid "Precipitation"
 msgstr "Nederbörd"
+
+msgid "Presence sensors"
+msgstr "Närvarogivare"
 
 msgid "Price"
 msgstr "Pris"
@@ -2752,6 +2781,9 @@ msgstr "Visa elnätsföretagen"
 msgid "Showing a page"
 msgstr "Att visa en sida"
 
+msgid "Shown only; Thermaestro doesn't plan with it yet."
+msgstr "Visas bara; Thermaestro planerar inte med det än."
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr "Visas bara; Thermaestro planerar inte med den."
 
@@ -2769,6 +2801,21 @@ msgstr "Att lösa optimerarens problem"
 
 msgid "Someone home"
 msgstr "Någon hemma"
+
+#, python-format
+msgid "Someone home: activity for half an hour from %(began)s."
+msgstr "Någon hemma: rörelse i en halvtimme från %(began)s."
+
+#, python-format
+msgid "Someone home: hot water was drawn at %(at)s."
+msgstr "Någon hemma: varmvatten tappades kl. %(at)s."
+
+msgid "Someone home: the alarm is armed for the night, or with someone home."
+msgstr "Någon hemma: larmet är tillkopplat för natten, eller med någon hemma."
+
+#, python-format
+msgid "Someone home: the alarm was disarmed at %(at)s."
+msgstr "Någon hemma: larmet kopplades från kl. %(at)s."
 
 #, python-format
 msgid ""
@@ -2895,6 +2942,9 @@ msgstr "Tillsatsen sågs inte gå under den senaste veckan."
 
 msgid "The addition, the pool, a power limit, quiet hours"
 msgstr "Tillsatsen, poolen, en effektgräns, tysta timmar"
+
+msgid "The alarm"
+msgstr "Larmet"
 
 msgid ""
 "The annual mean temperature and how far the warmest month's mean is from the "
@@ -3456,6 +3506,9 @@ msgstr "Väder"
 msgid "Weather entity"
 msgstr "Väderentitet"
 
+msgid "Weighing whether anyone is home"
+msgstr "Att väga om någon är hemma"
+
 msgid "Well insulated"
 msgstr "Välisolerat"
 
@@ -3585,6 +3638,9 @@ msgstr "Där värdet inte var giltigt ritas det senaste giltiga vidare i grått.
 
 msgid "Where you're logged in"
 msgstr "Där du är inloggad"
+
+msgid "Whether anyone is home"
+msgstr "Om någon är hemma"
 
 msgid ""
 "Which outdoor sensor counts for each quantity: forecasts are checked against it, and "
@@ -4451,6 +4507,9 @@ msgstr "se enheter, värden och deras historik"
 
 msgid "see the installation's settings"
 msgstr "se installationens inställningar"
+
+msgid "seen"
+msgstr "syns"
 
 msgid "seen in its answers"
 msgstr "sett i dess svar"

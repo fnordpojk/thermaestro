@@ -38,6 +38,7 @@ router = APIRouter(default_response_class=HTMLResponse)
 # Parts of pages, each built on its own (`failing.Parts`), named as the page heads them.
 AT_A_GLANCE = i18n.mark("The price and weather at a glance")
 ASK_FOR_A_WHILE = i18n.mark("Ask for a while")
+ANYONE_HOME = i18n.mark("Whether anyone is home")
 PLUGINS = i18n.mark("Plugins")
 EVENTS = i18n.mark("The events")
 SUMMARY = i18n.mark("The day before")
@@ -329,9 +330,17 @@ async def status_page(request: Request, who: Logged) -> Response:
         who,
         glance=await parts.get("glance", AT_A_GLANCE, _glance(request, who), {}),
         asking=await parts.get("asking", ASK_FOR_A_WHILE, _asking(request, who), {}),
+        occupancy=await parts.get("occupancy", ANYONE_HOME, _occupancy(request, who), None),
         part=None,
         **_overview(request, who),
     )
+
+
+async def _occupancy(request: Request, who: Caller) -> dict[str, Any] | None:
+    """Whether anyone is home, for those who may see the house's values."""
+    if not who.principal.allows("points.read"):
+        return None
+    return services(request).occupancy_now(who)
 
 
 async def _glance(request: Request, who: Caller) -> dict[str, Any]:

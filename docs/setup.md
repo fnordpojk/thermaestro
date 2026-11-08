@@ -4,7 +4,7 @@ This walks through a new installation: installing it, the first start, and the s
 
 ## What it does today
 
-Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT.
+Thermaestro reads. It connects to a Nibe pump, keeps every value with its quality and its history, and shows them with electricity prices and weather forecasts. It can publish all of it to Home Assistant over MQTT. It also works out whether anyone is home, from an alarm, presence sensors and hot water drawn, and shows it (see [Whether anyone is home](#whether-anyone-is-home)); nothing plans with that yet.
 
 It doesn't change anything on the pump unless told to. Two planners run and decide what each setting should be, the rules and [the optimizer](optimizer.md), but every pump setting starts off. **Setup → Control** switches each one to shadow (decide and show what it would do, change nothing) or control; so does [the API](api.md#levers-and-the-plan). What the household wants goes on the **Intents** page.
 
@@ -326,6 +326,17 @@ Choose NibePi's `config.json` and **Read it**. The page shows what it would make
 Asking answers at once: until when it applies, what it sets aside, and what the house can't do ("no room sensor: normal heat, shifted by price within a bound instead of a band"). Where [the optimizer](optimizer.md) plans it, the answer also says what a plan made with it makes of it: ready by its time, or about how late and how warm the water would be at its time instead ("Ready about 40 minutes late, at 20:10; or 46 °C at 19:30"), a room that won't reach its band and how warm it will be, another request that gives way for it, and that the plan firms up once tomorrow's prices are out. The answer is in your language. The household's group may ask for things for a while; changing what always applies needs more rights ([the rights](api.md#rights)).
 
 Where [the optimizer](optimizer.md) plans an intent, its state says how it stands in the plan: **at risk** where the plan expects a miss (a room below its band for an hour or more, once its heat has had time to show, or the hot water short at a deadline), **giving way** where the miss is a higher-ranked goal's doing, named ("Gives way to comfort: the plan has the hot water at 46 °C at 19:30, short of 50 °C"). A bath is judged at its time: met if the water is hot enough then, and until then the plan keeps it so, however early it got there; not hot by then, it is met once it is, or missed an hour after. An intent that has ended keeps what came of it: a bath missed says how warm the water was at its latest, and warmer, guests or away whether its rooms kept their band, and if not, for how many minutes they didn't.
+
+## Whether anyone is home
+
+The overview says whether anyone seems to be home, why, and since when, from what the house shows. Nothing plans with it yet, and **Away** on the Intents page stays what the household asked, whatever this says.
+
+- **A burglar alarm** in Home Assistant, added as a sensor measuring Alarm: armed for away, or vacation, is nobody home at once; armed for the night, or with someone home, is someone home; disarmed or set off is someone there. While it is armed for away, a presence sensor or hot water drawn doesn't end the absence (a pet; a person would have set the alarm off). A short gap in what is known of it, such as Home Assistant restarting, doesn't end it either, if the alarm is still armed for away once known again; hot water drawn meanwhile does.
+- **Presence, occupancy and motion sensors:** one turning on is activity, for a moment. Activity spread over half an hour is someone home.
+- **Hot water drawn**, from the tank's readings once they are usable (see Learned): someone home.
+- **Nobody home from quiet:** 12 hours in which every source above was seen and showed nothing, the household's quiet hours not counted; 24 hours where the house has only one of them. A source not seen (Home Assistant away, a sensor unavailable, Thermaestro stopped) starts the count again: no sign of anyone isn't a sign of nobody, unless everything that could show someone was seen.
+
+Each source is listed under it, with whether it is seen. The same is in [the API](api.md#endpoints) (`GET /occupancy`).
 
 ## What Thermaestro decides: the Plan page
 

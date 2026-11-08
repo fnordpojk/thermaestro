@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-08 01:02+0100\n"
+"POT-Creation-Date: 2026-11-08 02:45+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -494,6 +494,10 @@ msgstr ""
 msgid "Absolute humidity"
 msgstr ""
 
+#, python-format
+msgid "Activity at %(at)s, not yet enough to say someone is back."
+msgstr ""
+
 msgid "Add"
 msgstr ""
 
@@ -600,6 +604,9 @@ msgid "Another price"
 msgstr ""
 
 msgid "Answering the API"
+msgstr ""
+
+msgid "Anyone home?"
 msgstr ""
 
 msgid "Area"
@@ -1346,6 +1353,9 @@ msgstr ""
 msgid "Hot water down to its lowest, and the house ready again by the return."
 msgstr ""
 
+msgid "Hot water drawn"
+msgstr ""
+
 msgid "Hot water drawn, through the week"
 msgstr ""
 
@@ -1949,6 +1959,14 @@ msgstr ""
 msgid "No values in this period."
 msgstr ""
 
+#, python-format
+msgid "Nobody home since %(began)s: the alarm is armed for away."
+msgstr ""
+
+#, python-format
+msgid "Nobody home since about %(began)s: no sign of anyone for %(hours)s hours."
+msgstr ""
+
 msgid "None given: power counts at all times."
 msgstr ""
 
@@ -1972,6 +1990,14 @@ msgid "Not in expensive hours"
 msgstr ""
 
 msgid "Not known well enough to be changed unattended on this pump."
+msgstr ""
+
+msgid "Not known yet: Thermaestro has only just started weighing the evidence."
+msgstr ""
+
+msgid ""
+"Not known: there is no alarm, presence sensor or hot-water tank to tell "
+"it by."
 msgstr ""
 
 msgid "Not learned yet"
@@ -2279,6 +2305,9 @@ msgid "Power to the grid"
 msgstr ""
 
 msgid "Precipitation"
+msgstr ""
+
+msgid "Presence sensors"
 msgstr ""
 
 msgid "Price"
@@ -2631,6 +2660,9 @@ msgstr ""
 msgid "Showing a page"
 msgstr ""
 
+msgid "Shown only; Thermaestro doesn't plan with it yet."
+msgstr ""
+
 msgid "Shown only; Thermaestro doesn't plan with it."
 msgstr ""
 
@@ -2647,6 +2679,21 @@ msgid "Solving the optimizer's problem"
 msgstr ""
 
 msgid "Someone home"
+msgstr ""
+
+#, python-format
+msgid "Someone home: activity for half an hour from %(began)s."
+msgstr ""
+
+#, python-format
+msgid "Someone home: hot water was drawn at %(at)s."
+msgstr ""
+
+msgid "Someone home: the alarm is armed for the night, or with someone home."
+msgstr ""
+
+#, python-format
+msgid "Someone home: the alarm was disarmed at %(at)s."
 msgstr ""
 
 #, python-format
@@ -2770,6 +2817,9 @@ msgid "The addition wasn't seen running in the last week."
 msgstr ""
 
 msgid "The addition, the pool, a power limit, quiet hours"
+msgstr ""
+
+msgid "The alarm"
 msgstr ""
 
 msgid ""
@@ -3280,6 +3330,9 @@ msgstr ""
 msgid "Weather entity"
 msgstr ""
 
+msgid "Weighing whether anyone is home"
+msgstr ""
+
 msgid "Well insulated"
 msgstr ""
 
@@ -3395,6 +3448,9 @@ msgid "Where the value wasn't valid, the last valid one is drawn on in gray."
 msgstr ""
 
 msgid "Where you're logged in"
+msgstr ""
+
+msgid "Whether anyone is home"
 msgstr ""
 
 msgid ""
@@ -4252,6 +4308,9 @@ msgid "see devices, values and their history"
 msgstr ""
 
 msgid "see the installation's settings"
+msgstr ""
+
+msgid "seen"
 msgstr ""
 
 msgid "seen in its answers"

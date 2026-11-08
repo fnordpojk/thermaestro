@@ -128,6 +128,7 @@ The setup code is written to a file in the state directory, which only the servi
 | Method and path | Right | Answer |
 |---|---|---|
 | `GET /status` | `points.read` | Every plugin instance: `id`, `plugin`, `state`, `failures`, `last_error`, `health`, and `points`, each with `path`, `label`, `category`, `unit`, `digits`, `value`, `quality`, `why`, `t` |
+| `GET /occupancy` | `points.read` | Whether anyone is home, as concluded (nothing acts on it yet): `state` (`home`, `away`, `unknown`), `why` (`alarm`, `quiet`, `alarm_home`, `disarmed`, `draw`, `activity`, `start`, `no_sources`), `began` (when it began, by the evidence) and `concluded`, in seconds since the epoch, `args`, `seen_since` (activity during an absence, not yet enough for a return), and `sources`, each `source` (`alarm`, `presence`, `draws`), `known` and `why`; `null` where nothing weighs it |
 | `GET /history/{instance}/{point}` | `points.read` | `[{t, value, text, quality}]`. Query: `start`, `end` (epoch seconds; default the last 24 hours), up to 31 days. `point` is the point's path, slashes included. |
 | `GET /daily/{instance}/{point}` | `points.read` | `[{day, min, mean, max}]`: each day's lowest, mean and highest good value, in the house's time zone. Query: `days`, 1 to 400, default 30. |
 | `GET /site` | `points.read` | `{rooms, outdoor, pinned}`: rooms and the outdoors as derived from the sensors |

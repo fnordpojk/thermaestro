@@ -34,6 +34,7 @@ from .weather import Weather
 
 if TYPE_CHECKING:
     from ..learn import Learning
+    from ..occupancy import Occupancy
     from ..planner import Planner
 
 log = logging.getLogger(__name__)
@@ -74,6 +75,8 @@ class Core:
     learning: "Learning"
     events: Events | None = None
     shutdown_hooks: list[ShutdownHook] = field(default_factory=list)
+    occupancy: "Occupancy | None" = None
+    """Whether anyone is home, as concluded; nothing acts on it yet."""
     """Run in order on the way out, before the plugins stop."""
 
 
@@ -142,6 +145,18 @@ async def run(
         )
         intents.final = planner.final_report
         intents.answer = planner.answer
+        from ..occupancy import Occupancy
+
+        occupancy = Occupancy(
+            db,
+            values,
+            sensors,
+            hot_water=learning.hot_water,
+            usable=learning.usable,
+            learnings=learning.learnings,
+            intents=intents,
+        )
+        await occupancy.load()
         core = Core(
             layout,
             startup,
@@ -160,12 +175,14 @@ async def run(
             planner,
             learning,
             events,
+            occupancy=occupancy,
         )
         # The planner stops first, so nothing asks for a change once levers are put back.
         discovery.asker = _mqtt_asker(db, intents)
         discovery.control = _control_state(db, intents)
         core.shutdown_hooks.append(planner.stop)
         core.shutdown_hooks.append(learning.stop)
+        core.shutdown_hooks.append(occupancy.stop)
         core.shutdown_hooks.append(_restore(executor))
         await _serve(core, stop, flush_s, started)
     finally:
@@ -212,6 +229,8 @@ async def _serve(
         stop_web = await start_web(core)
         core.planner.start()
         core.learning.start()
+        if core.occupancy is not None:
+            core.occupancy.start()
         log.info("Thermaestro is running")
         if started is not None:
             await started(core)

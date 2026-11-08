@@ -135,6 +135,7 @@ async def start(core: "Core") -> Callable[[], Awaitable[None]]:
         executor=core.executor,
         planner=core.planner,
         learning=core.learning,
+        occupancy=core.occupancy,
     )
     await services.load_zone()
     notifier = Notifier(core.db, accounts, core.host, core.discovery, lambda: services.zone)

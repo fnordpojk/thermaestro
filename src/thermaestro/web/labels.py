@@ -4,6 +4,7 @@ its plugin gives (a register's title), else its path."""
 
 import re
 from collections.abc import Mapping
+from typing import Any
 
 from . import i18n
 from .i18n import mark
@@ -182,6 +183,46 @@ QUANTITIES = {
 }
 
 SHOWN_ONLY = mark("Shown only; Thermaestro doesn't plan with it.")
+
+OCCUPANCY = {
+    "alarm": mark("Nobody home since %(began)s: the alarm is armed for away."),
+    "quiet": mark("Nobody home since about %(began)s: no sign of anyone for %(hours)s hours."),
+    "alarm_home": mark("Someone home: the alarm is armed for the night, or with someone home."),
+    "disarmed": mark("Someone home: the alarm was disarmed at %(at)s."),
+    "draw": mark("Someone home: hot water was drawn at %(at)s."),
+    "activity": mark("Someone home: activity for half an hour from %(began)s."),
+    "start": mark("Not known yet: Thermaestro has only just started weighing the evidence."),
+    "no_sources": mark(
+        "Not known: there is no alarm, presence sensor or hot-water tank to tell it by."
+    ),
+}
+"""Whether anyone is home, by why it was concluded."""
+OCCUPANCY_SOURCES = {
+    "alarm": mark("The alarm"),
+    "presence": mark("Presence sensors"),
+    "draws": mark("Hot water drawn"),
+}
+
+
+def occupancy(found: dict[str, Any]) -> str:
+    """What was concluded of whether anyone is home, as a sentence."""
+    message = OCCUPANCY.get(found["why"])
+    if message is None:
+        return str(found["state"])
+    args = found.get("args") or {}
+    return i18n._(
+        message,
+        began=i18n.when(found.get("began")),
+        at=i18n.when(args.get("at")),
+        hours=args.get("hours", ""),
+    )
+
+
+def occupancy_source(name: str) -> str:
+    found = OCCUPANCY_SOURCES.get(name)
+    return i18n._(found) if found is not None else name
+
+
 WITHOUT = {
     "temperature": mark("Without it, heat loss and the pump's efficiency can't be planned ahead."),
     "temperature.p10": mark(
