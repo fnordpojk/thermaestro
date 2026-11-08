@@ -36,7 +36,7 @@ from ..cap.messages import Described
 from ..cap.model import Envelope
 from ..cap.vocabulary import ALARM_PANEL, QUANTITIES
 from ..core.audit import AuditLog
-from ..core.sensors import SENSORS, SensorHub
+from ..core.sensors import SENSORS, SensorHub, remembered
 from ..core.values import Key, Values
 from ..core.weather import Forecast, Span
 from ..intents import Intents
@@ -430,24 +430,36 @@ class Weighing:
                 await _feed(self._db, self._t)
                 for key in keys:
                     for s in await self._values.history(key, self._fed, self._t):
-                        envelope = _envelope(key.point, s.t, s.value, s.text, s.quality)
+                        envelope = _envelope(key, s.t, s.value, s.text, s.quality)
                         self._values.latest[key] = envelope
                         self._occupancy.heard(key.instance, envelope)
                 self._fed = self._t
             await self._occupancy.tick(self._t)
 
 
+def _shown(key: Key, value: float | None, text: str | None) -> float | bool | str | None:
+    """A sample as the core holds its point: a sensor's on and off back from the 1 and 0
+    the history keeps, as at a restart; any other point as kept."""
+    if key.instance == SENSORS:
+        return remembered(key.point.rpartition("/")[2], value, text)
+    return value if value is not None else text
+
+
 def _envelope(
-    point: str, t: float, value: float | None, text: str | None, quality: str
+    key: Key,
+    t: float,
+    value: float | None,
+    text: str | None,
+    quality: str,
+    unit: str | None = None,
 ) -> Envelope:
     seen = datetime.fromtimestamp(t, UTC)
-    shown: object = text if text is not None else value
-    if isinstance(shown, float) and shown in (0.0, 1.0) and point.rpartition("/")[2] in PRESENCE:
-        shown = bool(shown)  # on and off, as the history keeps them
+    shown = _shown(key, value, text)
     return Envelope.model_validate(
         {
-            "point": point,
+            "point": key.point,
             "value": shown,
+            "unit": unit if isinstance(shown, float) else None,
             "t_observed": seen,
             "t_received": seen,
             "quality": quality,
@@ -477,18 +489,7 @@ async def _latest(db: Database, units: dict[Key, str | None]) -> dict[Key, Envel
     for instance, point, t, value, text, quality in await db.run(read):
         key = Key(instance, point)
         unit = units.get(key, QUANTITIES.get(point.rpartition("/")[2]))
-        seen = datetime.fromtimestamp(t, UTC)
-        out[key] = Envelope.model_validate(
-            {
-                "point": point,
-                "value": value if value is not None else text,
-                "unit": unit if value is not None else None,
-                "t_observed": seen,
-                "t_received": seen,
-                "quality": quality,
-                "source": "measured",
-            }
-        )
+        out[key] = _envelope(key, t, value, text, quality, unit)
     return out
 
 

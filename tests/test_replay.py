@@ -14,7 +14,7 @@ from thermaestro.cap.model import Delivery, Node, Point, Presence
 from thermaestro.core.values import Key
 from thermaestro.replay import export, replay
 from thermaestro.replay.labels import Label, read_labels
-from thermaestro.store import Database, Home, Location, Plugin
+from thermaestro.store import Database, Home, Location, Plugin, Sensor
 
 KEYS = {
     "top": Key("dev", "hp1/dhw/temp.top"),
@@ -140,6 +140,52 @@ async def test_replaying_fewer_days_gives_the_same_for_those_days(tmp_path: Path
     three_home = lines(tmp_path / "three" / "occupancy.jsonl")
     assert three_home
     assert all_home[: len(three_home)] == three_home
+
+
+async def test_a_sensor_on_for_days_stays_on_through_each_days_learning(tmp_path: Path) -> None:
+    """The sofa on from the start, through three nights, each followed by the learners'
+    run, and off at noon on the fourth day: home all along, and nobody home only twelve
+    quiet hours after it went off, as the core weighs it live. The history keeps on as 1."""
+    start = datetime(2026, 1, 12, tzinfo=UTC).timestamp()
+    off = start + 3.5 * 86_400
+    async with await Database.open(tmp_path / "installation.db") as db:
+        await db.put(Location(latitude=59.3, longitude=18.1, timezone="UTC"))
+        for id, point, quantity in (
+            ("alarm", "ha:alarm_control_panel.house", "alarm_panel"),
+            ("sofa", "ha:binary_sensor.sofa", "occupancy"),
+        ):
+            await db.put(
+                Sensor(name=id, source="point", point=point, quantity=quantity, placement="other"),
+                id,
+            )
+        rows = [
+            ("sensors", "alarm/alarm_panel", start + 60, None, "disarmed", "good"),
+            ("sensors", "sofa/occupancy", start + 60, 1.0, None, "good"),
+            ("sensors", "sofa/occupancy", off, 0.0, None, "good"),
+        ]
+        await db.run(
+            lambda t: t.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        )
+        recorded = tmp_path / "sofa.jsonl.gz"
+        await export(db, recorded, start, start + 6 * 86_400)
+    summary = await replay(recorded, tmp_path / "replayed")
+    assert len(summary["days"]) == 4  # a learners' run after each of four nights
+    kept = [
+        json.loads(line)
+        for line in (tmp_path / "replayed" / "occupancy.jsonl").read_text().splitlines()
+    ]
+    assert kept == summary["occupancy"]
+    assert [(c["state"], c["why"]) for c in kept] == [("home", "activity"), ("away", "quiet")]
+    away = kept[1]
+    began = datetime.fromisoformat(away["began"]).timestamp()
+    concluded = datetime.fromisoformat(away["concluded"]).timestamp()
+    # The history goes in every five minutes, so its off is seen within five.
+    assert off - 60 <= began <= off + 300
+    assert off + 12 * 3600 <= concluded <= off + 12 * 3600 + 900
 
 
 def test_labels_are_read_in_the_houses_time(tmp_path: Path) -> None:

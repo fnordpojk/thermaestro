@@ -203,7 +203,7 @@ class SensorHub:
         for id, key in unread.items():
             found = last.get(key)
             if found is not None:
-                value = _remembered(sensors[id].quantity, found.value, found.text)
+                value = remembered(sensors[id].quantity, found.value, found.text)
                 quality = cast(Quality, found.quality)
                 self._readings[id] = Reading(value, quality, None, found.t, found.t, False)
                 self._publish(id)
@@ -574,9 +574,10 @@ def _calibrated(sensor: Sensor, value: Value) -> Value:
     return value
 
 
-def _remembered(quantity: str, value: float | None, text: str | None) -> Value:
-    """A value as the history keeps it, back as the sensor gave it: on and off are kept
-    as 1 and 0."""
+def remembered(quantity: str, value: float | None, text: str | None) -> Value:
+    """A sensor's value as the history keeps it, back as the sensor gave it: on and off are
+    kept as 1 and 0. Whatever reads a sensor's history back (a restart, a replay) reads it
+    through this."""
     if text is not None:
         return text
     if value in (0.0, 1.0) and _unit(quantity) is None:
