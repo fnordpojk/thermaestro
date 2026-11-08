@@ -3,6 +3,7 @@
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from hafake import TOKEN, FakeHomeAssistant, running
 from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, Clock, Site, csrf_of, form
 
 from thermaestro.auth import Accounts, AddressLimiter, SetupCode
+from thermaestro.cap.model import Envelope
 from thermaestro.core import AuditLog
 from thermaestro.core.host import Instance, PluginHost, State
 from thermaestro.core.sensors import SITE, SensorHub
@@ -339,6 +341,91 @@ async def test_choosing_from_home_assistant(site: Site) -> None:
         "bedroom",
     )
     assert TOKEN not in (site.state / "audit" / "audit.jsonl").read_text()
+
+
+async def test_an_alarm_picked_into_a_room_then_saved_from_its_form(site: Site) -> None:
+    """The household's path with an alarm: picked from Home Assistant into a room, its state
+    coming in, then its form opened and saved as shown. The room has the alarm's state, and
+    the alarm stays an alarm."""
+    fake = FakeHomeAssistant()
+    fake.set("alarm_control_panel.verisure_alarm", "armed_away", friendly_name="Verisure Alarm")
+    await site.services.db.put(Room(name="Server room"), "server-room")
+    hub = site.services.sensors
+    assert hub is not None
+    await hub.load()
+    point = "ha/x.homeassistant.alarm_control_panel.verisure_alarm"
+    async with running(fake) as url, logged_in(site) as client:
+        await form(
+            client,
+            "/setup/external",
+            "/settings/homeassistant",
+            id="homeassistant",
+            url=url,
+            token=TOKEN,
+        )
+        page = (
+            await client.get("/sensors/homeassistant/homeassistant/pick", params={"pick": point})
+        ).text
+        n = re.search(r'name="point_(\d+)" value="' + re.escape(point), page)
+        assert n is not None
+        shown = re.search(rf'name="quantity_{n.group(1)}" value="([^"]+)"', page)
+        assert shown is not None
+        assert shown.group(1) == "alarm_panel"
+        picked = await client.post(
+            "/sensors/homeassistant/homeassistant/sensors",
+            data={
+                "csrf": csrf_of(page),
+                "pick": n.group(1),
+                f"entity_{n.group(1)}": "alarm_control_panel.verisure_alarm",
+                f"point_{n.group(1)}": point,
+                f"quantity_{n.group(1)}": shown.group(1),
+                f"name_{n.group(1)}": "Verisure Alarm",
+                f"room_{n.group(1)}": "server-room",
+            },
+        )
+        assert picked.status_code == 303
+        now = datetime.now(UTC)
+        site.services.values.add(
+            "homeassistant",
+            Envelope.model_validate(
+                {
+                    "point": point,
+                    "value": "armed_away",
+                    "t_observed": now,
+                    "t_received": now,
+                    "quality": "good",
+                    "source": "measured",
+                }
+            ),
+        )
+        room = site.services.values.latest[Key(SITE, "room.server-room/alarm_panel")]
+        assert (room.value, room.quality) == ("armed_away", "good")
+        # Its form, saved as the browser shows it.
+        page = (await client.get("/setup/sensors")).text
+        found = re.search(r'action="/sensors/verisure-alarm".*?</form>', page, re.S)
+        assert found is not None
+        selected = re.search(
+            r'<select name="quantity">.*?<option value="([^"]+)" selected>', found.group(0), re.S
+        )
+        assert selected is not None
+        assert selected.group(1) == "alarm_panel"
+        saved = await client.post(
+            "/sensors/verisure-alarm",
+            data={
+                "csrf": csrf_of(page),
+                "source": "point",
+                "point": f"homeassistant:{point}",
+                "name": "Verisure Alarm",
+                "quantity": selected.group(1),
+                "placement": "other",
+                "room": "",
+                "calibration_offset": "0",
+            },
+        )
+        assert saved.status_code == 303
+    sensor = await site.services.db.get(Sensor, "verisure-alarm")
+    assert sensor is not None
+    assert (sensor.quantity, sensor.placement) == ("alarm_panel", "other")
 
 
 async def test_no_home_assistant_token_is_stored_without_the_right_to_connect(
