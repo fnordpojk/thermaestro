@@ -492,6 +492,46 @@ def test_a_revision_4_state_file_is_the_first_granted_clients(tmp_path: Path) ->
     assert pump.writes == []
 
 
+def test_a_revision_4_entry_stays_with_the_client_that_took_it(tmp_path: Path) -> None:
+    """Taken with nothing else changed (the default silence asked), and kept as that
+    client's: after a reboot, another client coming first doesn't get it, and it fires on
+    its own client's silence, not the other's. Taken at once, or after the gateway kept it
+    in today's form, still nobody's."""
+    frame = nibe.write_request(OFFSET, FOUND).hex()
+    entry = {"number": 3, "width": 2, "register": OFFSET, "expected": SET, "frame": frame}
+    for comes in (0, SAVE_EVERY_US // S + 60):
+        state = tmp_path / str(comes) / "deadman.json"
+        state.parent.mkdir()
+        state.write_text(json.dumps({"silence_s": 900, "armed": [entry], "fired": []}))
+        control = make(state)
+        pump = Pump(control, {OFFSET: SET})
+        if comes:
+            pump.run(60 * S, comes * S, step_us=60 * S)
+            assert list(saved(state)) == [""]  # nobody's yet
+        thermaestro = Client(control, A, comes * S, asking())
+        for t in range(comes + 60, comes + SAVE_EVERY_US // S + 120, 60):
+            thermaestro.send(p.Keepalive(), t * S)
+            pump.run(t * S, t * S)
+        assert pump.writes == []
+        assert list(saved(state)) == [THERMAESTRO.hex()], comes
+        restarted = make(state)  # the gateway rebooted
+        rig = Client(restarted, B, 0, asking(), client=RIG)
+        option = p.find(rig.welcome.options, p.Tag.DEADMAN)
+        assert option is not None
+        assert option.unpack() == (900, 16, 0, 0)  # nothing held for the rig
+        back = Client(restarted, C, 1 * S, asking())
+        option = p.find(back.welcome.options, p.Tag.DEADMAN)
+        assert option is not None
+        assert option.unpack() == (900, 16, 1, 0)
+        pump = Pump(restarted, {OFFSET: SET})
+        for t in range(60, 1200, 60):  # the rig silent, Thermaestro talking
+            back.send(p.Keepalive(), t * S)
+            pump.run(t * S, t * S)
+        assert pump.writes == []
+        pump.run(1200 * S, 2100 * S, step_us=60 * S)  # Thermaestro silent too
+        assert pump.writes == [(OFFSET, FOUND)]
+
+
 def test_a_revision_4_state_file_fires_if_nobody_comes(tmp_path: Path) -> None:
     state = tmp_path / "deadman.json"
     frame = nibe.write_request(OFFSET, FOUND).hex()

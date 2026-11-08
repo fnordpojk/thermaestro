@@ -116,6 +116,8 @@ class DeadMan:
                 self._queue = [(client if c == UNOWNED else c, e) for c, e in self._queue]
                 if self._current is not None and self._current[0] == UNOWNED:
                     self._current = (client, self._current[1])
+                # Kept as theirs: a reboot must not give them to whoever comes first then.
+                self._dirty = True
             elif self._holding(client) >= MAX_CLIENTS:
                 log.warning("dead-man: entries are held for %d other clients", MAX_CLIENTS)
                 return None
@@ -468,6 +470,7 @@ class DeadMan:
                     }
                     if known.holds:
                         self.clients[client] = known
+                        self._dirty = self._dirty or client == UNOWNED  # saved in today's form
                 log.info(
                     "dead-man: %d entries armed for %d clients from %s",
                     sum(len(k.armed) for k in self.clients.values()),
@@ -476,6 +479,7 @@ class DeadMan:
                 )
             except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
                 self.clients = {}
+                self._dirty = False
                 log.error("dead-man: the state file %s couldn't be read: %s", path, e)
 
 
