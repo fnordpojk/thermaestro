@@ -30,7 +30,7 @@ class Clock:
         return self.now
 
 
-def envelope(point: str, value: object, t: float) -> Envelope:
+def envelope(point: str, value: object, t: float, quality: str = "good") -> Envelope:
     at = datetime.fromtimestamp(t, UTC)
     return Envelope.model_validate(
         {
@@ -38,8 +38,9 @@ def envelope(point: str, value: object, t: float) -> Envelope:
             "value": value,
             "t_observed": at,
             "t_received": at,
-            "quality": "good",
+            "quality": quality,
             "source": "measured",
+            "why": "unavailable" if quality != "good" else None,
         }
     )
 
@@ -54,6 +55,10 @@ class House:
 
     def ha(self, point: str, value: object) -> None:
         self.values.add("ha", envelope(point.removeprefix("ha:"), value, self.clock.now))
+
+    def unavailable(self, point: str) -> None:
+        """What Home Assistant says of an entity it can't reach."""
+        self.values.add("ha", envelope(point.removeprefix("ha:"), None, self.clock.now, "unknown"))
 
     async def run(self, occupancy: Occupancy, seconds: float, step: float = STEP_S) -> None:
         end = self.clock.now + seconds
@@ -275,6 +280,59 @@ async def test_one_trigger_is_a_moment_activity_over_half_an_hour_is_home(db: Da
     assert occupancy.seen_since is None
 
 
+async def test_a_sensor_that_stays_on_is_someone_there_all_along(db: Database) -> None:
+    """Someone on the sofa all evening is there all evening: never quiet while it is on,
+    home once it has been on for half an hour, and quiet counted from when it goes off."""
+    h = await house(db)
+    occupancy = await started(h, alarm="disarmed", sofa=False)
+    sat = h.clock.now
+    h.ha(SOFA, True)
+    await h.run(occupancy, SPREAD_S + STEP_S)
+    assert (occupancy.now.state, occupancy.now.why) == ("home", "activity")
+    assert occupancy.now.began == pytest.approx(sat, abs=1)
+    await h.run(occupancy, QUIET_S + 3600)
+    assert state(occupancy) == "home"
+    assert occupancy.sources["presence"].known
+    up = h.clock.now
+    h.ha(SOFA, False)
+    await h.run(occupancy, QUIET_S - 600)
+    assert state(occupancy) == "home"
+    await h.run(occupancy, 1200)
+    assert (occupancy.now.state, occupancy.now.why) == ("away", "quiet")
+    assert occupancy.now.began == pytest.approx(up, abs=1)
+
+
+async def test_a_sensor_on_since_before_the_start_is_someone_there_now(db: Database) -> None:
+    """On, and still on: its state is what it is now, however long ago it turned on."""
+    h = await house(db)
+    occupancy = await started(h, alarm="disarmed", sofa=True)
+    await h.run(occupancy, QUIET_S + 3600)
+    assert (occupancy.now.state, occupancy.now.why) == ("home", "activity")
+
+
+async def test_a_sensor_not_known_is_neither_someone_nor_quiet(db: Database) -> None:
+    h = await house(db)
+    occupancy = await started(h, alarm="disarmed", sofa=False)
+    await h.run(occupancy, QUIET_S + 600)
+    assert state(occupancy) == "away"
+    h.unavailable(SOFA)
+    await h.run(occupancy, 3600)
+    assert not occupancy.sources["presence"].known
+    assert state(occupancy) == "away"
+    assert occupancy.seen_since is None  # not known isn't someone
+    h.ha(SOFA, True)  # back, and on
+    await h.run(occupancy, SPREAD_S + STEP_S)
+    assert (occupancy.now.state, occupancy.now.why) == ("home", "activity")
+    h.unavailable(SOFA)  # gone again, last seen on
+    await h.run(occupancy, QUIET_S + 3600)
+    assert state(occupancy) == "home"  # no quiet counted while it isn't known
+    h.ha(SOFA, False)  # back, and off
+    await h.run(occupancy, QUIET_S - 600)
+    assert state(occupancy) == "home"
+    await h.run(occupancy, 1200)
+    assert (occupancy.now.state, occupancy.now.why) == ("away", "quiet")
+
+
 class Tank:
     """A tank whose readings are kept in the history, and found usable."""
 
@@ -345,12 +403,14 @@ async def test_a_restart_keeps_the_conclusion_and_starts_the_window_again(db: Da
 
 async def test_readings_remembered_at_a_restart_are_not_new(db: Database) -> None:
     """At a start the sensors' last readings are given again, as old as they are: the sofa
-    on before the restart isn't someone there now."""
+    turning on before the restart isn't someone turning up now. Home Assistant, back, says
+    it went off meanwhile."""
     h = await house(db)
     occupancy = await started(h, alarm="disarmed", sofa=False)
     await h.run(occupancy, QUIET_S + 600)
     assert state(occupancy) == "away"
-    h.ha(SOFA, True)  # once, before the restart
+    sat = h.clock.now
+    h.ha(SOFA, True)  # before the restart
     await h.run(occupancy, STEP_S)
     await occupancy.stop()
     await h.values.flush()
@@ -361,6 +421,7 @@ async def test_readings_remembered_at_a_restart_are_not_new(db: Database) -> Non
     await again.load()
     h.clock.now += 1
     await hub.load()  # the last readings, given again
+    values.add("ha", envelope(SOFA.removeprefix("ha:"), False, sat + 300))
     h.clock.now += STEP_S
     await again.tick()
     assert state(again) == "away"

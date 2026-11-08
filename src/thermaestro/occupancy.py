@@ -4,7 +4,9 @@ The evidence, each from its source:
 - **an alarm** (a sensor measuring `alarm_panel`): armed for away or vacation says nobody is
   home, at once; armed for the night or at home says someone is; a disarm or a trigger is
   someone there;
-- **presence, occupancy and motion sensors**: one on is activity, at that moment;
+- **presence, occupancy and motion sensors**: one turning on is activity at that moment,
+  and one that stays on is activity for as long as it does (someone on the sofa all
+  evening is there all evening, not for the moment they sat down);
 - **hot water drawn**: found in the tank's readings as the daily learner finds draws, a few
   minutes after.
 
@@ -232,12 +234,19 @@ class Occupancy:
                 return w, t, SourceState(True)
         return None, None, SourceState(True)
 
-    def _presence(self) -> SourceState:
+    def _presence(self) -> tuple[SourceState, bool]:
+        """Whether every presence sensor is known, and whether one known says someone is
+        there now. One on and staying on is someone there all along, never quiet; one not
+        known is neither."""
+        known, on = SourceState(True), False
         for key in self._keys(PRESENCE):
             found = self._values.latest.get(key)
             if found is None or found.quality != "good":
-                return SourceState(False, found.why if found is not None else "no value yet")
-        return SourceState(True)
+                if known.known:
+                    known = SourceState(False, found.why if found is not None else "no value yet")
+            elif found.value is True:
+                on = True
+        return known, on
 
     async def _draws(self, now: float) -> SourceState:
         """New draws from the tank's readings, as activity; whether the tank is read well
@@ -332,7 +341,9 @@ class Occupancy:
         if has_alarm:
             self.sources["alarm"] = alarm
         if has_presence:
-            self.sources["presence"] = self._presence()
+            self.sources["presence"], on = self._presence()
+            if on:
+                self._pending.append(Activity(now, "presence"))
         if has_tank:
             self.sources["draws"] = await self._draws(now)
         if alarm.known and word is not None:
