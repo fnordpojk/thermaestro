@@ -3,8 +3,10 @@
 Once a day is over (and an hour more, so a charge or draw across midnight is seen), it is
 read: its charges and draws are kept as events, the week's demand is judged against it
 and then learns from it, and the standing loss, the ceiling and the proofs are worked out
-again. Days still in the raw history (two weeks) that were never read are read in order,
-so a new install learns from what it has recorded so far.
+again. Beside the week, what is drawn by kind of day (home, away, a departure, a return) is
+judged (`learn.drawn`), and planned with instead once it has beaten it. Days still in the
+raw history (two weeks) that were never read are read in order, so a new install learns
+from what it has recorded so far.
 
 A tank is learned only once its top, its charge sensor and the pump's demand have each
 behaved as they should (the input checks).
@@ -13,7 +15,8 @@ behaved as they should (the input checks).
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from .. import clock
@@ -22,15 +25,17 @@ from ..core.host import PluginHost
 from ..core.values import Key, Values
 from ..intents.calendar import Calendar
 from ..store import Climate, Database, Home, Location, Transaction
-from . import records, tank, water
+from . import drawn, occupied, records, tank, water
 from .model import Learned, State, mark
 from .records import (
     CHARGE,
+    DAY_KIND,
     DRAW,
     KEEP_S,
     OFFER_DISMISSED,
     TANK_DAY,
     ChargeSeen,
+    DayKind,
     DrawSeen,
     Gap,
     OfferDismissed,
@@ -39,11 +44,17 @@ from .records import (
 from .store import Learnings
 from .validate import held_out, unjudged
 
+if TYPE_CHECKING:
+    from ..intents import Intents
+
 log = logging.getLogger(__name__)
 LEARNING_TANK = mark("Learning a hot-water tank")
 
 LOSS = "tank.loss"
 DEMAND = "tank.demand"
+DRAWS = "tank.draws"
+"""What will be drawn by kind of day (`learn.drawn`): planned with instead of the week once
+it has beaten it."""
 CEILING = "tank.ceiling"
 JUDGED_DAYS = 14
 """The days the demand's proof looks back over."""
@@ -84,12 +95,14 @@ class HotWater:
         host: PluginHost,
         learnings: Learnings,
         usable: Callable[[Key], bool],
+        intents: "Intents | None" = None,
     ) -> None:
         self._db = db
         self._values = values
         self._host = host
         self._learnings = learnings
         self._usable = usable
+        self._intents = intents
 
     def tanks(self) -> Iterator[TankKeys]:
         for instance_id, instance in sorted(self._host.instances.items()):
@@ -145,6 +158,52 @@ class HotWater:
             await self._read(keys, day, calendar, season)
             day += timedelta(days=1)
         await self._judge(keys, now)
+        await self._by_kind(keys, calendar, now)
+
+    async def _by_kind(self, keys: TankKeys, calendar: Calendar, now: float) -> None:
+        """Each day's kind as known now, kept for the planner; and the line by kind of day
+        judged as at each midnight of the days before (`learn.drawn`)."""
+        zone = calendar.zone
+        since = now - (drawn.POOL_DAYS + drawn.JUDGED_DAYS + 2) * 86_400
+        found = [d for _, d in await self.days(keys.scope, since) if isinstance(d, TankDay)]
+        if not found:
+            return
+        read = {d.day: tuple(d.hourly) for d in found}
+        predicted = {d.day: (d.predicted, d.baseline) for d in found}
+        tanks = [k.scope for k in self.tanks()]
+        rows = await occupied.history(self._db, since, now, tanks, zone, self._intents)
+        known = occupied.line(rows, now)
+
+        def free(day: date) -> bool:
+            return calendar.weekday(day) >= 5
+
+        kinds = {d: known.day(d, zone) for d in read}
+        today = datetime.fromtimestamp(now, zone).date()
+        kept = [
+            records.row(DAY_KIND, tank.bounds(d, zone)[0], DayKind(day=d, kind=k, free=free(d)))
+            for d, k in kinds.items()
+            if d >= today - timedelta(days=drawn.POOL_DAYS)
+        ]
+        await self._db.run(lambda t: records.keep(t, keys.scope, kept))
+        moments = []
+        for back in range(drawn.JUDGED_DAYS, 1, -1):
+            day = today - timedelta(days=back)
+            if day in read and day + timedelta(days=1) in read:
+                moments.append(judged_at(day, kinds[day], read, predicted, rows, zone, free))
+        scored = drawn.score(moments)
+        await self._learnings.put(
+            Learned(
+                name=DRAWS,
+                scope=keys.scope,
+                kind="model",
+                value={"by_class": 1.0 if scored.by_class else 0.0},
+                state="proved" if scored.proved else "learning",
+                why=scored.why,
+                args=scored.args,
+                n=len(moments),
+                since=tank.bounds(found[0].day, zone)[0],
+            )
+        )
 
     async def _read(
         self, keys: TankKeys, day: date, calendar: Calendar, season: Callable[[date], float]
@@ -384,6 +443,81 @@ def expected(
     week = tank.Demand.from_value(demand)
     drawn = tank.expected(week, calendar.weekday, calendar.zone, season, start, hours)
     return float(loss), drawn
+
+
+def judged_at(
+    day: date,
+    kind: "occupied.DayLabel",
+    read: dict[date, tuple[float, ...]],
+    predicted: dict[date, tuple[list[float] | None, list[float] | None]],
+    rows: list[occupied.Row],
+    zone: tzinfo,
+    free: Callable[[date], bool],
+) -> drawn.Moment:
+    """`day`'s midnight judged: each guess's line then for it and the day after, the line by
+    kind of day from the days before as they were labeled then, with whether anyone was home
+    as concluded by then; `kind`, the day's own as known now, for the report."""
+    after = day + timedelta(days=1)
+    midnight = tank.bounds(day, zone)[0]
+    then = occupied.line(rows, midnight)
+    past = [
+        drawn.Past(d, read[d], then.day(d, zone), free(d))
+        for d in read
+        if day - timedelta(days=drawn.POOL_DAYS) <= d < day
+    ]
+    expected: occupied.DayLabel = "away" if then.at(midnight) == "away" else "home"
+    ahead = {d: drawn.Ahead(d, expected, free(d)) for d in (day, after)}
+    hours = [(d, h) for d in (day, after) for h in range(24)]
+    guesses = drawn.others(day, read, predicted)
+    for model, by_class in (("plain", False), ("by_class", True)):
+        found = drawn.line(hours, ahead, past, by_class)
+        if found is not None:
+            guesses[model] = found
+    actual = drawn.blocks([*read[day], *read[after]])
+    return drawn.Moment(tuple(actual), kind, guesses)
+
+
+async def planned(
+    db: Database,
+    learnings: Learnings,
+    scope: str,
+    calendar: Calendar,
+    season: Callable[[date], float],
+    start: datetime,
+    now: str | None = None,
+    away: Callable[[datetime], bool] = lambda at: False,
+) -> tuple[float, tuple[float, ...]] | None:
+    """A tank's standing loss and the draws to plan for, hour by hour from `start`: by kind
+    of day once that has beaten the week (`learn.drawn`), with whether anyone is home as last
+    concluded (`now`) and an away request's hours (`away`); else the week, as `expected`."""
+    loss = learnings.used(LOSS, scope)
+    model = learnings.used(DRAWS, scope)
+    if isinstance(loss, int | float) and isinstance(model, dict):
+        zone = calendar.zone
+        hours = drawn.local_hours(start.timestamp(), zone)
+        since = start.timestamp() - (drawn.POOL_DAYS + 1) * 86_400
+        read = {
+            d.day: tuple(d.hourly)
+            for _, d in await records.read(db, scope, TANK_DAY, since)
+            if isinstance(d, TankDay)
+        }
+        kinds = {k.day: k for _, k in await records.read(db, scope, DAY_KIND, since)}
+        past = [
+            drawn.Past(d, hourly, kinds[d].kind, kinds[d].free)
+            for d, hourly in read.items()
+            if d in kinds
+        ]
+        days = sorted({d for d, _ in hours})
+        ahead = {
+            d: drawn.Ahead(d, kind, free, season(d))
+            for d, (kind, free) in drawn.kinds_ahead(
+                days, zone, now, away, lambda d: calendar.weekday(d) >= 5
+            ).items()
+        }
+        found = drawn.line(hours, ahead, past, bool(model.get("by_class")))
+        if found is not None:
+            return float(loss), drawn.hourly(found)
+    return expected(learnings, scope, calendar, season, start)
 
 
 async def house(db: Database) -> tuple[Calendar, Callable[[date], float]]:

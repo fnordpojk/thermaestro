@@ -55,6 +55,15 @@ class TankDay(Record):
     season: float
 
 
+class DayKind(Record):
+    """A day's kind, as whether anyone was home was known when the tank was last learned:
+    home, away, a departure, a return, or not known; and whether it was a free day."""
+
+    day: date
+    kind: Literal["home", "away", "departure", "return", "unknown"]
+    free: bool
+
+
 class DrawSeen(Record):
     start: float
     end: float
@@ -166,6 +175,7 @@ def _kind[T: Record](name: str, shape: Any) -> "Kind[T]":
 
 
 TANK_DAY: Kind[TankDay | Gap] = _kind("day", TankDay | Gap)
+DAY_KIND: Kind[DayKind] = _kind("day_kind", DayKind)
 DRAW: Kind[DrawSeen] = _kind("draw", DrawSeen)
 CHARGE: Kind[ChargeSeen] = _kind("charge", ChargeSeen)
 OFFER_DISMISSED: Kind[OfferDismissed] = _kind("offer_dismissed", OfferDismissed)
@@ -179,6 +189,7 @@ HOUSE_DAY: Kind[HouseDay] = _kind("house_day", HouseDay)
 POOL_DAY: Kind[PoolDay] = _kind("pool_day", PoolDay)
 KINDS: tuple[Kind[Any], ...] = (
     TANK_DAY,
+    DAY_KIND,
     DRAW,
     CHARGE,
     OFFER_DISMISSED,

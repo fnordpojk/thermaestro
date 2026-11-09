@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-09 22:18+0100\n"
+"POT-Creation-Date: 2026-11-09 23:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -119,6 +119,10 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s d"
+msgstr ""
+
+#, python-format
+msgid "%(n)s days judged so far, of %(least)s."
 msgstr ""
 
 #, python-format
@@ -1368,6 +1372,9 @@ msgstr ""
 msgid "Hot water drawn"
 msgstr ""
 
+msgid "Hot water drawn, by kind of day: home, away, leaving or coming back"
+msgstr ""
+
 msgid "Hot water drawn, through the week"
 msgstr ""
 
@@ -1489,6 +1496,20 @@ msgstr ""
 
 #, python-format
 msgid "It can't be made within two days: at most %(temp)s °C"
+msgstr ""
+
+#, python-format
+msgid ""
+"Its line misses by %(loss)s where the best other guess misses by "
+"%(other)s; drawn within it in %(within)s of %(blocks)s blocks, over "
+"%(days)s days."
+msgstr ""
+
+#, python-format
+msgid ""
+"Its line misses by %(loss)s, not clearly less than the best other guess, "
+"by %(other)s; drawn within it in %(within)s of %(blocks)s blocks, over "
+"%(days)s days."
 msgstr ""
 
 msgid "Its own control"
@@ -4669,6 +4690,12 @@ msgid ""
 msgstr ""
 
 msgid "working days"
+msgstr ""
+
+msgid "working days and free days apart"
+msgstr ""
+
+msgid "working days and free days together"
 msgstr ""
 
 #, python-format

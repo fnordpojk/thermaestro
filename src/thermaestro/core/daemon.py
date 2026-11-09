@@ -157,6 +157,7 @@ async def run(
             intents=intents,
         )
         await occupancy.load()
+        planner.occupied = lambda: occupancy.last_known
         if planner.optimizer is not None:
             planner.optimizer.occupied = lambda: occupancy.last_known
         core = Core(

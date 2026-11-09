@@ -445,12 +445,13 @@ async def test_a_draw_during_a_gap_ends_an_absence_the_alarm_showed(db: Database
 
 
 def test_nothing_heats_less_for_an_absence_yet() -> None:
-    """The house learns the household's heat from it, and a plan with that model expects
-    who is home ahead (the optimizer); but no band, deadline or rule reads it."""
+    """The house learns the household's heat from it, the tank what is drawn by kind of day,
+    and the plans expect who is home ahead with them (the optimizer, and the planner for the
+    tank's draws); but no band, deadline or rule reads it."""
     root = Path(__file__).parents[1] / "src" / "thermaestro"
     for part in ("planner", "intents", "optimize"):
         for source in (root / part).rglob("*.py"):
-            if source.name == "optimizer.py":
+            if source.name in ("optimizer.py", "service.py"):
                 continue
             text = source.read_text()
             assert "occupancy" not in text, source

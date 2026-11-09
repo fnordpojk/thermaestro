@@ -30,6 +30,7 @@ NAMES = {
     "tank.periodic": mark("The periodic hot-water increase, last seen"),
     "tank.loss": mark("The tank's standing loss"),
     "tank.demand": mark("Hot water drawn, through the week"),
+    "tank.draws": mark("Hot water drawn, by kind of day: home, away, leaving or coming back"),
     "tank.ceiling": mark("The warmest a charge has made the top"),
     "house.model": mark("How the rooms follow the heating and the weather"),
     "house.household": mark(
@@ -58,6 +59,8 @@ PINNABLE = frozenset(
 )
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
+DRAWS_APART = mark("working days and free days apart")
+DRAWS_TOGETHER = mark("working days and free days together")
 HOUSEHOLD_SHOWN = mark(
     "off by %(error)s °C on average six hours ahead; the household keeps the rooms"
     " %(warmer)s °C warmer"
@@ -364,6 +367,8 @@ def _shown(x: Learned) -> str:
         return i18n._(LOSS_SHOWN, fall=i18n.number(value * 30, 2))
     if x.name == "house.model" and isinstance(value, dict):
         return i18n._(MODEL_SHOWN, error=i18n.number(value.get("error", 0.0), 2))
+    if x.name == "tank.draws" and isinstance(value, dict):
+        return i18n._(DRAWS_APART if value.get("by_class") else DRAWS_TOGETHER)
     if x.name == "house.household" and isinstance(value, dict):
         held = value.get("alpha", 0.0) + value.get("beta", 0.0)
         return i18n._(

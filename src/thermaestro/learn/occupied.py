@@ -96,11 +96,13 @@ Row = tuple[float, float | None, State]
 """A conclusion: when it was concluded, when what it concludes began, and the state."""
 
 
-def line(rows: Sequence[Row]) -> Timeline:
-    """The conclusions, in the order they were reached, each from when what it concluded
-    began, over the earlier ones."""
+def line(rows: Sequence[Row], now: float | None = None) -> Timeline:
+    """The conclusions reached by `now`, in the order they were reached, each from when what
+    it concluded began, over the earlier ones."""
     kept: list[tuple[float, State]] = []
     for concluded, began, state in rows:
+        if now is not None and concluded > now:
+            continue
         start = min(began, concluded) if began is not None else concluded
         kept = [(t, s) for t, s in kept if t < start]
         kept.append((start, state))
@@ -160,24 +162,33 @@ async def timeline(
 ) -> Timeline:
     """Who was home from `since`, as concluded by `now`: before occupancy concluded
     anything, from the draws the tanks `tanks` kept."""
+    return line(await history(db, since, now, tanks, zone, intents), now)
+
+
+async def history(
+    db: Database,
+    since: float,
+    until: float,
+    tanks: Sequence[str],
+    zone: tzinfo,
+    intents: "Intents | None" = None,
+) -> list[Row]:
+    """Every conclusion, each with when it was (or, from the kept draws, would have been)
+    reached: `line` gives who was home as known at any moment from them."""
 
     def concluded(t: Transaction) -> list[Row]:
-        return list(
-            t.execute(
-                "SELECT concluded, began, state FROM occupancy WHERE concluded <= ? ORDER BY id",
-                (now,),
-            )
-        )
+        return list(t.execute("SELECT concluded, began, state FROM occupancy ORDER BY id"))
 
     live = await db.run(concluded)
     first = live[0] if live else None
-    live_from = min(first[0], first[1] if first[1] is not None else first[0]) if first else now
+    begun = min(first[0], first[1] if first[1] is not None else first[0]) if first else until
+    live_from = min(begun, until)
     start = since - SETTLE_S
     before: list[Row] = []
     if tanks and start < live_from:
         draws, read = await _kept(db, tanks, start, zone)
         before = weigh(draws, read, start, live_from, await _quiet(intents))
-    return line([*before, *live])
+    return [*before, *live]
 
 
 async def _kept(

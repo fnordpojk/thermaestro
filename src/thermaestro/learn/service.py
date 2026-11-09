@@ -90,7 +90,7 @@ class Learning:
         self._host = host
         self.learnings = Learnings(db, audit)
         self.checks: dict[Key, Check] = {}
-        self.hot_water = HotWater(db, values, host, self.learnings, self.usable)
+        self.hot_water = HotWater(db, values, host, self.learnings, self.usable, intents)
         self.heating = Heating(
             db,
             values,

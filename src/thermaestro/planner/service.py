@@ -51,7 +51,7 @@ from ..learn import Learned, Learnings, mark
 from ..learn.energy import charge_kw
 from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
-from ..learn.hotwater import expected, house
+from ..learn.hotwater import house, planned
 from ..learn.pump import Response, lead
 from ..optimize import Problem
 from ..optimize import plan as solve
@@ -245,6 +245,8 @@ class Planner:
         """The planner the household chose to drive, as the last round read it."""
         self._resolver: Resolver | None = None
         """Each room's temperatures of the last hour, by point."""
+        self.occupied: Callable[[], str | None] | None = None
+        """Whether anyone is home as last known (`occupancy`): home, away, or None."""
         values.listeners.append(self._heard)
 
     # --- running ---------------------------------------------------------------------------
@@ -687,12 +689,22 @@ class Planner:
             ahead[scope] = (bound.low, bound.high) if bound is not None else (None, None)
         tanks = {}
         days = await house(self._db) if self._learnings is not None and caps.tanks else None
+        aways = [i for i in resolver.intents if i.kind == "away" and i.open]
         for scope in sorted(caps.tanks):
             self._remembered(scope)
             instance, path = split(scope)
             learned = None
             if self._learnings is not None and days is not None:
-                learned = expected(self._learnings, scope, days[0], days[1], now)
+                learned = await planned(
+                    self._db,
+                    self._learnings,
+                    scope,
+                    days[0],
+                    days[1],
+                    now,
+                    self.occupied() if self.occupied is not None else None,
+                    lambda at: any(resolver.live(a, at) for a in aways),
+                )
             tanks[scope] = Tank(
                 scope,
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.top"))),
