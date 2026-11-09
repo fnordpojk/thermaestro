@@ -2,7 +2,8 @@
 learned, the problem over the next 48 hours; the plan; and what it asks of the levers.
 
 A goal is planned here only where what it rests on is learned and proved (or pinned):
-- a climate system: its house model, how its water follows the offset, its emitters'
+- a climate system: its house model (the one with the household's heat once that has
+  beaten it, with who is expected home), how its water follows the offset, its emitters'
   output, and a room with a fresh temperature; its COP and draw learned or documented;
 - a tank: its standing loss and its week, and its volume;
 - a pool: how fast it warms and cools.
@@ -36,7 +37,7 @@ from ..learn.efficiency import DHW, HEATING
 from ..learn.emitters import EMITTERS, STORED
 from ..learn.energy import DRAW, STARTS
 from ..learn.forecast import correction
-from ..learn.heating import MODEL, WATER
+from ..learn.heating import HOUSEHOLD, MODEL, WATER
 from ..learn.hotwater import CEILING
 from ..learn.house import Fit
 from ..learn.model import mark
@@ -223,6 +224,8 @@ class Optimizer:
         self.drift: dict[str, float] = {}
         """Per climate system: the learned correction of the house model; the planner's
         memory, kept across a restart."""
+        self.occupied: Callable[[], str | None] | None = None
+        """Whether anyone is home as last known (`occupancy`): home, away, or None."""
         self._watched = Watched()
         self._solving: asyncio.Future[Any] | None = None
 
@@ -559,7 +562,7 @@ class Optimizer:
             return None, NO_OFFSET
         if not sit.heating:
             return None, HEATING_OFF
-        model = self._learnings.used(MODEL, system)
+        model = self.house_model(system)
         water = self._learnings.used(WATER, system)
         k = self._learnings.used(EMITTERS, system)
         stored = self._learnings.used(STORED, system)
@@ -592,17 +595,7 @@ class Optimizer:
             drift = self.drift.get(system, 0.0)
         else:
             drift = self._came_out(system, sit.now.timestamp(), mean)
-        fit = Fit(
-            float(model["alpha"]),
-            float(model["beta"]),
-            float(model["sigma"]),
-            float(model["omega"]),
-            float(model["gamma"]),
-            float(model["r"]),
-            int(model["lag"]),
-            0,
-            float(model.get("error", 0.0)),
-        )
+        fit = Fit.from_value(model)
         curve = Water.from_value(water)
         # Not beyond what the house was learned on, a step past it at most: lowered further,
         # the pump stops heating altogether, which the learned curve doesn't know either.
@@ -646,9 +639,33 @@ class Optimizer:
                 draw,
                 float(stored) if isinstance(stored, int | float) else 0.0,
                 drift,
+                self._home_ahead(resolver, starts) if fit.household else (),
             ),
             "",
         )
+
+    def house_model(self, system: str) -> Any:
+        """The house to plan with: the one with the household's heat once it has proved
+        itself, which it does only by beating the model as it is; else that one."""
+        household = self._learnings.used(HOUSEHOLD, system)
+        return household if isinstance(household, dict) else self._learnings.used(MODEL, system)
+
+    def _home_ahead(self, resolver: Resolver, starts: list[float]) -> tuple[float, ...]:
+        """Who is expected home in each hour ahead: away while an away request holds, and
+        home after it ends; else as concluded now, where unknown the last that was known,
+        and home where nothing has been."""
+        aways = [i for i in resolver.intents if i.kind == "away" and i.open]
+        now = self.occupied() if self.occupied is not None else None
+        out: list[float] = []
+        asked = False
+        for h in range(HORIZON_H):
+            at = datetime.fromtimestamp(starts[0] + 3600 * h + 1800, UTC)
+            if any(resolver.live(a, at) for a in aways):
+                out.append(0.0)
+                asked = True
+            else:
+                out.append(1.0 if asked or now != "away" else 0.0)
+        return tuple(out)
 
     async def _room_mean(self, scope: str, now: float, fallback: float | None) -> float:
         """A room's mean temperature over the last hour."""

@@ -1,4 +1,5 @@
-"""Whether anyone is home: concluded from the evidence, shown, and acted on by nothing yet.
+"""Whether anyone is home: concluded from the evidence, shown, learned from, and acted on by
+nothing yet.
 
 The evidence, each from its source:
 - **an alarm** (a sensor measuring `alarm_panel`): armed for away or vacation says nobody is
@@ -19,7 +20,9 @@ still armed for away once known again and nothing showed activity meanwhile. The
 Thermaestro is down is not known, so a quiet window starts again after a restart.
 
 Each conclusion is kept with when what it concluded began and when it was concluded, so a
-later look at the past uses only what was known then. Nothing plans with it yet.
+later look at the past uses only what was known then (`learn.occupied`). The house learns
+the household's heat from it, and a plan with that model expects home or away ahead as last
+concluded; nothing heats less for an absence yet.
 """
 
 import asyncio
@@ -123,6 +126,7 @@ class Occupancy:
         self._intents = intents
         self._clock = clock
         self.now: Conclusion = Conclusion("unknown", clock(), None, "start")
+        self._known: str | None = None
         self._started = clock()
         self._last_tick: float | None = None
         self._quiet_s = 0.0
@@ -159,10 +163,17 @@ class Occupancy:
             ).fetchone()
             return row
 
+        def known(t: Any) -> str | None:
+            row = t.execute(
+                "SELECT state FROM occupancy WHERE state != 'unknown' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            return None if row is None else str(row[0])
+
         found = await self._db.run(read)
         if found is not None:
             concluded, began, state, why, args = found
             self.now = Conclusion(state, concluded, began, why, json.loads(args))
+        self._known = await self._db.run(known)
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._run())
@@ -426,8 +437,15 @@ class Occupancy:
 
         await self._db.run(keep)
         self.now = found
+        if state != "unknown":
+            self._known = state
         log.info("occupancy: %s (%s)", state, why)
         return found
+
+    @property
+    def last_known(self) -> str | None:
+        """Home or away as last concluded, past any time not known since; None before."""
+        return self._known
 
     @property
     def seen_since(self) -> float | None:

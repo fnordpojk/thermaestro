@@ -76,6 +76,9 @@ class System:
     drift: float = 0.0
     """What the rooms have done that the house model didn't foresee, °C an hour, from how
     the last plans came out: carried into this one."""
+    home: tuple[float, ...] = ()
+    """Per hour of the horizon, the share someone is expected home, for a house model with
+    the household's heat; none given, home."""
 
 
 @dataclass(frozen=True)

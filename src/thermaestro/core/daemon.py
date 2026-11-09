@@ -126,7 +126,7 @@ async def run(
         from ..learn import Learning  # learning and the planner are built on the core's parts
         from ..planner import Planner
 
-        learning = Learning(db, values, host, audit, weather)
+        learning = Learning(db, values, host, audit, weather, intents)
         house.responses = learning.responses
         await learning.load()
         planner = Planner(
@@ -157,6 +157,8 @@ async def run(
             intents=intents,
         )
         await occupancy.load()
+        if planner.optimizer is not None:
+            planner.optimizer.occupied = lambda: occupancy.last_known
         core = Core(
             layout,
             startup,

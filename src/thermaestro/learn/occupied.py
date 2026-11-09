@@ -57,14 +57,27 @@ class Timeline:
         i = bisect_right(self.starts, t) - 1
         return self.states[i] if i >= 0 else "unknown"
 
-    def hour(self, t: float) -> State:
-        """The state through most of the hour from `t`; the earlier one where it is half."""
+    def _held(self, t: float) -> dict[State, float]:
         edges = [t, *(s for s in self.starts if t < s < t + 3600), t + 3600]
         held: dict[State, float] = {}
         for a, b in pairwise(edges):
             state = self.at(a)
             held[state] = held.get(state, 0.0) + b - a
+        return held
+
+    def hour(self, t: float) -> State:
+        """The state through most of the hour from `t`; the earlier one where it is half."""
+        held = self._held(t)
         return max(held, key=lambda s: held[s])
+
+    def share(self, t: float) -> float | None:
+        """The share of the hour from `t` someone was home, of the part known; None where
+        most of it isn't known."""
+        if self.hour(t) == "unknown":
+            return None
+        held = self._held(t)
+        home, away = held.get("home", 0.0), held.get("away", 0.0)
+        return home / (home + away)
 
     def day(self, day: date, zone: tzinfo) -> DayLabel:
         hours = [

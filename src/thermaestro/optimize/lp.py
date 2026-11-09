@@ -7,7 +7,8 @@ whole slot: it serves one at a time); and the addition's kW per hour.
 
 **How the house follows** is the learned two-part model (`learn.house`), hour by hour: the
 rooms pulled toward the water (its mean over the system's lag) and the outdoor
-temperature, the building's mass following the rooms. The water follows the offset by the
+temperature, the building's mass following the rooms; with the household's heat where the
+model has it, by who is expected home each hour. The water follows the offset by the
 learned curve (`learn.pump.Water`), keeping a share of where it was an hour before, and
 gives the house `K · (water - room)` kW, `K` the emitters' learned output; the compressor
 and the addition must give that heat. The offset rises at most a step an hour: faster,
@@ -138,7 +139,8 @@ def _build(p: Problem, supply: dict[str, list[float]]) -> _Built:
         f = s.fit
         lag = max(1, int(f.lag))
         f = replace(f, gamma=f.gamma + s.drift)
-        here = Hour(p.slots[0].t, s.room, outdoor[0], None, sun[0], wind[0])
+        home = [s.home[h] if h < len(s.home) else 1.0 for h in range(hours)]
+        here = Hour(p.slots[0].t, s.room, outdoor[0], None, sun[0], wind[0], home=home[0])
         now_water = s.water.water(outdoor[0], s.offset_now)
         before = list(s.water_before) or [now_water]
         lagged_now = sum(before[-lag:]) / len(before[-lag:])
@@ -190,7 +192,7 @@ def _build(p: Problem, supply: dict[str, list[float]]) -> _Built:
             keep = 1 - f.alpha - pull
             # The water's mean over the lag: planned hours, and before them what was.
             coefs: dict[int, float] = {room[h]: 1.0, mass[h]: -keep}
-            const = pull * outdoor[h] + f.sigma * sun[h] / 100 + f.gamma
+            const = pull * outdoor[h] + f.sigma * sun[h] / 100 + f.gamma + f.eta * home[h]
             for i in range(h - lag + 1, h + 1):
                 if i >= 0:
                     coefs[water[i]] = coefs.get(water[i], 0.0) - f.alpha / lag

@@ -185,13 +185,18 @@ async def replay(
                 }
             )
             units = _units(found.described)
+            intents = Intents(db, AuditLog(out / "audit"))
             learning = Learning(
-                db, values, cast(Any, host), AuditLog(out / "audit"), cast(Any, ReplayWeather(db))
+                db,
+                values,
+                cast(Any, host),
+                AuditLog(out / "audit"),
+                cast(Any, ReplayWeather(db)),
+                intents,
             )
             await learning.load()
             hub = SensorHub(db, values, clock=timer.time)
             await hub.load()
-            intents = Intents(db, AuditLog(out / "audit"))
             occupancy = Occupancy(
                 db,
                 values,

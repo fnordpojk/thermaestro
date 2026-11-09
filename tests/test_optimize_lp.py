@@ -191,6 +191,30 @@ def test_the_rooms_follow_the_house_model_stepped_on_its_own() -> None:
         assert planned.heat_kw[h] == pytest.approx(heat, abs=2e-3)
 
 
+def test_the_households_heat_follows_who_is_expected_home() -> None:
+    """A house model with the household's heat: the rooms follow it stepped on its own, with
+    the household out for the middle hours; and holding the band then takes more heat."""
+    hours = 12
+    fit = replace(FIT, eta=0.2, household=True)
+    home = (1.0,) * 3 + (0.0,) * 5 + (1.0,) * 4
+    s = replace(system(hours), fit=fit, home=home)
+    found = plan(Problem(hourly([0.5] * hours), systems=(s,), slider=0.8))
+    assert found.ok, found.why
+    planned = found.systems["pump:hp1/cs1"]
+    mass = fit.mass(s.room, Hour(T0, s.room, 0.0, None, home=home[0]), s.water_before[-1])
+    assert mass is not None
+    room = s.room
+    for h, offset in enumerate(planned.offset):
+        mass += fit.r * (room - mass)
+        room = fit.room(mass, Hour(T0, None, 0.0, None, home=home[h]), WATER.water(0.0, offset))
+        assert planned.room[h] == pytest.approx(room, abs=1e-6)
+    everyone = plan(Problem(hourly([0.5] * hours), systems=(replace(s, home=()),), slider=0.8))
+    assert everyone.ok
+    out = sum(planned.heat_kw)
+    stayed = sum(everyone.systems["pump:hp1/cs1"].heat_kw)
+    assert out > stayed + 0.1  # their heat, made up by the pump while they are out
+
+
 def test_cheap_hours_store_heat_in_the_house_and_expensive_ones_use_it() -> None:
     hours = 12
     p = Problem(hourly([0.2] * 6 + [2.0] * 6), systems=(system(hours),), slider=1.0)

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 02:45+0100\n"
+"POT-Creation-Date: 2026-11-09 22:18+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -64,6 +64,12 @@ msgstr "%(hours)s von %(least)s Stunden, um den Pool zu lernen."
 #, python-format
 msgid "%(hours)s hours of heating with the heat known, of %(least)s."
 msgstr "%(hours)s Heizstunden mit bekannter Wärme, von %(least)s."
+
+#, python-format
+msgid "%(hours)s hours with nobody home to learn the household's heat from, of %(least)s."
+msgstr ""
+"%(hours)s Stunden, in denen niemand zu Hause war, um die Wärme des Haushalts daraus "
+"zu lernen, von %(least)s."
 
 #, python-format
 msgid "%(hours)s usable hours of %(least)s."
@@ -126,6 +132,10 @@ msgstr "%(n)s h"
 #, python-format
 msgid "%(n)s h ahead"
 msgstr "%(n)s h voraus"
+
+#, python-format
+msgid "%(n)s held-out comparisons with time away so far, of %(least)s, to judge it by."
+msgstr "Bisher %(n)s von %(least)s Vergleichen mit Zeit außer Haus, um es zu beurteilen."
 
 #, python-format
 msgid "%(n)s min"
@@ -1524,6 +1534,9 @@ msgstr "Wie die Vorhersagen des Optimierers für die Räume eintrafen:"
 msgid "How the rooms follow the heating and the weather"
 msgstr "Wie die Räume der Heizung und dem Wetter folgen"
 
+msgid "How the rooms follow the heating, the weather and the household's own heat"
+msgstr "Wie die Räume der Heizung, dem Wetter und der eigenen Wärme des Haushalts folgen"
+
 msgid "How the supply follows the weather and the offset"
 msgstr "Wie der Vorlauf dem Wetter und der Verschiebung folgt"
 
@@ -2269,11 +2282,46 @@ msgstr ""
 
 #, python-format
 msgid ""
+"Off by %(error)s on average where the model in use is off by %(current)s, all with "
+"time away."
+msgstr ""
+"Im Mittel um %(error)s daneben, wo das verwendete Modell um %(current)s daneben "
+"liegt, alles mit Zeit außer Haus."
+
+#, python-format
+msgid ""
+"Off by %(error)s on average where the model in use is off by %(current)s: with time "
+"away, %(away)s against %(away_current)s; at home, %(home)s against %(home_current)s."
+msgstr ""
+"Im Mittel um %(error)s daneben, wo das verwendete Modell um %(current)s daneben "
+"liegt: mit Zeit außer Haus %(away)s gegen %(away_current)s, zu Hause %(home)s gegen "
+"%(home_current)s."
+
+#, python-format
+msgid ""
 "Off by %(error)s on average, not clearly better than a simple guess, off by "
 "%(baseline)s."
 msgstr ""
 "Im Mittel um %(error)s daneben, nicht deutlich besser als eine einfache Schätzung, "
 "die um %(baseline)s daneben liegt."
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than the model in use, off by "
+"%(current)s, all with time away."
+msgstr ""
+"Im Mittel um %(error)s daneben, nicht deutlich besser als das verwendete Modell, das "
+"um %(current)s daneben liegt, alles mit Zeit außer Haus."
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than the model in use, off by "
+"%(current)s: with time away, %(away)s against %(away_current)s; at home, %(home)s "
+"against %(home_current)s."
+msgstr ""
+"Im Mittel um %(error)s daneben, nicht deutlich besser als das verwendete Modell, das "
+"um %(current)s daneben liegt: mit Zeit außer Haus %(away)s gegen %(away_current)s, zu"
+" Hause %(home)s gegen %(home_current)s."
 
 msgid "On different days"
 msgstr "An verschiedenen Tagen"
@@ -3041,6 +3089,14 @@ msgstr "Die Ereignisse"
 #, python-format
 msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
 msgstr "Die Anpassung ergibt eine Zeitkonstante von %(tau)s Stunden, was zu keinem Haus passt."
+
+#, python-format
+msgid ""
+"The fit gives the household %(settled)s °C of the rooms' warmth, which isn't a "
+"household's."
+msgstr ""
+"Die Anpassung schreibt dem Haushalt %(settled)s °C der Raumwärme zu, was zu keinem "
+"Haushalt passt."
 
 msgid "The forecast"
 msgstr "Die Vorhersage"
@@ -4477,6 +4533,14 @@ msgstr "aus"
 #, python-format
 msgid "off by %(error)s °C on average six hours ahead"
 msgstr "im Mittel %(error)s °C daneben, sechs Stunden voraus"
+
+#, python-format
+msgid ""
+"off by %(error)s °C on average six hours ahead; the household keeps the rooms "
+"%(warmer)s °C warmer"
+msgstr ""
+"im Mittel %(error)s °C daneben, sechs Stunden voraus; der Haushalt hält die Räume "
+"%(warmer)s °C wärmer"
 
 msgid "off: the pump's own"
 msgstr "aus: die eigene der Pumpe"

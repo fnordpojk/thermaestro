@@ -9,8 +9,9 @@ within ten minutes), or the pump's heating stop holding heating off. Kept as hou
 outlive the raw history and the forecasts (a week).
 
 Then the house is fitted again over the last four weeks of hours, and judged on its last
-two days (`learn.house`). While heating is stopped, nothing new can be learned: what was
-learned is kept, frozen.
+two days (`learn.house`). Beside it, the house with the household's heat, from who was home
+in each hour as concluded by then (`learn.occupied`), judged on the same hours against it.
+While heating is stopped, nothing new can be learned: what was learned is kept, frozen.
 
 A climate system is learned only once its supply, an outdoor temperature and at least one
 of its rooms are usable (the input checks).
@@ -20,8 +21,8 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -33,7 +34,7 @@ from ..core.values import Key, Sample, Values
 from ..intents.calendar import Calendar
 from ..intents.entry import RESPONSE_H
 from ..store import Database, Home, Room, Sensor, Transaction
-from . import house, pump, records
+from . import house, occupied, pump, records
 from .hotwater import house as house_days
 from .hygiene import intervals
 from .inputs import intersect, seconds, spans
@@ -45,12 +46,16 @@ from .validate import unjudged
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
+    from ..intents import Intents
 
 log = logging.getLogger(__name__)
 READING_FORECAST = mark("Reading a forecast for learning")
 LEARNING_HOUSE = mark("Learning a climate system's house")
 
 MODEL = "house.model"
+HOUSEHOLD = "house.household"
+"""The house with the household's heat as a term: used instead of `MODEL` once proved, which
+it is only by beating it (`house.contest`)."""
 TAU = "house.tau_h"
 RESPONSE = "house.response_h"
 PUMP = "pump.response"
@@ -119,6 +124,9 @@ class Heating:
         learnings: Learnings,
         usable: Callable[[Key], bool],
         weather: "Weather | None" = None,
+        *,
+        tanks: Callable[[], list[str]] = list,
+        intents: "Intents | None" = None,
     ) -> None:
         self._db = db
         self._values = values
@@ -126,6 +134,9 @@ class Heating:
         self._learnings = learnings
         self._usable = usable
         self._weather = weather
+        self._tanks = tanks
+        """The tanks' scopes, whose kept draws say who was home before occupancy did."""
+        self._intents = intents
 
     async def systems(self) -> list[SystemKeys]:
         rooms = await self._db.all(Room)
@@ -237,7 +248,7 @@ class Heating:
             read = True
         # Fitted again only with a new day: it takes seconds.
         if read or self._learnings.get(MODEL, keys.scope) is None:
-            await self._judge(keys, home, now, bool(rooms))
+            await self._judge(keys, home, now, bool(rooms), zone)
 
     async def _day(
         self,
@@ -387,11 +398,20 @@ class Heating:
                     found.append(s.t)
         return found
 
-    async def _judge(self, keys: SystemKeys, home: Home, now: float, rooms: bool) -> None:
+    async def _judge(
+        self, keys: SystemKeys, home: Home, now: float, rooms: bool, zone: tzinfo
+    ) -> None:
         days = await records.read(self._db, keys.scope, records.HOUSE_DAY, now - DAYS * 86_400)
         back = self._usable(keys.back)
         hours = [_hour(h, back) for _, day in days for h in day.hours]
         hours.sort(key=lambda h: h.t)
+        if hours:
+            # Who was home, as concluded by now: kept beside the hours, never in them, as a
+            # later conclusion can put an hour right.
+            seen = await occupied.timeline(
+                self._db, now, hours[0].t, self._tanks(), zone, self._intents
+            )
+            hours = [replace(h, home=seen.share(h.t)) for h in hours]
         if not hours:
             if not rooms:
                 await self._note(keys.scope, WHAT["room"])
@@ -405,7 +425,7 @@ class Heating:
         off = sum(1 for h in recent if h.skip == "heating_off")
         before = self._learnings.get(MODEL, keys.scope)
         if recent and off >= FROZEN_SHARE * len(recent) and before is not None:
-            for name in (MODEL, TAU, RESPONSE):
+            for name in (MODEL, TAU, RESPONSE, HOUSEHOLD):
                 found = self._learnings.get(name, keys.scope)
                 # Only what had proved itself is kept in use; anything else waits as it is.
                 if found is not None and found.value is not None and found.state == "proved":
@@ -414,7 +434,9 @@ class Heating:
             return
         # Seconds of arithmetic: off the event loop.
         test_from = now - house.TEST_HOURS * 3600
-        whole, verdict, why, args = await asyncio.to_thread(house.judge, hours, test_from)
+        current, household = await asyncio.to_thread(house.contest, hours, test_from)
+        await self._household(keys.scope, household, hours)
+        whole, verdict, why, args = current
         emitter = home.emitters.get(keys.scope, "unknown")
         starts = {
             TAU: TAU_START.get(home.house),
@@ -468,6 +490,42 @@ class Heating:
                     since=hours[0].t,
                 )
             )
+
+    async def _household(self, scope: str, judged: house.Judged, hours: list[house.Hour]) -> None:
+        """The house with the household's heat, kept beside the model as it is."""
+        whole, verdict, why, args = judged
+        found = self._learnings.get(HOUSEHOLD, scope)
+        away = house.away_hours(house.labeled(hours))
+        if whole is None:
+            if found is not None and found.state in ("proved", "frozen"):
+                return  # as the model as it is: what proved itself stays until judged again
+            await self._learnings.put(
+                Learned(
+                    name=HOUSEHOLD,
+                    scope=scope,
+                    kind="model",
+                    value=found.value if found else None,
+                    state="learning",
+                    why=why or NOT_FITTED,
+                    args=args,
+                    n=away,
+                    since=hours[0].t,
+                )
+            )
+            return
+        await self._learnings.put(
+            Learned(
+                name=HOUSEHOLD,
+                scope=scope,
+                kind="model",
+                value=whole.as_value(),
+                state="proved" if verdict is not None and verdict.proved else "learning",
+                why=verdict.why if verdict is not None else TESTING,
+                args=dict(verdict.args) if verdict is not None else {},
+                n=whole.rows,
+                since=hours[0].t,
+            )
+        )
 
     async def _pump(
         self, scope: str, hours: list[house.Hour], now: float, step: float | None = None

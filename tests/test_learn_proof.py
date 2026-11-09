@@ -5,6 +5,7 @@ import json
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -149,6 +150,8 @@ def test_each_learners_too_little_to_judge_is_marked() -> None:
     for message in (
         FEW,
         house.FEW,
+        house.NO_AWAY,
+        house.FEW_AWAY,
         heating.TESTING,
         hotwater.LEARNING,
         hotwater.LOSS_LEARNING,
@@ -198,7 +201,7 @@ async def test_freezing_keeps_what_was_proved_in_use(tmp_path: Path) -> None:
         point = Key("dev", "hp1/cs1/supply.temp")
         keys = SystemKeys(scope, point, point, [], point, point, [])
         learner = Heating(db, Values(db), cast(Any, None), learnings, lambda key: True)
-        await learner._judge(keys, Home(), now, True)
+        await learner._judge(keys, Home(), now, True, ZoneInfo("UTC"))
         for name, value in previous.items():
             found = learnings.get(name, scope)
             assert found is not None

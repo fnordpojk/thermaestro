@@ -45,6 +45,7 @@ from .store import Learnings
 
 if TYPE_CHECKING:
     from ..core.weather import Weather
+    from ..intents import Intents
 
 log = logging.getLogger(__name__)
 LEARNING = mark("Learning")
@@ -82,6 +83,7 @@ class Learning:
         host: PluginHost,
         audit: AuditLog,
         weather: "Weather | None" = None,
+        intents: "Intents | None" = None,
     ) -> None:
         self._db = db
         self._values = values
@@ -89,7 +91,16 @@ class Learning:
         self.learnings = Learnings(db, audit)
         self.checks: dict[Key, Check] = {}
         self.hot_water = HotWater(db, values, host, self.learnings, self.usable)
-        self.heating = Heating(db, values, host, self.learnings, self.usable, weather)
+        self.heating = Heating(
+            db,
+            values,
+            host,
+            self.learnings,
+            self.usable,
+            weather,
+            tanks=lambda: [k.scope for k in self.hot_water.tanks()],
+            intents=intents,
+        )
         self.energy = Energy(
             db,
             values,

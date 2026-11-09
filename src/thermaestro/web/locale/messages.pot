@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-08 02:45+0100\n"
+"POT-Creation-Date: 2026-11-09 22:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -65,6 +65,12 @@ msgstr ""
 
 #, python-format
 msgid "%(hours)s hours of heating with the heat known, of %(least)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(hours)s hours with nobody home to learn the household's heat from, of "
+"%(least)s."
 msgstr ""
 
 #, python-format
@@ -125,6 +131,12 @@ msgstr ""
 
 #, python-format
 msgid "%(n)s h ahead"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(n)s held-out comparisons with time away so far, of %(least)s, to judge "
+"it by."
 msgstr ""
 
 #, python-format
@@ -1434,6 +1446,9 @@ msgstr ""
 msgid "How the rooms follow the heating and the weather"
 msgstr ""
 
+msgid "How the rooms follow the heating, the weather and the household's own heat"
+msgstr ""
+
 msgid "How the supply follows the weather and the offset"
 msgstr ""
 
@@ -2121,8 +2136,34 @@ msgstr ""
 
 #, python-format
 msgid ""
+"Off by %(error)s on average where the model in use is off by %(current)s,"
+" all with time away."
+msgstr ""
+
+#, python-format
+msgid ""
+"Off by %(error)s on average where the model in use is off by %(current)s:"
+" with time away, %(away)s against %(away_current)s; at home, %(home)s "
+"against %(home_current)s."
+msgstr ""
+
+#, python-format
+msgid ""
 "Off by %(error)s on average, not clearly better than a simple guess, off "
 "by %(baseline)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than the model in use, "
+"off by %(current)s, all with time away."
+msgstr ""
+
+#, python-format
+msgid ""
+"Off by %(error)s on average, not clearly better than the model in use, "
+"off by %(current)s: with time away, %(away)s against %(away_current)s; at"
+" home, %(home)s against %(home_current)s."
 msgstr ""
 
 msgid "On different days"
@@ -2861,6 +2902,12 @@ msgstr ""
 
 #, python-format
 msgid "The fit gives a time constant of %(tau)s hours, which isn't a house's."
+msgstr ""
+
+#, python-format
+msgid ""
+"The fit gives the household %(settled)s °C of the rooms' warmth, which "
+"isn't a household's."
 msgstr ""
 
 msgid "The forecast"
@@ -4193,6 +4240,12 @@ msgstr ""
 
 #, python-format
 msgid "off by %(error)s °C on average six hours ahead"
+msgstr ""
+
+#, python-format
+msgid ""
+"off by %(error)s °C on average six hours ahead; the household keeps the "
+"rooms %(warmer)s °C warmer"
 msgstr ""
 
 msgid "off: the pump's own"

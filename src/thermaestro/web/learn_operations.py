@@ -32,6 +32,9 @@ NAMES = {
     "tank.demand": mark("Hot water drawn, through the week"),
     "tank.ceiling": mark("The warmest a charge has made the top"),
     "house.model": mark("How the rooms follow the heating and the weather"),
+    "house.household": mark(
+        "How the rooms follow the heating, the weather and the household's own heat"
+    ),
     "house.tau_h": mark("How fast the house loses its heat (its time constant)"),
     "house.response_h": mark("How long the heating takes to show in the rooms"),
     "pump.response": mark("How the supply follows the weather and the offset"),
@@ -55,6 +58,10 @@ PINNABLE = frozenset(
 )
 """Models one number says, so the household may set it instead."""
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
+HOUSEHOLD_SHOWN = mark(
+    "off by %(error)s °C on average six hours ahead; the household keeps the rooms"
+    " %(warmer)s °C warmer"
+)
 HOURS_SHOWN = mark("%(hours)s hours")
 PUMP_SHOWN = mark("%(step)s °C of supply per offset step, %(slope)s °C per degree colder")
 WATER_SHOWN = mark("%(step)s °C of water per offset step, %(slope)s °C per degree colder")
@@ -357,6 +364,13 @@ def _shown(x: Learned) -> str:
         return i18n._(LOSS_SHOWN, fall=i18n.number(value * 30, 2))
     if x.name == "house.model" and isinstance(value, dict):
         return i18n._(MODEL_SHOWN, error=i18n.number(value.get("error", 0.0), 2))
+    if x.name == "house.household" and isinstance(value, dict):
+        held = value.get("alpha", 0.0) + value.get("beta", 0.0)
+        return i18n._(
+            HOUSEHOLD_SHOWN,
+            error=i18n.number(value.get("error", 0.0), 2),
+            warmer=i18n.number(value.get("eta", 0.0) / held if held > 0 else 0.0, 1),
+        )
     if x.name == "pump.response" and isinstance(value, dict):
         return i18n._(
             PUMP_SHOWN,
