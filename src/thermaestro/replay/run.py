@@ -14,6 +14,9 @@ Written to the output directory:
 - `inputs.json`: how each input was judged at the end;
 - `learned.json`: what was learned at the end, beside what the installation had learned
   when it was exported;
+- `occupancy.jsonl`: whether anyone was home, each conclusion as weighed minute by minute;
+  `audit.json` gives each day's label from them, as the learners read it at the end
+  (`learn.occupied`);
 - `scorecard.json`, given labels: the hot-water draws found against them;
 - `replay.db`: the replay's database, to look into.
 """
@@ -40,7 +43,7 @@ from ..core.sensors import SENSORS, SensorHub, remembered
 from ..core.values import Key, Values
 from ..core.weather import Forecast, Span
 from ..intents import Intents
-from ..learn import Learning
+from ..learn import Learning, occupied
 from ..occupancy import PRESENCE, TICK_S, Occupancy
 from ..store import Database, Location, Transaction
 from ..store.settings import SETTINGS
@@ -188,6 +191,7 @@ async def replay(
             await learning.load()
             hub = SensorHub(db, values, clock=timer.time)
             await hub.load()
+            intents = Intents(db, AuditLog(out / "audit"))
             occupancy = Occupancy(
                 db,
                 values,
@@ -195,7 +199,7 @@ async def replay(
                 hot_water=learning.hot_water,
                 usable=learning.usable,
                 learnings=learning.learnings,
-                intents=Intents(db, AuditLog(out / "audit")),
+                intents=intents,
                 clock=timer.time,
             )
             weighed = Weighing(db, values, hub, occupancy, timer, start)
@@ -256,6 +260,8 @@ async def replay(
             with (out / "occupancy.jsonl").open("w", encoding="utf-8") as f:
                 for row in concluded:
                     f.write(json.dumps(row) + "\n")
+            tanks = [k.scope for k in learning.hot_water.tanks()]
+            seen = await occupied.timeline(db, timer.t, start, tanks, zone, intents)
             summary: dict[str, Any] = {
                 "source": str(source),
                 "sha256": found.sha256,
@@ -263,6 +269,7 @@ async def replay(
                 "days": [d.isoformat() for d in every],
                 "coverage": coverage,
                 "occupancy": concluded,
+                "conditions": {d.isoformat(): seen.day(d, zone) for d in every},
             }
             if labels is not None:
                 card = await score(db, labels, zone)

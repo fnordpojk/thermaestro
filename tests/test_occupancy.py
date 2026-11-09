@@ -445,8 +445,13 @@ async def test_a_draw_during_a_gap_ends_an_absence_the_alarm_showed(db: Database
 
 
 def test_nothing_plans_or_learns_with_it() -> None:
-    """Shown only: neither planner, optimizer nor learners read it yet."""
+    """Shown, and labeled for the learners (`learn.occupied`): neither planner nor optimizer
+    reads it, and no learner reads the labels yet."""
     root = Path(__file__).parents[1] / "src" / "thermaestro"
     for part in ("planner", "learn", "optimize"):
         for source in (root / part).rglob("*.py"):
-            assert "occupancy" not in source.read_text(), source
+            if source.name == "occupied.py":
+                continue
+            text = source.read_text()
+            assert "occupancy" not in text, source
+            assert "occupied" not in text, source

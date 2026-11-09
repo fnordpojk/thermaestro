@@ -186,6 +186,13 @@ async def test_a_sensor_on_for_days_stays_on_through_each_days_learning(tmp_path
     # The history goes in every five minutes, so its off is seen within five.
     assert off - 60 <= began <= off + 300
     assert off + 12 * 3600 <= concluded <= off + 12 * 3600 + 900
+    # Each day replayed, as the learners read it at the end: left at noon on the fourth.
+    assert summary["conditions"] == {
+        "2026-01-13": "home",
+        "2026-01-14": "home",
+        "2026-01-15": "departure",
+        "2026-01-16": "away",
+    }
 
 
 def test_labels_are_read_in_the_houses_time(tmp_path: Path) -> None:

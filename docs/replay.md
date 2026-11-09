@@ -31,11 +31,19 @@ The replay loads the export into a new database in `replayed/` and steps through
 
 Whether anyone was home is weighed as it would have been, minute by minute in between, with the readings added every five minutes and only what had been learned by then (see [Whether anyone is home](setup.md#whether-anyone-is-home)). Each conclusion is written with when what it concluded began, by the evidence, and when it was concluded.
 
+Each day replayed is then labeled as the learners read it at the end, by its waking hours (07:00 to 22:00 in the house's time):
+- **home**: someone was home at their start and at their end, out between or not (at work, at school);
+- **away**: nobody was, at either; a visit in between (the cat sitter) leaves the day away;
+- **departure** from home to away, and **return** from away to home;
+- **unknown** where any waking hour isn't known.
+
+Each conclusion counts from when what it concluded began, so an absence concluded after a quiet day is away from the last activity. Before the first conclusion, the draws the tank's learner kept are weighed by the same rules, as for a house whose only evidence is its hot water.
+
 What it writes to `replayed/`:
 
 | file | what |
 |---|---|
-| `audit.json` | the export's SHA-256 and header, the days replayed, each point's coverage (first and last sample, how many, the hours between), whether anyone was home as concluded, and the scorecard's totals |
+| `audit.json` | the export's SHA-256 and header, the days replayed, each point's coverage (first and last sample, how many, the hours between), whether anyone was home as concluded, each day's label (`conditions`), and the scorecard's totals |
 | `occupancy.jsonl` | whether anyone was home: each conclusion, its state, why, when what it concluded began, when it was concluded, and its details |
 | `learned.jsonl` | every learned value after each day: its state, value, what is used, and why |
 | `learned.json` | what was learned at the end, beside what the installation had learned when it was exported |
