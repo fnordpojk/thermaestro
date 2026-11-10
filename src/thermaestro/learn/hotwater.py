@@ -493,31 +493,48 @@ async def planned(
     loss = learnings.used(LOSS, scope)
     model = learnings.used(DRAWS, scope)
     if isinstance(loss, int | float) and isinstance(model, dict):
-        zone = calendar.zone
-        hours = drawn.local_hours(start.timestamp(), zone)
-        since = start.timestamp() - (drawn.POOL_DAYS + 1) * 86_400
-        read = {
-            d.day: tuple(d.hourly)
-            for _, d in await records.read(db, scope, TANK_DAY, since)
-            if isinstance(d, TankDay)
-        }
-        kinds = {k.day: k for _, k in await records.read(db, scope, DAY_KIND, since)}
-        past = [
-            drawn.Past(d, hourly, kinds[d].kind, kinds[d].free)
-            for d, hourly in read.items()
-            if d in kinds
-        ]
-        days = sorted({d for d, _ in hours})
-        ahead = {
-            d: drawn.Ahead(d, kind, free, season(d))
-            for d, (kind, free) in drawn.kinds_ahead(
-                days, zone, now, away, lambda d: calendar.weekday(d) >= 5
-            ).items()
-        }
-        found = drawn.line(hours, ahead, past, bool(model.get("by_class")))
+        by_class = bool(model.get("by_class"))
+        found = await line_at(db, scope, calendar, season, start, now, away, by_class)
         if found is not None:
-            return float(loss), drawn.hourly(found)
+            return float(loss), found
     return expected(learnings, scope, calendar, season, start)
+
+
+async def line_at(
+    db: Database,
+    scope: str,
+    calendar: Calendar,
+    season: Callable[[date], float],
+    start: datetime,
+    now: str | None,
+    away: Callable[[datetime], bool],
+    by_class: bool,
+) -> tuple[float, ...] | None:
+    """The draws by kind of day hour by hour from `start` (`learn.drawn`), from the days
+    kept with their kinds as last labeled; None where there are none to take."""
+    zone = calendar.zone
+    hours = drawn.local_hours(start.timestamp(), zone)
+    since = start.timestamp() - (drawn.POOL_DAYS + 1) * 86_400
+    read = {
+        d.day: tuple(d.hourly)
+        for _, d in await records.read(db, scope, TANK_DAY, since)
+        if isinstance(d, TankDay)
+    }
+    kinds = {k.day: k for _, k in await records.read(db, scope, DAY_KIND, since)}
+    past = [
+        drawn.Past(d, hourly, kinds[d].kind, kinds[d].free)
+        for d, hourly in read.items()
+        if d in kinds
+    ]
+    days = sorted({d for d, _ in hours})
+    ahead = {
+        d: drawn.Ahead(d, kind, free, season(d))
+        for d, (kind, free) in drawn.kinds_ahead(
+            days, zone, now, away, lambda d: calendar.weekday(d) >= 5
+        ).items()
+    }
+    found = drawn.line(hours, ahead, past, by_class)
+    return drawn.hourly(found) if found is not None else None
 
 
 async def house(db: Database) -> tuple[Calendar, Callable[[date], float]]:

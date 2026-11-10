@@ -39,12 +39,24 @@ Each day replayed is then labeled as the learners read it at the end, by its wak
 
 Each conclusion counts from when what it concluded began, so an absence concluded after a quiet day is away from the last activity. Before the first conclusion, the draws the tank's learner kept are weighed by the same rules, as for a house whose only evidence is its hot water.
 
+Then how the learners did by condition, each day judged with what they had learned by the night before it, proved or not:
+- **the house**, per climate system: from each hour, six hours ahead, by the house model and by the one with the household's own heat, against what the rooms did; by whether anyone was away in those six hours, as concluded by the end. The household's model is given who was home then, so this shows the house's physics, not how well an absence was foreseen;
+- **the tank**: what would be drawn by the end of each three hours of a day, by the week and by the line by kind of day as each stood at its midnight, against what was drawn; by the day's kind, scored by the quantile loss at nine in ten (a line too low counting nine times what one too high does), with how often the draws stayed within the line.
+
+The replay prints a line for each, for example:
+
+```
+house pump:hp1/cs1: away 81 h, off by 0.365 °C (with the household's heat 0.331 against 0.347, 42 h); home 130 h, off by 0.388 °C
+tank pump:hp1/dhw, quantile loss: away 3 days, the week 0.228, by kind of day 0.379 (drawn within it 1.0); home 8 days, the week 0.682, by kind of day 0.273 (drawn within it 0.696)
+```
+
 What it writes to `replayed/`:
 
 | file | what |
 |---|---|
 | `audit.json` | the export's SHA-256 and header, the days replayed, each point's coverage (first and last sample, how many, the hours between), whether anyone was home as concluded, each day's label (`conditions`), and the scorecard's totals |
 | `occupancy.jsonl` | whether anyone was home: each conclusion, its state, why, when what it concluded began, when it was concluded, and its details |
+| `conditions.json` | how the house and the tank learners did by condition (also in `audit.json` as `by_condition`): per climate system and condition, the hours, the house model's mean miss, and on the hours the household's model had too, both misses; per tank and kind of day, the days, the week's and the line's quantile loss, and the share of blocks drawn within the line |
 | `learned.jsonl` | every learned value after each day: its state, value, what is used, and why |
 | `learned.json` | what was learned at the end, beside what the installation had learned when it was exported |
 | `inputs.json` | how each input was judged at the end |

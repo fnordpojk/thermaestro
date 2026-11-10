@@ -17,6 +17,8 @@ Written to the output directory:
 - `occupancy.jsonl`: whether anyone was home, each conclusion as weighed minute by minute;
   `audit.json` gives each day's label from them, as the learners read it at the end
   (`learn.occupied`);
+- `conditions.json`: how the house and the tank learners did, by whether anyone was home,
+  each day with what they had learned by the night before (`replay.conditions`);
 - `scorecard.json`, given labels: the hot-water draws found against them;
 - `replay.db`: the replay's database, to look into.
 """
@@ -48,6 +50,7 @@ from ..occupancy import PRESENCE, TICK_S, Occupancy
 from ..store import Database, Location, Transaction
 from ..store.settings import SETTINGS
 from ..store.startup import History
+from .conditions import Conditions
 from .export import FORMAT
 from .labels import Label, score
 
@@ -208,6 +211,9 @@ async def replay(
                 clock=timer.time,
             )
             weighed = Weighing(db, values, hub, occupancy, timer, start)
+            judged = Conditions(db, learning, intents, occupancy)
+            if every:
+                await judged.before(every[0])
             timeline = (out / "learned.jsonl").open("w", encoding="utf-8")
             with timeline:
                 for day in every:
@@ -219,6 +225,7 @@ async def replay(
                     values.latest = await _latest(db, units)
                     await learning.check_inputs()
                     await learning.learn()
+                    await judged.before(day + timedelta(days=1))
                     for x in learning.learnings.all():
                         timeline.write(
                             json.dumps(
@@ -275,7 +282,11 @@ async def replay(
                 "coverage": coverage,
                 "occupancy": concluded,
                 "conditions": {d.isoformat(): seen.day(d, zone) for d in every},
+                "by_condition": await judged.report(timer.t, start, every),
             }
+            (out / "conditions.json").write_text(
+                json.dumps(summary["by_condition"], indent=1), encoding="utf-8"
+            )
             if labels is not None:
                 card = await score(db, labels, zone)
                 (out / "scorecard.json").write_text(json.dumps(card, indent=1), encoding="utf-8")

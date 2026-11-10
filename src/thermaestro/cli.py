@@ -176,7 +176,32 @@ def _replay(args: argparse.Namespace) -> int:
         )
         + "\n"
     )
+    sys.stdout.write(_by_condition(summary.get("by_condition", {})))
     return 0
+
+
+def _by_condition(found: dict[str, Any]) -> str:
+    """The replay's learners by condition, a line per climate system and tank."""
+    lines = []
+    for scope, by in found.get("house", {}).items():
+        parts = []
+        for condition, v in by.items():
+            part = f"{condition} {v['hours']} h, off by {v['model']} °C"
+            if v["both"]:
+                part += (
+                    f" (with the household's heat {v['household']} against {v['model_both']},"
+                    f" {v['both']} h)"
+                )
+            parts.append(part)
+        lines.append(f"house {scope}: " + "; ".join(parts))
+    for scope, by in found.get("tank", {}).items():
+        parts = [
+            f"{kind} {v['days']} days, the week {v['week']}, by kind of day {v['line']}"
+            f" (drawn within it {v['within']})"
+            for kind, v in by.items()
+        ]
+        lines.append(f"tank {scope}, quantile loss: " + "; ".join(parts))
+    return "".join(f"{line}\n" for line in lines)
 
 
 def _logset(model_name: str, output: Path) -> int:

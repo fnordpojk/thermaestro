@@ -115,6 +115,17 @@ async def test_the_tank_is_learned_on_replay_and_its_draws_scored(tmp_path: Path
     assert ("away", "quiet") not in concluded
     kept = (tmp_path / "replayed" / "occupancy.jsonl").read_text().splitlines()
     assert [json.loads(line) for line in kept] == summary["occupancy"]
+    # The tank by condition: every day at home here, each judged with what was learned by
+    # the night before; the week once it had seen a day, the line by kind of day once days
+    # were kept with their kinds.
+    by = summary["by_condition"]
+    assert json.loads((tmp_path / "replayed" / "conditions.json").read_text()) == by
+    home = by["tank"]["dev:hp1/dhw"]["home"]
+    assert home["days"] == len(summary["days"])
+    assert home["week"] is not None
+    assert home["line"] is not None
+    assert 0.0 <= home["within"] <= 1.0
+    assert by["house"] == {}  # no climate system in this recording
 
 
 async def test_replaying_fewer_days_gives_the_same_for_those_days(tmp_path: Path) -> None:
@@ -222,6 +233,7 @@ async def test_the_replay_command(tmp_path: Path, capsys: pytest.CaptureFixture[
     said = capsys.readouterr().out
     assert "replayed 2 days" in said
     assert "labels: 1 found, 0 missed" in said
+    assert "tank dev:hp1/dhw, quantile loss: " in said
     assert await asyncio.to_thread(main, ["replay", str(labels), str(tmp_path / "x")]) == 2
 
 

@@ -229,6 +229,52 @@ async def test_without_occupancy_the_learner_learns_no_household(
     assert (found.state, found.value, found.why) == ("learning", None, h.NO_AWAY)
 
 
+# --- the replay's report --------------------------------------------------------------------
+
+
+async def test_the_replay_reports_the_house_by_whether_anyone_was_home(
+    db: Database, tmp_path: Path
+) -> None:
+    """Each day judged with the models as they stood at its start: away, the household's
+    heat follows the rooms where the model without it can't."""
+    from types import SimpleNamespace
+
+    from thermaestro.replay.conditions import Conditions
+
+    hours = household(hours=6 * 24)
+    await kept(db, hours)
+    await concluded(db, hours)
+    point = Key("dev", "hp1/cs1/supply.temp")
+    keys = SystemKeys(SCOPE, point, point, [], point, point, [])
+
+    async def systems() -> list[SystemKeys]:
+        return [keys]
+
+    learning = SimpleNamespace(
+        heating=SimpleNamespace(systems=systems),
+        hot_water=SimpleNamespace(tanks=list),
+        usable=lambda key: True,
+    )
+    judged = Conditions(db, cast(Any, learning), cast(Any, None), cast(Any, None))
+    as_is = h.Fit(0.3, 0.1, 0.02, 0.0, 0.7, 0.25, 3, 0, 0.0)
+    theirs = h.Fit(0.3, 0.1, 0.02, 0.0, 0.5, 0.25, 3, 0, 0.0, 0.4, True)
+    days = sorted({datetime.fromtimestamp(x.t, UTC).date() for x in hours})[1:]
+    for d in days:
+        judged._house[d] = {SCOPE: (as_is, theirs)}
+    found = await judged._houses(await occupied_timeline(db, hours), days, hours[0].t)
+    away, home = found[SCOPE]["away"], found[SCOPE]["home"]
+    assert away["both"] == away["hours"] > 0
+    assert away["household"] < 0.01  # the house itself
+    assert away["model_both"] > 0.1
+    assert home["hours"] > 0
+
+
+async def occupied_timeline(db: Database, hours: list[h.Hour]) -> Any:
+    from thermaestro.learn import occupied
+
+    return await occupied.timeline(db, hours[-1].t + 3600, hours[0].t, [], UTC)
+
+
 # --- planning with it -------------------------------------------------------------------
 
 
