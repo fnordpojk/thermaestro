@@ -5,6 +5,10 @@ hours of heating are read: how long the compressor ran on each, the water it mad
 brine in and the brine's drop, and for a charge the tank's rise. They are kept as events,
 so what is learned from them can be worked out again as the draw and the brine are.
 
+Where a brine flow was entered for the pump, its plugin's estimate of the heat taken from
+the ground is read for each hour of heating, and the brine's heat per kelvin is taken from
+it instead of being learned from the charges.
+
 The starting shares come from what the pump's plugin documents, or what the household
 entered under House. A pump needs the demand, the compressor's state and its source (the
 brine's two temperatures, or the outdoor air for a pump without brine) to have passed their
@@ -15,6 +19,7 @@ emitters give.
 """
 
 import logging
+import statistics
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
@@ -68,6 +73,9 @@ class PumpKeys:
     """An electricity meter on the pump's supply, in kWh, where one is set up."""
     outdoor: Key | None = None
     """The outdoor temperature: the source of a pump without brine."""
+    extracted: Key | None = None
+    """The heat taken from the ground, kW, where the plugin estimates it from an entered
+    brine flow."""
 
 
 class Efficiency:
@@ -120,6 +128,7 @@ class Efficiency:
                     rating=nodes[compressors[0]].rating,
                     compressor_ref=f"{instance_id}:{compressors[0]}",
                     outdoor=_point(instance_id, paths, unit, "outdoor.temp"),
+                    extracted=_point(instance_id, paths, brine, "heat.extracted.power"),
                 )
 
     async def run(self, now: float | None = None) -> None:
@@ -234,11 +243,14 @@ class Efficiency:
             )
             rows.append(records.row(records.COP_CHARGE, c.start, charge))
         if supply is not None:
+            extracted = tank.Series(await history(keys.extracted)) if keys.extracted else None
             t = start
             while t < end:
                 stretch = intersect(on_heat, [(t, t + 3600)])
                 run = _run(t, stretch, supply, source, returning, counter)
                 if run is not None and run.run_s >= cop.RUN_LEAST_S:
+                    if extracted is not None:
+                        run = replace(run, ground_kwh=_extracted(extracted, stretch))
                     rows.append(records.row(records.COP_HOUR, t, _body(run)))
                 t += 3600
         await self._db.run(lambda tr: records.keep(tr, keys.scope, rows))
@@ -271,20 +283,40 @@ class Efficiency:
         if hours and all(h.measured_kwh is not None for h in hours):
             heat_kw = heat_kw or 0.0
         brined = keys.brine_in is not None and keys.brine_out is not None
+        # A brine flow entered for the pump: what it carries per kelvin, as the plugin's
+        # estimate shows it, instead of learning it from the charges.
+        entered = [h for h in hours if h.ground_kwh is not None and h.brine_ks > 0]
+        from_flow = brined and len(entered) >= cop.WARM
+        if from_flow:
+            carried = statistics.median((h.ground_kwh or 0.0) * 3.6e6 / h.brine_ks for h in entered)
+            await self._learnings.put(
+                Learned(
+                    name=BRINE,
+                    scope=keys.scope,
+                    kind="observed",
+                    value=round(carried, 1),
+                    unit="W/K",
+                    state="learning",
+                    why=cop.ENTERED,
+                    args={"hours": len(entered)},
+                    n=len(entered),
+                )
+            )
         if keys.top is not None and keys.low is not None:  # a tank whose charges are read
+            learn_brine = brined and not from_flow
             if dhw_kw is None:
                 await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_DRAW, {}, 0)
-                if brined:
+                if learn_brine:
                     await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_DRAW, {}, 0)
             elif liters is None:
                 await self._put(DHW, keys.scope, None, dhw_start, "learning", cop.NO_VOLUME, {}, 0)
-                if brined:
+                if learn_brine:
                     await self._put(BRINE, keys.scope, None, None, "learning", cop.NO_VOLUME, {}, 0)
             else:
                 share = cop.learn_dhw(charges, liters, dhw_kw)
                 verdict = cop.judge_dhw(charges, liters, dhw_kw, dhw_start)
                 await self._verdict(DHW, keys.scope, share, dhw_start, verdict, len(charges))
-                if brined:
+                if learn_brine:
                     w_k = cop.learn_brine(charges, liters, dhw_kw)
                     verdict = cop.judge_brine(charges, liters, dhw_kw, dhw_start)
                     await self._verdict(BRINE, keys.scope, w_k, None, verdict, len(charges))
@@ -443,12 +475,40 @@ def _body(run: cop.Run) -> CopRun:
         source_c=round(run.source_c, 2),
         brine_ks=round(run.brine_ks, 1),
         kwh=None if run.measured_kwh is None else round(run.measured_kwh, 4),
+        ground_kwh=None if run.ground_kwh is None else round(run.ground_kwh, 4),
     )
 
 
 def unbody(t: float, kept: CopRun, rise_c: float = 0.0) -> cop.Run:
     """A kept run."""
-    return cop.Run(t, kept.run_s, kept.supply_c, kept.source_c, kept.brine_ks, rise_c, kept.kwh)
+    return cop.Run(
+        t,
+        kept.run_s,
+        kept.supply_c,
+        kept.source_c,
+        kept.brine_ks,
+        rise_c,
+        kept.kwh,
+        kept.ground_kwh,
+    )
+
+
+def _extracted(series: tank.Series, stretch: list[Span]) -> float | None:
+    """The heat taken from the ground over `stretch`, kWh, from the estimated power a minute
+    at a time; None where it isn't known for nine minutes in ten."""
+    found, minutes = 0.0, 0
+    known = 0
+    for t0, t1 in stretch:
+        at = t0 + SAMPLE_S / 2
+        while at < t1:
+            minutes += 1
+            kw = series.at(at)
+            if kw is not None:
+                # As the brine pump starts, the drop can read backwards for a moment.
+                found += max(0.0, kw) * SAMPLE_S / 3600
+                known += 1
+            at += SAMPLE_S
+    return found if minutes and known >= 0.9 * minutes else None
 
 
 def rise(charge: CopCharge, loss: float) -> float:

@@ -336,6 +336,154 @@ def test_a_run_lasts_as_long_as_the_compressor_ran() -> None:
     assert run.brine_ks == pytest.approx(2.0 * 840)  # the drop over the whole run
 
 
+async def test_an_entered_brine_flow_gives_the_brine_and_heating(tmp_path: Path) -> None:
+    """Hours of heating with the plugin's estimate of the heat from the ground: the brine is
+    taken from it, not learned from the charges, and heating's COP comes from it."""
+    now = 2_000_000_000.0
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        await learnings.put(
+            Learned(
+                name=DRAW, scope="dev:hp1", kind="model", value={"heating": 1.4}, state="proved"
+            )
+        )
+        found = host(RATED)
+        found.instances["dev"].described.points.append(
+            SimpleNamespace(path="hp1/brine/heat.extracted.power")
+        )
+        efficiency = Efficiency(db, Values(db), found, learnings, lambda key: True)
+        keys = next(efficiency.pumps())
+        assert keys.extracted is not None
+        hours = []
+        for i in range(c.WARM + c.LEAST + 4):
+            # 1.4 kWh an hour, 3.2 K of drop at 1,100 W/K: 3.52 kWh from the ground.
+            run = records.CopRun(
+                run_s=3600,
+                supply_c=38.0,
+                source_c=5.0,
+                brine_ks=3.2 * 3600,
+                kwh=1.4,
+                ground_kwh=3.52,
+            )
+            hours.append(records.row(records.COP_HOUR, now - (i + 1) * 3600, run))
+        await db.run(lambda t: records.keep(t, "dev:hp1", hours))
+        await efficiency._judge(keys, Rated(), now, 0.5, 0.47)
+        brine = learnings.get(BRINE, "dev:hp1")
+        assert brine is not None
+        assert (brine.kind, brine.why) == ("observed", c.ENTERED)
+        assert brine.value == pytest.approx(1100, abs=1)
+        heating = learnings.get(HEATING, "dev:hp1")
+        assert heating is not None
+        assert heating.value == pytest.approx((1.4 + 3.52) / 1.4 / c.carnot(38.0, 5.0), abs=1e-3)
+
+
+async def test_a_brine_pump_changing_speed_is_followed_hour_by_hour(tmp_path: Path) -> None:
+    """In automatic mode the brine pump's speed changes: hours at half the drop and twice
+    the flow take as much from the ground. Each hour's own estimate counts, not one figure
+    per kelvin for all of them."""
+    now = 2_000_000_000.0
+    async with await Database.open(tmp_path / "t.db") as db:
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        await learnings.put(
+            Learned(
+                name=DRAW, scope="dev:hp1", kind="model", value={"heating": 1.4}, state="proved"
+            )
+        )
+        found = host(RATED)
+        found.instances["dev"].described.points.append(
+            SimpleNamespace(path="hp1/brine/heat.extracted.power")
+        )
+        efficiency = Efficiency(db, Values(db), found, learnings, lambda key: True)
+        rows = []
+        for i in range(16):
+            drop = 3.2 if i % 2 else 1.6  # slow, and twice as fast
+            run = records.CopRun(
+                run_s=3600,
+                supply_c=38.0,
+                source_c=5.0,
+                brine_ks=drop * 3600,
+                kwh=1.4,
+                ground_kwh=3.52,
+            )
+            rows.append(records.row(records.COP_HOUR, now - (i + 1) * 3600, run))
+        await db.run(lambda t: records.keep(t, "dev:hp1", rows))
+        await efficiency._judge(next(efficiency.pumps()), Rated(), now, 0.5, 0.47)
+        heating = learnings.get(HEATING, "dev:hp1")
+        assert heating is not None
+        assert heating.value == pytest.approx((1.4 + 3.52) / 1.4 / c.carnot(38.0, 5.0), abs=1e-3)
+
+
+async def test_the_estimate_from_an_entered_flow_is_read_from_the_history(
+    tmp_path: Path,
+) -> None:
+    """The plant's brine carries 1,200 W/K; its plugin, with that flow entered, would show
+    the heat taken from the ground as 1.2 kW per kelvin of drop while the compressor runs.
+    Read from the history hour by hour, the brine comes out as that, not as the charges have
+    it, and every heating hour has its heat from the ground."""
+    series, truth = recorded()
+    point = "hp1/brine/heat.extracted.power"
+    power = []
+    for b_in, b_out, state in zip(
+        series["brine_in"], series["brine_out"], series["state"], strict=True
+    ):
+        running = state.text == "running"
+        kw = 1.2 * ((b_in.value or 0.0) - (b_out.value or 0.0)) if running else 0.0
+        power.append(Sample(b_in.t, round(kw, 3), None, "good"))
+    async with await Database.open(tmp_path / "t.db") as db:
+        await db.run(
+            lambda tr: tr.executemany(
+                "INSERT INTO history (instance, point, t, value, text, quality)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    ("dev", POINTS[name], s.t, s.value, s.text, s.quality)
+                    for name in POINTS
+                    for s in series[name]
+                ]
+                + [("dev", point, s.t, s.value, None, "good") for s in power],
+            )
+        )
+        learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        draws = {p: round(statistics.median(v), 3) for p, v in truth["drawn"].items()}
+        await learnings.put(
+            Learned(name=DRAW, scope="dev:hp1", kind="model", value=draws, state="proved")
+        )
+        found = host(RATED)
+        found.instances["dev"].described.points.append(SimpleNamespace(path=point))
+        await HotWater(db, Values(db), found, learnings, lambda key: True).run(truth["end"])
+        await Efficiency(db, Values(db), found, learnings, lambda key: True).run(truth["end"])
+        hours = [x for _, x in await records.read(db, "dev:hp1", records.COP_HOUR)]
+        assert hours
+        assert all(x.ground_kwh is not None for x in hours)
+        brine = learnings.get(BRINE, "dev:hp1")
+        assert brine is not None
+        assert brine.why == c.ENTERED
+        assert brine.value == pytest.approx(1200, rel=0.05)
+        heating = learnings.get(HEATING, "dev:hp1")
+        assert heating is not None
+        assert heating.value == pytest.approx(statistics.median(truth["share"]), rel=0.2)
+
+
+def test_the_heat_from_the_ground_is_added_up_minute_by_minute() -> None:
+    from thermaestro.learn import tank
+    from thermaestro.learn.efficiency import _extracted
+
+    start = 1_000_000.0
+    power = tank.Series(
+        [Sample(start - 30, 3.0, None, "good"), Sample(start + 600, 4.0, None, "good")]
+    )
+    found = _extracted(power, [(start, start + 1200)])
+    assert found == pytest.approx(3.0 * 10 / 60 + 4.0 * 10 / 60)
+    gone = tank.Series([Sample(start - 30, 3.0, None, "good")])
+    assert _extracted(gone, [(start, start + 3 * 3600)]) is None  # not known most of it
+    backwards = tank.Series(
+        [Sample(start - 30, -4.0, None, "good"), Sample(start + 60, 3.0, None, "good")]
+    )
+    assert _extracted(backwards, [(start, start + 600)]) == pytest.approx(3.0 * 9 / 60)
+
+
 def test_a_charge_a_draw_ran_into_is_left_out() -> None:
     """A heat pump gives at least the heat of its electricity: a charge whose tank warmed by
     less had hot water drawn while it ran, which the tank's sensors can't tell from it."""

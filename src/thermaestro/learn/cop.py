@@ -19,14 +19,16 @@ pump is that share.
   summed over the time the compressor ran. A ground-source pump's brine flow is seldom
   known; this measures it.
 - **Heating**, from hours the compressor heated the house: the brine's heat, once proved,
-  plus the draw, against the draw. A pump without brine has nothing that measures its
-  heat: its documented (or entered) share stands, and its hours, the outdoor air their
-  source, are kept for what its emitters give.
+  plus the draw, against the draw. Where a brine flow was entered for the pump, its
+  plugin's estimate of the heat taken from the ground is that hour's brine heat instead.
+  A pump without brine has nothing that measures its heat: its documented (or entered)
+  share stands, and its hours, the outdoor air their source, are kept for what its
+  emitters give.
 
 Each is judged on data it wasn't fitted on, each charge or hour predicted from the ones
-before it only: hot water's share by the charge's COP, the brine by the charge's heat,
-heating's share by the hour's brine drop; each against the documented figure (or, where
-there is none, the median seen).
+before it only: hot water's share by the charge's COP, the brine by the charge's
+heat, heating's share by the hour's heat from the ground; each against the documented
+figure (or, where there is none, the median seen).
 """
 
 import statistics
@@ -53,6 +55,7 @@ FEW = unjudged(mark("%(seen)s of %(least)s charges or hours seen to learn from."
 NO_DRAW = mark("Learned once the compressor's draw has proved itself.")
 NO_VOLUME = mark("Learned once the tank's volume is known: enter it under House.")
 NO_BRINE = mark("Learned once the brine's heat per kelvin has proved itself.")
+ENTERED = mark("From the brine flow entered for the pump, over %(hours)s hours of heating.")
 NO_SOURCE = mark(
     "Nothing measures the heat of a pump without brine: its documented or entered figure is used."
 )
@@ -91,6 +94,8 @@ class Run:
     """A charge's rise in degrees of the tank, its standing loss added; 0 for an hour."""
     measured_kwh: float | None = None
     """The electricity a meter on the pump's supply counted over it, where one is set up."""
+    ground_kwh: float | None = None
+    """The heat taken from the ground over it, as estimated from an entered brine flow."""
 
     def kwh(self, draw_kw: float) -> float:
         """Its electricity: as metered, else the draw times how long it ran."""
@@ -154,12 +159,17 @@ def learn_brine(charges: Sequence[Run], liters: float, draw_kw: float) -> float 
     return round(statistics.median(kept), 1) if len(kept) >= WARM else None
 
 
+def ground(run: Run, w_k: float) -> float:
+    """The heat taken from the ground over a run, kWh: as estimated from an entered brine
+    flow where it was, else the brine's heat per kelvin over its drop."""
+    return run.ground_kwh if run.ground_kwh is not None else w_k * run.brine_ks / 3.6e6
+
+
 def hour_share(run: Run, w_k: float, draw_kw: float) -> float | None:
     used = run.kwh(draw_kw)
     if used <= 0:
         return None
-    heat = used + w_k * run.brine_ks / 3.6e6
-    return heat / used / run.ideal
+    return (used + ground(run, w_k)) / used / run.ideal
 
 
 def learn_heating(hours: Sequence[Run], w_k: float, draw_kw: float) -> float | None:
@@ -168,15 +178,16 @@ def learn_heating(hours: Sequence[Run], w_k: float, draw_kw: float) -> float | N
     return round(statistics.median(kept), 4) if len(kept) >= WARM else None
 
 
-def _brine_ks(run: Run, share_: float, w_k: float, draw_kw: float) -> float:
-    """The brine's drop over a run, if the compressor makes heat at `share_` of the ideal."""
-    return run.kwh(draw_kw) * (share_ * run.ideal - 1) * 3.6e6 / w_k
+def _ground_at(run: Run, share_: float, draw_kw: float) -> float:
+    """The heat a run would take from the ground, kWh, if the compressor makes heat at
+    `share_` of the ideal."""
+    return run.kwh(draw_kw) * (share_ * run.ideal - 1)
 
 
-def _rolling(
+def _rolling[T](
     runs: Sequence[Run],
-    learn: Callable[[Sequence[Run]], float | None],
-    predict: Callable[[Run, float], float],
+    learn: Callable[[Sequence[Run]], T | None],
+    predict: Callable[[Run, T], float],
     baseline: Callable[[Run, Sequence[Run]], float | None],
     actual: Callable[[Run], float | None],
 ) -> Verdict:
@@ -238,19 +249,19 @@ def judge_brine(
 def judge_heating(
     hours: Sequence[Run], w_k: float, draw_kw: float, documented: float | None
 ) -> Verdict:
-    """Heating's share predicting each hour's brine drop, against the documented share (or
-    the median drop a second seen)."""
+    """Heating's share predicting each hour's heat from the ground, against the documented
+    share (or the median heat a second seen)."""
 
     def baseline(run: Run, before: Sequence[Run]) -> float | None:
         if documented is not None:
-            return _brine_ks(run, documented, w_k, draw_kw)
-        rate = _median([b.brine_ks / b.run_s for b in before])
+            return _ground_at(run, documented, draw_kw)
+        rate = _median([ground(b, w_k) / b.run_s for b in before])
         return rate * run.run_s if rate is not None else None
 
     return _rolling(
         hours,
         lambda before: learn_heating(before, w_k, draw_kw),
-        lambda run, share_: _brine_ks(run, share_, w_k, draw_kw),
+        lambda run, share_: _ground_at(run, share_, draw_kw),
         baseline,
-        lambda run: run.brine_ks,
+        lambda run: ground(run, w_k),
     )

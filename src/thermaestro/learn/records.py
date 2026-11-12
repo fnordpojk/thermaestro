@@ -116,6 +116,9 @@ class CopRun(Record):
     source_c: float
     brine_ks: float
     kwh: float | None = None
+    ground_kwh: float | None = None
+    """The heat taken from the ground, as estimated from an entered brine flow: kept from
+    2026-11-13, where one was entered."""
 
 
 class CopCharge(CopRun):
