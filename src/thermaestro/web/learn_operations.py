@@ -61,6 +61,8 @@ PINNABLE = frozenset(
 MODEL_SHOWN = mark("off by %(error)s °C on average six hours ahead")
 DRAWS_APART = mark("working days and free days apart")
 DRAWS_TOGETHER = mark("working days and free days together")
+DRAWS_APART_RECENT = mark("working days and free days apart, from the last two weeks")
+DRAWS_TOGETHER_RECENT = mark("working days and free days together, from the last two weeks")
 HOUSEHOLD_SHOWN = mark(
     "off by %(error)s °C on average six hours ahead; the household keeps the rooms"
     " %(warmer)s °C warmer"
@@ -368,6 +370,8 @@ def _shown(x: Learned) -> str:
     if x.name == "house.model" and isinstance(value, dict):
         return i18n._(MODEL_SHOWN, error=i18n.number(value.get("error", 0.0), 2))
     if x.name == "tank.draws" and isinstance(value, dict):
+        if value.get("recent"):
+            return i18n._(DRAWS_APART_RECENT if value.get("by_class") else DRAWS_TOGETHER_RECENT)
         return i18n._(DRAWS_APART if value.get("by_class") else DRAWS_TOGETHER)
     if x.name == "house.household" and isinstance(value, dict):
         held = value.get("alpha", 0.0) + value.get("beta", 0.0)

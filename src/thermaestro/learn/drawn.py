@@ -19,8 +19,10 @@ from the days before it labeled as they were known then, against what was drawn 
 days after. Scored by the quantile loss at nine in ten, against the week, a flat guess, the
 same day last week and the last seven days' mean; and how often the draws stayed within it
 is given beside, by kind of day, as the loss alone would reward a line set too high. Whether
-working and free days are told apart is kept only where that scores better. It is used
-instead of the week only once it beats the best of the others by the margin (`validate`).
+working and free days are told apart, and whether only the last two weeks' days are taken
+(`RECENT_DAYS`: a household's habits change, as when children are home from school), are
+each kept only where that scores better. It is used instead of the week only once it beats
+the best of the others by the margin (`validate`).
 """
 
 import itertools
@@ -42,6 +44,8 @@ LEAST_SAME = 3
 """Days of a kind its own line needs; fewer, and more days are taken (see above)."""
 POOL_DAYS = 56
 """How far back the past days are taken from."""
+RECENT_DAYS = 14
+"""How far back the recent version takes them from, where that has enough of a kind."""
 JUDGED_DAYS = 14
 LEAST_JUDGED = 7
 COMBINATIONS = 1024
@@ -80,9 +84,20 @@ class Ahead:
     """The season: how much more a draw takes than at the year's mean inlet."""
 
 
-def pool(days: Sequence[Past], kind: DayLabel, free: bool, by_class: bool) -> list[Past]:
-    """The past days a day of `kind` is taken as."""
+def pool(
+    days: Sequence[Past],
+    kind: DayLabel,
+    free: bool,
+    by_class: bool,
+    recent_from: date | None = None,
+) -> list[Past]:
+    """The past days a day of `kind` is taken as; with `recent_from`, only those from then
+    on where there are enough of the kind."""
     known = [d for d in days if d.kind != "unknown"]
+    if recent_from is not None:
+        recent = [d for d in known if d.day >= recent_from]
+        if sum(1 for d in recent if d.kind == kind) >= LEAST_SAME:
+            known = recent
     same = [d for d in known if d.kind == kind]
     if by_class:
         alike = [d for d in same if d.free == free]
@@ -101,6 +116,7 @@ def line(
     ahead: Mapping[date, Ahead],
     days: Sequence[Past],
     by_class: bool,
+    recent_from: date | None = None,
 ) -> list[float] | None:
     """How much will have been drawn by the end of each block of `hours` (each a local day
     and hour), in nine of ten combinations of past days; None where a day has none."""
@@ -108,7 +124,7 @@ def line(
     pools = []
     for d in order:
         a = ahead[d]
-        found = pool(days, a.kind, a.free, by_class)
+        found = pool(days, a.kind, a.free, by_class, recent_from)
         if not found:
             return None
         pools.append(found)
@@ -185,14 +201,22 @@ class Scored:
     by_class: bool
     why: str
     args: dict[str, float | int | str]
+    recent: bool = False
 
 
-MODELS = ("plain", "by_class")
+MODELS = {
+    "plain": (False, False),
+    "by_class": (True, False),
+    "recent": (False, True),
+    "recent_by_class": (True, True),
+}
+"""The line's versions, each as (working and free days apart, the last two weeks only)."""
 OTHERS = ("week", "flat", "last_week", "seven_days")
 
 
 def score(moments: Sequence[Moment]) -> Scored:
-    """The line against the others, on the moments every one of them had a guess for."""
+    """The line against the others, on the moments every one of them had a guess for: the
+    version that scores best, the plain one where none scores better."""
     common = [m for m in moments if all(g in m.guesses for g in (*MODELS, *OTHERS))]
     if len(common) < LEAST_JUDGED:
         return Scored(False, False, FEW, {"n": len(common), "least": LEAST_JUDGED})
@@ -203,8 +227,8 @@ def score(moments: Sequence[Moment]) -> Scored:
         ]
         return sum(found) / len(found)
 
-    by_class = loss("by_class") < loss("plain")
-    chosen = "by_class" if by_class else "plain"
+    chosen = min(MODELS, key=lambda name: (loss(name), name != "plain"))
+    by_class, recent = MODELS[chosen]
     mine, other = loss(chosen), min(loss(g) for g in OTHERS)
     within = [
         (m.kind, a <= p) for m in common for a, p in zip(m.actual, m.guesses[chosen], strict=True)
@@ -221,7 +245,7 @@ def score(moments: Sequence[Moment]) -> Scored:
         args[f"within_{kind}"] = round(sum(mine_kind) / len(mine_kind), 2)
         args[f"days_{kind}"] = sum(1 for m in common if m.kind == kind)
     proved = mine <= other * (1 - MARGIN)
-    return Scored(proved, by_class, PROVED if proved else NOT_BETTER, args)
+    return Scored(proved, by_class, PROVED if proved else NOT_BETTER, args, recent)
 
 
 def others(

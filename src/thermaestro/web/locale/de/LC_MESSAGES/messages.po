@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 00:01+0100\n"
+"POT-Creation-Date: 2026-11-13 00:26+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -5001,8 +5001,14 @@ msgstr "Werktage"
 msgid "working days and free days apart"
 msgstr "Arbeitstage und freie Tage getrennt"
 
+msgid "working days and free days apart, from the last two weeks"
+msgstr "Arbeitstage und freie Tage getrennt, aus den letzten zwei Wochen"
+
 msgid "working days and free days together"
 msgstr "Arbeitstage und freie Tage zusammen"
+
+msgid "working days and free days together, from the last two weeks"
+msgstr "Arbeitstage und freie Tage zusammen, aus den letzten zwei Wochen"
 
 #, python-format
 msgid "written by hand: %(value)s"

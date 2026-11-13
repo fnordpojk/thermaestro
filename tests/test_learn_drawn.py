@@ -62,6 +62,18 @@ def test_two_days_ahead_are_any_two_past_days() -> None:
     assert drawn.line(hours, seasoned, days, False)[-1] == pytest.approx(18.0)  # type: ignore[index]
 
 
+def test_the_draws_are_shown_in_words() -> None:
+    from thermaestro.web.learn_operations import _shown
+
+    def shown(value: dict[str, float]) -> str:
+        return _shown(Learned(name=DRAWS, scope=TANK, kind="model", value=value))
+
+    assert shown({"by_class": 0.0}) == "working days and free days together"
+    assert shown({"by_class": 1.0, "recent": 1.0}) == (
+        "working days and free days apart, from the last two weeks"
+    )
+
+
 def test_a_kind_seen_too_little_takes_more_days() -> None:
     days = [past(n, 5.0) for n in range(6)] + [past(6, 0.0, "away"), past(7, 0.0, "away")]
     assert len(drawn.pool(days, "away", False, False)) == 8  # two days away: every day
@@ -72,6 +84,16 @@ def test_a_kind_seen_too_little_takes_more_days() -> None:
     days.append(past(11, 9.0, free=True))
     assert {d.free for d in drawn.pool(days, "home", True, True)} == {True}
     assert drawn.pool([past(0, 1.0, "unknown")], "home", False, False) == []
+
+
+def test_the_recent_version_takes_the_last_two_weeks_where_it_has_enough() -> None:
+    older = [past(n, 5.0) for n in range(20)]
+    recent = [past(n, 9.0) for n in range(40, 45)]
+    since = day(45) - timedelta(days=drawn.RECENT_DAYS)
+    found = drawn.pool(older + recent, "home", False, False, since)
+    assert {d.hourly[7] for d in found} == {9.0}
+    few = drawn.pool(older + recent[:2], "home", False, False, since)
+    assert len(few) == 22  # two days in the last two weeks: all eight weeks' days
 
 
 def test_each_day_ahead_takes_its_kind() -> None:
@@ -97,9 +119,24 @@ def test_each_day_ahead_takes_its_kind() -> None:
 # --- judging it ----------------------------------------------------------------------------
 
 
-def moment(actual: list[float], mine: list[float], other: list[float]) -> drawn.Moment:
-    guesses = {g: other for g in drawn.OTHERS} | {"plain": mine, "by_class": mine}
+def moment(
+    actual: list[float], mine: list[float], other: list[float], recent: list[float] | None = None
+) -> drawn.Moment:
+    guesses = {g: other for g in drawn.OTHERS} | {m: mine for m in drawn.MODELS}
+    if recent is not None:
+        guesses |= {"recent": recent, "recent_by_class": recent}
     return drawn.Moment(tuple(actual), "home", guesses)
+
+
+def test_the_version_that_scores_best_is_kept() -> None:
+    """The last two weeks only, where they predict better; the plain line where nothing
+    scores better than it."""
+    better = [moment([9.0] * 16, [5.0] * 16, [3.0] * 16, recent=[9.5] * 16) for _ in range(7)]
+    found = drawn.score(better)
+    assert (found.recent, found.by_class) == (True, False)
+    same = [moment([9.0] * 16, [9.5] * 16, [3.0] * 16) for _ in range(7)]
+    found = drawn.score(same)
+    assert (found.recent, found.by_class) == (False, False)
 
 
 def test_it_is_judged_by_its_quantile_loss_against_the_others() -> None:
@@ -255,6 +292,61 @@ async def test_the_plan_gets_the_line_for_who_is_home(db: Database, tmp_path: Pa
     assert len(home[1]) == drawn.HORIZON_H
     assert sum(home[1]) >= 2 * 9.0  # two days at home, the heavier ones
     assert sum(away[1]) == pytest.approx(0.0)
+
+
+async def test_a_household_that_draws_more_now_is_followed(db: Database, tmp_path: Path) -> None:
+    """Six weeks at 6 a day, then two at 10, children home from school: the last two
+    weeks' version is kept, and the plan's line follows the 10."""
+    week = [0.0] * 24
+    week[7], week[19] = 4.0, 2.0
+    rows = []
+    for n in range(DAYS + 16):
+        drawn_day = [0.0] * 24
+        drawn_day[7], drawn_day[19] = (4.0, 2.0) if n < DAYS else (7.0, 3.0)
+        rows.append(
+            records.row(
+                TANK_DAY,
+                datetime.combine(day(n), datetime.min.time(), UTC).timestamp(),
+                TankDay(
+                    day=day(n),
+                    hourly=drawn_day,
+                    predicted=week,
+                    baseline=[6.0 / 24] * 24,
+                    draws=2,
+                    drawn=sum(drawn_day),
+                    charges=1,
+                    k=0.01,
+                    opens=0.5,
+                    season=1.0,
+                ),
+            )
+        )
+    await db.run(lambda t: records.keep(t, TANK, rows))
+    home = datetime.combine(day(0), datetime.min.time(), UTC).timestamp()
+    await db.run(
+        lambda t: t.execute(
+            "INSERT INTO occupancy (concluded, began, state, why, args)"
+            " VALUES (?, ?, 'home', 'x', '{}')",
+            (home, home),
+        )
+    )
+    learnings = Learnings(db, AuditLog(tmp_path / "audit"))
+    await learnings.load()
+    tank = HotWater(
+        db, Values(db), cast(Any, SimpleNamespace(instances={})), learnings, lambda k: True
+    )
+    now = datetime.combine(day(DAYS + 16), datetime.min.time(), UTC).timestamp() + 3600
+    point = Key("dev", "hp1/dhw/temp.top")
+    await tank._by_kind(TankKeys(TANK, point, point, point, point), Calendar(UTC), now)
+    found = learnings.get(DRAWS, TANK)
+    assert found is not None
+    assert isinstance(found.value, dict)
+    assert found.value["recent"] == 1.0, found.args
+    await learnings.put(Learned(name=LOSS, scope=TANK, kind="model", value=0.01, state="proved"))
+    start = datetime.fromtimestamp(now, UTC)
+    planned_now = await planned(db, learnings, TANK, Calendar(UTC), lambda d: 1.0, start, "home")
+    assert planned_now is not None
+    assert sum(planned_now[1]) == pytest.approx(2 * 10.0)
 
 
 async def test_until_proved_the_plan_keeps_the_week(db: Database, tmp_path: Path) -> None:

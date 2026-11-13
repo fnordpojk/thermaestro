@@ -196,7 +196,10 @@ class HotWater:
                 name=DRAWS,
                 scope=keys.scope,
                 kind="model",
-                value={"by_class": 1.0 if scored.by_class else 0.0},
+                value={
+                    "by_class": 1.0 if scored.by_class else 0.0,
+                    "recent": 1.0 if scored.recent else 0.0,
+                },
                 state="proved" if scored.proved else "learning",
                 why=scored.why,
                 args=scored.args,
@@ -469,8 +472,9 @@ def judged_at(
     ahead = {d: drawn.Ahead(d, expected, free(d)) for d in (day, after)}
     hours = [(d, h) for d in (day, after) for h in range(24)]
     guesses = drawn.others(day, read, predicted)
-    for model, by_class in (("plain", False), ("by_class", True)):
-        found = drawn.line(hours, ahead, past, by_class)
+    for model, (by_class, recent) in drawn.MODELS.items():
+        since = day - timedelta(days=drawn.RECENT_DAYS) if recent else None
+        found = drawn.line(hours, ahead, past, by_class, since)
         if found is not None:
             guesses[model] = found
     actual = drawn.blocks([*read[day], *read[after]])
@@ -493,8 +497,8 @@ async def planned(
     loss = learnings.used(LOSS, scope)
     model = learnings.used(DRAWS, scope)
     if isinstance(loss, int | float) and isinstance(model, dict):
-        by_class = bool(model.get("by_class"))
-        found = await line_at(db, scope, calendar, season, start, now, away, by_class)
+        by_class, recent = bool(model.get("by_class")), bool(model.get("recent"))
+        found = await line_at(db, scope, calendar, season, start, now, away, by_class, recent)
         if found is not None:
             return float(loss), found
     return expected(learnings, scope, calendar, season, start)
@@ -509,9 +513,11 @@ async def line_at(
     now: str | None,
     away: Callable[[datetime], bool],
     by_class: bool,
+    recent: bool = False,
 ) -> tuple[float, ...] | None:
     """The draws by kind of day hour by hour from `start` (`learn.drawn`), from the days
-    kept with their kinds as last labeled; None where there are none to take."""
+    kept with their kinds as last labeled, the last two weeks' only with `recent`; None
+    where there are none to take."""
     zone = calendar.zone
     hours = drawn.local_hours(start.timestamp(), zone)
     since = start.timestamp() - (drawn.POOL_DAYS + 1) * 86_400
@@ -533,7 +539,9 @@ async def line_at(
             days, zone, now, away, lambda d: calendar.weekday(d) >= 5
         ).items()
     }
-    found = drawn.line(hours, ahead, past, by_class)
+    today = datetime.fromtimestamp(start.timestamp(), zone).date()
+    recent_from = today - timedelta(days=drawn.RECENT_DAYS) if recent else None
+    found = drawn.line(hours, ahead, past, by_class, recent_from)
     return drawn.hourly(found) if found is not None else None
 
 

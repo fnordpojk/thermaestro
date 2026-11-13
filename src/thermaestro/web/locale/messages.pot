@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 00:01+0100\n"
+"POT-Creation-Date: 2026-11-13 00:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4699,7 +4699,13 @@ msgstr ""
 msgid "working days and free days apart"
 msgstr ""
 
+msgid "working days and free days apart, from the last two weeks"
+msgstr ""
+
 msgid "working days and free days together"
+msgstr ""
+
+msgid "working days and free days together, from the last two weeks"
 msgstr ""
 
 #, python-format

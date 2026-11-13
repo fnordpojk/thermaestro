@@ -92,6 +92,7 @@ class Conditions:
         for tank in self._learning.hot_water.tanks():
             model = learnings.used(DRAWS, tank.scope)
             by_class = isinstance(model, dict) and bool(model.get("by_class"))
+            recent = isinstance(model, dict) and bool(model.get("recent"))
             found_line = await line_at(
                 self._db,
                 tank.scope,
@@ -101,6 +102,7 @@ class Conditions:
                 self._occupancy.last_known,
                 lambda at: any(resolver.live(a, at) for a in aways),
                 by_class,
+                recent,
             )
             if found_line is not None:
                 lines[tank.scope] = found_line[:24]
