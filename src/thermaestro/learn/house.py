@@ -32,9 +32,9 @@ pump's curve makes it), what heating gives and what the house loses rise and fal
 together, and the fit can't say which is which. Nor is anything learned from rooms that
 hardly moved. Then nothing is claimed.
 
-**Proof:** from each hour of the last two days, six hours are simulated with what was
-measured going in, and compared with what the room did, against the room simply staying
-where it was.
+**Proof:** from each hour of the last week (`TEST_HOURS`), six hours are simulated with what
+was measured going in, and compared with what the room did, against the room simply
+staying where it was.
 
 **The household's heat:** people, cooking and computers warm a house too, so a house
 emptied cools more than a model learned with someone always home says. A second model has
@@ -64,7 +64,11 @@ TOLD_APART = 0.97
 """Above this correlation between the heating and the loss, they can't be told apart."""
 AHEAD = 6
 """Hours simulated, for the fit and the proof."""
-TEST_HOURS = 48
+TEST_HOURS = 168
+"""The hours held out to judge on, fitted on those before. A week: a comparison is spoiled
+by an hour left out (an airing) anywhere in its six, so two days of a household that airs
+a room or two a day can leave too few to judge by, and a week holds the household's
+working days and its free ones alike."""
 SEARCHES = 4
 """The simplex search is begun again from where it stopped, until that finds nothing
 better: in six or seven dimensions it settles before it is at the best."""

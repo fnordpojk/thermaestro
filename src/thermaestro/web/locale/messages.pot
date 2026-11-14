@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 00:26+0100\n"
+"POT-Creation-Date: 2026-11-14 23:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1533,6 +1533,9 @@ msgid "Judged once there are two days to test it on."
 msgstr ""
 
 msgid "Judged once there are two more days to test it on."
+msgstr ""
+
+msgid "Judged once there is a week more to test it on."
 msgstr ""
 
 msgid "Judging the requests in the plan"

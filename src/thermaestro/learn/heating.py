@@ -9,7 +9,7 @@ within ten minutes), or the pump's heating stop holding heating off. Kept as hou
 outlive the raw history and the forecasts (a week).
 
 Then the house is fitted again over the last four weeks of hours, and judged on its last
-two days (`learn.house`). Beside it, the house with the household's heat, from who was home
+week (`learn.house`). Beside it, the house with the household's heat, from who was home
 in each hour as concluded by then (`learn.occupied`), judged on the same hours against it.
 While heating is stopped, nothing new can be learned: what was learned is kept, frozen.
 
@@ -86,6 +86,7 @@ TAU_START = {"poorly_insulated": 20.0, "average": 40.0, "well_insulated": 70.0, 
 
 NOT_FITTED = mark("Not fitted yet.")
 TESTING = unjudged(mark("Judged once there are two more days to test it on."))
+HOUSE_TESTING = unjudged(mark("Judged once there is a week more to test it on."))
 FROZEN = mark("Heating is held off by the pump's heating stop: kept as learned until it heats.")
 MISSING = mark("Not learned: %(what)s isn't usable on this pump yet.")
 WHAT = {
@@ -467,7 +468,7 @@ class Heating:
                 )
             return
         state: State = "proved" if verdict is not None and verdict.proved else "learning"
-        reason = verdict.why if verdict is not None else TESTING
+        reason = verdict.why if verdict is not None else HOUSE_TESTING
         reason_args: dict[str, float | int | str] = dict(verdict.args) if verdict else {}
         values: dict[str, Any] = {
             MODEL: whole.as_value(),
@@ -520,7 +521,7 @@ class Heating:
                 kind="model",
                 value=whole.as_value(),
                 state="proved" if verdict is not None and verdict.proved else "learning",
-                why=verdict.why if verdict is not None else TESTING,
+                why=verdict.why if verdict is not None else HOUSE_TESTING,
                 args=dict(verdict.args) if verdict is not None else {},
                 n=whole.rows,
                 since=hours[0].t,

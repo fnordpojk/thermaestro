@@ -1,5 +1,5 @@
 """The optimizer's plan, carried out in the simulated house: with what the learners made of
-ten days of it, the rooms must follow what the plan predicted. The plant isn't the
+fifteen days of it, the rooms must follow what the plan predicted. The plant isn't the
 optimizer's model: it has its own emitters, mass, hot-water charges and gains."""
 
 import statistics

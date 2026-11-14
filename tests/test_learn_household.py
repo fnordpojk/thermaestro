@@ -1,6 +1,7 @@
 """The house with the household's heat: learned beside the model as it is, from the hours
 whose occupancy is known, and planned with only once it has beaten it."""
 
+import dataclasses
 import math
 import random
 from collections.abc import AsyncIterator, Callable
@@ -142,10 +143,11 @@ async def db(tmp_path: Path) -> AsyncIterator[Database]:
         yield db
 
 
-async def kept(db: Database, hours: list[h.Hour]) -> None:
-    """The hours as the learner keeps them, a day a row, without who was home."""
+async def kept(db: Database, hours: list[h.Hour], aired: frozenset[int] = frozenset()) -> None:
+    """The hours as the learner keeps them, a day a row, without who was home; `aired`,
+    the hours a room was aired."""
     days: dict[date, list[HouseHour]] = {}
-    for x in hours:
+    for k, x in enumerate(hours):
         day = datetime.fromtimestamp(x.t, UTC).date()
         days.setdefault(day, []).append(
             HouseHour(
@@ -155,6 +157,7 @@ async def kept(db: Database, hours: list[h.Hour]) -> None:
                 water=x.water,
                 sun=x.sun,
                 wind=x.wind,
+                skip="airing" if k in aired else None,
                 supply=x.water,
                 back=x.water,
             )
@@ -202,7 +205,7 @@ async def test_the_learner_keeps_the_households_model_beside_the_other(
 ) -> None:
     """From who was home as occupancy concluded it, each hour: proved by beating the model
     as it is, which stays as it was learned."""
-    hours = household(hours=10 * 24)
+    hours = household(hours=14 * 24)
     await kept(db, hours)
     await concluded(db, hours)
     learnings = await judged(db, tmp_path, hours[-1].t + 3600)
@@ -215,6 +218,31 @@ async def test_the_learner_keeps_the_households_model_beside_the_other(
     assert model is not None
     assert isinstance(model.value, dict)
     assert "eta" not in model.value
+
+
+async def test_weekday_absences_are_judged_on_a_weekend_with_airings(
+    db: Database, tmp_path: Path
+) -> None:
+    """Out at work and school on weekdays only, a room aired twice a day: judged on a
+    Sunday night, the last two days have no time away and too few comparisons, the last
+    week enough of both."""
+
+    def weekdays(k: int) -> bool:
+        return (k // 24) % 7 < 5 and at_work(k)
+
+    hours = household(hours=14 * 24, away=weekdays)
+    aired = frozenset(k for k in range(len(hours)) if k % 24 in (7, 19))
+    await kept(db, hours, aired)
+    await concluded(db, hours)
+    learnings = await judged(db, tmp_path, hours[-1].t + 3600)
+    for name in (MODEL, HOUSEHOLD):
+        found = learnings.get(name, SCOPE)
+        assert found is not None
+        assert found.state == "proved", (name, found.why, found.args)
+    seen = [dataclasses.replace(x, skip="airing") if k in aired else x for k, x in enumerate(hours)]
+    _, (_, two_days, _, _) = h.contest(seen, hours[-48].t)
+    assert two_days is not None
+    assert not two_days.proved
 
 
 async def test_without_occupancy_the_learner_learns_no_household(

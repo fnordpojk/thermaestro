@@ -1,5 +1,6 @@
 """What the learners would have made of a house, for the optimizer to plan with: fitted on
-ten days of the same house recorded beforehand, and kept as proved.
+fifteen days of the same house recorded beforehand (the house is judged on the last week of
+them, as on a pump), and kept as proved.
 
 The house, its water and its emitters are fitted and judged as the learners do; the draws and
 the COP are measured in the recording; the tank's standing loss and its week are what the
@@ -31,7 +32,7 @@ from .scenario import Draw, Scenario, draws_on
 UNIT = "pump:hp1"
 SYSTEM = "pump:hp1/cs1"
 TANK = "pump:hp1/dhw"
-LEARNED_DAYS = 10
+LEARNED_DAYS = 15
 
 
 _FITTED: dict[str, dict[tuple[str, str], object]] = {}

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 00:26+0100\n"
+"POT-Creation-Date: 2026-11-14 23:38+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -1634,6 +1634,9 @@ msgstr "Beurteilt, sobald es zwei Tage gibt, an denen es geprüft werden kann."
 
 msgid "Judged once there are two more days to test it on."
 msgstr "Beurteilt, sobald es zwei weitere Tage gibt, an denen es geprüft werden kann."
+
+msgid "Judged once there is a week more to test it on."
+msgstr "Beurteilt, sobald es eine weitere Woche gibt, an der es geprüft werden kann."
 
 msgid "Judging the requests in the plan"
 msgstr "Die Beurteilung der Anfragen im Plan"
