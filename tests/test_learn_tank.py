@@ -179,7 +179,8 @@ def test_the_rules_use_the_tank_once_it_has_proved_itself() -> None:
 
 
 async def test_the_tank_is_learned_day_by_day_and_kept(tmp_path: Path) -> None:
-    _, series = recorded()
+    n = 12  # each weekday seen, and then a few more days
+    _, series = recorded(days=n)
     node = SimpleNamespace
     described = node(
         nodes=[node(path="hp1", kind="unit"), node(path="hp1/dhw", kind="dhw_tank")],
@@ -211,15 +212,26 @@ async def test_the_tank_is_learned_day_by_day_and_kept(tmp_path: Path) -> None:
         await hot.run(end)
         week = learnings.get(DEMAND, "dev:hp1/dhw")
         assert week is not None
-        assert week.n == DAYS - 1  # every whole day but today, which isn't over
+        assert week.n == n - 1  # every whole day but today, which isn't over
         loss = learnings.get(LOSS, "dev:hp1/dhw")
         assert loss is not None
         assert isinstance(loss.value, float)
         days = [d for _, d in await hot.days("dev:hp1/dhw", 0.0)]
-        assert len(days) == DAYS - 1
-        assert sum(d.draws for d in days if isinstance(d, TankDay)) >= 2 * (DAYS - 1)
+        assert len(days) == n - 1
+        assert sum(d.draws for d in days if isinstance(d, TankDay)) >= 2 * (n - 1)
+        # Each day keeps the week's next two days as it stood at the next midnight: what
+        # each of them was then predicted when it was read itself.
+        read = {d.day: d for d in days if isinstance(d, TankDay)}
+        compared = 0
+        for day, seen in read.items():
+            later = [read.get(day + timedelta(days=i)) for i in (1, 2)]
+            if seen.ahead is None or any(x is None or x.predicted is None for x in later):
+                continue
+            assert seen.ahead == [v for x in later for v in x.predicted or ()]  # type: ignore[union-attr]
+            compared += 1
+        assert compared >= 2
         await hot.run(end)  # nothing new to read
-        assert len(await hot.days("dev:hp1/dhw", 0.0)) == DAYS - 1
+        assert len(await hot.days("dev:hp1/dhw", 0.0)) == n - 1
         # Not used until proved: the loss alone, or a week not yet judged, isn't enough.
         calendar = SimpleNamespace(weekday=lambda d: d.weekday(), zone=UTC_ZONE)
         start = datetime.fromtimestamp(end, UTC)

@@ -177,6 +177,22 @@ async def test_a_day_the_tank_wasnt_read_isnt_quiet(db: Database) -> None:
     assert "away" not in seen.states  # quiet from 08:00, but not for a day with the tank read
 
 
+async def test_a_day_not_read_stays_not_known_after_a_later_absence(db: Database) -> None:
+    """A draw on day 0, day 1 not read, then two quiet days: day 1 isn't known before the
+    absence is concluded or after, and the absence is dated from when reading began again,
+    not from the draw before the gap."""
+    await kept(db, [0, 2, 3], [at(0, 8)], gaps=(1,))
+    before = await timeline(db, at(2, 8), at(0, 0), [TANK], UTC)
+    after = await timeline(db, at(3, 1), at(0, 0), [TANK], UTC)
+    for seen in (before, after):
+        assert seen.day(on(1), UTC) == "unknown"
+        assert seen.share(at(1, 12)) is None
+        assert seen.at(at(0, 12)) == "home"
+    assert before.at(at(2, 7)) == "unknown"  # read again, but not quiet for a day yet
+    assert after.at(at(2, 0.5)) == "away"
+    assert after.starts[after.states.index("away")] == at(2, 0)
+
+
 @dataclass
 class Bound:
     value: object

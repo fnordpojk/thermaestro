@@ -2,7 +2,7 @@
 judged against the week and simpler guesses, and planned with once it beats them."""
 
 import itertools
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,10 +12,13 @@ import pytest
 
 from thermaestro.core import AuditLog, Values
 from thermaestro.core.values import Key
+from thermaestro.intents import kinds
 from thermaestro.intents.calendar import Calendar
+from thermaestro.intents.resolve import Resolver
 from thermaestro.learn import Learned, Learnings, drawn, occupied, records
 from thermaestro.learn.hotwater import DRAWS, LOSS, HotWater, TankKeys, judged_at, planned
 from thermaestro.learn.records import DAY_KIND, TANK_DAY, TankDay
+from thermaestro.planner.optimizer import Optimizer
 from thermaestro.store import Database
 
 D0 = date(2026, 9, 28)  # a Monday
@@ -105,15 +108,38 @@ def test_each_day_ahead_takes_its_kind() -> None:
         return at < back
 
     days = [day(0), day(1), day(2)]
-    kinds = drawn.kinds_ahead(days, UTC, "home", away, lambda d: d.weekday() >= 5)
+    start = datetime.combine(day(0), datetime.min.time(), UTC)
+
+    def expected(last: str | None, asked: Callable[[datetime], bool]) -> occupied.Expected:
+        return occupied.Expected(start, last, asked)
+
+    kinds = drawn.kinds_ahead(days, UTC, expected("home", away), lambda d: d.weekday() >= 5)
     assert [kinds[d][0] for d in days] == ["away", "return", "home"]
-    leaving = drawn.kinds_ahead(days, UTC, "home", lambda at: at >= back, lambda d: False)
+    leaving = drawn.kinds_ahead(days, UTC, expected("home", lambda at: at >= back), lambda d: False)
     assert [leaving[d][0] for d in days] == ["home", "departure", "away"]
-    nobody = drawn.kinds_ahead(days, UTC, "away", lambda at: False, lambda d: False)
+    nobody = drawn.kinds_ahead(days, UTC, expected("away", lambda at: False), lambda d: False)
     assert {k for k, _ in nobody.values()} == {"away"}
-    assert (
-        drawn.kinds_ahead(days, UTC, None, lambda at: False, lambda d: False)[day(0)][0] == "home"
-    )
+    unknown = drawn.kinds_ahead(days, UTC, expected(None, lambda at: False), lambda d: False)
+    assert unknown[day(0)][0] == "home"
+
+
+def test_after_a_return_ahead_the_days_are_home_as_the_heating_expects() -> None:
+    """Planned at noon on a Friday with nobody home, an away request ending at 18:00 on
+    Saturday: Sunday is home for the tank, as for the heating, not away again."""
+    start = datetime.combine(day(4), datetime.min.time(), UTC) + timedelta(hours=12)
+    back = start + timedelta(hours=30)
+    request = kinds.away(back, {}, principal="u:1", created=start - timedelta(days=5))
+    resolver = Resolver([request], {})
+    away = occupied.Expected(start, "away", lambda at: resolver.live(request, at))
+    days = [day(4), day(5), day(6)]
+    found = drawn.kinds_ahead(days, UTC, away, lambda d: False)
+    assert [found[d][0] for d in days] == ["away", "return", "home"]
+    planner = Optimizer(cast(Any, None), cast(Any, None), cast(Any, None), cast(Any, None))
+    planner.occupied = lambda: "away"
+    heating = planner._home_ahead(resolver, [start.timestamp()])
+    assert heating == (0.0,) * 30 + (1.0,) * 18
+    hours = [start + timedelta(hours=h, minutes=30) for h in range(drawn.HORIZON_H)]
+    assert [0.0 if away(at) else 1.0 for at in hours] == list(heating)
 
 
 # --- judging it ----------------------------------------------------------------------------
@@ -200,6 +226,7 @@ async def recorded(db: Database) -> None:
                 k=0.01,
                 opens=0.5,
                 season=1.0,
+                ahead=week * 2,
             ),
         )
         for n in range(DAYS)
@@ -258,7 +285,7 @@ def test_a_midnight_is_judged_with_what_was_concluded_by_then() -> None:
     the line was two days at home's, not two days away's."""
     away = (1, 2, 3, 7, 8, 9)
     read = {day(n): (0.0,) * 24 if n in away else drawn_on(n) for n in range(10)}
-    predicted: dict[date, tuple[list[float] | None, list[float] | None]] = {
+    issued: dict[date, tuple[list[float] | None, list[float] | None]] = {
         d: (None, None) for d in read
     }
 
@@ -271,11 +298,40 @@ def test_a_midnight_is_judged_with_what_was_concluded_by_then() -> None:
         (at(4), at(4), "home"),
         (at(7, 10), at(6, 22), "away"),
     ]
-    found = judged_at(day(7), "away", read, predicted, rows, UTC, lambda d: False)
+    found = judged_at(day(7), "away", read, issued, rows, UTC, lambda d: False)
     assert found.kind == "away"
     assert found.guesses["plain"][-1] >= 2 * 9.0
-    later = judged_at(day(8), "away", read, predicted, rows, UTC, lambda d: False)
+    later = judged_at(day(8), "away", read, issued, rows, UTC, lambda d: False)
     assert later.guesses["plain"][-1] == 0.0  # by then it was known: two days away
+
+
+def test_a_midnight_is_judged_only_with_what_was_known_then() -> None:
+    """Nothing first known after the midnight changes a guess made at it: the day just
+    ended (read only after midnight), the week as it stood once it had learned from that
+    day or later, what was concluded later, and the two days judged themselves."""
+    week = [0.25] * 48
+    read: dict[date, tuple[float, ...]] = {day(n): (0.25,) * 24 for n in range(12)}
+    issued: dict[date, tuple[list[float] | None, list[float] | None]] = {
+        d: (week, [0.25] * 24) for d in read
+    }
+    rows: list[occupied.Row] = [(day_at(0), day_at(0), "home")]
+    judged = day(10)
+    found = judged_at(judged, "home", read, issued, rows, UTC, lambda d: False)
+    assert set(found.guesses) == {*drawn.MODELS, *drawn.OTHERS}
+    later = dict(read)
+    for n in (9, 10, 11):  # the day just ended, and the two judged
+        later[day(n)] = (1.25,) * 24
+    later_issued = dict(issued)
+    for n in (10, 11):  # the week once it had learned from the day just ended, and later
+        later_issued[day(n)] = ([1.25] * 48, [1.25] * 24)
+    later_rows = [*rows, (day_at(10, 1), day_at(8), "away")]
+    changed = judged_at(judged, "home", later, later_issued, later_rows, UTC, lambda d: False)
+    assert changed.guesses == found.guesses
+    assert changed.actual != found.actual
+
+
+def day_at(n: int, hour: float = 0.0) -> float:
+    return datetime.combine(day(n), datetime.min.time(), UTC).timestamp() + hour * 3600
 
 
 async def test_the_plan_gets_the_line_for_who_is_home(db: Database, tmp_path: Path) -> None:
@@ -284,14 +340,38 @@ async def test_the_plan_gets_the_line_for_who_is_home(db: Database, tmp_path: Pa
     await learnings.put(Learned(name=LOSS, scope=TANK, kind="model", value=0.01, state="proved"))
     start = datetime.fromtimestamp(now, UTC)
     calendar = Calendar(UTC)
-    home = await planned(db, learnings, TANK, calendar, lambda d: 1.0, start, "home")
-    away = await planned(db, learnings, TANK, calendar, lambda d: 1.0, start, "away")
+    home = await planned(db, learnings, TANK, calendar, lambda d: 1.0, start, nobody(start, "home"))
+    away = await planned(db, learnings, TANK, calendar, lambda d: 1.0, start, nobody(start, "away"))
     assert home is not None
     assert away is not None
     assert home[0] == pytest.approx(0.01)
     assert len(home[1]) == drawn.HORIZON_H
     assert sum(home[1]) >= 2 * 9.0  # two days at home, the heavier ones
     assert sum(away[1]) == pytest.approx(0.0)
+
+
+def nobody(start: datetime, last: str) -> occupied.Expected:
+    """Whoever was last concluded home or away, with nothing asked."""
+    return occupied.Expected(start, last, lambda at: False)
+
+
+async def test_the_tank_plans_a_day_at_home_after_a_return_ahead(
+    db: Database, tmp_path: Path
+) -> None:
+    """Nobody home at noon, back at 18:00 the day after: the morning after that is planned
+    as at home, with its shower, not as another day away."""
+    await recorded(db)
+    learnings, now = await learned(db, tmp_path)
+    await learnings.put(Learned(name=LOSS, scope=TANK, kind="model", value=0.01, state="proved"))
+    start = datetime.fromtimestamp(now, UTC) + timedelta(hours=11)
+    back = start + timedelta(hours=30)
+    request = kinds.away(back, {}, principal="u:1", created=start - timedelta(days=5))
+    resolver = Resolver([request], {})
+    away = occupied.Expected(start, "away", lambda at: resolver.live(request, at))
+    found = await planned(db, learnings, TANK, Calendar(UTC), lambda d: 1.0, start, away)
+    assert found is not None
+    assert sum(found[1][:12]) == pytest.approx(0.0)  # the rest of a day away
+    assert sum(found[1][36:]) >= 6.0  # the morning at home: its shower
 
 
 async def test_a_household_that_draws_more_now_is_followed(db: Database, tmp_path: Path) -> None:
@@ -318,6 +398,7 @@ async def test_a_household_that_draws_more_now_is_followed(db: Database, tmp_pat
                     k=0.01,
                     opens=0.5,
                     season=1.0,
+                    ahead=week * 2,
                 ),
             )
         )
@@ -344,7 +425,9 @@ async def test_a_household_that_draws_more_now_is_followed(db: Database, tmp_pat
     assert found.value["recent"] == 1.0, found.args
     await learnings.put(Learned(name=LOSS, scope=TANK, kind="model", value=0.01, state="proved"))
     start = datetime.fromtimestamp(now, UTC)
-    planned_now = await planned(db, learnings, TANK, Calendar(UTC), lambda d: 1.0, start, "home")
+    planned_now = await planned(
+        db, learnings, TANK, Calendar(UTC), lambda d: 1.0, start, nobody(start, "home")
+    )
     assert planned_now is not None
     assert sum(planned_now[1]) == pytest.approx(2 * 10.0)
 

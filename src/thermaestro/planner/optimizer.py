@@ -41,6 +41,7 @@ from ..learn.heating import HOUSEHOLD, MODEL, WATER
 from ..learn.hotwater import CEILING
 from ..learn.house import Fit
 from ..learn.model import mark
+from ..learn.occupied import Expected
 from ..learn.pool import POOL
 from ..learn.pump import Water
 from ..optimize import (
@@ -651,21 +652,20 @@ class Optimizer:
         return household if isinstance(household, dict) else self._learnings.used(MODEL, system)
 
     def _home_ahead(self, resolver: Resolver, starts: list[float]) -> tuple[float, ...]:
-        """Who is expected home in each hour ahead: away while an away request holds, and
-        home after it ends; else as concluded now, where unknown the last that was known,
-        and home where nothing has been."""
+        """Who is expected home in each hour ahead, as the tank's plan takes it too
+        (`occupied.Expected`): away while an away request holds, and home after it ends;
+        else as concluded now, where unknown the last that was known, and home where
+        nothing has been."""
         aways = [i for i in resolver.intents if i.kind == "away" and i.open]
-        now = self.occupied() if self.occupied is not None else None
-        out: list[float] = []
-        asked = False
-        for h in range(HORIZON_H):
-            at = datetime.fromtimestamp(starts[0] + 3600 * h + 1800, UTC)
-            if any(resolver.live(a, at) for a in aways):
-                out.append(0.0)
-                asked = True
-            else:
-                out.append(1.0 if asked or now != "away" else 0.0)
-        return tuple(out)
+        away = Expected(
+            datetime.fromtimestamp(starts[0], UTC),
+            self.occupied() if self.occupied is not None else None,
+            lambda at: any(resolver.live(a, at) for a in aways),
+        )
+        return tuple(
+            0.0 if away(datetime.fromtimestamp(starts[0] + 3600 * h + 1800, UTC)) else 1.0
+            for h in range(HORIZON_H)
+        )
 
     async def _room_mean(self, scope: str, now: float, fallback: float | None) -> float:
         """A room's mean temperature over the last hour."""

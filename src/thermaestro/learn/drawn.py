@@ -9,20 +9,23 @@ gets it hour by hour, each block's rise spread over its hours, so the tank is re
 block's end for all but the heaviest tenth of such days.
 
 **Its kind ahead:** away while an away request holds, a return on the day it ends, a
-departure on the day one starts; else as whether anyone is home was last concluded.
+departure on the day one starts, and home after it ends; else as whether anyone is home
+was last concluded (`occupied.Expected`, as the heating's plan takes it too).
 
 **Too few days of a kind** (fewer than `LEAST_SAME`, as with a first trip): the working and
 free days of it are taken together, and with fewer still, every day known.
 
 **Judged** each day on the days before, as at each of their midnights: what the line was then,
-from the days before it labeled as they were known then, against what was drawn in the two
-days after. Scored by the quantile loss at nine in ten, against the week, a flat guess, the
-same day last week and the last seven days' mean; and how often the draws stayed within it
-is given beside, by kind of day, as the loss alone would reward a line set too high. Whether
-working and free days are told apart, and whether only the last two weeks' days are taken
-(`RECENT_DAYS`: a household's habits change, as when children are home from school), are
-each kept only where that scores better. It is used instead of the week only once it beats
-the best of the others by the margin (`validate`).
+from the days read by then (a day is read only once it is over, so not the one just ended)
+labeled as they were known then, against what was drawn in the two days after; the others
+too, each only from what was known at that midnight. Scored by the quantile loss at nine in
+ten, against the week, a flat guess, the same day last week and the last seven days' mean;
+and how often the draws stayed within it is given beside, by kind of day, as the loss
+alone would reward a line set too high. Whether working and free days are told apart, and
+whether only the last two weeks' days are taken (`RECENT_DAYS`: a household's habits
+change, as when children are home from school), are each kept only where that scores
+better. It is used instead of the week only once it beats the best of the others by the
+margin (`validate`).
 """
 
 import itertools
@@ -251,23 +254,21 @@ def score(moments: Sequence[Moment]) -> Scored:
 def others(
     day: date,
     read: Mapping[date, tuple[float, ...]],
-    predicted: Mapping[date, tuple[Sequence[float] | None, Sequence[float] | None]],
+    week: Sequence[float] | None,
+    flat: Sequence[float] | None,
 ) -> dict[str, list[float]]:
-    """The other guesses at `day`'s midnight, for it and the day after, by block: the week
-    and the flat guess as each day kept them, the same days a week before, and the mean
-    day of the seven before."""
-    two = (day, day + timedelta(days=1))
+    """The other guesses at `day`'s midnight, for it and the day after, by block, each from
+    what was known by then: the week's two days as it stood then (`week`), its flat day
+    (`flat`), the same days a week before, and the mean day of the seven read by then."""
     out: dict[str, list[float]] = {}
-    week = [predicted.get(d, (None, None))[0] for d in two]
-    flat = [predicted.get(d, (None, None))[1] for d in two]
-    if all(w is not None for w in week):
-        out["week"] = blocks([v for w in week for v in w or ()])
-    if all(f is not None for f in flat):
-        out["flat"] = blocks([v for f in flat for v in f or ()])
-    before = [read.get(d - timedelta(days=7)) for d in two]
+    if week is not None:
+        out["week"] = blocks(list(week))
+    if flat is not None:
+        out["flat"] = blocks([*flat, *flat])
+    before = [read.get(d - timedelta(days=7)) for d in (day, day + timedelta(days=1))]
     if all(b is not None for b in before):
         out["last_week"] = blocks([v for b in before for v in b or ()])
-    seven = [read[d] for i in range(1, 8) if (d := day - timedelta(days=i)) in read]
+    seven = [read[d] for i in range(2, 9) if (d := day - timedelta(days=i)) in read]
     if len(seven) >= 4:
         mean = [sum(h) / len(seven) for h in zip(*seven, strict=True)]
         out["seven_days"] = blocks(mean * 2)
@@ -277,13 +278,12 @@ def others(
 def kinds_ahead(
     days: Sequence[date],
     zone: tzinfo,
-    now: str | None,
     away: Callable[[datetime], bool],
     free: Callable[[date], bool],
 ) -> dict[date, tuple[DayLabel, bool]]:
-    """Each day's kind ahead, by its waking hours: away while an away request holds (`away`),
-    a return on the day it ends, a departure on the day one starts; else as last concluded
-    (`now`), home where nothing has been."""
+    """Each day's kind ahead, by whether nobody is expected home (`away`, as
+    `occupied.Expected` gives it) at the start and the end of its waking hours: away at
+    both, home at neither, a return or a departure between."""
     from .occupied import WAKING
 
     out: dict[date, tuple[DayLabel, bool]] = {}
@@ -298,6 +298,6 @@ def kinds_ahead(
         elif last:
             kind = "departure"
         else:
-            kind = "away" if now == "away" else "home"
+            kind = "home"
         out[d] = (kind, free(d))
     return out

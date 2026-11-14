@@ -99,8 +99,11 @@ class Conditions:
                 calendar,
                 lambda d: 1.0,  # as the days are kept: at the year's mean inlet
                 midnight,
-                self._occupancy.last_known,
-                lambda at: any(resolver.live(a, at) for a in aways),
+                occupied.Expected(
+                    midnight,
+                    self._occupancy.last_known,
+                    lambda at: any(resolver.live(a, at) for a in aways),
+                ),
                 by_class,
                 recent,
             )

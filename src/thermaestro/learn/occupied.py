@@ -10,7 +10,8 @@ Before occupancy was weighed live (an installation with history from before it),
 the tank's learner kept are weighed by the same rules, as for a house whose only source is
 its draws: home from a draw; away once every tank was read and quiet for `QUIET_ONE_S`, the
 household's quiet hours not counted, dated from the last draw. A day a tank wasn't read is
-not known, and the quiet starts again after it.
+not known, and nothing is after it until a draw or the quiet again, an absence then dated
+from no earlier than when reading began again: what wasn't read is never read as away.
 
 A day is labeled by its waking hours (`WAKING`, in the house's time): away when nobody was
 home at their start and at their end; home when someone was at both, out between or not
@@ -22,7 +23,7 @@ leaves the day away.
 from bisect import bisect_right
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from itertools import pairwise
 from typing import TYPE_CHECKING, Literal
 
@@ -128,6 +129,7 @@ def weigh(
     state: State | None = None
     counted = 0.0
     last: float | None = None
+    """The last draw, or the moment reading began again since: an absence is dated from it."""
     draws = sorted(d for d in draws if start <= d < until)
     j = 0
     t = start
@@ -142,14 +144,47 @@ def weigh(
             j += 1
         if not drew:
             if not any(a <= t and end <= b for a, b in read):
-                counted = 0.0
-            elif not quiet(t):
-                counted += end - t
+                counted, last = 0.0, None
+                if state is not None and state != "unknown":
+                    found.append((t, t, "unknown"))
+                    state = "unknown"
+            else:
+                if last is None:
+                    last = t
+                if not quiet(t):
+                    counted += end - t
             if counted >= QUIET_ONE_S and state != "away":
                 found.append((end, last if last is not None else end, "away"))
                 state = "away"
         t = end
     return found
+
+
+class Expected:
+    """Whether nobody is expected home at a moment, as a plan from `start` takes it: away
+    while an away request holds (`asked`), and home once one that held from `start` on has
+    ended, however far ahead; else as last concluded (`last`), home where nothing has been.
+    The heating's plan and the tank's take it from here alike."""
+
+    def __init__(
+        self, start: datetime, last: str | None, asked: Callable[[datetime], bool]
+    ) -> None:
+        self._asked = asked
+        self._last = last
+        self._scanned = start
+        self._first: datetime | None = None
+        """When an away request first held from `start` on, as far as looked."""
+
+    def __call__(self, at: datetime) -> bool:
+        if self._asked(at):
+            return True
+        while self._first is None and self._scanned <= at:
+            if self._asked(self._scanned):
+                self._first = self._scanned
+            self._scanned += timedelta(seconds=STEP_S)
+        if self._first is not None and self._first <= at:
+            return False
+        return self._last == "away"
 
 
 async def timeline(

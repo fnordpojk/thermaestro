@@ -52,6 +52,7 @@ from ..learn.energy import charge_kw
 from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import house, planned
+from ..learn.occupied import Expected
 from ..learn.pump import Response, lead
 from ..optimize import Problem
 from ..optimize import plan as solve
@@ -702,8 +703,11 @@ class Planner:
                     days[0],
                     days[1],
                     now,
-                    self.occupied() if self.occupied is not None else None,
-                    lambda at: any(resolver.live(a, at) for a in aways),
+                    Expected(
+                        now,
+                        self.occupied() if self.occupied is not None else None,
+                        lambda at: any(resolver.live(a, at) for a in aways),
+                    ),
                 )
             tanks[scope] = Tank(
                 scope,

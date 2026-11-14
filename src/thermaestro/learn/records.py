@@ -53,6 +53,10 @@ class TankDay(Record):
     opens: float
     """What opened a draw that day."""
     season: float
+    ahead: list[float] | None = None
+    """What the week predicted for the two days after, hour by hour, before it learned from
+    the day: the week as it stood at the next midnight, as the day is read only after it.
+    None while a weekday of them hadn't been seen."""
 
 
 class DayKind(Record):

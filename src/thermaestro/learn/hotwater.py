@@ -169,7 +169,7 @@ class HotWater:
         if not found:
             return
         read = {d.day: tuple(d.hourly) for d in found}
-        predicted = {d.day: (d.predicted, d.baseline) for d in found}
+        issued = {d.day: (d.ahead, d.baseline) for d in found}
         tanks = [k.scope for k in self.tanks()]
         rows = await occupied.history(self._db, since, now, tanks, zone, self._intents)
         known = occupied.line(rows, now)
@@ -189,7 +189,7 @@ class HotWater:
         for back in range(drawn.JUDGED_DAYS, 1, -1):
             day = today - timedelta(days=back)
             if day in read and day + timedelta(days=1) in read:
-                moments.append(judged_at(day, kinds[day], read, predicted, rows, zone, free))
+                moments.append(judged_at(day, kinds[day], read, issued, rows, zone, free))
         scored = drawn.score(moments)
         await self._learnings.put(
             Learned(
@@ -239,6 +239,10 @@ class HotWater:
             baseline: list[float] | None = [flat] * 24
         else:
             predicted = baseline = None
+        after = [calendar.weekday(day + timedelta(days=i)) for i in (1, 2)]
+        ahead: list[float] | None = None
+        if all(demand_now.seen[w] for w in after):
+            ahead = [v for w in after for v in demand_now.day(w)]
         demand_now.learn(weekday, read.hourly)
         n = (learned.n if learned else 0) + 1
         await self._learnings.put(
@@ -267,6 +271,7 @@ class HotWater:
             k=k,
             opens=opens,
             season=round(scale, 3),
+            ahead=ahead,
         )
         rows = [
             records.row(TANK_DAY, start, seen),
@@ -452,26 +457,32 @@ def judged_at(
     day: date,
     kind: "occupied.DayLabel",
     read: dict[date, tuple[float, ...]],
-    predicted: dict[date, tuple[list[float] | None, list[float] | None]],
+    issued: dict[date, tuple[list[float] | None, list[float] | None]],
     rows: list[occupied.Row],
     zone: tzinfo,
     free: Callable[[date], bool],
 ) -> drawn.Moment:
-    """`day`'s midnight judged: each guess's line then for it and the day after, the line by
-    kind of day from the days before as they were labeled then, with whether anyone was home
-    as concluded by then; `kind`, the day's own as known now, for the report."""
+    """`day`'s midnight judged: each guess's line then for it and the day after, from what
+    was known by then. A day is read only once it is over, so the day just ended isn't: the
+    line by kind of day is from the days read before it, labeled as whether anyone was home
+    was concluded by midnight; the week's two days and its flat day as kept with the day just
+    ended (`issued`: the week as it stood before learning from it). What was drawn in the two
+    days is only what each is judged against; `kind`, the day's own as known now, is for the
+    report."""
     after = day + timedelta(days=1)
+    known = day - timedelta(days=1)
     midnight = tank.bounds(day, zone)[0]
     then = occupied.line(rows, midnight)
     past = [
         drawn.Past(d, read[d], then.day(d, zone), free(d))
         for d in read
-        if day - timedelta(days=drawn.POOL_DAYS) <= d < day
+        if day - timedelta(days=drawn.POOL_DAYS) <= d < known
     ]
     expected: occupied.DayLabel = "away" if then.at(midnight) == "away" else "home"
     ahead = {d: drawn.Ahead(d, expected, free(d)) for d in (day, after)}
     hours = [(d, h) for d in (day, after) for h in range(24)]
-    guesses = drawn.others(day, read, predicted)
+    week, flat = issued.get(known, (None, None))
+    guesses = drawn.others(day, read, week, flat)
     for model, (by_class, recent) in drawn.MODELS.items():
         since = day - timedelta(days=drawn.RECENT_DAYS) if recent else None
         found = drawn.line(hours, ahead, past, by_class, since)
@@ -488,17 +499,16 @@ async def planned(
     calendar: Calendar,
     season: Callable[[date], float],
     start: datetime,
-    now: str | None = None,
     away: Callable[[datetime], bool] = lambda at: False,
 ) -> tuple[float, tuple[float, ...]] | None:
     """A tank's standing loss and the draws to plan for, hour by hour from `start`: by kind
-    of day once that has beaten the week (`learn.drawn`), with whether anyone is home as last
-    concluded (`now`) and an away request's hours (`away`); else the week, as `expected`."""
+    of day once that has beaten the week (`learn.drawn`), with whether nobody is expected
+    home (`away`, as `occupied.Expected` gives it); else the week, as `expected`."""
     loss = learnings.used(LOSS, scope)
     model = learnings.used(DRAWS, scope)
     if isinstance(loss, int | float) and isinstance(model, dict):
         by_class, recent = bool(model.get("by_class")), bool(model.get("recent"))
-        found = await line_at(db, scope, calendar, season, start, now, away, by_class, recent)
+        found = await line_at(db, scope, calendar, season, start, away, by_class, recent)
         if found is not None:
             return float(loss), found
     return expected(learnings, scope, calendar, season, start)
@@ -510,7 +520,6 @@ async def line_at(
     calendar: Calendar,
     season: Callable[[date], float],
     start: datetime,
-    now: str | None,
     away: Callable[[datetime], bool],
     by_class: bool,
     recent: bool = False,
@@ -536,7 +545,7 @@ async def line_at(
     ahead = {
         d: drawn.Ahead(d, kind, free, season(d))
         for d, (kind, free) in drawn.kinds_ahead(
-            days, zone, now, away, lambda d: calendar.weekday(d) >= 5
+            days, zone, away, lambda d: calendar.weekday(d) >= 5
         ).items()
     }
     today = datetime.fromtimestamp(start.timestamp(), zone).date()
