@@ -41,7 +41,7 @@ from ..learn.heating import HOUSEHOLD, MODEL, WATER
 from ..learn.hotwater import CEILING
 from ..learn.house import Fit
 from ..learn.model import mark
-from ..learn.occupied import Expected
+from ..learn.occupied import Expected, asked_away
 from ..learn.pool import POOL
 from ..learn.pump import Water
 from ..optimize import (
@@ -640,7 +640,7 @@ class Optimizer:
                 draw,
                 float(stored) if isinstance(stored, int | float) else 0.0,
                 drift,
-                self._home_ahead(resolver, starts) if fit.household else (),
+                self._home_ahead(resolver, starts, sit.now) if fit.household else (),
             ),
             "",
         )
@@ -651,16 +651,15 @@ class Optimizer:
         household = self._learnings.used(HOUSEHOLD, system)
         return household if isinstance(household, dict) else self._learnings.used(MODEL, system)
 
-    def _home_ahead(self, resolver: Resolver, starts: list[float]) -> tuple[float, ...]:
-        """Who is expected home in each hour ahead, as the tank's plan takes it too
-        (`occupied.Expected`): away while an away request holds, and home after it ends;
-        else as concluded now, where unknown the last that was known, and home where
-        nothing has been."""
-        aways = [i for i in resolver.intents if i.kind == "away" and i.open]
+    def _home_ahead(
+        self, resolver: Resolver, starts: list[float], now: datetime
+    ) -> tuple[float, ...]:
+        """Who is expected home in each hour ahead, as the tank's plan takes it too, from
+        the same moment (`occupied.Expected`): away while an away request holds, and home
+        after it ends; else as concluded now, where unknown the last that was known, and
+        home where nothing has been."""
         away = Expected(
-            datetime.fromtimestamp(starts[0], UTC),
-            self.occupied() if self.occupied is not None else None,
-            lambda at: any(resolver.live(a, at) for a in aways),
+            now, self.occupied() if self.occupied is not None else None, asked_away(resolver)
         )
         return tuple(
             0.0 if away(datetime.fromtimestamp(starts[0] + 3600 * h + 1800, UTC)) else 1.0

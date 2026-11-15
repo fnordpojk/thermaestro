@@ -23,7 +23,7 @@ leaves the day away.
 from bisect import bisect_right
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta, tzinfo
+from datetime import UTC, date, datetime, time, tzinfo
 from itertools import pairwise
 from typing import TYPE_CHECKING, Literal
 
@@ -31,10 +31,11 @@ from ..occupancy import QUIET_ONE_S, State
 from ..store import Database, Transaction
 from . import records
 from .records import DRAW, TANK_DAY, TankDay
-from .tank import bounds
+from .tank import READ_AFTER_S, bounds
 
 if TYPE_CHECKING:
     from ..intents import Intents
+    from ..intents.resolve import Resolver
 
 DayLabel = Literal["home", "away", "departure", "return", "unknown"]
 
@@ -122,9 +123,13 @@ def weigh(
     start: float,
     until: float,
     quiet: Callable[[float], bool],
+    available: Callable[[float], float] = lambda t: t,
 ) -> list[Row]:
     """The kept draws from `start` to `until`, weighed as occupancy weighs a house whose
-    only source is its draws. `read`: the spans every tank was read in, in order."""
+    only source is its draws. `read`: the spans every tank was read in, in order. Each
+    conclusion is reached when what it rests on was first known (`available`: when what
+    happened at a moment was read), so a line as at a moment has only what was known by
+    then."""
     found: list[Row] = []
     state: State | None = None
     counted = 0.0
@@ -139,14 +144,14 @@ def weigh(
         while j < len(draws) and draws[j] < end:
             last, drew, counted = draws[j], True, 0.0
             if state != "home":
-                found.append((last, last, "home"))
+                found.append((available(last), last, "home"))
                 state = "home"
             j += 1
         if not drew:
             if not any(a <= t and end <= b for a, b in read):
                 counted, last = 0.0, None
                 if state is not None and state != "unknown":
-                    found.append((t, t, "unknown"))
+                    found.append((available(t), t, "unknown"))
                     state = "unknown"
             else:
                 if last is None:
@@ -154,37 +159,47 @@ def weigh(
                 if not quiet(t):
                     counted += end - t
             if counted >= QUIET_ONE_S and state != "away":
-                found.append((end, last if last is not None else end, "away"))
+                # Quiet up to `end`: known once the moment just before it was read.
+                reached = max(end, available(end - 1e-3))
+                found.append((reached, last if last is not None else end, "away"))
                 state = "away"
         t = end
     return found
 
 
-class Expected:
-    """Whether nobody is expected home at a moment, as a plan from `start` takes it: away
-    while an away request holds (`asked`), and home once one that held from `start` on has
-    ended, however far ahead; else as last concluded (`last`), home where nothing has been.
-    The heating's plan and the tank's take it from here alike."""
+Span = tuple[datetime, datetime | None]
+"""When a request holds: from its start to its end, None where it doesn't end."""
 
-    def __init__(
-        self, start: datetime, last: str | None, asked: Callable[[datetime], bool]
-    ) -> None:
-        self._asked = asked
+
+class Expected:
+    """Whether nobody is expected home at a moment, as a plan made at `start` takes it: away
+    while an away request holds (`asked`, each from its start to its end), and home once
+    one that held from `start` on has ended, however far ahead and however short it was;
+    else as last concluded (`last`), home where nothing has been. The heating's plan and
+    the tank's take it from here alike, from the same moment."""
+
+    def __init__(self, start: datetime, last: str | None, asked: Sequence[Span]) -> None:
+        self._asked = list(asked)
         self._last = last
-        self._scanned = start
-        self._first: datetime | None = None
-        """When an away request first held from `start` on, as far as looked."""
+        held = [max(a, start) for a, b in self._asked if b is None or b > start]
+        self._first = min(held) if held else None
+        """When an away request first held from `start` on."""
 
     def __call__(self, at: datetime) -> bool:
-        if self._asked(at):
+        if any(a <= at and (b is None or at < b) for a, b in self._asked):
             return True
-        while self._first is None and self._scanned <= at:
-            if self._asked(self._scanned):
-                self._first = self._scanned
-            self._scanned += timedelta(seconds=STEP_S)
         if self._first is not None and self._first <= at:
             return False
         return self._last == "away"
+
+
+def asked_away(resolver: "Resolver") -> list[Span]:
+    """The away requests open now, each from its start to its end."""
+    return [
+        span
+        for i in resolver.intents
+        if i.kind == "away" and (span := resolver.span(i)) is not None
+    ]
 
 
 async def timeline(
@@ -209,7 +224,12 @@ async def history(
     intents: "Intents | None" = None,
 ) -> list[Row]:
     """Every conclusion, each with when it was (or, from the kept draws, would have been)
-    reached: `line` gives who was home as known at any moment from them."""
+    reached: `line` gives who was home as known at any moment from them. From the kept
+    draws, a conclusion is reached once the day its evidence lies in was read, an hour
+    after the day ended (`tank.READ_AFTER_S`), not at the moment of the evidence."""
+
+    def available(t: float) -> float:
+        return bounds(datetime.fromtimestamp(t, zone).date(), zone)[1] + READ_AFTER_S
 
     def concluded(t: Transaction) -> list[Row]:
         return list(t.execute("SELECT concluded, began, state FROM occupancy ORDER BY id"))
@@ -222,7 +242,7 @@ async def history(
     before: list[Row] = []
     if tanks and start < live_from:
         draws, read = await _kept(db, tanks, start, zone)
-        before = weigh(draws, read, start, live_from, await _quiet(intents))
+        before = weigh(draws, read, start, live_from, await _quiet(intents), available)
     return [*before, *live]
 
 

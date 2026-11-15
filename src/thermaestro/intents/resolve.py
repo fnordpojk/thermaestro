@@ -109,11 +109,18 @@ class Resolver:
             self._ends[intent.id] = self._next_change(intent)
         return self._ends[intent.id]
 
-    def live(self, intent: Intent, at: datetime) -> bool:
+    def span(self, intent: Intent) -> tuple[datetime, datetime | None] | None:
+        """When an intent applies, from its start to its end (None: never ends); None
+        where it is closed."""
         if not intent.open:
+            return None
+        return intent.validity.starts or intent.created, self.end(intent)
+
+    def live(self, intent: Intent, at: datetime) -> bool:
+        found = self.span(intent)
+        if found is None:
             return False
-        start = intent.validity.starts or intent.created
-        end = self.end(intent)
+        start, end = found
         return start <= at and (end is None or at < end)
 
     def holds(self, context: Context, at: datetime, outdoor: float | None) -> bool:

@@ -23,6 +23,7 @@ from thermaestro.planner.optimizer import HORIZON_H, Optimizer
 from thermaestro.store import Database, Home
 
 START = datetime(2026, 1, 12, tzinfo=UTC).timestamp()
+NOW = datetime.fromtimestamp(START, UTC)
 SCOPE = "dev:hp1/cs1"
 
 
@@ -316,9 +317,9 @@ async def test_the_plan_expects_who_is_home_as_last_concluded(db: Database, tmp_
     learnings = Learnings(db, AuditLog(tmp_path / "audit"))
     starts = [START + 900 * j for j in range(4 * HORIZON_H)]
     nobody = Resolver([], {})
-    assert optimizer(learnings, "away")._home_ahead(nobody, starts) == (0.0,) * HORIZON_H
-    assert optimizer(learnings, "home")._home_ahead(nobody, starts) == (1.0,) * HORIZON_H
-    assert optimizer(learnings, None)._home_ahead(nobody, starts) == (1.0,) * HORIZON_H
+    assert optimizer(learnings, "away")._home_ahead(nobody, starts, NOW) == (0.0,) * HORIZON_H
+    assert optimizer(learnings, "home")._home_ahead(nobody, starts, NOW) == (1.0,) * HORIZON_H
+    assert optimizer(learnings, None)._home_ahead(nobody, starts, NOW) == (1.0,) * HORIZON_H
 
 
 async def test_an_away_request_holds_until_its_end_then_home(db: Database, tmp_path: Path) -> None:
@@ -328,7 +329,7 @@ async def test_an_away_request_holds_until_its_end_then_home(db: Database, tmp_p
     request = kinds.away(back, {}, principal="u:1", created=created)
     resolver = Resolver([request], {})
     starts = [START + 900 * j for j in range(4 * HORIZON_H)]
-    ahead = optimizer(learnings, "away")._home_ahead(resolver, starts)
+    ahead = optimizer(learnings, "away")._home_ahead(resolver, starts, NOW)
     assert ahead == (0.0,) * 10 + (1.0,) * (HORIZON_H - 10)
 
 

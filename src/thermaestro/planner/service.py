@@ -52,7 +52,7 @@ from ..learn.energy import charge_kw
 from ..learn.forecast import correction
 from ..learn.heating import PUMP, RESPONSE
 from ..learn.hotwater import house, planned
-from ..learn.occupied import Expected
+from ..learn.occupied import Expected, asked_away
 from ..learn.pump import Response, lead
 from ..optimize import Problem
 from ..optimize import plan as solve
@@ -690,7 +690,7 @@ class Planner:
             ahead[scope] = (bound.low, bound.high) if bound is not None else (None, None)
         tanks = {}
         days = await house(self._db) if self._learnings is not None and caps.tanks else None
-        aways = [i for i in resolver.intents if i.kind == "away" and i.open]
+        aways = asked_away(resolver)
         for scope in sorted(caps.tanks):
             self._remembered(scope)
             instance, path = split(scope)
@@ -703,11 +703,7 @@ class Planner:
                     days[0],
                     days[1],
                     now,
-                    Expected(
-                        now,
-                        self.occupied() if self.occupied is not None else None,
-                        lambda at: any(resolver.live(a, at) for a in aways),
-                    ),
+                    Expected(now, self.occupied() if self.occupied is not None else None, aways),
                 )
             tanks[scope] = Tank(
                 scope,

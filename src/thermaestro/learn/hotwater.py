@@ -153,7 +153,7 @@ class HotWater:
         if first is None:
             return
         day = tank.first_day(first, await self._last_day(keys.scope), zone)
-        end = now - 3600
+        end = now - tank.READ_AFTER_S
         while tank.bounds(day, zone)[1] <= end:
             await self._read(keys, day, calendar, season)
             day += timedelta(days=1)

@@ -87,7 +87,7 @@ class Conditions:
         calendar, _ = await house_days(self._db)
         midnight = datetime.fromtimestamp(bounds(day, calendar.zone)[0], calendar.zone)
         resolver = await self._intents.resolver()
-        aways = [i for i in resolver.intents if i.kind == "away" and i.open]
+        aways = occupied.asked_away(resolver)
         lines = {}
         for tank in self._learning.hot_water.tanks():
             model = learnings.used(DRAWS, tank.scope)
@@ -99,11 +99,7 @@ class Conditions:
                 calendar,
                 lambda d: 1.0,  # as the days are kept: at the year's mean inlet
                 midnight,
-                occupied.Expected(
-                    midnight,
-                    self._occupancy.last_known,
-                    lambda at: any(resolver.live(a, at) for a in aways),
-                ),
+                occupied.Expected(midnight, self._occupancy.last_known, aways),
                 by_class,
                 recent,
             )

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from thermaestro.learn import records
-from thermaestro.learn.occupied import Row, Timeline, line, timeline
+from thermaestro.learn.occupied import Row, Timeline, history, line, timeline
 from thermaestro.learn.records import DRAW, TANK_DAY, DrawSeen, Gap, TankDay
 from thermaestro.occupancy import State
 from thermaestro.store import Database
@@ -175,6 +175,31 @@ async def test_a_day_the_tank_wasnt_read_isnt_quiet(db: Database) -> None:
     await kept(db, [0, 2], [at(0, 8), at(2, 20)], gaps=(1,))
     seen = await timeline(db, at(3, 1), at(0, 0), [TANK], UTC)
     assert "away" not in seen.states  # quiet from 08:00, but not for a day with the tank read
+
+
+async def test_what_the_draws_tell_is_known_once_their_day_was_read(
+    db: Database, tmp_path: Path
+) -> None:
+    """A day is read an hour after it ends. Home until 20:00 on day 11, then quiet: nobody
+    home, concluded on day 12 and known once it was read. As at day 14's midnight day 13
+    isn't read yet, so whether it was read since, with a draw late in it, or not changes
+    nothing known then; from 01:00 its draw is known."""
+    draws = [at(n, h) for n in range(4, 12) for h in (8, 20)]
+    await kept(db, list(range(13)), draws)
+    async with await Database.open(tmp_path / "later.db") as later:
+        await kept(later, list(range(14)), [*draws, at(13, 23)])
+        midnight = at(14, 0)
+        unread = await history(db, at(0, 0), at(15, 1), [TANK], UTC)
+        read = await history(later, at(0, 0), at(15, 1), [TANK], UTC)
+        moments = [at(n, h) for n in range(14) for h in range(0, 24, 3)] + [midnight]
+        then = line(unread, midnight), line(read, midnight)
+        assert [then[0].at(t) for t in moments] == [then[1].at(t) for t in moments]
+        assert then[1].at(midnight) == "away"
+        # Quiet for a day by 20:00 on day 12: known once day 12 was read, not before.
+        assert line(read, at(12, 22)).at(at(12, 21)) == "home"
+        assert line(read, at(13, 1)).at(at(12, 21)) == "away"
+        assert line(read, at(14, 1)).at(at(13, 23.5)) == "home"
+        assert line(unread, at(14, 1)).at(at(13, 12)) == "unknown"
 
 
 async def test_a_day_not_read_stays_not_known_after_a_later_absence(db: Database) -> None:

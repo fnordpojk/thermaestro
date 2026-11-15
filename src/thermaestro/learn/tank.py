@@ -245,6 +245,9 @@ def draws(
 
 COVER_GAP_S = 3600.0
 """The longest a day's readings may pause and still count as having covered it."""
+READ_AFTER_S = 3600.0
+"""A day is read this long after it ends, so a charge or draw across midnight is seen: what
+happened in it is known only from then."""
 
 
 def first_day(first: float, done: date | None, zone: tzinfo) -> date:

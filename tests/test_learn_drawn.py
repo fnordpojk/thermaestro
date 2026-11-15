@@ -2,7 +2,7 @@
 judged against the week and simpler guesses, and planned with once it beats them."""
 
 import itertools
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -102,44 +102,68 @@ def test_the_recent_version_takes_the_last_two_weeks_where_it_has_enough() -> No
 def test_each_day_ahead_takes_its_kind() -> None:
     """Away while a request holds, a return the day it ends, home after; else as last
     concluded."""
-    back = datetime.combine(day(1), datetime.min.time(), UTC) + timedelta(hours=12)
-
-    def away(at: datetime) -> bool:
-        return at < back
-
-    days = [day(0), day(1), day(2)]
     start = datetime.combine(day(0), datetime.min.time(), UTC)
+    back = start + timedelta(days=1, hours=12)
+    days = [day(0), day(1), day(2)]
 
-    def expected(last: str | None, asked: Callable[[datetime], bool]) -> occupied.Expected:
+    def expected(last: str | None, asked: list[occupied.Span]) -> occupied.Expected:
         return occupied.Expected(start, last, asked)
 
-    kinds = drawn.kinds_ahead(days, UTC, expected("home", away), lambda d: d.weekday() >= 5)
-    assert [kinds[d][0] for d in days] == ["away", "return", "home"]
-    leaving = drawn.kinds_ahead(days, UTC, expected("home", lambda at: at >= back), lambda d: False)
+    gone: list[occupied.Span] = [(start - timedelta(days=1), back)]
+    found = drawn.kinds_ahead(days, UTC, expected("home", gone), lambda d: d.weekday() >= 5)
+    assert [found[d][0] for d in days] == ["away", "return", "home"]
+    leaving = drawn.kinds_ahead(days, UTC, expected("home", [(back, None)]), lambda d: False)
     assert [leaving[d][0] for d in days] == ["home", "departure", "away"]
-    nobody = drawn.kinds_ahead(days, UTC, expected("away", lambda at: False), lambda d: False)
+    nobody = drawn.kinds_ahead(days, UTC, expected("away", []), lambda d: False)
     assert {k for k, _ in nobody.values()} == {"away"}
-    unknown = drawn.kinds_ahead(days, UTC, expected(None, lambda at: False), lambda d: False)
+    unknown = drawn.kinds_ahead(days, UTC, expected(None, []), lambda d: False)
     assert unknown[day(0)][0] == "home"
+
+
+def ahead_of(
+    start: datetime, made: datetime, back: datetime
+) -> tuple[list[str], tuple[float, ...], occupied.Expected]:
+    """With nobody home last concluded, an away request made at `made` until `back`,
+    planned at `start`: the tank's three days, the heating's 48 hours, and the policy."""
+    request = kinds.away(back, {}, principal="u:1", created=made)
+    resolver = Resolver([request], {})
+    away = occupied.Expected(start, "away", occupied.asked_away(resolver))
+    days = [start.date() + timedelta(days=i) for i in range(3)]
+    found = drawn.kinds_ahead(days, UTC, away, lambda d: False)
+    planner = Optimizer(cast(Any, None), cast(Any, None), cast(Any, None), cast(Any, None))
+    planner.occupied = lambda: "away"
+    slot = start.timestamp() // 900 * 900  # the heating's hours begin at the slot's start
+    heating = planner._home_ahead(resolver, [slot], start)
+    hours = [datetime.fromtimestamp(slot, UTC) + timedelta(hours=h, minutes=30) for h in range(48)]
+    assert [0.0 if away(at) else 1.0 for at in hours] == list(heating)  # one policy
+    return [found[d][0] for d in days], heating, away
 
 
 def test_after_a_return_ahead_the_days_are_home_as_the_heating_expects() -> None:
     """Planned at noon on a Friday with nobody home, an away request ending at 18:00 on
     Saturday: Sunday is home for the tank, as for the heating, not away again."""
     start = datetime.combine(day(4), datetime.min.time(), UTC) + timedelta(hours=12)
-    back = start + timedelta(hours=30)
-    request = kinds.away(back, {}, principal="u:1", created=start - timedelta(days=5))
-    resolver = Resolver([request], {})
-    away = occupied.Expected(start, "away", lambda at: resolver.live(request, at))
-    days = [day(4), day(5), day(6)]
-    found = drawn.kinds_ahead(days, UTC, away, lambda d: False)
-    assert [found[d][0] for d in days] == ["away", "return", "home"]
-    planner = Optimizer(cast(Any, None), cast(Any, None), cast(Any, None), cast(Any, None))
-    planner.occupied = lambda: "away"
-    heating = planner._home_ahead(resolver, [start.timestamp()])
+    days, heating, _ = ahead_of(start, start - timedelta(days=5), start + timedelta(hours=30))
+    assert days == ["away", "return", "home"]
     assert heating == (0.0,) * 30 + (1.0,) * 18
-    hours = [start + timedelta(hours=h, minutes=30) for h in range(drawn.HORIZON_H)]
-    assert [0.0 if away(at) else 1.0 for at in hours] == list(heating)
+
+
+def test_a_short_away_between_the_heatings_hours_counts_for_both() -> None:
+    """Asked at 12:05, planned at 12:08, back at 12:10: the request ended between the
+    heating's quarter hours, and both plans expect the household home after it."""
+    noon = datetime.combine(day(4), datetime.min.time(), UTC) + timedelta(hours=12)
+    start = noon + timedelta(minutes=8)
+    made, back = noon + timedelta(minutes=5), noon + timedelta(minutes=10)
+    days, heating, away = ahead_of(start, made, back)
+    assert days == ["return", "home", "home"]
+    assert heating == (1.0,) * 48
+    assert away(noon + timedelta(minutes=9))
+    assert not away(back)
+    # Ended at 12:03, before the plan at 12:08 though after its slot began: for both, as
+    # last concluded, from the plan's moment, not the slot's.
+    days, heating, _ = ahead_of(start, noon - timedelta(hours=1), noon + timedelta(minutes=3))
+    assert days == ["away", "away", "away"]
+    assert heating == (0.0,) * 48
 
 
 # --- judging it ----------------------------------------------------------------------------
@@ -352,7 +376,7 @@ async def test_the_plan_gets_the_line_for_who_is_home(db: Database, tmp_path: Pa
 
 def nobody(start: datetime, last: str) -> occupied.Expected:
     """Whoever was last concluded home or away, with nothing asked."""
-    return occupied.Expected(start, last, lambda at: False)
+    return occupied.Expected(start, last, [])
 
 
 async def test_the_tank_plans_a_day_at_home_after_a_return_ahead(
@@ -367,7 +391,7 @@ async def test_the_tank_plans_a_day_at_home_after_a_return_ahead(
     back = start + timedelta(hours=30)
     request = kinds.away(back, {}, principal="u:1", created=start - timedelta(days=5))
     resolver = Resolver([request], {})
-    away = occupied.Expected(start, "away", lambda at: resolver.live(request, at))
+    away = occupied.Expected(start, "away", occupied.asked_away(resolver))
     found = await planned(db, learnings, TANK, Calendar(UTC), lambda d: 1.0, start, away)
     assert found is not None
     assert sum(found[1][:12]) == pytest.approx(0.0)  # the rest of a day away
