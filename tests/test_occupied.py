@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 
 from thermaestro.learn import records
-from thermaestro.learn.occupied import Row, Timeline, history, line, timeline
+from thermaestro.learn.occupied import Row, Timeline, history, line, timeline, weigh
 from thermaestro.learn.records import DRAW, TANK_DAY, DrawSeen, Gap, TankDay
-from thermaestro.occupancy import State
+from thermaestro.occupancy import QUIET_ONE_S, State
 from thermaestro.store import Database
 
 TANK = "pump:hp1/dhw"
@@ -183,15 +183,26 @@ async def test_what_the_draws_tell_is_known_once_their_day_was_read(
     """A day is read an hour after it ends. Home until 20:00 on day 11, then quiet: nobody
     home, concluded on day 12 and known once it was read. As at day 14's midnight day 13
     isn't read yet, so whether it was read since, with a draw late in it, or not changes
-    nothing known then; from 01:00 its draw is known."""
+    nothing known then, whatever minute the draws are weighed from; from 01:00 its draw
+    is known, and that it wasn't read."""
     draws = [at(n, h) for n in range(4, 12) for h in (8, 20)]
     await kept(db, list(range(13)), draws)
     async with await Database.open(tmp_path / "later.db") as later:
         await kept(later, list(range(14)), [*draws, at(13, 23)])
         midnight = at(14, 0)
+        moments = [at(n, h) for n in range(14) for h in range(0, 24, 3)] + [midnight]
+        for minute in (7, 22, 50):  # off the quarter hours
+            since = at(0, 0) + minute * 60
+            off = (
+                (await history(db, since, at(15, 1), [TANK], UTC)),
+                await history(later, since, at(15, 1), [TANK], UTC),
+            )
+            seen = line(off[0], midnight), line(off[1], midnight)
+            assert [seen[0].at(t) for t in moments] == [seen[1].at(t) for t in moments]
+            assert seen[0].at(midnight) == "away"
+            assert line(off[0], at(14, 1)).starts[-1] == at(13, 0)  # the gap, from its start
         unread = await history(db, at(0, 0), at(15, 1), [TANK], UTC)
         read = await history(later, at(0, 0), at(15, 1), [TANK], UTC)
-        moments = [at(n, h) for n in range(14) for h in range(0, 24, 3)] + [midnight]
         then = line(unread, midnight), line(read, midnight)
         assert [then[0].at(t) for t in moments] == [then[1].at(t) for t in moments]
         assert then[1].at(midnight) == "away"
@@ -200,6 +211,27 @@ async def test_what_the_draws_tell_is_known_once_their_day_was_read(
         assert line(read, at(13, 1)).at(at(12, 21)) == "away"
         assert line(read, at(14, 1)).at(at(13, 23.5)) == "home"
         assert line(unread, at(14, 1)).at(at(13, 12)) == "unknown"
+
+
+async def test_an_absence_concluded_late_in_a_day_is_known_once_that_day_was_read(
+    db: Database,
+) -> None:
+    """The last draw at 23:55 on day 1: quiet for a day by 23:55 on day 2, so known once
+    day 2 was read, whatever minute the draws are weighed from (read since before then)."""
+    await kept(db, list(range(-8, 4)), [at(1, 8), at(1, 23 + 55 / 60)])
+    for minute in (0, 7, 22, 50):
+        rows = await history(db, at(0, 0) + minute * 60, at(4, 1), [TANK], UTC)
+        assert line(rows, at(3, 0.99)).at(at(2, 12)) == "home"
+        assert line(rows, at(3, 1)).at(at(2, 12)) == "away"
+
+
+def test_a_gap_is_dated_and_known_from_its_first_moment_not_read() -> None:
+    """No step spans where reading stops or starts again, wherever that is."""
+    read = [(0.0, 1000.0), (5000.0, 99_999.0)]
+    rows = weigh([10.0], read, 0.0, 9000.0, lambda t: False, lambda t: t + 1)
+    assert rows == [(11.0, 10.0, "home"), (1001.0, 1000.0, "unknown")]
+    later = weigh([], read, 0.0, 99_999.0, lambda t: False, lambda t: t)
+    assert later[-1] == (5000.0 + QUIET_ONE_S, 5000.0, "away")
 
 
 async def test_a_day_not_read_stays_not_known_after_a_later_absence(db: Database) -> None:

@@ -23,7 +23,7 @@ leaves the day away.
 from bisect import bisect_right
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from itertools import pairwise
 from typing import TYPE_CHECKING, Literal
 
@@ -45,7 +45,8 @@ SETTLE_S = 7 * 86_400.0
 """How long before the first hour asked for the kept draws are weighed from, so the state
 at that hour comes from the draws before it."""
 STEP_S = 900.0
-"""The step the kept draws are weighed in."""
+"""The longest step the kept draws are weighed in: shorter up to a midnight, or to where
+reading starts or stops."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,22 +125,28 @@ def weigh(
     until: float,
     quiet: Callable[[float], bool],
     available: Callable[[float], float] = lambda t: t,
+    cuts: Sequence[float] = (),
 ) -> list[Row]:
     """The kept draws from `start` to `until`, weighed as occupancy weighs a house whose
     only source is its draws. `read`: the spans every tank was read in, in order. Each
     conclusion is reached when what it rests on was first known (`available`: when what
     happened at a moment was read), so a line as at a moment has only what was known by
-    then."""
+    then. No step spans a moment in `cuts` (the house's midnights, where what is known of
+    a day changes) or where reading starts or stops: each lies in one day, read or not as
+    a whole, and a gap is dated, and known, from its first moment not read."""
     found: list[Row] = []
     state: State | None = None
     counted = 0.0
     last: float | None = None
     """The last draw, or the moment reading began again since: an absence is dated from it."""
     draws = sorted(d for d in draws if start <= d < until)
-    j = 0
+    edges = sorted({*cuts, *(e for span in read for e in span)})
+    j = k = 0
     t = start
     while t < until:
-        end = min(t + STEP_S, until)
+        while k < len(edges) and edges[k] <= t:
+            k += 1
+        end = min(t + STEP_S, until, edges[k] if k < len(edges) else until)
         drew = False
         while j < len(draws) and draws[j] < end:
             last, drew, counted = draws[j], True, 0.0
@@ -242,7 +249,14 @@ async def history(
     before: list[Row] = []
     if tanks and start < live_from:
         draws, read = await _kept(db, tanks, start, zone)
-        before = weigh(draws, read, start, live_from, await _quiet(intents), available)
+        first_day = datetime.fromtimestamp(start, zone).date()
+        last_day = datetime.fromtimestamp(live_from, zone).date()
+        midnights = [
+            bounds(first_day + timedelta(days=n), zone)[0]
+            for n in range((last_day - first_day).days + 1)
+        ]
+        quiet = await _quiet(intents)
+        before = weigh(draws, read, start, live_from, quiet, available, midnights)
     return [*before, *live]
 
 

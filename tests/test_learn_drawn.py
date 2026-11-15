@@ -2,7 +2,7 @@
 judged against the week and simpler guesses, and planned with once it beats them."""
 
 import itertools
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,7 +17,7 @@ from thermaestro.intents.calendar import Calendar
 from thermaestro.intents.resolve import Resolver
 from thermaestro.learn import Learned, Learnings, drawn, occupied, records
 from thermaestro.learn.hotwater import DRAWS, LOSS, HotWater, TankKeys, judged_at, planned
-from thermaestro.learn.records import DAY_KIND, TANK_DAY, TankDay
+from thermaestro.learn.records import DAY_KIND, DRAW, TANK_DAY, DrawSeen, Gap, TankDay
 from thermaestro.planner.optimizer import Optimizer
 from thermaestro.store import Database
 
@@ -356,6 +356,84 @@ def test_a_midnight_is_judged_only_with_what_was_known_then() -> None:
 
 def day_at(n: int, hour: float = 0.0) -> float:
     return datetime.combine(day(n), datetime.min.time(), UTC).timestamp() + hour * 3600
+
+
+def with_tank(unit: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        described=SimpleNamespace(
+            nodes=[
+                SimpleNamespace(path=unit, kind="unit"),
+                SimpleNamespace(path=f"{unit}/dhw", kind="dhw_tank"),
+            ]
+        )
+    )
+
+
+async def test_another_tanks_gap_changes_no_guess_made_before_it_was_known(
+    db: Database, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two tanks, home until day 11, then nobody: whether the second was read on day 13
+    is known only after day 14's midnight, so its gap then changes no guess made at that
+    midnight or before, judged at whatever minute (off the weighing's quarter hours too)."""
+    home = range(4, 12)
+    second = "dev2:hp2/dhw"
+
+    def kept(n: int, gap: bool = False) -> records.Row:
+        if gap:
+            return records.row(TANK_DAY, day_at(n), Gap(day=day(n), skipped="gap"))
+        amount = 12.0 if n in home else 0.0
+        return records.row(
+            TANK_DAY,
+            day_at(n),
+            TankDay(
+                day=day(n),
+                hourly=[amount / 24] * 24,
+                predicted=None,
+                baseline=[0.25] * 24,
+                drawn=amount,
+                draws=0,
+                charges=0,
+                k=0.01,
+                opens=0.5,
+                season=1.0,
+                ahead=[0.25] * 48,
+            ),
+        )
+
+    seen = [
+        records.row(DRAW, t, DrawSeen(start=t, end=t + 300, size=6.0))
+        for t in (day_at(n, h) for n in home for h in (8, 20))
+    ]
+    host = cast(Any, SimpleNamespace(instances={"dev": with_tank("hp1"), "dev2": with_tank("hp2")}))
+    judged: list[Sequence[drawn.Moment]] = []
+    score = drawn.score
+
+    def kept_score(moments: Sequence[drawn.Moment]) -> drawn.Scored:
+        judged.append(moments)
+        return score(moments)
+
+    monkeypatch.setattr(drawn, "score", kept_score)
+
+    async def guesses(store: Database, minute: int) -> list[Mapping[str, Sequence[float]]]:
+        learnings = Learnings(store, AuditLog(tmp_path / "audit"))
+        await learnings.load()
+        tank = HotWater(store, Values(store), host, learnings, lambda k: True)
+        first, _ = tank.tanks()
+        judged.clear()
+        await tank._by_kind(first, Calendar(UTC), day_at(16, 1) + minute * 60)
+        assert set(judged[-1][-1].guesses) == {*drawn.MODELS, *drawn.OTHERS}
+        return [m.guesses for m in judged[-1]]
+
+    async with await Database.open(tmp_path / "gap.db") as gap:
+        first = [*(kept(n) for n in range(16)), *seen]
+        whole = [kept(n) for n in range(16)]
+        missed = [kept(n, n == 13) for n in range(16)]
+        await db.run(lambda t: records.keep(t, TANK, first))
+        await db.run(lambda t: records.keep(t, second, whole))
+        await gap.run(lambda t: records.keep(t, TANK, first))
+        await gap.run(lambda t: records.keep(t, second, missed))
+        for minute in (0, 7, 22, 50):
+            assert await guesses(gap, minute) == await guesses(db, minute)
 
 
 async def test_the_plan_gets_the_line_for_who_is_home(db: Database, tmp_path: Path) -> None:
