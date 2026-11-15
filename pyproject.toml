@@ -21,14 +21,14 @@ dependencies = [
     "fastapi>=0.162.0,<0.163",
     "uvicorn>=0.54.0",
     "jinja2>=3.1.6",
-    "python-multipart>=0.0.32",
+    "python-multipart>=0.0.33",
     "babel>=2.18.0",
     # Password hashing, and the certificate a new installation makes for HTTPS.
     "argon2-cffi>=25.1.0",
     "cryptography>=50.0.2",
     "aiomqtt>=2",
     "aiohttp>=3.14.5",
-    "pymodbus>=3.16.1,<3.17",
+    "pymodbus>=3.16.2,<3.17",
     "holidays>=0.107",
     "numpy>=2.3",
     "highspy>=1.11",
@@ -55,7 +55,7 @@ tibber = "thermaestro.tibber.plugin:create"
 Repository = "https://github.com/fnordpojk/thermaestro"
 
 [build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.workspace]
@@ -70,9 +70,9 @@ dev = [
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mypy>=2.4.1",
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1",
-    "ruff>=0.17.2",
+    "ruff>=0.17.4",
     "types-jsonschema>=4.26.0.20261006",
     "types-pyserial>=3.5.0.20261030",
 ]
@@ -127,5 +127,6 @@ pythonpath = ["gateway/tests", "tests"]
 addopts = ["--import-mode=importlib", "-m", "not nightly"]
 markers = ["nightly: long simulated runs over many scenarios, run each night (pytest -m nightly)"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
 filterwarnings = ["error"]
