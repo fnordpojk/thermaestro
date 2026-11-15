@@ -222,6 +222,7 @@ async def _serve(
         )
     )
     server = await _plugin_socket(core)
+    await core.executor.listen()  # a dead-man's report comes as soon as a plugin is up
     await core.host.start()
     await core.executor.start()
     stop_web = None

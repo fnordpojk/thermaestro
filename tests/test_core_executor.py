@@ -76,6 +76,7 @@ async def rig(
             watchdog_s=0.3,
             poll_s=0.05,
         )
+        await executor.listen()  # as Thermaestro starts: before its plugins
         await host.start()
         await until(lambda: host.instances["dev"].state is State.UP)
         await until(lambda: Key("dev", "hp1/x.fake.offset") in values.latest)
@@ -508,6 +509,24 @@ async def test_a_put_back_that_may_not_be_the_baseline_outlives_a_restart(tmp_pa
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
         await until(lambda: device.registers["x.fake.offset"] == -4)
         await until(lambda: not r.executor.claims[OFFSET].changed)
+
+
+async def test_a_put_back_told_as_the_plugin_comes_up_is_heard(tmp_path: Path) -> None:
+    """Thermaestro stopped without putting the offset back, and the gateway did. Started
+    again, the plugin tells so as soon as it is up, and only once: the core hears it before
+    it starts, and the lever is as found, put back by the gateway."""
+    device = LeverDevice()
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.stop()  # no restore: as if the process died
+    device.registers["x.fake.offset"] = -4  # the gateway
+    device.told = [fired("put_back")]
+    async with rig(tmp_path, {OFFSET: "control"}, device) as r:
+        await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
+        assert not r.executor.claims[OFFSET].changed
+        told = [e for e in audited(r) if e["what"] == "lever.deadman"]
+        assert [e["outcome"] for e in told] == ["put_back"]
+        assert len(device.acts) == 1  # nothing written
 
 
 async def test_a_value_the_gateway_found_and_left_lets_go(tmp_path: Path) -> None:

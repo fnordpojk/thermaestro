@@ -5,6 +5,7 @@ writes, and the executor driving it all from shadow to control and back."""
 import asyncio
 import contextlib
 import dataclasses
+import json
 import socket
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -24,12 +25,17 @@ from thermaestro.cap import Link, Message, Send, pair, serve
 from thermaestro.cap.messages import DeadmanFired, Described, Fate, ForeignWrite, Op
 from thermaestro.cap.model import Knowledge, Value
 from thermaestro.core import Core, Key, run
+from thermaestro.core.executor import left_changed
 from thermaestro.core.plugins import PluginStore
 from thermaestro.nibe import plugin as plugin_module
 from thermaestro.nibe import profile
 from thermaestro.nibe.maps import decode, load
 from thermaestro.nibe.maps.codec import encode
 from thermaestro.nibe.plugin import NibePlugin
+from thermaestro.nibe.probe import PSK_NAME
+from thermaestro.nibe.rig import Options
+from thermaestro.nibe.rig import run as rig_run
+from thermaestro.nibe.rig.bench import Bench
 from thermaestro.nibe.transport.base import WriteOutcome, WriteResult
 from thermaestro.nibe.transport.tgw import TgwClient
 from thermaestro.store import Control, Database, Layout, NibeGateway, Plugin, SecretStore
@@ -396,6 +402,109 @@ async def test_the_gateway_puts_back_what_a_silent_thermaestro_left(
         assert (told.lever, told.outcome, told.found) == ("hp1/cs1/heating.offset", outcome, found)
         assert told.fired is not None
         assert again.armed == {}
+
+
+async def silenced_with_the_block_engaged(stocked: SimPump, gateway: Gateway, engage: Any) -> int:
+    """The block engaged, then silence: the gateway puts the start back. How many writes
+    the pump has taken by then."""
+    await engage()
+    assert stocked.registers[47044] == 350
+    set_silence(gateway, 200_000)  # the silence, shortened
+    await until(lambda: bool(fired(gateway)), 10)
+    assert stocked.registers[47044] == 450
+    return len(stocked.taken_writes)
+
+
+async def test_a_block_the_gateway_put_back_is_released_with_nothing_written(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Started again, the plugin takes the gateway's report in; a release asked before the
+    core has heard of it finds the block put back, and writes nothing."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+
+        async def engage() -> None:
+            async with served(p) as link:
+                assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+
+        writes = await silenced_with_the_block_engaged(stocked, gateway_with_psk, engage)
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events) as link:
+            await until(lambda: any(isinstance(e, DeadmanFired) for e in events), 10)
+            released = await act(link, "dhw/block", "release")
+            assert released.stage == "device_accepted", released.detail
+            assert (await act(link, "dhw/block", "release")).stage != "device_accepted"  # once
+        assert len(stocked.taken_writes) == writes
+        assert stocked.registers[47044] == 450
+
+
+async def test_a_killed_rigs_block_the_gateway_put_back_is_found_so_by_restore(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """The rig is killed with the block engaged, and the gateway puts it back. `restore`,
+    the same client to the gateway, hears its report as the pump is identified: nothing is
+    left to put back, and no check is kept from starting."""
+    gw = NibeGateway(
+        host="127.0.0.1",
+        protocol="thermaestro-gw",
+        control_port=gateway_with_psk.ports["control"],
+        read_port=gateway_with_psk.ports["read"],
+        psk=PSK_NAME,  # as the command names it: the key itself is given to the rig
+    )
+    state = tmp_path / "rig"
+
+    async def yes(question: str) -> bool:
+        return True
+
+    bench = Bench(
+        gw,
+        state=state,
+        write=True,
+        say=lambda _: None,
+        ask=yes,
+        psk=TEST_PSK,
+        transport_settings={"tgw_settings": FAST_TGW},
+        identify_timeout_s=5,
+    )
+
+    async def engage() -> None:
+        await bench.open()
+        await bench.ready(["dhw/block"], [])
+        await bench.consent([], ["dhw/block"])
+        await bench.act("dhw/block", "engage", why="a run that is killed")
+        # Killed, without putting anything back.
+        await bench.executor.stop()
+        assert bench._host is not None
+        assert bench._tmp is not None
+        await bench._host.stop()
+        await bench.db.close()
+        bench._tmp.cleanup()
+
+    writes = await silenced_with_the_block_engaged(stocked, gateway_with_psk, engage)
+    said: list[str] = []
+    report = await rig_run(
+        "restore",
+        gw,
+        state=state,
+        write=True,
+        options=Options(),
+        say=said.append,
+        ask=yes,
+        psk=TEST_PSK,
+        transport_settings={"tgw_settings": FAST_TGW},
+        identify_timeout_s=5,
+    )
+    assert not report.failed, said
+    assert len(stocked.taken_writes) == writes
+    async with await Database.open(state / "rig.db") as db:
+        assert await left_changed(db) == []
+    audit = [
+        json.loads(line) for line in (state / "audit" / "audit.jsonl").read_text().splitlines()
+    ]
+    told = [e["outcome"] for e in audit if e["what"] == "lever.deadman"]
+    assert told == ["put_back"]
 
 
 async def test_a_negative_byte_is_armed_as_the_pump_gives_it(

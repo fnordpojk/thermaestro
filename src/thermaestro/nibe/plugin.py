@@ -234,6 +234,9 @@ class NibePlugin:
         self.holds: dict[str, dict[str, Any]] = {}
         """Per hold lever engaged: the register written and the value to put back (and for
         the hot-water block, the mode it was engaged in). Kept across restarts."""
+        self.put_back: dict[str, dict[str, Any]] = {}
+        """Per hold lever the gateway's dead-man put back in this run, the hold it ended: a
+        release asked before the core heard of it finds nothing left to do."""
         self.armed: dict[str, list[dict[str, int]]] = {}
         """Per lever the gateway's dead-man is armed for, its entries: each its `entry`, the
         `register`, the word the register holds as Thermaestro wrote it (`expected`), and
@@ -1294,6 +1297,7 @@ class NibePlugin:
         else:
             put_back = now
         self.holds[spec.path] = {"register": register, "value": put_back, **extra}
+        self.put_back.pop(spec.path, None)
         await self._save()  # before the write: a crash right after it still knows
         written, back = self._encoded(register, engaged), self._encoded(register, put_back)
         armed = None
@@ -1315,6 +1319,16 @@ class NibePlugin:
 
     async def _release(self, spec: profile.Spec) -> WriteOutcome:
         kept = self.holds.get(spec.path)
+        ended = self.put_back.pop(spec.path, None)
+        if kept is None and ended is not None:
+            return WriteOutcome(
+                int(ended["register"]),
+                int(ended["value"]),
+                WriteResult.ACCEPTED,
+                "put back by the gateway's dead-man: nothing written",
+                clock.monotonic(),
+                (),
+            )
         if kept is None:
             raise Refused("nothing engaged by this plugin is held here")
         if spec.retired and _same(await self._fresh(int(kept["register"])), kept["value"]):
@@ -1750,7 +1764,9 @@ class NibePlugin:
         put: list[float | int] | None = None
         if outcome in ("put_back", "skipped"):
             self.armed.pop(path, None)
-            self.holds.pop(path, None)
+            ended = self.holds.pop(path, None)
+            if ended is not None and outcome == "put_back":
+                self.put_back[path] = ended
             self.disarming.update(k["entry"] for k in others)
             may = self.may_hold.pop(report.entry, [])
             if outcome == "put_back":

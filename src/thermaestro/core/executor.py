@@ -257,14 +257,26 @@ class Executor:
         """A change in flight from an earlier run is settled by any reading since this."""
         """Changes whose fate isn't known, by when that was found: a reading after it says."""
         self._tasks: set[asyncio.Task[None]] = set()
+        self._listening = False
+        self._started = False
 
     # --- Running ------------------------------------------------------------------------
 
-    async def start(self) -> None:
+    async def listen(self) -> None:
+        """Hear what a dead-man did while Thermaestro was silent, before the plugins start:
+        a plugin tells it as soon as it is up, once, and the gateway is told it was taken
+        in. The rest the plugins say is heard from `start`."""
+        if self._listening:
+            return
         self.claims = await self._db.run(_load_claims)
+        self._host.listeners.append(self._on_event)
+        self._listening = True
+
+    async def start(self) -> None:
+        await self.listen()
+        self._started = True
         await self._db.run(lambda t: _prune(t, self._clock() - KEEP_ACTS_DAYS * DAY_S))
         self._values.listeners.append(self._on_value)
-        self._host.listeners.append(self._on_event)
         self._host.on_up.append(self._on_up)
         for ref, claim in self.claims.items():
             if claim.mode == "control" and claim.changed and claim.drift is None:
@@ -282,6 +294,7 @@ class Executor:
             self._host.listeners.remove(self._on_event)
         with contextlib.suppress(ValueError):
             self._host.on_up.remove(self._on_up)
+        self._listening = self._started = False
         self._loops = {}
         for task in list(self._tasks):
             task.cancel()
@@ -1175,15 +1188,17 @@ class Executor:
                 self._spawn(self._let_go(ref, f"it reads {now}, not {claim.last} as set"))
 
     def _on_event(self, instance: str, message: Message) -> None:
+        if isinstance(message, DeadmanFired):
+            self._spawn(self._fired(f"{instance}:{message.lever}", message))
+            return
+        if not self._started:
+            return
         if isinstance(message, Described):
             for described in message.levers:
                 ref = f"{instance}:{described.path}"
                 claim = self.claims.get(ref)
                 if claim is not None and claim.held and claim.drift is None:
                     self._spawn(self._move(ref))
-            return
-        if isinstance(message, DeadmanFired):
-            self._spawn(self._fired(f"{instance}:{message.lever}", message))
             return
         if not isinstance(message, ForeignWrite):
             return

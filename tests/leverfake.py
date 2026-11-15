@@ -173,6 +173,9 @@ class LeverDevice:
         send after a restart."""
         self.push_before_read = False
         """Whether a read is answered only after a fresh push on every subscription."""
+        self.told: list[Message] = []
+        """Sent as soon as it is up, once: what a plugin tells of its own accord, such as
+        what a dead-man did while the core was silent."""
         self._subscriptions: dict[int, tuple[Send, tuple[str, ...]]] = {}
         self.read_after: list[datetime] = []
         """The `after` of each read asked for one."""
@@ -227,6 +230,9 @@ class LeverDevice:
         self._send = send
         self._cut = asyncio.Event()
         await send(Health(t=now(), unit="hp1", state="up", last_traffic=now()))
+        told, self.told = self.told, []
+        for message in told:
+            await send(message)
         await self._cut.wait()
         raise ConnectionError("the connection was cut")  # ends it
 

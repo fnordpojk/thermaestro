@@ -244,6 +244,9 @@ class Bench:
             describe_timeout_s=self._identify_timeout_s + 30,
         )
         self._executor = Executor(db, self._host, self.values, audit)
+        # Before the plugin starts: once the pump is identified, it tells what the gateway's
+        # dead-man did after an earlier run was cut off, and only once.
+        await self._executor.listen()
         await self._host.start()
         until = clock.monotonic() + self._identify_timeout_s + 60
         while self._instance().state is not State.UP:
@@ -335,9 +338,10 @@ class Bench:
                     self.put_back_step(ref, result)
                 self._let_go()
                 await self.executor.forget()
-                await self.executor.stop()
         finally:
             self._running = False
+            if self._executor is not None:
+                await self._executor.stop()
             if self._host is not None:
                 await self._host.stop()
             if self._db is not None:
