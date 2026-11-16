@@ -89,6 +89,7 @@ class Step:
 class Report:
     check: str
     wrote: bool
+    """Whether the run was let write (`--write`)."""
     made: str
     pump: dict[str, Any]
     options: dict[str, Any]
@@ -99,6 +100,8 @@ class Report:
     judged: bool | None = None
     """The answer."""
     levers: tuple[str, ...] = ()
+    written: int = 0
+    """The write requests sent to the pump."""
 
     @property
     def failed(self) -> bool:
@@ -128,6 +131,7 @@ class Report:
             "made": self.made,
             "check": self.check,
             "wrote": self.wrote,
+            "written": self.written,
             "pump": self.pump,
             "options": self.options,
             "levers": list(self.levers),
@@ -139,7 +143,12 @@ class Report:
 
     def table(self) -> str:
         pump = self.pump
-        how = "wrote to the pump" if self.wrote else "read-only: nothing was written"
+        if not self.wrote:
+            how = "read-only: nothing was written"
+        elif self.written:
+            how = "wrote to the pump"
+        else:
+            how = "nothing was written"
         head = f"{self.check} on {pump.get('model')}, firmware {pump.get('firmware')}: {how}"
         rows = [(str(i), s.what, s.outcome, _mark(s.passed)) for i, s in enumerate(self.steps, 1)]
         widths = [max([len(r[c]) for r in rows] + [1]) for c in range(3)]
@@ -198,6 +207,8 @@ class Bench:
         self.judging = False
         self.judged: bool | None = None
         self.plugin: NibePlugin | None = None
+        self._plugins: list[NibePlugin] = []
+        """Each plugin started, a restart's too: what each sent the pump."""
         self._started = clock.monotonic()
         self._db: Database | None = None
         self._host: PluginHost | None = None
@@ -233,6 +244,7 @@ class Bench:
                 identify_timeout_s=self._identify_timeout_s,
                 **self._plugin_options,
             )
+            self._plugins.append(self.plugin)
             return self.plugin
 
         self._host = PluginHost(
@@ -538,6 +550,7 @@ class Bench:
             judging=self.judging,
             judged=self.judged,
             levers=tuple(f"{profile.UNIT}/{p}" for p in levers),
+            written=sum(p.writes_sent for p in self._plugins),
         )
 
     def elapsed(self) -> str:

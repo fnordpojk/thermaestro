@@ -133,6 +133,7 @@ def test_offset(tmp_path: Path) -> None:
     assert "Go ahead?" in r.person.asked
     assert not r.report.failed
     assert "1  " in r.report.table()
+    assert "offset on F1245, firmware 9721R4: wrote to the pump" in r.report.table()
 
 
 def test_read_only_writes_nothing_and_says_what_it_would(tmp_path: Path) -> None:
@@ -496,5 +497,6 @@ async def test_the_command(
     log = json.loads(logs[-1].read_text())
     assert log["format"] == "thermaestro-rig"
     assert log["wrote"] is True
+    assert log["written"] == 2
     assert log["evidence"]["firmware"] == "9721R4"
     assert "127.0.0.1" not in logs[-1].read_text()

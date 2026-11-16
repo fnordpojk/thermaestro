@@ -269,6 +269,8 @@ class NibePlugin:
         self._act_lock = asyncio.Lock()
         self._mine: Counter[bytes] = Counter()
         """The write requests this plugin has on their way, to tell other clients' apart."""
+        self.writes_sent = 0
+        """The write requests it has sent the pump since it started."""
         self._send_event: Send | None = None
         self._described_mode: int | None = None
         """The hot-water mode the block's description was last given for."""
@@ -1706,6 +1708,9 @@ class NibePlugin:
         if client is None or client.deadman is None:
             return
         grant = client.deadman
+        if grant.fired:
+            # Its reports first: an entry that fired isn't armed again before it is told.
+            await client.reports_in()
         async with self._deadman_lock:
             if grant.fired == 0 and self.reported:
                 # Nothing is waiting there: what was kept was told and acknowledged.
@@ -1902,6 +1907,7 @@ class NibePlugin:
         if self._transport is None:
             raise Refused("not connected")
         frame = nibe.write_request(register, raw)
+        self.writes_sent += 1
         self._mine[frame] += 1
         # Kept a while: a gateway may still send a request whose fate was unknown.
         asyncio.get_running_loop().call_later(2 * WRITE_TIMEOUT_S, self._forget, frame)

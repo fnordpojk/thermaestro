@@ -42,9 +42,9 @@ docker compose exec thermaestro thermaestro rig block 192.0.2.10 --write --out /
 
 ## What it writes down
 
-The check ends with a table of its steps: what was asked or seen, what came of it, and `ok`, `FAILED` or `-` where there is nothing to judge. When everything went as it should on a run that wrote, it says so: that is evidence the setting works on this model and firmware.
+The check ends with a table of its steps: what was asked or seen, what came of it, and `ok`, `FAILED` or `-` where there is nothing to judge. Its first line says whether anything was written to the pump: "wrote to the pump", "nothing was written" (with `--write`, when nothing needed to be), or "read-only". When everything went as it should on a run that wrote, it says so: that is evidence the setting works on this model and firmware.
 
 `--out DIR` (the current directory by default) gets:
 
-- **`rig-<check>-<model>-<time>.json`**, the log: the pump's model and firmware, the steps with their times, your answers, and the values watched, once a minute while it waits. It holds no network address or key, so it can be sent with an issue.
+- **`rig-<check>-<model>-<time>.json`**, the log: the pump's model and firmware, how many writes it sent, the steps with their times, your answers, and the values watched, once a minute while it waits. It holds no network address or key, so it can be sent with an issue.
 - **`rig-state/`**: what the rig has taken over, kept while it runs. If the rig is killed before it puts things back (a power cut, `kill -9`), no check starts until `thermaestro rig restore ADDRESS --out DIR --write` has put them back, with the same `DIR`. Without `--write`, `restore` only says what it would put back. Over the Thermaestro gateway protocol, the gateway's dead-man puts them back by itself once the rig has been silent for its time (15 minutes by default); `restore` is then told so by the gateway, and writes nothing.

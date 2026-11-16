@@ -404,6 +404,43 @@ async def test_the_gateway_puts_back_what_a_silent_thermaestro_left(
         assert again.armed == {}
 
 
+async def test_a_fired_entry_isnt_armed_again_before_its_report_comes(
+    stocked: SimPump,
+    gateway_with_psk: Gateway,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The reports a WELCOME announces may come a while after it. The gateway refuses an
+    entry that fired until its report is acknowledged, so the plugin waits for them before
+    it arms again what it keeps."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+        set_silence(gateway_with_psk, 200_000)  # the silence, shortened
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
+        on_fired = TgwClient._on_fired
+
+        def late(client: TgwClient, report: Any) -> None:
+            asyncio.get_running_loop().call_later(0.5, on_fired, client, report)
+
+        monkeypatch.setattr(TgwClient, "_on_fired", late)
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events):
+            await until(lambda: any(isinstance(e, DeadmanFired) for e in events), 10)
+            await until(lambda: not fired(gateway_with_psk))
+            client = again._transport
+            assert isinstance(client, TgwClient)
+            assert await client.reports_in()
+        assert "didn't arm" not in caplog.text
+        assert again.armed == {}
+
+
 async def silenced_with_the_block_engaged(stocked: SimPump, gateway: Gateway, engage: Any) -> int:
     """The block engaged, then silence: the gateway puts the start back. How many writes
     the pump has taken by then."""
@@ -441,11 +478,12 @@ async def test_a_block_the_gateway_put_back_is_released_with_nothing_written(
 
 
 async def test_a_killed_rigs_block_the_gateway_put_back_is_found_so_by_restore(
-    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The rig is killed with the block engaged, and the gateway puts it back. `restore`,
     the same client to the gateway, hears its report as the pump is identified: nothing is
-    left to put back, and no check is kept from starting."""
+    left to put back, nothing is armed again before the report came, and no check is kept
+    from starting."""
     gw = NibeGateway(
         host="127.0.0.1",
         protocol="thermaestro-gw",
@@ -498,6 +536,9 @@ async def test_a_killed_rigs_block_the_gateway_put_back_is_found_so_by_restore(
     )
     assert not report.failed, said
     assert len(stocked.taken_writes) == writes
+    assert report.written == 0
+    assert "restore on F1245, firmware 9721R4: nothing was written" in report.table()
+    assert "didn't arm" not in caplog.text
     async with await Database.open(state / "rig.db") as db:
         assert await left_changed(db) == []
     audit = [

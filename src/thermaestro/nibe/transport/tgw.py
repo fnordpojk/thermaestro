@@ -95,6 +95,8 @@ class TgwSettings:
     deadman_wait_s: float = 1.0
     """No ARMED this long after an ARM, DISARM or ACK_FIRED: it is sent again."""
     deadman_tries: int = 3
+    reports_wait_s: float = 2.0
+    """How long a new session waits for the FIRED reports its WELCOME announced."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,6 +249,9 @@ class TgwClient:
         self._armed: dict[int, asyncio.Future[p.Armed]] = {}
         self.fired: dict[int, p.Fired] = {}
         """FIRED reports not yet acknowledged, by entry."""
+        self._reported: set[int] = set()
+        """The entries reported in this session."""
+        self._reports_in = asyncio.Event()
         self._fired_listeners: list[Callable[[p.Fired], None]] = []
         self._session_listeners: list[Callable[[], None]] = []
 
@@ -384,6 +389,10 @@ class TgwClient:
         deadman = p.find(msg.options, p.Tag.DEADMAN) if key is not None else None
         self.deadman = DeadmanGrant(*deadman.unpack()) if deadman is not None else None
         self.fired = {}  # the gateway reports again what is still unacknowledged
+        self._reported = set()
+        self._reports_in = asyncio.Event()
+        if self.deadman is None or self.deadman.fired == 0:
+            self._reports_in.set()
         self._up.set()
         log.info(
             "gateway session with %s:%s, boot %08x", self.host, self.control_port, self.boot_id
@@ -654,7 +663,18 @@ class TgwClient:
         self._session_listeners.append(callback)
         return lambda: self._session_listeners.remove(callback)
 
+    async def reports_in(self) -> bool:
+        """Wait, a little, for every FIRED report the session's WELCOME announced: an entry
+        that fired is refused (`FIRED`) until its report is acknowledged. Whether they all
+        came."""
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self._reports_in.wait(), self.settings.reports_wait_s)
+        return self._reports_in.is_set()
+
     def _on_fired(self, msg: p.Fired) -> None:
+        self._reported.add(msg.entry)
+        if self.deadman is not None and len(self._reported) >= self.deadman.fired:
+            self._reports_in.set()
         self.fired[msg.entry] = msg
         for listener in list(self._fired_listeners):
             listener(msg)
