@@ -66,7 +66,7 @@ thermaestro-gateway = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "amqtt>=0.12.1",
+    "amqtt>=0.12.2",
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mypy>=2.4.1",

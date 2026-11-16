@@ -171,7 +171,7 @@ wheels = [
 
 [[package]]
 name = "amqtt"
-version = "0.12.1"
+version = "0.12.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dacite" },
@@ -183,9 +183,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/bf/f08b1a1f3efec308d6883253bb3c2b689309535931e16040b1516f0cebdf/amqtt-0.12.1.tar.gz", hash = "sha256:7112cce32f9b9d3f24abb1f60c604695909cd6a31f89e79e430585326ebe97d8", size = 93594, upload-time = "2026-09-16T17:22:17.732Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/34/1d3472f4d01d386c9d3cbd2f8535ed83e1fb31cdb6f414b4fdcd5f6bb6a9/amqtt-0.12.2.tar.gz", hash = "sha256:5f9c55e5bdea0a96df7f3876d6976f9b9d44760f2167b0925a19195c9e281b6d", size = 99006, upload-time = "2026-11-13T15:39:12.505Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/9e/624469a7b7df2c07701b5e977b9bd84b2c8f04789ed9e5250f8ca6a3414d/amqtt-0.12.1-py3-none-any.whl", hash = "sha256:dfaf9d5989a31f5bae8506d9c91451d677e874efc1c89ca2e76ca650cd9b5cbb", size = 129862, upload-time = "2026-09-16T17:22:16.266Z" },
+    { url = "https://files.pythonhosted.org/packages/de/2a/ed834dd0712aaf4a3c8e97f1649bb38843c92a2e5838a310c6f4ca0daf0e/amqtt-0.12.2-py3-none-any.whl", hash = "sha256:0e8861df121caf3048574961343a3c4460e62a06467da54af2bb70fac0615bd9", size = 136046, upload-time = "2026-11-13T15:39:11.048Z" },
 ]
 
 [[package]]
@@ -1825,7 +1825,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "amqtt", specifier = ">=0.12.1" },
+    { name = "amqtt", specifier = ">=0.12.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "mypy", specifier = ">=2.4.1" },
