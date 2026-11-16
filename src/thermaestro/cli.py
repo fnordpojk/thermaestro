@@ -290,9 +290,8 @@ def _rig_arguments(commands: Any) -> None:
     rig.add_argument(
         "--out",
         type=Path,
-        default=Path(),
         help="where the log goes, and the state directory (rig-state) a stopped run is put"
-        " back from",
+        " back from; by default rig/ in Thermaestro's state directory (/data/rig in Docker)",
     )
     rig.add_argument("--system", type=int, default=1, help="offset: the climate system")
     rig.add_argument("--mode", choices=["eco", "normal", "lux"], help="mode: the mode to try")
@@ -362,6 +361,14 @@ def _rig(args: argparse.Namespace) -> int:
     if pump is None:
         return 2
     gateway, psk = pump
+    # Kept with Thermaestro's own state by default: in a container, the working directory
+    # is gone at the next rebuild, and the log with it.
+    out = args.out if args.out is not None else Layout.from_environment().state / "rig"
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        sys.stderr.write(f"{out} can't be made ({e.strerror or e}): give --out\n")
+        return 2
     options = Options(
         minutes=args.minutes,
         system=args.system,
@@ -382,7 +389,7 @@ def _rig(args: argparse.Namespace) -> int:
             return await run(
                 args.check,
                 gateway,
-                state=args.out / "rig-state",
+                state=out / "rig-state",
                 write=args.write,
                 options=options,
                 say=_say,
@@ -404,7 +411,7 @@ def _rig(args: argparse.Namespace) -> int:
         return 2
     model = report.pump.get("model") or "pump"
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
-    path = args.out / f"rig-{args.check}-{model}-{stamp}.json"
+    path = out / f"rig-{args.check}-{model}-{stamp}.json"
     path.write_text(json.dumps(report.log(), indent=1, ensure_ascii=False) + "\n")
     sys.stdout.write("\n" + report.table())
     _say(f"Wrote {path}.")

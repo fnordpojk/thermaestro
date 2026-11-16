@@ -477,6 +477,7 @@ async def test_the_command(
     pump.registers[47394] = 0  # the pump's room control off
     pump.info_interval_s = 0.2
     monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    monkeypatch.setenv("STATE_DIRECTORY", str(tmp_path / "state"))
     argv = [
         "rig",
         "offset",
@@ -485,12 +486,12 @@ async def test_the_command(
         str(gateway.ports["read"]),
         "--write-port",
         str(gateway.ports["write"]),
-        "--out",
-        str(tmp_path),
     ]
     assert await asyncio.to_thread(main, argv) == 0  # read-only
     assert pump.taken_writes == []
-    assert await asyncio.to_thread(main, [*argv, "--write"]) == 0
+    # Without --out, the log is kept with Thermaestro's own state.
+    assert sorted((tmp_path / "state" / "rig").glob("rig-offset-F1245-*.json"))
+    assert await asyncio.to_thread(main, [*argv, "--out", str(tmp_path), "--write"]) == 0
     assert [(r, signed(v & 0xFF, 8)) for r, v in pump.taken_writes] == [(47011, -3), (47011, -4)]
     logs = sorted(tmp_path.glob("rig-offset-F1245-*.json"))
     assert logs

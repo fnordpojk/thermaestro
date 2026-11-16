@@ -857,7 +857,11 @@ TRIED: Mapping[str, Mapping[str, tuple[str, str]]] = {
 }
 """Levers tried on a real pump (`thermaestro rig`), by model, with the firmware it ran and
 what was seen: on that model and firmware, verified; elsewhere, as documented. A firmware
-update can change what a register does."""
+update can change what a register does.
+
+The F1245 entries come from runs in October 2026 whose logs weren't kept: the rig wrote
+them to the container's working directory, which a rebuild removed. What each entry says
+was seen is as it was reported then, with no log left to check it against."""
 
 
 def tried(

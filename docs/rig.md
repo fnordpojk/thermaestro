@@ -34,17 +34,19 @@ Before the first write it asks whether the pump's own features that change the s
 
 If Thermaestro itself runs against the same pump, keep the setting off or in shadow there while the rig runs. If another program changes the setting during a check (NibePi, the pump's menu), the rig lets it go and doesn't write over it, and the table says so.
 
-**In Docker**, run it inside the container and keep its files on the data volume:
+**In Docker**, run it inside the container. Its files go to the data volume, `/data/rig`, by default:
 
 ```
-docker compose exec thermaestro thermaestro rig block 192.0.2.10 --write --out /data/rig
+docker compose exec thermaestro thermaestro rig block 192.0.2.10 --write
 ```
 
 ## What it writes down
 
 The check ends with a table of its steps: what was asked or seen, what came of it, and `ok`, `FAILED` or `-` where there is nothing to judge. Its first line says whether anything was written to the pump: "wrote to the pump", "nothing was written" (with `--write`, when nothing needed to be), or "read-only". When everything went as it should on a run that wrote, it says so: that is evidence the setting works on this model and firmware.
 
-`--out DIR` (the current directory by default) gets:
+The levers Thermaestro marks as tried on the F1245 with firmware 9721R4 (the heating offset, the hot-water mode, the block and the one-time increase) were tried in October 2026, before the log was kept with Thermaestro's data by default. Those runs wrote theirs inside the container, and a rebuild removed them: what each lever's description says was seen rests on the runs as reported then.
+
+`--out DIR` gets them; by default it is `rig/` in Thermaestro's state directory (`/data/rig` in Docker, `/var/lib/thermaestro/rig` otherwise), so they are kept with Thermaestro's own data. Where that directory can't be made, as for a user who isn't Thermaestro's, the rig says so and asks for `--out`. It gets:
 
 - **`rig-<check>-<model>-<time>.json`**, the log: the pump's model and firmware, how many writes it sent, the steps with their times, your answers, and the values watched, once a minute while it waits. It holds no network address or key, so it can be sent with an issue.
 - **`rig-state/`**: what the rig has taken over, kept while it runs. If the rig is killed before it puts things back (a power cut, `kill -9`), no check starts until `thermaestro rig restore ADDRESS --out DIR --write` has put them back, with the same `DIR`. Without `--write`, `restore` only says what it would put back. Over the Thermaestro gateway protocol, the gateway's dead-man puts them back by itself once the rig has been silent for its time (15 minutes by default); `restore` is then told so by the gateway, and writes nothing.
