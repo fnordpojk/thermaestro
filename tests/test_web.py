@@ -1113,6 +1113,15 @@ def test_values_are_shown_in_sentence_case() -> None:
     assert labels.value("hot water") == "Hot water"
 
 
+def test_every_standard_point_has_a_name() -> None:
+    from thermaestro.cap import vocabulary
+    from thermaestro.web import labels
+
+    named = set(labels.POINTS) | set(labels.QUANTITIES)
+    assert sorted(set(vocabulary.POINTS) - named) == []
+    assert labels.point("periodic.interval", None) == "Periodic increase, interval"
+
+
 async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> None:
     _with_a_pump(site)
     host = site.services.host

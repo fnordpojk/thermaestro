@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 23:38+0100\n"
+"POT-Creation-Date: 2026-11-18 00:56+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -2474,6 +2474,12 @@ msgstr "Je Viertelstunde"
 msgid "Period"
 msgstr "Zeitraum"
 
+msgid "Periodic increase"
+msgstr "Periodische Erhöhung"
+
+msgid "Periodic increase, interval"
+msgstr "Periodische Erhöhung, Intervall"
+
 msgid "Personal access token"
 msgstr "Persönliches Zugriffstoken"
 
@@ -2510,6 +2516,9 @@ msgstr "Zeigen Sie auf einen Wert, um den Grund zu sehen."
 
 msgid "Pool"
 msgstr "Pool"
+
+msgid "Pool temperature"
+msgstr "Pooltemperatur"
 
 #, python-format
 msgid "Pool: %(name)s"
@@ -3013,6 +3022,9 @@ msgstr "Zur Zeit aufhören"
 
 msgid "Stop temperature"
 msgstr "Stopptemperatur"
+
+msgid "Stop temperature, periodic increase"
+msgstr "Stopptemperatur, periodische Erhöhung"
 
 msgid "Subscribed power"
 msgstr "Abonnierte Leistung"

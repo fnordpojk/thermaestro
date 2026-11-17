@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-14 23:38+0100\n"
+"POT-Creation-Date: 2026-11-18 00:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2305,6 +2305,12 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
+msgid "Periodic increase"
+msgstr ""
+
+msgid "Periodic increase, interval"
+msgstr ""
+
 msgid "Personal access token"
 msgstr ""
 
@@ -2340,6 +2346,9 @@ msgid "Point at a value to see why."
 msgstr ""
 
 msgid "Pool"
+msgstr ""
+
+msgid "Pool temperature"
 msgstr ""
 
 #, python-format
@@ -2830,6 +2839,9 @@ msgid "Stop at the deadline"
 msgstr ""
 
 msgid "Stop temperature"
+msgstr ""
+
+msgid "Stop temperature, periodic increase"
 msgstr ""
 
 msgid "Subscribed power"
