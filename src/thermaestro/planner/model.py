@@ -79,6 +79,8 @@ class LeverState:
     held: bool = False
     hold_until: datetime | None = None
     """Until when a new value would be refused: the least time between two changes."""
+    deadman: bool = False
+    """Whether the gateway's dead-man puts it back should Thermaestro go silent."""
 
     def fit(self, value: float) -> float:
         """A value the lever takes: within its range, on its steps."""
@@ -271,6 +273,8 @@ class Situation:
     """Writes in the last day, and the soft budget."""
     boost_scopes: frozenset[str] = frozenset()
     """Tanks a "boost now" asks a charge of, not yet given."""
+    away: bool = False
+    """An "away" holds now: nobody home to use what a cheap hour would charge."""
     slot: bool = True
     """A round at the start of a slot. Between slots only hot water is planned: the
     heating, the addition and the pool change at most once a slot."""

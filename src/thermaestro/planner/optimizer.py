@@ -874,6 +874,10 @@ class Optimizer:
                 floor.low if floor is not None else None,
                 sit.demand == "dhw",
                 spent=scope in sit.memory.spent,
+                room=tank.charge is not None
+                and tank.start is not None
+                and tank.charge < tank.start,
+                due=rules.periodic_due(sit.memory, scope, sit.now),
             )
         below: dict[str, str] = {}
         above: dict[str, str] = {}

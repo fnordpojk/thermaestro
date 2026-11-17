@@ -164,6 +164,8 @@ class Sim:
     them, for every lever."""
     replay: list[Frame] | None = None
     record: bool = False
+    deadman: bool = False
+    """Whether the bus is described as a gateway with a dead-man."""
 
     plant: Plant | Replay = field(init=False)
     bus: SimBus = field(init=False)
@@ -182,7 +184,7 @@ class Sim:
         if not hasattr(self, "plant"):
             self.plant = begin(self.scenario) if self.replay is None else Replay(self.replay)
             self._record()  # as it starts: a replay shows the first moment as it was too
-            self.bus = SimBus(Caught(self))
+            self.bus = SimBus(Caught(self), deadman=self.deadman)
             self.db = await Database.open(self.path / "sim.db")
             await self.db.put(
                 Plugin(plugin="nibe", settings={"host": "plant.invalid", "model": "F1245"}), PUMP

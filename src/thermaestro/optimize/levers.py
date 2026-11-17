@@ -11,13 +11,14 @@ expects.
 
 **A tank** is charged by a boost where the plan charges it in this slot for a hot-water
 deadline and the pump isn't charging, and at once where the household asked for a boost
-now: the plan doesn't plan that charge, it only follows it. For price, its own charges are
-held off by a block while the plan charges it no sooner than an hour on, and let go once
-the plan charges it within the slot after (only with a cost stance and prices: otherwise
-the pump's own thermostat stands); three hours at most, as the rules, and then not again
-until the pump has charged. A charge isn't started for price alone: the rooms keep
-the compressor. Near its floor every hold is let go, and below it a charge is started,
-whatever the plan.
+now: the plan doesn't plan that charge, it only follows it. For price, the tank is a
+battery: its own charges are held off by a block while the plan charges it no sooner than
+an hour on, and let go once the plan charges it within the slot after, where the charge
+sensor is below the current mode's start, so the pump charges then (only with a cost
+stance and prices: otherwise the pump's own thermostat stands). It is let go for the
+pump's periodic increase too. Behind a gateway with no dead-man, a hold lasts three hours
+at most, as the rules, and then not again until the pump has charged. Near its floor every
+hold is let go, and below it a charge is started, whatever the plan.
 
 **A pool** heats now where the plan heats it now: its start temperature set just above
 where it is; else it is left to its band's bottom, where the pump heats it again by
@@ -68,8 +69,13 @@ class TankNow:
     floor: float | None
     charging: bool
     spent: bool = False
-    """Its block has held the longest: let go, and not held again until the pump has
-    charged."""
+    """Its block has held the longest (only behind a gateway with no dead-man): let go, and
+    not held again until the pump has charged."""
+    room: bool = True
+    """The charge sensor is below the current mode's start: let go, the block lets the pump
+    charge."""
+    due: bool = False
+    """The pump's periodic increase is due: the block is let go for it."""
 
 
 @dataclass(frozen=True)
@@ -294,14 +300,22 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
             continue
         later = next((j for j, s in enumerate(share) if s >= CHARGE_SHARE), None)
         safe = top is not None and (floor is None or top >= floor + FLOOR_MARGIN)
-        if state.spent:
-            want = False  # held the longest: not again until the pump has charged
+        if state.spent or state.due:
+            # Held the longest: not again until the pump has charged. Or the pump's periodic
+            # increase is due, which a block may keep from running.
+            want = False
         elif block.held:
-            # Held until the plan charges within the next slot.
-            want = now.shifting and safe and (later is None or later > 1)
+            # Held until the plan charges within the next slot, where the pump would then
+            # charge: below its start. Above it, a release would start nothing.
+            want = now.shifting and safe and (later is None or later > 1 or not state.room)
         else:
             # Held only while no charge is planned for the next hour, and not mid-charge.
-            want = now.shifting and safe and not state.charging and (later is None or later >= 4)
+            want = (
+                now.shifting
+                and safe
+                and not state.charging
+                and (later is None or later >= 4 or not state.room)
+            )
         if want and not block.held:
             when = (
                 f"it charges at {_local(now, problem.slots[later].t)}"
@@ -311,10 +325,17 @@ def _tanks(plan: Plan, problem: Problem, now: Now) -> list[Decision]:
             reason = f"the plan: the pump's own charges held off; {when}"
             out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
         elif not want and block.held:
-            why = "held long enough" if state.spent else "the plan charges soon"
+            why = (
+                "held long enough"
+                if state.spent
+                else "the pump's periodic increase is due"
+                if state.due
+                else "the plan charges soon"
+            )
             reason = f"{why}: the pump may charge again"
-            # Held the longest, it is a limit kept, not price: ranked to survive a spent budget.
-            released = 1 if state.spent else min(rank, RANK_SLIDER)
+            # Held the longest or for the periodic increase, it is a limit kept, not price:
+            # ranked to survive a spent budget.
+            released = 1 if state.spent or state.due else min(rank, RANK_SLIDER)
             out.append(Decision(block.ref, "release", rank=released, reason=reason))
     return out
 

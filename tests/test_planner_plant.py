@@ -95,6 +95,7 @@ def simulated(
     hindsight: bool = False,
     more: Callable[[], list[Intent]] | None = None,
     unproved: Sequence[tuple[str, str]] = (),
+    deadman: bool = False,
 ) -> tuple[Sim, Intended]:
     """Run the planner on the plant for `days`; the sim, and the planner's intended writes.
     As in a house: each day's draws differ, and the prices are those published by then,
@@ -109,7 +110,7 @@ def simulated(
     s = replace(s, varied=True)
 
     async def body() -> tuple[Sim, Intended]:
-        sim = Sim(s, path, levers or LEVERS, record=record, replay=replay)
+        sim = Sim(s, path, levers or LEVERS, record=record, replay=replay, deadman=deadman)
         async with running(sim):
             series = day_ahead(
                 s.seed, s.start_time, days, spike=spike, negative=negative, history_days=28
@@ -202,6 +203,42 @@ def test_comfort_the_floor_and_the_budget_hold(tmp_path: Path) -> None:
     assert floor_holds(sim, s.start_time)
     assert offsets(writes)  # it steered
     assert max(per_day(writes, s.start_time)) <= 50  # the soft budget
+
+
+BLOCK = f"{TANK}/block"
+
+
+def longest_hold(writes: Intended) -> float:
+    """The longest the block was held at a stretch, by the planner's intended writes."""
+    longest, since = 0.0, None
+    for slot, lever, op, _ in writes:
+        if lever != BLOCK:
+            continue
+        if op == "engage" and since is None:
+            since = slot
+        elif op == "release" and since is not None:
+            longest, since = max(longest, slot - since), None
+    return longest
+
+
+@pytest.mark.parametrize("optimizer", BOTH)
+@pytest.mark.parametrize("deadman", [False, True], ids=["plain", "deadman"])
+def test_the_tank_charges_in_cheap_hours_and_keeps_its_floor(
+    tmp_path: Path, deadman: bool, optimizer: bool
+) -> None:
+    """The pump's own charges held off by the block and let go in cheap hours: the floor
+    holds, and only where the gateway's dead-man covers the block does a hold outlast three
+    hours."""
+    s = draw(9, emitter="radiators")
+    sim, writes = simulated(tmp_path, s, 2.0, slider=1.0, deadman=deadman, optimizer=optimizer)
+    assert floor_holds(sim, s.start_time)
+    longest = longest_hold(writes)
+    # Three hours from when the block was first seen held, give or take the slots the
+    # planner sees it in.
+    if deadman:
+        assert longest > 4 * 3600
+    else:
+        assert 0 < longest <= 3.5 * 3600
 
 
 @pytest.mark.parametrize("optimizer", BOTH)

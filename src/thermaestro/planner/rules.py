@@ -8,11 +8,13 @@
   more than three steps from the household's own offset (the lever's range says so).
 - **Heating without:** the offset raised in the cheapest hours and cut in the most expensive, at
   most the household's bound, ranked so it nets out over the window.
-- **Hot water:** the floor first (a hold released, a charge started below it); a charge in
-  the cheapest window before a deadline the tank won't make by itself, or at once when
-  late; the pump's own charges held off in expensive hours while the tank is well above its
-  floor and no deadline is near, three hours at most, then not again until the pump has
-  charged.
+- **Hot water, the tank as a battery:** the floor first (a hold released, a charge
+  started below it); a charge in the cheapest window before a deadline the tank won't make
+  by itself, or at once when late. Otherwise, with a cost stance and prices, the pump's own
+  charges are held off by the block while the tank is well above its floor, and let go in
+  a cheap hour where the charge sensor is below the current mode's start, so the pump
+  charges then; and around the pump's periodic increase. Behind a gateway with no
+  dead-man, a hold lasts three hours at most, then not again until the pump has charged.
 - **The addition, the pool:** as the household's policy says. The addition is kept off by
   its stop temperature at -15 °C, no lower; a pool is held by its start temperature,
   never switched off.
@@ -31,6 +33,7 @@ from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime, timedelta
 
+from ..intents import Deadline
 from ..intents.entry import RESPONSE_H
 from .model import (
     ADDITION_OFF_C,
@@ -47,9 +50,8 @@ from .model import (
 
 WINDOW = timedelta(hours=12)
 """How far back and ahead prices are compared, at least."""
-EXPENSIVE, STILL_EXPENSIVE = -0.3, -0.1
-"""The price signal below which an hour is expensive, and the one it must rise above again
-before a hold for price is released."""
+EXPENSIVE = -0.3
+"""The price signal below which an hour is expensive."""
 FLOOR_MARGIN = 2.0
 """How close to its floor the tank's top may come before every hold on it is released."""
 HOLD_MARGIN = 5.0
@@ -87,10 +89,19 @@ WEAR_RANK = 3
 BOOST_KW = 2.0
 """What a charge adds to the house's power, until it is learned."""
 BLOCK_MOST = timedelta(hours=3)
-"""The longest either planner holds the hot water's charges off: the charge that follows
-takes the heat from the rooms for a while, and a long hold makes it longer, and the tank
-stands cooler. Once a block has held this long, it is let go, and no new hold begins
-until the pump has charged."""
+"""Behind a gateway with no dead-man, the longest either planner holds the hot water's
+charges off: nothing there puts the block back while Thermaestro is away, the charge that
+follows takes the heat from the rooms for a while, a long hold makes it longer, and the
+tank stands cooler. Once a block has held this long, it is let go, and no new hold begins
+until the pump has charged. Where the dead-man covers the block, the floor is the limit."""
+TROUGH_SHARE = 0.25
+"""A cheap hour: among this cheapest share of the known prices from `WINDOW` back to
+`WINDOW` ahead."""
+PERIODIC_BEFORE = timedelta(hours=1)
+PERIODIC_AFTER = timedelta(hours=2)
+"""The block is let go from an hour before the pump's periodic increase is due, and held
+again once it has run, or two hours after it was due: whether the pump runs it under a
+block isn't known."""
 
 
 def plan(sit: Situation) -> list[Decision]:
@@ -135,6 +146,16 @@ def signal(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> floa
     if high - low < max(1e-3, 0.02 * abs(median)):
         return 0.0
     return max(-1.0, min(1.0, (median - current) / ((high - low) / 2)))
+
+
+def in_trough(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> bool | None:
+    """Whether the price now is among the cheapest `TROUGH_SHARE` of the known prices from
+    `half` back to `half` ahead. None without enough prices."""
+    current = price_at(prices, now)
+    window = sorted(_window(prices, now, half))
+    if current is None or len(window) < 8:
+        return None
+    return current <= window[max(0, math.ceil(len(window) * TROUGH_SHARE) - 1)]
 
 
 def rank_signal(prices: list[Price], now: datetime, half: timedelta = WINDOW) -> float | None:
@@ -410,6 +431,13 @@ def next_periodic(memory: Memory, scope: str) -> datetime | None:
     return seen + (seen - before)
 
 
+def periodic_due(memory: Memory, scope: str, now: datetime) -> bool:
+    """Whether the pump's periodic increase is due about now: from `PERIODIC_BEFORE` it is
+    due until `PERIODIC_AFTER` it, or until it has run (then the next is a week on)."""
+    due = next_periodic(memory, scope)
+    return due is not None and due - PERIODIC_BEFORE <= now <= due + PERIODIC_AFTER
+
+
 def expected_top(tank: Tank, now: datetime, until: datetime) -> float | None:
     """How warm the tank's top is expected to be at `until`, with no charge between: with
     the learned standing loss and what the household is expected to draw, once both have
@@ -485,40 +513,81 @@ def hot_water(sit: Situation) -> list[Decision]:
                     out.append(Decision(boost.ref, "fire", rank=need.rank, reason=reason))
         if block is None:
             continue
-        s = signal(sit.prices, sit.now)
-        was = sit.memory.blocked.get(scope, False)
-        expensive = (
-            sit.force.slider is not None
-            and s is not None
-            and s < (STILL_EXPENSIVE if was else EXPENSIVE)
-        )
-        safe = top is not None and (least is None or top >= least + HOLD_MARGIN)
-        near = need is not None and (need.t - sit.now).total_seconds() <= 2 * charge_s
-        since = sit.memory.blocked_since.get(scope)
-        long = (since is not None and sit.now - since >= BLOCK_MOST) or scope in sit.memory.spent
-        want = expensive and safe and not near and boosting is None and not long
-        sit.memory.blocked[scope] = want
-        if want and since is None:
-            sit.memory.blocked_since[scope] = sit.now
-        elif not want and not expensive:
-            sit.memory.blocked_since.pop(scope, None)  # a new hold may begin
-        if want and not block.held:
-            reason = "expensive hours: the hot water's charges held off"
-            out.append(Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason))
-        elif not want and block.held:
-            why = (
-                "a deadline is near"
-                if near or boosting is not None
-                else "held long enough"
-                if long
-                else "cheaper now"
-            )
-            reason = f"{why}: the pump may charge again"
-            # Released before a charge asked for it is fired: ranked with it. Held the
-            # longest, it is a limit kept, not price: ranked to survive a spent budget.
-            rank = boosting if boosting is not None else 1 if long else RANK_SLIDER
-            out.append(Decision(block.ref, "release", rank=rank, reason=reason))
+        out += _hold(sit, scope, tank, block, least, need, boosting, charge_s)
     return out
+
+
+def _hold(
+    sit: Situation,
+    scope: str,
+    tank: Tank,
+    block: LeverState,
+    least: float | None,
+    need: Deadline | None,
+    boosting: int | None,
+    charge_s: float,
+) -> list[Decision]:
+    """The tank as a battery: the pump's own charges held off by the block, and a charge
+    let happen in a cheap hour where the tank has room. A release puts the current mode's
+    start back, and the pump charges if the charge sensor is below it: so a charge needs no
+    boost, and the mode the household picked says how full a charge makes the tank."""
+    shifting = sit.force.slider is not None and price_at(sit.prices, sit.now) is not None
+    top = tank.top
+    safe = top is not None and (least is None or top >= least + HOLD_MARGIN)
+    near = need is not None and (need.t - sit.now).total_seconds() <= 2 * charge_s
+    since = sit.memory.blocked_since.get(scope)
+    # Where nothing puts the block back while Thermaestro is away, a hold has its limit.
+    capped = not block.deadman
+    long = capped and (
+        (since is not None and sit.now - since >= BLOCK_MOST) or scope in sit.memory.spent
+    )
+    due = periodic_due(sit.memory, scope, sit.now)
+    room = tank.charge is not None and tank.start is not None and tank.charge < tank.start
+    draw = sit.charge_kw if sit.charge_kw is not None else BOOST_KW
+    cheap = (
+        shifting
+        and bool(in_trough(sit.prices, sit.now))
+        and room
+        and not sit.away
+        and not _quiet(sit)
+        and not _over_peak(sit, draw)
+    )
+    want = (
+        shifting and safe and not near and boosting is None and not due and not cheap and not long
+    )
+    sit.memory.blocked[scope] = want
+    if want and since is None:
+        sit.memory.blocked_since[scope] = sit.now
+    elif not want:
+        sit.memory.blocked_since.pop(scope, None)  # a new hold may begin
+    if want and not block.held and sit.demand != "dhw":  # a charge under way is let finish
+        reason = "the hot water's own charges held off until a cheap hour"
+        return [Decision(block.ref, "engage", rank=RANK_SLIDER, reason=reason)]
+    if want or not block.held:
+        return []
+    if near or boosting is not None:
+        why, rank = "a deadline is near", boosting if boosting is not None else RANK_SLIDER
+    elif shifting and not safe:
+        why = (
+            "the hot water's temperature isn't known"
+            if top is None
+            else f"the hot water is {top:.1f} °C, near its floor"
+        )
+        rank = 1
+    elif due:
+        why, rank = "the pump's periodic increase is due", 1
+    elif long:
+        # Held the longest, it is a limit kept, not price: ranked to survive a spent budget.
+        why, rank = "held long enough", 1
+    elif cheap:
+        return [
+            Decision(
+                block.ref, "release", rank=RANK_SLIDER, reason="a cheap hour: the tank charges"
+            )
+        ]
+    else:
+        why, rank = "no shifting by price now", RANK_SLIDER
+    return [Decision(block.ref, "release", rank=rank, reason=f"{why}: the pump may charge again")]
 
 
 # --- the addition and the pools -----------------------------------------------------------

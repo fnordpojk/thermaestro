@@ -55,8 +55,12 @@ class SimBus:
         log_set_s: float = 10.0,
         info_s: float = 60.0,
         product: str = "F1245-6 CU",
+        deadman: bool = False,
     ) -> None:
         self.pump = pump
+        self.deadman = deadman
+        """Whether it promises a dead-man, as a gateway that has one: nothing is armed here,
+        only described so."""
         self.take_s = take_s
         self.answer_s = answer_s
         self.log_set_s = log_set_s
@@ -80,7 +84,12 @@ class SimBus:
 
     @property
     def promises(self) -> Promises:
-        return Promises(FateKind.EXACT, sees_other_writers=True, gateway_timestamps=False)
+        return Promises(
+            FateKind.EXACT,
+            sees_other_writers=True,
+            gateway_timestamps=False,
+            deadman=self.deadman,
+        )
 
     async def read(
         self, register: int, *, after: float | None = None, timeout: float = 30.0

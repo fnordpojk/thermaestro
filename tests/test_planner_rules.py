@@ -79,6 +79,8 @@ def situation(
     age_s: float = 60.0,
     price: list[Price] | None = None,
     top: float = 48.0,
+    charge: float | None = None,
+    start: float = 45.0,
     levers: dict[str, LeverState] | None = None,
     memory: Memory | None = None,
     **kw: object,
@@ -94,12 +96,12 @@ def situation(
         caps=CAPS,
         prices=prices() if price is None else price,
         rooms=[RoomReading(ROOM, CS, temp, age_s, 3600.0)],
-        tanks={TANK: Tank(TANK, top, 45.0, 50.0)},
+        tanks={TANK: Tank(TANK, top, start, start + 5.0, charge=charge)},
         levers=levers
         if levers is not None
         else {
             OFFSET: LeverState(OFFSET, "setting", -10, 10, 1, current=0, baseline=0),
-            BLOCK: LeverState(BLOCK, "hold"),
+            BLOCK: LeverState(BLOCK, "hold", deadman=True),
             BOOST: LeverState(BOOST, "trigger"),
         },
         memory=memory or Memory(),
@@ -327,50 +329,135 @@ def test_the_periodic_increase_makes_a_charge_needless() -> None:
     assert all(d.op != "fire" for d in rules.plan(situation([by], top=44.0, memory=memory)))
 
 
-def test_expensive_hours_hold_the_charges_off_while_the_tank_is_well_above_its_floor() -> None:
-    expensive = prices(cheap_now=False)
-    held = rules.plan(situation([floor(40.0), stance()], top=48.0, price=expensive))
-    assert [(d.lever, d.op) for d in held] == [(BLOCK, "engage")]
-    low = rules.plan(situation([floor(40.0), stance()], top=42.5, price=expensive))
-    assert all(d.lever != BLOCK for d in low)
-    no_stance = rules.plan(situation([floor(40.0)], top=48.0, price=expensive))
-    assert all(d.lever != BLOCK for d in no_stance)
+def held(*, deadman: bool = True) -> dict[str, LeverState]:
+    return {
+        BLOCK: LeverState(BLOCK, "hold", held=True, deadman=deadman),
+        BOOST: LeverState(BOOST, "trigger"),
+    }
 
 
-def test_a_hold_is_released_once_prices_ease() -> None:
-    held = {BLOCK: LeverState(BLOCK, "hold", held=True), BOOST: LeverState(BOOST, "trigger")}
-    memory = Memory(blocked={TANK: True})
-    found = rules.plan(
-        situation([floor(40.0), stance()], levers=held, memory=memory, price=prices(True))
-    )
-    assert [(d.lever, d.op) for d in found] == [(BLOCK, "release")]
+def free(*, deadman: bool = True) -> dict[str, LeverState]:
+    return {BLOCK: LeverState(BLOCK, "hold", deadman=deadman), BOOST: LeverState(BOOST, "trigger")}
 
 
-def test_a_block_held_the_longest_is_let_go_until_the_pump_has_charged() -> None:
-    expensive = prices(cheap_now=False)
+def block(decisions: list[Decision]) -> list[tuple[str, int]]:
+    return [(str(d.op), d.rank) for d in decisions if d.lever == BLOCK]
+
+
+def test_a_trough_is_the_cheapest_quarter_of_the_known_prices_around_now() -> None:
+    assert rules.in_trough(prices(cheap_now=True), NOW)
+    assert not rules.in_trough(prices(cheap_now=False), NOW)
+    assert not rules.in_trough(prices(), NOW)  # noon: an ordinary hour
+    assert rules.in_trough(prices(), NOW.replace(hour=14))  # the early afternoon's dip
+    assert rules.in_trough([], NOW) is None
+    flat = [replace(p, value=1.0) for p in prices()]
+    assert rules.in_trough(flat, NOW)  # nothing is cheaper: as good a time as any
+
+
+def test_the_block_holds_the_pumps_own_charges_off_by_default() -> None:
     intents = [floor(40.0), stance()]
-    held = {BLOCK: LeverState(BLOCK, "hold", held=True), BOOST: LeverState(BOOST, "trigger")}
-    spent = Memory(blocked={TANK: True}, spent={TANK: NOW})
-    found = rules.plan(situation(intents, levers=held, memory=spent, price=expensive))
-    assert [(d.lever, d.op, d.reason) for d in found] == [
-        (BLOCK, "release", "held long enough: the pump may charge again")
+    found = rules.plan(situation(intents, top=48.0, charge=44.0, levers=free()))
+    assert block(found) == [("engage", RANK_SLIDER)]
+    assert "held off until a cheap hour" in next(d.reason for d in found if d.lever == BLOCK)
+    # Held, and no cheap hour now: it stays held, however long it has been.
+    long_ago = Memory(blocked_since={TANK: NOW - timedelta(hours=9)})
+    assert block(rules.plan(situation(intents, levers=held(), memory=long_ago))) == []
+
+
+def test_a_cheap_hour_charges_where_the_tank_has_room() -> None:
+    intents = [floor(40.0), stance()]
+    cheap = prices(cheap_now=True)
+    room = rules.plan(situation(intents, top=48.0, charge=42.0, levers=held(), price=cheap))
+    assert block(room) == [("release", RANK_SLIDER)]
+    assert "a cheap hour: the tank charges" in next(d.reason for d in room if d.lever == BLOCK)
+    assert all(d.lever != BOOST for d in room)  # the release starts it: no boost
+    # The charge sensor at the mode's own start: the pump wouldn't charge, so it stays held.
+    full = rules.plan(situation(intents, top=52.0, charge=45.0, levers=held(), price=cheap))
+    assert block(full) == []
+
+
+def test_the_room_is_the_current_modes_start() -> None:
+    intents = [floor(40.0), stance()]
+    cheap = prices(cheap_now=True)
+    # Luxury: a start of 47 °C, so a charge sensor at 45 has room. Economy's 41 doesn't.
+    luxury = situation(intents, charge=45.0, start=47.0, levers=held(), price=cheap)
+    assert block(rules.plan(luxury)) == [("release", RANK_SLIDER)]
+    economy = situation(intents, charge=45.0, start=41.0, levers=held(), price=cheap)
+    assert block(rules.plan(economy)) == []
+
+
+def test_a_charge_under_way_is_left_to_finish() -> None:
+    intents = [floor(40.0), stance()]
+    charging = situation(intents, top=50.0, charge=47.0, levers=free(), demand="dhw")
+    assert block(rules.plan(charging)) == []  # engaged once it has ended
+
+
+def test_quiet_hours_away_and_the_power_limit_keep_a_cheap_hours_charge_off() -> None:
+    cheap = prices(cheap_now=True)
+    base = [floor(40.0), stance()]
+    quiet = kinds.quiet_hours([((), None, None)], principal="user:a", created=BEFORE)
+    assert (
+        block(rules.plan(situation([*base, quiet], charge=42.0, levers=held(), price=cheap))) == []
+    )
+    away = situation(base, charge=42.0, levers=held(), price=cheap, away=True)
+    assert block(rules.plan(away)) == []
+    peak = kinds.power_peak(3.0, principal="user:a", created=BEFORE)
+    over = situation([*base, peak], charge=42.0, levers=held(), price=cheap, house_kw=2.5)
+    assert block(rules.plan(over)) == []  # 2.5 kW and a charge's 2 is over 3
+
+
+def test_without_a_cost_stance_or_prices_the_pump_charges_on_its_own() -> None:
+    no_stance = rules.plan(situation([floor(40.0)], charge=44.0, levers=held()))
+    assert block(no_stance) == [("release", RANK_SLIDER)]
+    assert block(rules.plan(situation([floor(40.0)], charge=44.0, levers=free()))) == []
+    no_prices = rules.plan(situation([floor(40.0), stance()], charge=44.0, levers=held(), price=[]))
+    assert block(no_prices) == [("release", RANK_SLIDER)]
+
+
+def test_near_the_floor_the_block_is_let_go_whatever_the_price() -> None:
+    near = rules.plan(situation([floor(40.0), stance()], top=44.0, charge=40.0, levers=held()))
+    assert block(near) == [("release", 1)]
+    assert block(rules.plan(situation([floor(40.0), stance()], top=44.0, levers=free()))) == []
+
+
+def test_the_periodic_increase_is_let_run() -> None:
+    intents = [floor(40.0), stance()]
+    due = NOW + timedelta(minutes=40)
+    memory = Memory(
+        periodic={TANK: due - timedelta(days=7), f"{TANK}#before": due - timedelta(days=14)}
+    )
+    found = rules.plan(situation(intents, charge=44.0, levers=held(), memory=memory))
+    assert block(found) == [("release", 1)]
+    assert "periodic increase" in next(d.reason for d in found if d.lever == BLOCK)
+    # Not before the hour ahead of it, and once it has run, the block holds again.
+    early = replace(situation(intents, charge=44.0, levers=free(), memory=memory))
+    assert block(rules.plan(replace(early, now=NOW - timedelta(hours=2)))) == [
+        ("engage", RANK_SLIDER)
     ]
-    free = {BLOCK: LeverState(BLOCK, "hold"), BOOST: LeverState(BOOST, "trigger")}
-    again = rules.plan(
-        situation(intents, levers=free, memory=Memory(spent={TANK: NOW}), price=expensive)
+    ran = Memory(
+        periodic={TANK: NOW - timedelta(minutes=5), f"{TANK}#before": due - timedelta(days=7)}
     )
-    assert all(d.lever != BLOCK for d in again)
-    # The day's write budget spent: the limit is kept all the same, and no new hold begins.
-    spent_budget = situation(
-        intents,
-        levers=held,
-        memory=Memory(blocked={TANK: True}, spent={TANK: NOW}),
-        price=expensive,
-        budget=(50, 50),
+    assert block(rules.plan(situation(intents, charge=44.0, levers=free(), memory=ran))) == [
+        ("engage", RANK_SLIDER)
+    ]
+
+
+def test_behind_a_gateway_without_a_dead_man_a_hold_lasts_three_hours_at_most() -> None:
+    intents = [floor(40.0), stance()]
+    spent = Memory(spent={TANK: NOW})
+    found = rules.plan(situation(intents, charge=44.0, levers=held(deadman=False), memory=spent))
+    assert block(found) == [("release", 1)]
+    assert "held long enough" in next(d.reason for d in found if d.lever == BLOCK)
+    again = situation(intents, charge=44.0, levers=free(deadman=False), memory=spent)
+    assert block(rules.plan(again)) == []
+    # The day's write budget spent: the limit is kept all the same.
+    budget = situation(
+        intents, charge=44.0, levers=held(deadman=False), memory=spent, budget=(50, 50)
     )
-    assert [(d.lever, d.op) for d in rules.plan(spent_budget)] == [(BLOCK, "release")]
-    fresh = situation(intents, levers=free, price=expensive, budget=(50, 50))
-    assert all(d.lever != BLOCK for d in rules.plan(fresh))
+    assert block(rules.plan(budget)) == [("release", 1)]
+    # Behind it, the margin above the floor stays too: 5 °C, so 44 °C over a floor of 40 isn't.
+    near = situation(intents, top=44.0, charge=40.0, levers=free(deadman=False))
+    assert block(rules.plan(near)) == []
 
 
 def test_boost_now() -> None:

@@ -752,6 +752,7 @@ class Planner:
             pools=pools,
             budget=budget,
             boost_scopes=boosts,
+            away=any(start <= now and (end is None or now < end) for start, end in aways),
             memory=self.memory,
             response_h=self._responses(caps.systems),
             lead=await self._leads(caps, now, outdoor),
@@ -878,6 +879,11 @@ class Planner:
         for instance_id, instance in sorted(self._host.instances.items()):
             if instance.described is None:
                 continue
+            covered = {
+                n.path
+                for n in instance.described.nodes
+                if n.transport is not None and n.transport.deadman == "supported"
+            }
             for lever in instance.described.levers:
                 ref = f"{instance_id}:{lever.path}"
                 if lever.path.rpartition("/")[2] not in PLANNED or lever.unavailable:
@@ -887,7 +893,9 @@ class Planner:
                 claim = self._executor.claims.get(ref)
                 if claim is not None and claim.drift is not None:
                     continue
-                out[ref] = self._lever_state(instance_id, ref, lever, control)
+                state = self._lever_state(instance_id, ref, lever, control)
+                deadman = lever.kind in ("setting", "hold") and lever.path.split("/")[0] in covered
+                out[ref] = replace(state, deadman=deadman)
         return out
 
     def _lever_state(self, instance: str, ref: str, lever: Lever, control: Control) -> LeverState:
@@ -1160,7 +1168,8 @@ class Planner:
                 self.memory.spent.pop(scope, None)
             if block is not None and block.held:
                 held = self.memory.held_since.setdefault(scope, sit.now)
-                if sit.now - held >= rules.BLOCK_MOST:
+                # Only where nothing puts the block back while Thermaestro is away.
+                if sit.now - held >= rules.BLOCK_MOST and not block.deadman:
                     self.memory.spent.setdefault(scope, sit.now)
             else:
                 self.memory.held_since.pop(scope, None)

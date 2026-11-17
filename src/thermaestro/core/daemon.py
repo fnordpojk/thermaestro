@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any
 
 from ..cap.sockets import listen_tcp, listen_unix, unix_available
 from ..files import private_directory
-from ..intents import Intents
 from ..store import Database, Layout, SecretStore, Startup, load_startup
 from .audit import AuditLog
 from .discovery import Publisher
@@ -33,6 +32,7 @@ from .values import Values
 from .weather import Weather
 
 if TYPE_CHECKING:
+    from ..intents import Intents
     from ..learn import Learning
     from ..occupancy import Occupancy
     from ..planner import Planner
@@ -70,7 +70,7 @@ class Core:
     discovery: Publisher
     executor: Executor
     house: House
-    intents: Intents
+    intents: "Intents"
     planner: "Planner"
     learning: "Learning"
     events: Events | None = None
@@ -122,9 +122,13 @@ async def run(
         events = Events(db)
         executor.events = events
         house = House(db, host, values)
-        intents = Intents(db, audit, capabilities=lambda: house.capabilities)
-        from ..learn import Learning  # learning and the planner are built on the core's parts
+        # The intents, learning and the planner are built on the core's parts: imported here,
+        # so that importing any of them alone doesn't import the core half-way.
+        from ..intents import Intents
+        from ..learn import Learning
         from ..planner import Planner
+
+        intents = Intents(db, audit, capabilities=lambda: house.capabilities)
 
         learning = Learning(db, values, host, audit, weather, intents)
         house.responses = learning.responses
@@ -268,7 +272,7 @@ async def _serve(
 
 
 def _mqtt_asker(
-    db: Database, intents: Intents
+    db: Database, intents: "Intents"
 ) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
     """Requests over MQTT, as the MQTT principal with the MQTT group's rights."""
     from pydantic import ValidationError
@@ -308,7 +312,7 @@ def _mqtt_asker(
     return ask
 
 
-def _control_state(db: Database, intents: Intents) -> Callable[[], Awaitable[dict[str, Any]]]:
+def _control_state(db: Database, intents: "Intents") -> Callable[[], Awaitable[dict[str, Any]]]:
     """What discovery shows of control: the intents in force, the next hot-water deadline,
     the levers' modes, and the last change asked."""
     from datetime import timedelta
