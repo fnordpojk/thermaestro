@@ -869,15 +869,20 @@ class Optimizer:
         tanks = {}
         for scope, tank in sit.tanks.items():
             floor = sit.force.bound("tank_top_temp", scope)
+            block = sit.levers.get(f"{scope}/block")
+            # The tank as a battery only where the dead-man covers the block; behind a
+            # plain gateway, as before.
+            battery = block is not None and block.deadman
             tanks[scope] = levers.TankNow(
                 tank.top,
                 floor.low if floor is not None else None,
                 sit.demand == "dhw",
                 spent=scope in sit.memory.spent,
-                room=tank.charge is not None
-                and tank.start is not None
-                and tank.charge < tank.start,
-                due=rules.periodic_due(sit.memory, scope, sit.now),
+                room=not battery
+                or (
+                    tank.charge is not None and tank.start is not None and tank.charge < tank.start
+                ),
+                periodic=rules.periodic_guard(tank, sit.memory, scope, sit.now),
             )
         below: dict[str, str] = {}
         above: dict[str, str] = {}

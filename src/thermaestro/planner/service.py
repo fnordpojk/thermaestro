@@ -705,6 +705,7 @@ class Planner:
                     now,
                     Expected(now, self.occupied() if self.occupied is not None else None, aways),
                 )
+            on = self._number(self._values.latest.get(Key(instance, f"{path}/periodic.on")))
             tanks[scope] = Tank(
                 scope,
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.top"))),
@@ -715,6 +716,10 @@ class Planner:
                 charge=self._number(self._values.latest.get(Key(instance, f"{path}/temp.charge"))),
                 periodic_stop=self._number(
                     self._values.latest.get(Key(instance, f"{path}/temp.stop.periodic"))
+                ),
+                periodic_on=None if on is None else on >= 0.5,
+                periodic_days=self._number(
+                    self._values.latest.get(Key(instance, f"{path}/periodic.interval"))
                 ),
             )
         pools = {}

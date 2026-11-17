@@ -96,7 +96,8 @@ def situation(
         caps=CAPS,
         prices=prices() if price is None else price,
         rooms=[RoomReading(ROOM, CS, temp, age_s, 3600.0)],
-        tanks={TANK: Tank(TANK, top, start, start + 5.0, charge=charge)},
+        # A pump without a periodic increase, unless a test says: see `periodic`.
+        tanks={TANK: Tank(TANK, top, start, start + 5.0, charge=charge, periodic_on=False)},
         levers=levers
         if levers is not None
         else {
@@ -420,26 +421,86 @@ def test_near_the_floor_the_block_is_let_go_whatever_the_price() -> None:
     assert block(rules.plan(situation([floor(40.0), stance()], top=44.0, levers=free()))) == []
 
 
-def test_the_periodic_increase_is_let_run() -> None:
+def periodic(sit: Situation, *, on: bool | None = True, days: float | None = 7.0) -> Situation:
+    """The situation's pump with a periodic increase, every `days`."""
+    tank = replace(sit.tanks[TANK], periodic_on=on, periodic_days=days)
+    return replace(sit, tanks={TANK: tank})
+
+
+def why(decisions: list[Decision]) -> str:
+    return next(d.reason for d in decisions if d.lever == BLOCK)
+
+
+def test_no_hold_until_the_periodic_increase_can_be_foreseen() -> None:
+    intents = [floor(40.0), stance()]
+    # None seen yet: no hold, and a block held is let go, ranked as a protection.
+    assert block(rules.plan(periodic(situation(intents, charge=44.0, levers=free())))) == []
+    found = rules.plan(periodic(situation(intents, charge=44.0, levers=held())))
+    assert block(found) == [("release", 1)]
+    assert why(found).startswith("the pump's periodic increase can't be foreseen yet")
+    # One seen, but the pump's own interval not read: still none.
+    seen = Memory(periodic={TANK: NOW - timedelta(days=1)})
+    unread = situation(intents, charge=44.0, levers=free(), memory=seen)
+    assert block(rules.plan(periodic(unread, days=None))) == []
+    assert block(rules.plan(periodic(unread, on=None))) == []
+    # Seen and the interval read: the next is foreseen, and the block holds.
+    assert block(rules.plan(periodic(unread))) == [("engage", RANK_SLIDER)]
+    # Behind a gateway without the dead-man too, in an expensive hour.
+    plain = situation(
+        intents, charge=44.0, levers=free(deadman=False), price=prices(cheap_now=False)
+    )
+    assert block(rules.plan(periodic(plain))) == []
+    assert block(rules.plan(periodic(plain, on=False))) == [("engage", RANK_SLIDER)]
+    # The periodic increase off at the pump: nothing to keep.
+    off = situation(intents, charge=44.0, levers=free())
+    assert block(rules.plan(periodic(off, on=False))) == [("engage", RANK_SLIDER)]
+
+
+def test_the_block_is_let_go_for_the_periodic_increase_until_it_is_seen_however_late() -> None:
     intents = [floor(40.0), stance()]
     due = NOW + timedelta(minutes=40)
-    memory = Memory(
-        periodic={TANK: due - timedelta(days=7), f"{TANK}#before": due - timedelta(days=14)}
-    )
-    found = rules.plan(situation(intents, charge=44.0, levers=held(), memory=memory))
+    memory = Memory(periodic={TANK: due - timedelta(days=7)})
+    found = rules.plan(periodic(situation(intents, charge=44.0, levers=held(), memory=memory)))
     assert block(found) == [("release", 1)]
-    assert "periodic increase" in next(d.reason for d in found if d.lever == BLOCK)
-    # Not before the hour ahead of it, and once it has run, the block holds again.
-    early = replace(situation(intents, charge=44.0, levers=free(), memory=memory))
+    assert why(found).startswith("the pump's periodic increase is due")
+    # Two hours before it, the block holds.
+    early = periodic(situation(intents, charge=44.0, levers=free(), memory=memory))
     assert block(rules.plan(replace(early, now=NOW - timedelta(hours=2)))) == [
         ("engage", RANK_SLIDER)
     ]
-    ran = Memory(
-        periodic={TANK: NOW - timedelta(minutes=5), f"{TANK}#before": due - timedelta(days=7)}
+    # It runs late: three hours after it was due and not seen, the block is let go still.
+    late = periodic(situation(intents, charge=46.0, levers=held(), memory=memory))
+    found = rules.plan(replace(late, now=due + timedelta(hours=3)))
+    assert block(found) == [("release", 1)]
+    assert why(found).startswith("the pump's periodic increase is overdue")
+    # However long overdue, the block isn't held again until one is seen: at 17:00, an
+    # expensive hour, with no room in the tank, the block would hold otherwise.
+    waiting = periodic(situation(intents, charge=46.0, levers=free(), memory=memory))
+    assert block(rules.plan(replace(waiting, now=NOW.replace(hour=17)))) == []
+    # Seen at last: the next is a week on, and the block holds again.
+    ran = Memory(periodic={TANK: due + timedelta(hours=3)})
+    after = periodic(situation(intents, charge=46.0, levers=free(), memory=ran))
+    assert block(rules.plan(replace(after, now=NOW.replace(hour=17)))) == [("engage", RANK_SLIDER)]
+
+
+def test_behind_a_gateway_without_a_dead_man_charges_are_held_off_in_expensive_hours_only() -> None:
+    intents = [floor(40.0), stance()]
+    plain = free(deadman=False)
+    expensive = rules.plan(
+        situation(intents, top=48.0, charge=44.0, levers=plain, price=prices(cheap_now=False))
     )
-    assert block(rules.plan(situation(intents, charge=44.0, levers=free(), memory=ran))) == [
-        ("engage", RANK_SLIDER)
-    ]
+    assert block(expensive) == [("engage", RANK_SLIDER)]
+    assert block(rules.plan(situation(intents, top=48.0, charge=44.0, levers=plain))) == []
+    low = situation(intents, top=42.5, levers=plain, price=prices(cheap_now=False))
+    assert block(rules.plan(low)) == []
+    # Held, it is let go once prices ease.
+    eased = situation(
+        intents,
+        levers=held(deadman=False),
+        memory=Memory(blocked={TANK: True}),
+        price=prices(cheap_now=True),
+    )
+    assert block(rules.plan(eased)) == [("release", RANK_SLIDER)]
 
 
 def test_behind_a_gateway_without_a_dead_man_a_hold_lasts_three_hours_at_most() -> None:

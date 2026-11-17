@@ -491,12 +491,18 @@ class Derived:
 
 
 def setting_derived(
-    path: str, registers: Mapping[int, int] | int, validity: str, mode: int | None = None
+    path: str,
+    registers: Mapping[int, int] | int,
+    validity: str,
+    mode: int | None = None,
+    *,
+    unit: str = "degC",
+    resolution: float = 0.1,
 ) -> Derived:
-    """A temperature setting under a standard name: one register, or the one the current
-    hot-water mode reads (`registers` by mode, `mode` the mode's register)."""
+    """A setting under a standard name, a temperature unless said: one register, or the one
+    the current hot-water mode reads (`registers` by mode, `mode` the mode's register)."""
     if isinstance(registers, int):
-        return Derived(path, (registers,), "degC", 0.1, "measured", (validity,), setting=True)
+        return Derived(path, (registers,), unit, resolution, "measured", (validity,), setting=True)
     assert mode is not None  # noqa: S101 - a setting by mode names the mode's register
     return Derived(
         path,
@@ -747,6 +753,8 @@ PERIODIC_STOP = 47046
 """The periodic increase's stop temperature, menu 5.1.1."""
 PERIODIC_ON = 47050
 """The periodic increase on or off, menu 2.9.1."""
+PERIODIC_INTERVAL = 47051
+"""How many days apart the periodic increase runs, menu 2.9.1."""
 TANK_SETTINGS = (
     setting_derived(
         "dhw/temp.start",
@@ -765,6 +773,20 @@ TANK_SETTINGS = (
         "dhw/temp.stop.periodic",
         PERIODIC_STOP,
         "the periodic increase's stop temperature, at the charge sensor",
+    ),
+    setting_derived(
+        "dhw/periodic.on",
+        PERIODIC_ON,
+        "whether the periodic increase runs: 1 on, 0 off",
+        unit="",
+        resolution=1.0,
+    ),
+    setting_derived(
+        "dhw/periodic.interval",
+        PERIODIC_INTERVAL,
+        "how many days apart the periodic increase runs",
+        unit="d",
+        resolution=1.0,
     ),
 )
 """The tank's start and stop as the household has them, where the pump has a mode, and

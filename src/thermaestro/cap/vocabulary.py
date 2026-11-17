@@ -68,6 +68,9 @@ POINTS: dict[str, PointName] = {
     "temp.start": _p("degC", DHW, "pool"),
     "temp.stop": _p("degC", DHW, "pool"),
     "temp.stop.periodic": _p("degC", DHW),
+    # the periodic increase (legionella protection): whether it runs, and how often
+    "periodic.on": _p(None, DHW),
+    "periodic.interval": _p("d", DHW),
     "pool.temp": _p("degC", "pool"),
     "room.temp": _p("degC", ROOM, CS),
     "brine.in.temp": _p("degC", "brine_circuit"),

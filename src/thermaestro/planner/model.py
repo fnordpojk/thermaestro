@@ -113,6 +113,11 @@ class Tank:
     """The charge sensor's temperature (BT6), where the stop temperatures apply."""
     periodic_stop: float | None = None
     """The periodic increase's own stop temperature, where the pump says."""
+    periodic_on: bool | None = None
+    """Whether the pump runs a periodic increase (legionella protection); None where it
+    doesn't say, or it isn't read yet."""
+    periodic_days: float | None = None
+    """How many days apart it runs, where the pump says."""
 
 
 @dataclass

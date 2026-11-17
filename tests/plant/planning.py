@@ -6,7 +6,7 @@ import json
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from thermaestro.auth.permissions import ALL
@@ -21,6 +21,7 @@ from thermaestro.planner import Planner, Price
 from thermaestro.store import Location, Room, Sensor
 
 from .harness import PLANT, SLOT_S, Sim
+from .model import begin
 from .vloop import every
 
 EVERYTHING = frozenset({ALL})
@@ -100,6 +101,11 @@ async def planning(
     )
     service.final = planner.final_report
     service.answer = planner.answer
+    # A house that has run a while has seen its pump's last periodic increase, so the next
+    # can be foreseen. From the scenario, so that a replay of a run is told the same.
+    last = begin(sim.scenario).last_periodic
+    planner.memory.periodic[TANK] = datetime.fromtimestamp(last, UTC)
+    await planner._keep_periodic(TANK)
 
     async def check() -> None:
         await tick()
