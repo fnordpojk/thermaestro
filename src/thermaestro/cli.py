@@ -304,8 +304,8 @@ def _rig_arguments(commands: Any) -> None:
     rig.add_argument("--pool", type=int, default=1, help="pool: which pool")
     rig.add_argument(
         "--due",
-        help="periodic: when the periodic increase is due, as menu 2.9.1 shows it"
-        " (HH:MM, or YYYY-MM-DD HH:MM)",
+        help="periodic: when the periodic increase is due, by the real clock in the rig's"
+        " time zone (HH:MM, or YYYY-MM-DD HH:MM); menu 2.9.1 shows the pump's own clock",
     )
 
 

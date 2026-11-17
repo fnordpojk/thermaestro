@@ -375,8 +375,9 @@ PERIODIC_MARGIN = 1.0
 
 
 def due_at(text: str, now: datetime) -> datetime:
-    """When the periodic increase is due, as menu 2.9.1 shows it: `YYYY-MM-DD HH:MM`, or
-    `HH:MM` for the next time the clock shows it, in the time zone of `now`."""
+    """When the periodic increase is due, by the real clock in the time zone of `now`:
+    `YYYY-MM-DD HH:MM`, or `HH:MM` for the next time the clock shows it. Menu 2.9.1 shows
+    it by the pump's own clock, which may be wrong."""
     try:
         if " " in text.strip():
             found = datetime.strptime(text.strip(), "%Y-%m-%d %H:%M")
@@ -391,7 +392,7 @@ def due_at(text: str, now: datetime) -> datetime:
 async def periodic(bench: Bench, o: Options) -> None:
     """Whether the pump runs its periodic increase while the block holds its charges off."""
     if o.due is None:
-        raise RigError("--due is needed: when the periodic increase is due, as menu 2.9.1 shows")
+        raise RigError("--due is needed: when the periodic increase is due, by the real clock")
     if not bench.value(f"dhw/x.nibe.{profile.PERIODIC_ON}"):
         raise RigError("the periodic increase is off on this pump (menu 2.9.1)")
     stop = bench.value(f"dhw/x.nibe.{profile.PERIODIC_STOP}")
@@ -410,18 +411,20 @@ async def periodic(bench: Bench, o: Options) -> None:
     engage_at = due - timedelta(seconds=LEAD_S)
     until = due + timedelta(seconds=PERIODIC_WAIT_S)
     if until <= now:
-        raise RigError(f"the periodic increase was due at {due:%Y-%m-%d %H:%M}: give the next one")
+        raise RigError(
+            f"the periodic increase was due at {due:%Y-%m-%d %H:%M %Z}: give the next one"
+        )
     start = max(engage_at, now)
     await bench.consent(
         [
-            f"{lever.implementation.how} at {start:%Y-%m-%d %H:%M}, until the periodic increase"
-            f" due at {due:%H:%M} is seen or {until:%H:%M} has passed, then put back"
+            f"{lever.implementation.how} at {start:%Y-%m-%d %H:%M %Z}, until the periodic"
+            f" increase due at {due:%H:%M} is seen or {until:%H:%M} has passed, then put back"
         ],
         [path],
     )
     if engage_at > now:
         wait = (engage_at - now).total_seconds()
-        bench.say(f"Waiting {durations.text(wait)}, until {engage_at:%H:%M}. Ctrl-C ends it.")
+        bench.say(f"Waiting {durations.text(wait)}, until {engage_at:%H:%M %Z}. Ctrl-C ends it.")
         await bench.watch(lambda: clock.now() >= engage_at, minutes=wait / 60 + 1, show=HOT_WATER)
     if not await _no_charge_running(bench, o):
         return

@@ -71,7 +71,7 @@ class Options:
     """The addition's setting `addition` tries."""
     pool: int = 1
     due: str | None = None
-    """When the periodic increase is due, as menu 2.9.1 shows it: for `periodic`."""
+    """When the periodic increase is due, by the real clock: for `periodic`."""
 
 
 @dataclass
