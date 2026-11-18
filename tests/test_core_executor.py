@@ -321,7 +321,7 @@ async def test_a_change_someone_else_made_lets_go_of_the_lever(tmp_path: Path) -
         )
         assert await r.executor.restore("Thermaestro is stopping") == {}
         assert r.device.registers["x.fake.offset"] == 0  # never written over
-        assert any(e["what"] == "lever.drift" for e in audited(r))
+        await until(lambda: any(e["what"] == "lever.drift" for e in audited(r)))
         await r.executor.accept_drift(OFFSET, who="anna")
         r.clock[0] += 901
         taken = await r.executor.act(OFFSET, "set", {"value": 1}, who="planner")
@@ -357,7 +357,11 @@ async def test_a_gateways_put_back_isnt_taken_for_someone_elses(tmp_path: Path) 
         r.executor._on_event("dev", fired("put_back"))
         await until(lambda: r.executor.claims[OFFSET].drift is None)
         assert not r.executor.claims[OFFSET].changed
-        assert any(e["what"] == "lever.deadman" and e["outcome"] == "put_back" for e in audited(r))
+        await until(
+            lambda: any(
+                e["what"] == "lever.deadman" and e["outcome"] == "put_back" for e in audited(r)
+            )
+        )
         r.clock[0] += 901
         again = await r.executor.act(OFFSET, "set", {"value": 1}, who="planner")
         assert again.outcome == "verified"
