@@ -4,7 +4,7 @@ sees it: identification, detection, values and their quality, and nothing writte
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +65,7 @@ PUMP = {
     47019: 350,  # and its highest, 35.0 °C: an underfloor system
     47388: 1,  # alarm action: lower the room temperature
     47389: 0,
+    47050: 1,  # the periodic increase on
 }
 
 
@@ -133,6 +134,25 @@ def value(p: NibePlugin, point: str) -> tuple[object, str, str | None]:
 def all_read(p: NibePlugin) -> bool:
     _, layout = p._pump()
     return all(value(p, path)[2] != "not read yet" for path in layout.points)
+
+
+async def test_a_value_sent_again_keeps_the_time_it_was_read(
+    plugin: NibePlugin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Sent again when a rule's verdict changes, as a return temperature is once the
+    # compressor runs: a time even a moment earlier would be dropped as older.
+    paths = ("hp1/cs1/return.temp", "hp1/dhw/periodic.on")
+    await until(lambda: all(plugin.envelope(p).quality == "good" for p in paths))
+    before = [plugin.envelope(p).t_observed for p in paths]
+    later = nibe_plugin._now() + timedelta(seconds=1)
+    monkeypatch.setattr(nibe_plugin, "_now", lambda: later)
+    assert [plugin.envelope(p).t_observed for p in paths] == before
+
+
+async def test_the_periodic_increase_is_on_or_off(plugin: NibePlugin) -> None:
+    await until(lambda: value(plugin, "dhw/periodic.on")[1] == "good")
+    assert value(plugin, "dhw/periodic.on")[0] is True
+    assert plugin.envelope("hp1/dhw/periodic.on").unit is None
 
 
 def test_product_names_resolve_to_maps() -> None:

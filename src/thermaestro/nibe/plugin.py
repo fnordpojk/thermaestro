@@ -153,6 +153,9 @@ class Sample:
     words: tuple[int, int]
     t: float
     """Monotonic seconds."""
+    wall: datetime
+    """When it was read by the wall clock: the time its values say they were observed,
+    the same each time they are sent."""
 
 
 class NotIdentified(Exception):
@@ -576,7 +579,7 @@ class NibePlugin:
                 self._returned = None
             elif before in elsewhere:
                 self._returned = now
-        self._samples[register] = Sample(words_, now)
+        self._samples[register] = Sample(words_, now, _now())
         self._decoded = None
         if self.armed:
             self._learn_word(register, words_[0])
@@ -990,16 +993,16 @@ class NibePlugin:
         for hold in self.holds.values():
             if hold.get("register") == register:
                 value = hold["value"]
-        t = min(self._samples[r].t for r in {d.inputs[0], register})
-        observed = now - timedelta(seconds=clock.monotonic() - t)
+        oldest = min((self._samples[r] for r in {d.inputs[0], register}), key=lambda s: s.t)
+        t, observed = oldest.t, oldest.wall
         quality: Quality = "good"
         why = None
         if clock.monotonic() - t > POLLED_FRESHNESS_S:
             quality, why = "stale", f"last read {durations.text(int(clock.monotonic() - t))} ago"
         return Envelope(
             point=path,
-            value=round(float(value), 1),
-            unit=d.unit,
+            value=bool(value) if d.switch else round(float(value), 1),
+            unit=None if d.switch else d.unit,
             t_observed=observed,
             t_received=observed,
             quality=quality,
@@ -1016,8 +1019,7 @@ class NibePlugin:
         if isinstance(brine, str):
             return _missing(path, now, brine)
         brine_in, brine_out, speed = brine
-        t = max(self._samples[r].t for r in d.inputs)
-        observed = now - timedelta(seconds=clock.monotonic() - t)
+        observed = max((self._samples[r] for r in d.inputs), key=lambda s: s.t).wall
         quality: Quality = "good"
         why: str | None = None
         value: float
@@ -1065,7 +1067,7 @@ class NibePlugin:
         unit = self._unit(definition)
         if sample is None:
             return _missing(path, now, "not read yet")
-        observed = now - timedelta(seconds=clock.monotonic() - sample.t)
+        observed = sample.wall
         if register.size is None:
             return _missing(path, now, "the register's size isn't known")
         if register.size.bits == 32 and self.high_word_first is None:
@@ -1933,7 +1935,7 @@ class NibePlugin:
         points += [
             Point(
                 path=f"{unit}/{d.path}",
-                unit=d.unit,
+                unit=None if d.switch else d.unit,
                 wraps_at=None,
                 resolution=Knowledge(value=d.resolution, known="documented"),
                 delivery=Delivery(how="on_change"),

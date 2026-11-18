@@ -705,7 +705,7 @@ class Planner:
                     now,
                     Expected(now, self.occupied() if self.occupied is not None else None, aways),
                 )
-            on = self._number(self._values.latest.get(Key(instance, f"{path}/periodic.on")))
+            on = self._switch(self._values.latest.get(Key(instance, f"{path}/periodic.on")))
             tanks[scope] = Tank(
                 scope,
                 self._number(self._values.latest.get(Key(instance, f"{path}/temp.top"))),
@@ -717,7 +717,7 @@ class Planner:
                 periodic_stop=self._number(
                     self._values.latest.get(Key(instance, f"{path}/temp.stop.periodic"))
                 ),
-                periodic_on=None if on is None else on >= 0.5,
+                periodic_on=on,
                 periodic_days=self._number(
                     self._values.latest.get(Key(instance, f"{path}/periodic.interval"))
                 ),
@@ -983,6 +983,16 @@ class Planner:
         value = cls._value(envelope)
         if isinstance(value, int | float) and not isinstance(value, bool):
             return float(value)
+        return None
+
+    @classmethod
+    def _switch(cls, envelope: Envelope | None) -> bool | None:
+        """On or off; a number from an older plugin counts as on from 0.5."""
+        value = cls._value(envelope)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int | float):
+            return value >= 0.5
         return None
 
     def _near_floor(self) -> bool:

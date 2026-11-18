@@ -488,6 +488,8 @@ class Derived:
     mode's register is the first input. None for the brine's points, or a single setting."""
     setting: bool = False
     """A setting read from the pump, not worked out from the brine."""
+    switch: bool = False
+    """On or off: its value is True or False, with no unit."""
 
 
 def setting_derived(
@@ -498,11 +500,21 @@ def setting_derived(
     *,
     unit: str = "degC",
     resolution: float = 0.1,
+    switch: bool = False,
 ) -> Derived:
     """A setting under a standard name, a temperature unless said: one register, or the one
     the current hot-water mode reads (`registers` by mode, `mode` the mode's register)."""
     if isinstance(registers, int):
-        return Derived(path, (registers,), unit, resolution, "measured", (validity,), setting=True)
+        return Derived(
+            path,
+            (registers,),
+            unit,
+            resolution,
+            "measured",
+            (validity,),
+            setting=True,
+            switch=switch,
+        )
     assert mode is not None  # noqa: S101 - a setting by mode names the mode's register
     return Derived(
         path,
@@ -777,9 +789,10 @@ TANK_SETTINGS = (
     setting_derived(
         "dhw/periodic.on",
         PERIODIC_ON,
-        "whether the periodic increase runs: 1 on, 0 off",
+        "whether the periodic increase runs",
         unit="",
         resolution=1.0,
+        switch=True,
     ),
     setting_derived(
         "dhw/periodic.interval",
