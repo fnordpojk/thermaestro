@@ -135,7 +135,7 @@ def test_a_part_of_the_price_the_same_every_hour_can_change_when_to_charge() -> 
     actually paid, planning without the fixed part costs more."""
     cold, warm = 0.0, 10.0  # the brine, °C
     spot = [0.29, 0.36] * 4  # cold-brine slots cheaper on spot
-    fixed = 0.6716  # the owner's energy tax and transfer fee, SEK/kWh
+    fixed = 0.6716  # an energy tax and transfer fee, SEK/kWh
     t = tank()
     sources = [cold, warm] * 4
     rises = [full_slot_rise(t, s) for s in sources]

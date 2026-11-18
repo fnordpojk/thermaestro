@@ -27,8 +27,8 @@ async def test_from_the_network_a_page_is_sent_to_https() -> None:
     answer = await get(("192.0.2.5", 50000), "http://thermaestro.local:8080/login?next=/plan")
     assert answer.status_code == 308
     assert answer.headers["location"] == "https://thermaestro.local:8443/login?next=/plan"
-    by_address = await get(("192.0.2.5", 50000), "http://192.168.23.16:8080/api/v1/status")
-    assert by_address.headers["location"] == "https://192.168.23.16:8443/api/v1/status"
+    by_address = await get(("192.0.2.5", 50000), "http://198.51.100.16:8080/api/v1/status")
+    assert by_address.headers["location"] == "https://198.51.100.16:8443/api/v1/status"
 
 
 async def test_liveness_readiness_and_this_machine_are_served() -> None:
