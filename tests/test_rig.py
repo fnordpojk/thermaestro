@@ -358,6 +358,55 @@ def test_a_killed_run_is_put_back_by_restore(tmp_path: Path) -> None:
     )
 
 
+def test_a_lever_let_go_by_a_run_that_died_is_forgotten_by_restore(tmp_path: Path) -> None:
+    """A run let the block go after someone else's change, then died. `restore` has nothing
+    to put back, but says the lever was let go and forgets it: the next check takes it over
+    afresh instead of refusing it for good."""
+    s = scenario().set({47050: 0})
+    plant = begin(s)
+    bus = SimBus(plant)
+
+    async def lets_go_and_dies() -> None:
+        bench = Bench(
+            PLANT_PUMP,
+            state=tmp_path / "rig-state",
+            write=True,
+            say=lambda _: None,
+            ask=Person(),
+            connect_fn=bus.connect,
+            identify_timeout_s=120.0,
+            plugin_options=PLUGIN,
+        )
+        await bench.open()
+        await bench.ready(["dhw/block"], [])
+        await bench.consent([], ["dhw/block"])
+        await bench.act("dhw/block", "engage", why="a run that lets go and dies")
+        bus.foreign_write(47044, s16(40.0))
+        ref = bench.ref("dhw/block")
+        while bench.executor.claims[ref].drift is None:
+            await asyncio.sleep(1)
+        await bench.executor.stop()
+        assert bench._host is not None
+        assert bench._tmp is not None
+        await bench._host.stop()
+        await bench.db.close()
+        bench._tmp.cleanup()
+
+    simulate(lets_go_and_dies, s.start_time)
+    assert plant.registers[47044] == s16(40.0)
+
+    def again(check: str) -> Rigged:
+        return rig(tmp_path, s, check, prepare=lambda p: p.registers.update(plant.registers))
+
+    restored = again("restore")
+    assert ("anything left changed by an earlier run", "nothing") in restored.outcomes()
+    assert ("dhw/block was changed by something else", "let go") in restored.outcomes()
+    assert restored.bus.writes == []
+    blocked = again("block")
+    assert blocked.step("engage dhw/block").outcome != "refused"
+    assert (47044, s16(35.0)) in written(blocked.bus)
+
+
 def test_the_rig_writes_only_through_the_executor() -> None:
     for module in (bench_module, checks_module):
         source = inspect.getsource(module)

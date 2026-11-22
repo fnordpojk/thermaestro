@@ -342,14 +342,18 @@ class Bench:
         self._running = True
 
     async def close(self) -> None:
-        """Put back what is still changed, forget what was taken over, and stop."""
+        """Put back what is still changed, forget what was taken over, and stop. A lever let
+        go is said and forgotten also by a run that only looked: `restore` with nothing to
+        put back may hear a gateway's report that one was skipped, and the next run would
+        otherwise refuse it for good."""
         try:
             if self._running:
                 results = await self.executor.restore("the rig is stopping")
                 for ref, result in results.items():
                     self.put_back_step(ref, result)
+            if self._executor is not None:
                 self._let_go()
-                await self.executor.forget()
+                await self._executor.forget()
         finally:
             self._running = False
             if self._executor is not None:
