@@ -18,7 +18,13 @@
 {% if open %}
 <ul class="events">
   {% for e in open | reverse %}
-  <li class="event event-{{ e.audience }}"><span>{{ said(e.message, e.args) }}</span> <small>{{ _("since %(when)s", when=e.raised | when) }}</small></li>
+  <li class="event event-{{ e.audience }}"><span>{{ said(e.message, e.args) }}</span> <small>{{ _("since %(when)s", when=e.raised | when) }}</small>
+    {% if e.key.startswith("failure:") and can("settings.write") %}
+    <form method="post" action="/events/{{ e.id }}/clear" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" title="{{ _('Take it off the page. Should it happen again, it shows again.') }}">{{ _("Clear") }}</button>
+    </form>
+    {% endif %}</li>
   {% endfor %}
 </ul>
 {% else %}

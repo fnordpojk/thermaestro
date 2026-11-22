@@ -811,6 +811,7 @@ class Services(
         since = clock.time() - max(1, min(days, 90)) * 86_400
         return [
             {
+                "id": e.id,
                 "key": e.key,
                 "kind": e.kind,
                 "scope": e.scope,
@@ -826,6 +827,21 @@ class Services(
             for e in await found.since(since)
             if technical or e.audience == "household"
         ]
+
+    async def clear_event(self, caller: Caller, id: int) -> None:
+        """Clear an open failure by hand: it leaves the page, and is raised anew should the
+        fault happen again. Recorded, with who cleared which."""
+        self._require(caller, "settings.write")
+        found = self.planner.events if self.planner is not None else None
+        cleared = await found.dismiss(id) if found is not None else None
+        if cleared is None:
+            raise AccountError(f"no open failure {id}")
+        await self.audit.record(
+            caller.principal.name,
+            "event.clear",
+            source=caller.source,
+            details={"id": id, "key": cleared.key, "text": cleared.text()},
+        )
 
     async def summaries(self, caller: Caller, days: int = 7) -> list[dict[str, Any]]:
         """The daily summaries of the last `days`, newest first: the writes and the

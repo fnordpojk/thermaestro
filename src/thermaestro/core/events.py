@@ -33,6 +33,8 @@ PUT_BACK = mark(
 )
 KEEP_S = 90 * 86_400.0
 """How long an event is kept after it cleared."""
+FAILURE = "failure:"
+"""The keys of the events `core.failures` raises: a part that failed."""
 
 
 @dataclass(frozen=True)
@@ -157,6 +159,28 @@ class Events:
         def write(tx: Transaction) -> Event | None:
             row = tx.execute(
                 "SELECT id FROM events WHERE key = ? AND cleared IS NULL", (key,)
+            ).fetchone()
+            if row is None:
+                return None
+            tx.execute("UPDATE events SET cleared = ? WHERE id = ?", (t, row[0]))
+            return _get(tx, row[0])
+
+        found = await self._db.run(write)
+        if found is not None:
+            self._tell(found)
+        return found
+
+    async def dismiss(self, id: int, *, now: float | None = None) -> Event | None:
+        """Clear an open failure by hand, by its id; None if no open failure has it. A
+        failure clears by itself only when its part next works, which for a form sent once
+        may be never. Only failures: other events say a condition that is raised again
+        while it lasts. Should the fault happen again, it is raised anew."""
+        t = clock.time() if now is None else now
+
+        def write(tx: Transaction) -> Event | None:
+            row = tx.execute(
+                "SELECT id FROM events WHERE id = ? AND cleared IS NULL AND key LIKE ? ESCAPE '!'",
+                (id, _like(FAILURE)),
             ).fetchone()
             if row is None:
                 return None

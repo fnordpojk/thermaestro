@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import httpx
-from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN
+from test_web import ADMIN_PASSWORD, FAST, KEY, ORIGIN, form
 from test_web_control import login
 
 from thermaestro import clock
@@ -113,6 +113,35 @@ async def test_an_administrator_sees_the_house_too_in_their_language(tmp_path: P
         swedish = (await client.get("/events")).text
         assert "Varmvattnet föll under sin lägsta temperatur, 42,0 °C" in swedish
         assert "Living room har varit under sina 20,5 °C i mer än en halvtimme" in swedish
+
+
+async def test_a_failure_cleared_by_hand_from_the_page(tmp_path: Path) -> None:
+    async with site(tmp_path) as (events, client):
+        await raised(events)
+        failed = Raise("failure", "web:/x", "Showing a page failed (error %(id)s)", {"id": "ab"})
+        failure = await events.raise_("failure:web:/x", failed)
+        assert failure is not None
+        floor = next(e for e in await events.open() if e.kind == "floor.broken")
+        household = await login(client, "kid")
+        assert f"/events/{failure.id}/clear" not in (await client.get("/events")).text
+        not_theirs = await client.post(f"/api/v1/events/{failure.id}/clear", headers=household)
+        assert not_theirs.status_code == 403
+        client.cookies.clear()
+        headers = await login(client, "admin")
+        page = (await client.get("/events")).text
+        assert f'action="/events/{failure.id}/clear"' in page
+        assert f"/events/{floor.id}/clear" not in page  # a condition, not a failure
+        refused = await client.post(f"/api/v1/events/{floor.id}/clear", headers=headers)
+        assert refused.status_code == 400
+        done = await form(client, "/events", f"/events/{failure.id}/clear")
+        assert done.status_code == 303
+        assert [e.kind for e in await events.open()] == ["floor.broken"]
+        audit = (await client.get("/api/v1/audit")).json()
+        entry = next(a for a in audit if a["what"] == "event.clear")
+        assert entry["who"] == "user:admin"
+        assert entry["details"]["key"] == "failure:web:/x"
+        again = await client.post(f"/api/v1/events/{failure.id}/clear", headers=headers)
+        assert again.status_code == 400
 
 
 async def test_the_day_before_summed_up(tmp_path: Path) -> None:

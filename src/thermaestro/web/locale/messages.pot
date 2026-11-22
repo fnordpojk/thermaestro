@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-22 01:37+0100\n"
+"POT-Creation-Date: 2026-11-22 02:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -856,6 +856,9 @@ msgid "Circulation pump"
 msgstr ""
 
 msgid "Circulation pump speed"
+msgstr ""
+
+msgid "Clear"
 msgstr ""
 
 msgid "Climate system"
@@ -2871,6 +2874,9 @@ msgid "System"
 msgstr ""
 
 msgid "Table"
+msgstr ""
+
+msgid "Take it off the page. Should it happen again, it shows again."
 msgstr ""
 
 msgid "Taking in a sensor's reading"

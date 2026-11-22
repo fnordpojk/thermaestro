@@ -451,6 +451,14 @@ async def events(
     return await services(request).events(who, days)
 
 
+@router.post("/events/{id}/clear")
+@action("event.clear")
+async def clear_event(id: int, request: Request, who: Logged) -> dict[str, str]:
+    """Clear an open failure by hand: it is raised anew should the fault happen again."""
+    await services(request).clear_event(who, id)
+    return {"status": "ok"}
+
+
 @router.get("/summaries")
 @action("plan.read")
 async def summaries(

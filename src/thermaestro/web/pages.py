@@ -816,6 +816,16 @@ async def events_page(request: Request, who: Logged) -> Response:
     return render(request, "events.html", who, events=found, days=days, summary=summary)
 
 
+@router.post("/events/{id}/clear")
+@action("event.clear")
+async def clear_event(request: Request, who: Logged, id: int) -> Response:
+    try:
+        await services(request).clear_event(who, id)
+    except AccountError as e:
+        return render(request, "error.html", who, status_code=400, error=_message(e))
+    return back("/events")
+
+
 async def _now[T](made: Callable[[], T]) -> T:
     """What `made` makes, to be awaited as a part."""
     return made()

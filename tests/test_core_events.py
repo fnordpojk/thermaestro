@@ -60,6 +60,31 @@ async def test_sync_raises_what_is_wanted_and_clears_the_rest(tmp_path: Path) ->
         assert await events.open("lever_drift") == []
 
 
+async def test_a_failure_cleared_by_hand_is_raised_anew_when_it_happens_again(
+    tmp_path: Path,
+) -> None:
+    async with await Database.open(tmp_path / "t.db") as db:
+        events = Events(db)
+        heard: list[object] = []
+        events.listeners.append(heard.append)
+        failed = Raise("failure", "web:/x", "Showing a page failed (error %(id)s)", {"id": "ab"})
+        first = await events.raise_("failure:web:/x", failed, now=100.0)
+        floor = await events.raise_("floor.broken:pump:hp1/dhw", FLOOR, now=100.0)
+        assert first is not None
+        assert floor is not None
+        assert await events.dismiss(floor.id, now=150.0) is None  # only a failure
+        cleared = await events.dismiss(first.id, now=200.0)
+        assert cleared is not None
+        assert cleared.cleared == 200.0
+        assert await events.dismiss(first.id, now=210.0) is None  # not open any more
+        assert await events.dismiss(9999, now=210.0) is None
+        assert [e.key for e in await events.open()] == ["floor.broken:pump:hp1/dhw"]
+        again = await events.raise_("failure:web:/x", failed, now=300.0)
+        assert again is not None
+        assert again.id != first.id
+        assert len(heard) == 4  # raised, raised, cleared, raised
+
+
 async def test_old_events_are_let_go(tmp_path: Path) -> None:
     async with await Database.open(tmp_path / "t.db") as db:
         events = Events(db)

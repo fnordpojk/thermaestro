@@ -4,7 +4,8 @@ A part that fails (learning a tank, a planning round, a page) is raised as an ev
 `failure:<part>`, saying what failed, the error and an ID. The same ID is in the log line
 with the traceback, and on a page that couldn't be shown, so the three can be matched up.
 The event is for those who may see the house's workings, and reaches whoever turned on
-notifications about the house. It clears when that part next works. A failure with no
+notifications about the house. It clears when that part next works, or when someone who
+may change the settings clears it on the Events page (`Events.dismiss`). A failure with no
 next time to tell it worked by (a step of a shutdown) is a moment instead: raised and
 cleared at once, at most once an hour for the same part.
 
@@ -24,11 +25,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .. import clock
-from .events import Events, Raise, mark
+from .events import FAILURE, Events, Raise, mark
 
 log = logging.getLogger(__name__)
 
-PREFIX = "failure:"
+PREFIX = FAILURE
 FAILED = mark("%(what_label)s failed: %(error)s (error %(id)s)")
 FAILED_ON = mark("%(what_label)s failed on %(where)s: %(error)s (error %(id)s)")
 MOMENT_S = 3600.0

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-22 01:37+0100\n"
+"POT-Creation-Date: 2026-11-22 02:28+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: de\n"
@@ -909,6 +909,9 @@ msgstr "Umwälzpumpe"
 
 msgid "Circulation pump speed"
 msgstr "Drehzahl der Umwälzpumpe"
+
+msgid "Clear"
+msgstr "Aufheben"
 
 msgid "Climate system"
 msgstr "Heizkreis"
@@ -3056,6 +3059,9 @@ msgstr "System"
 
 msgid "Table"
 msgstr "Tabelle"
+
+msgid "Take it off the page. Should it happen again, it shows again."
+msgstr "Von der Seite nehmen. Geschieht es wieder, erscheint es wieder."
 
 msgid "Taking in a sensor's reading"
 msgstr "Einen Sensorwert übernehmen"
