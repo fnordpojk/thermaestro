@@ -8,7 +8,7 @@ asks the executor for each decision, and follows up on what became of it.
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, tzinfo
-from typing import Any
+from typing import Any, Literal
 
 from ..cap.messages import Op
 from ..cap.model import Value
@@ -122,12 +122,14 @@ class Tank:
 
 @dataclass
 class Effect:
-    """A change whose effect is waited for: the pump starting a charge."""
+    """A change whose effect is waited for: the pump starting a charge (a boost), or no
+    charge starting while it holds (a block)."""
 
     lever: str
     reason: str
     since: datetime
     wait_s: float
+    expects: Literal["charge", "none"] = "charge"
 
 
 @dataclass
@@ -198,6 +200,7 @@ class Memory:
                     "reason": e.reason,
                     "since": e.since.isoformat(),
                     "wait_s": e.wait_s,
+                    "expects": e.expects,
                 }
                 for e in self.effects
             ],
@@ -236,7 +239,13 @@ class Memory:
             aired={k: float(v) for k, v in (body.get("aired") or {}).items()},
             not_kept={k: float(v) for k, v in (body.get("not_kept") or {}).items()},
             effects=[
-                Effect(e["lever"], e["reason"], datetime.fromisoformat(e["since"]), e["wait_s"])
+                Effect(
+                    e["lever"],
+                    e["reason"],
+                    datetime.fromisoformat(e["since"]),
+                    e["wait_s"],
+                    "none" if e.get("expects") == "none" else "charge",
+                )
                 for e in body.get("effects") or ()
             ]
             if fresh

@@ -26,7 +26,7 @@ from collections.abc import Awaitable, Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
 from .. import clock, durations
@@ -1104,9 +1104,12 @@ class Planner:
             self.memory.not_kept[key] = now.timestamp() + NOT_KEPT_S
         elif result.outcome == "awaiting_effect":
             lever = self._executor.lever(decision.lever)
-            wait = assume(lever).effect_delay_s if lever is not None else None
-            effect = Effect(decision.lever, decision.reason, now, wait or EFFECT_S)
-            self.memory.effects.append(effect)
+            hold = lever is not None and lever.kind == "hold"
+            if not (hold and decision.op == "release"):  # a release ends the engage's effect
+                wait = assume(lever).effect_delay_s if lever is not None else None
+                expects: Literal["charge", "none"] = "none" if hold else "charge"
+                effect = Effect(decision.lever, decision.reason, now, wait or EFFECT_S, expects)
+                self.memory.effects.append(effect)
         elif result.outcome == "shadowed":
             self._notice(decision, now)
         if decision.op == "fire" and result.outcome in ("awaiting_effect", "shadowed", "verified"):
@@ -1126,24 +1129,39 @@ class Planner:
         del self.notices[:-NOTICES]
 
     async def _follow_up(self, now: datetime) -> None:
-        """Judge the effects waited for, and report intents met."""
+        """Judge the effects waited for, and report intents met. A boost's is a charge
+        started: `ok` once one is, `failed` if none has by its time. A block's is no charge
+        while it holds: `ok` if none started by its time; `charged` as soon as one has, with
+        the charge sensor's reading, as the block lets one through at its floor."""
         demand = self._value(self._pump_point("demand"))
         for effect in list(self.memory.effects):
-            seen = demand == "dhw"
             waited = (now - effect.since).total_seconds()
-            if seen or waited > effect.wait_s:
-                self.memory.effects.remove(effect)
-                await self._audit.record(
-                    "planner",
-                    "lever.effect",
-                    outcome="ok" if seen else "failed",
-                    why=effect.reason,
-                    details={
-                        "lever": effect.lever,
-                        "seen": seen,
-                        "after_s": round(waited),
-                    },
-                )
+            details: dict[str, Any] = {"lever": effect.lever, "expects": effect.expects}
+            if effect.expects == "none":
+                tank = effect.lever.rpartition("/")[0]
+                started = self.memory.charging_since.get(tank)
+                seen = demand == "dhw" or (started is not None and started >= effect.since)
+                if not seen and waited <= effect.wait_s:
+                    continue
+                outcome = "charged" if seen else "ok"
+                if seen:
+                    instance, path = split(effect.lever)
+                    node = path.rpartition("/")[0]
+                    charge = self._values.latest.get(Key(instance, f"{node}/temp.charge"))
+                    details["charge_sensor"] = self._number(charge)
+            else:
+                seen = demand == "dhw"
+                if not seen and waited <= effect.wait_s:
+                    continue
+                outcome = "ok" if seen else "failed"
+            self.memory.effects.remove(effect)
+            await self._audit.record(
+                "planner",
+                "lever.effect",
+                outcome=outcome,
+                why=effect.reason,
+                details={**details, "seen": seen, "after_s": round(waited)},
+            )
         for intent in await self._intents.all():
             if intent.kind == "boost_now" and intent.id in self.memory.fired:
                 since = self.memory.fired[intent.id]
