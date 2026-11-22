@@ -43,7 +43,7 @@ jobs:
       - run: uv run pytest --cov --cov-report=term
       - name: The write path's coverage
         run: >-
-          uv run coverage report --fail-under=92
+          uv run coverage report --fail-under=94
           --include=src/thermaestro/nibe/transport/tgw.py,src/thermaestro/core/executor.py,src/thermaestro/nibe/plugin.py,src/thermaestro/nibe/rig/checks.py
 
   image:
