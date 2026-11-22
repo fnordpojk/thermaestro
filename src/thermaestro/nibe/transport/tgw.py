@@ -456,7 +456,8 @@ class TgwClient:
             if final.answer is not None:
                 reading = self._reading(register, request, final, tuple(stages))
                 if reading is None:
-                    why = "the answer was for another register"
+                    # Another register's, no 0x6A, or none that parsed: `_reading`.
+                    why = "the answer wasn't a reading of it"
                     continue
                 if after is not None and (reading.t_taken is None or reading.t_taken <= after):
                     continue
