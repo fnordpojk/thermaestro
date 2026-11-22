@@ -380,10 +380,10 @@ def classify(name: str, unit: str | None, counter: bool) -> tuple[str | None, st
 
 
 def binary_class(name: str) -> str | None:
+    """Home Assistant's device class for an on/off point. A room's `window.open` is any
+    window, door or other opening to the outside in it, so it is an opening, not a window."""
     quantity = bare(name).rpartition("/")[2]
-    if quantity == "window.open":
-        return "window"
-    if quantity == "zone.open":
+    if quantity in ("window.open", "zone.open"):
         return "opening"
     return quantity if quantity in STATES else None
 

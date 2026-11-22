@@ -1122,6 +1122,15 @@ def test_every_standard_point_has_a_name() -> None:
     assert labels.point("periodic.interval", None) == "Periodic increase, interval"
 
 
+def test_a_rooms_opening_to_the_outside_is_a_window_or_a_door() -> None:
+    from thermaestro.web import i18n, labels
+
+    said = labels.QUANTITIES["window.open"]
+    assert said == "Window or door open"
+    assert i18n.translations("sv").gettext(said) == "Fönster eller dörr öppen"
+    assert i18n.translations("de").gettext(said) == "Fenster oder Tür offen"
+
+
 async def test_settings_and_diagnostics_are_off_the_status_page(site: Site) -> None:
     _with_a_pump(site)
     host = site.services.host

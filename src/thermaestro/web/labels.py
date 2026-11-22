@@ -162,7 +162,7 @@ QUANTITIES = {
     "heat_demand": mark("Heat demand"),
     "setpoint": mark("Setpoint"),
     "zone.open": mark("Heating"),
-    "window.open": mark("Window open"),
+    "window.open": mark("Window or door open"),
     "window": mark("Window open"),
     "door": mark("Door open"),
     "opening": mark("Open"),

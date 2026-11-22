@@ -353,7 +353,8 @@ async def test_thermaestro_and_the_pump_appear_as_devices(broker: int, tmp_path:
             assert room["name"] == "site:room.living/temperature"
             assert found[room["state_topic"]] == b"21.25"
             window = entity(mine, "site:room.living/window.open")
-            assert (window["platform"], window["device_class"]) == ("binary_sensor", "window")
+            # a room's windows and doors to the outside alike
+            assert (window["platform"], window["device_class"]) == ("binary_sensor", "opening")
             assert found[window["state_topic"]] == b"OFF"
             humidity = entity(mine, "site:outdoor/humidity")
             assert humidity["device_class"] == "humidity"

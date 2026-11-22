@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Thermaestro 0.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 00:56+0100\n"
+"POT-Creation-Date: 2026-11-22 01:37+0100\n"
 "PO-Revision-Date: 2026-10-08 02:28+0200\n"
 "Last-Translator: \n"
 "Language: sv\n"
@@ -3792,6 +3792,9 @@ msgstr "Vindriktning"
 
 msgid "Window open"
 msgstr "Fönster öppet"
+
+msgid "Window or door open"
+msgstr "Fönster eller dörr öppen"
 
 msgid "Within a power limit"
 msgstr "Inom en effektgräns"

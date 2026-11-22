@@ -127,7 +127,7 @@ Rooms aren't devices: Home Assistant has areas for them. The Home Assistant plug
 Each point becomes one entity. Its name is the one the web pages show, in the chosen language. Which kind it is comes from the point:
 
 - **a point with named values** (an enum): a `sensor` with the device class `enum` and those values as its `options`. A value outside them is sent as unknown;
-- **an on/off value**: a `binary_sensor`. `window.open` gets the device class `window`, `zone.open` gets `opening`, and other standard on/off quantities their own;
+- **an on/off value**: a `binary_sensor`. `window.open` (a window or door to the outside) and `zone.open` get the device class `opening`, and other standard on/off quantities their own;
 - **a number**: a `sensor` with the unit in Home Assistant's spelling (`°C`, `m³/h`, `°C·min`) and a device class from the unit where the unit has only one meaning (`°C` temperature, `kW` power, `kWh` energy, `Hz` frequency, and so on), or from the unit and quantity together (`%` humidity, `ppm` carbon dioxide). Counters and energy are `total_increasing`, durations have no state class, and other numbers are `measurement`. The display precision follows the point's resolution;
 - **anything else**: a text `sensor`, cut to 255 characters.
 
