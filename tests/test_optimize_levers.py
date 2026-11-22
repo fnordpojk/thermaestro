@@ -109,16 +109,6 @@ def test_a_charge_the_plan_makes_for_price_is_the_block_let_go_where_the_tank_ha
     assert [(d.lever, d.op) for d in decide(soon, problem(tank()), free)] == [(BLOCK.ref, "engage")]
 
 
-def test_the_periodic_increase_is_let_run() -> None:
-    due = {TANK: TankNow(48.0, 40.0, False, periodic="the pump's periodic increase is due")}
-    held = now(levers={BLOCK.ref: replace(BLOCK, held=True), BOOST.ref: BOOST}, tanks=due)
-    found = decide(planned([0.0] * 16), problem(tank()), held)
-    assert [(d.lever, d.op, d.rank, d.reason) for d in found] == [
-        (BLOCK.ref, "release", 1, "the pump's periodic increase is due: the pump may charge again")
-    ]
-    assert decide(planned([0.0] * 16), problem(tank()), now(tanks=due)) == []
-
-
 def test_a_block_held_the_longest_is_let_go_and_not_held_again_until_a_charge() -> None:
     spent = {TANK: TankNow(48.0, 40.0, False, spent=True)}
     held = now(levers={BLOCK.ref: replace(BLOCK, held=True), BOOST.ref: BOOST}, tanks=spent)

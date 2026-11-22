@@ -101,8 +101,8 @@ async def planning(
     )
     service.final = planner.final_report
     service.answer = planner.answer
-    # A house that has run a while has seen its pump's last periodic increase, so the next
-    # can be foreseen. From the scenario, so that a replay of a run is told the same.
+    # A house that has run a while has seen its pump's last periodic increase, and counts on
+    # the next to heat the tank. From the scenario, so that a replay of a run is told the same.
     last = begin(sim.scenario).last_periodic
     planner.memory.periodic[TANK] = datetime.fromtimestamp(last, UTC)
     await planner._keep_periodic(TANK)

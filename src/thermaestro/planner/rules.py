@@ -15,9 +15,9 @@
   a cheap hour where the charge sensor is below the current mode's start, so the pump
   charges then. Behind a gateway with no dead-man, as before: held off only in expensive
   hours while the tank is well above its floor and no deadline is near, three hours at
-  most, then not again until it has charged. On every route, the block never holds over
-  the pump's periodic increase: not at all until the next can be foreseen, and let go from
-  an hour before it is due until one is seen, however late.
+  most, then not again until it has charged. The pump's periodic increase isn't the
+  block's concern: the pump starts it on its own schedule, not by the start temperature
+  the block lowers.
 - **The addition, the pool:** as the household's policy says. The addition is kept off by
   its stop temperature at -15 °C, no lower; a pool is held by its start temperature,
   never switched off.
@@ -101,12 +101,6 @@ until the pump has charged. Where the dead-man covers the block, the floor is th
 TROUGH_SHARE = 0.25
 """A cheap hour: among this cheapest share of the known prices from `WINDOW` back to
 `WINDOW` ahead."""
-PERIODIC_BEFORE = timedelta(hours=1)
-"""The block is let go from this long before the pump's periodic increase is due (the last
-seen and the pump's own interval), and stays let go until one is seen: whether the pump
-runs it under a block isn't known."""
-PERIODIC_LATE = timedelta(hours=2)
-"""Not seen this long after it was due, the periodic increase is overdue."""
 
 
 def plan(sit: Situation) -> list[Decision]:
@@ -441,25 +435,6 @@ def next_periodic(memory: Memory, scope: str, days: float | None = None) -> date
     return seen + (seen - before)
 
 
-def periodic_guard(tank: Tank, memory: Memory, scope: str, now: datetime) -> str | None:
-    """Why the block may not hold the pump's charges off now, for its periodic increase (the
-    legionella protection, which a block must never hold over); None where it may. Off at
-    the pump, there is nothing to keep. Until the next can be foreseen (one seen, and the
-    pump's own interval read), no hold at all. From `PERIODIC_BEFORE` it is due, released
-    until one is seen, however late it runs."""
-    if tank.periodic_on is False:
-        return None
-    seen = memory.periodic.get(scope)
-    if tank.periodic_on is None or tank.periodic_days is None or seen is None:
-        return "the pump's periodic increase can't be foreseen yet"
-    due = seen + timedelta(days=tank.periodic_days)
-    if now > due + PERIODIC_LATE:
-        return "the pump's periodic increase is overdue"
-    if now >= due - PERIODIC_BEFORE:
-        return "the pump's periodic increase is due"
-    return None
-
-
 def expected_top(tank: Tank, now: datetime, until: datetime) -> float | None:
     """How warm the tank's top is expected to be at `until`, with no charge between: with
     the learned standing loss and what the household is expected to draw, once both have
@@ -534,14 +509,6 @@ def hot_water(sit: Situation) -> list[Decision]:
                     reason = f"hot water {need.at_least:g} °C by {when}: {how}"
                     out.append(Decision(boost.ref, "fire", rank=need.rank, reason=reason))
         if block is None:
-            continue
-        guard = periodic_guard(tank, sit.memory, scope, sit.now)
-        if guard is not None:  # on every route, whatever price or a deadline asks
-            sit.memory.blocked[scope] = False
-            sit.memory.blocked_since.pop(scope, None)
-            if block.held:
-                reason = f"{guard}: the pump may charge again"
-                out.append(Decision(block.ref, "release", rank=1, reason=reason))
             continue
         if block.deadman:
             out += _hold(sit, scope, tank, block, least, need, boosting, charge_s)

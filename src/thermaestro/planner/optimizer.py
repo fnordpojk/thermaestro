@@ -882,7 +882,6 @@ class Optimizer:
                 or (
                     tank.charge is not None and tank.start is not None and tank.charge < tank.start
                 ),
-                periodic=rules.periodic_guard(tank, sit.memory, scope, sit.now),
             )
         below: dict[str, str] = {}
         above: dict[str, str] = {}
