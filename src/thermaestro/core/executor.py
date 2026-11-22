@@ -48,7 +48,7 @@ import contextlib
 import json
 import logging
 import re
-from collections.abc import Callable, Collection, Coroutine
+from collections.abc import Callable, Collection, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -1064,11 +1064,12 @@ class Executor:
         that change before it is kept (`_told_let_go`)."""
         assert claim.pending is not None  # noqa: S101 - the caller checks
         sent = claim.pending["params"].get("value")
+        mine = _candidates(claim.pending, param, now)
         before = claim.last if claim.last is not None else claim.baseline
         claim.pending = None
         self._unsettled.pop(ref, None)
-        if same(now, sent, param):
-            claim.last = None if same(sent, claim.baseline, param) else sent
+        if mine is not None:
+            claim.last = None if same(mine, claim.baseline, param) else mine
             claim.last_t = self._clock()
             self._renewed[ref] = claim.last_t
         elif not same(now, before, param):
@@ -1281,8 +1282,9 @@ class Executor:
                     claim.last_t = self._clock()
                     claim.pending = None
                     self._unsettled.pop(ref, None)
-                    if put is not None:
-                        claim.pending = {"op": "set", "params": {"value": put}}
+                    if put:
+                        # Any of them may be what the device holds: a reading settles which.
+                        claim.pending = {"op": "set", "params": {"value": put[-1], "or": put}}
                         self._unsettled[ref] = fired
                         token = self._recovering[ref] = object()
                         self._spawn(self._after_put_back(ref, claim, token))
@@ -1314,8 +1316,8 @@ class Executor:
         this run, or the latest one taken."""
         return max(self._sent.get(ref, 0.0), claim.last_t or 0.0)
 
-    def _as_found(self, ref: str, lever: Lever, put: Value | None = None) -> bool:
-        """Whether the lever's latest good reading is its baseline, or `put`, what a
+    def _as_found(self, ref: str, lever: Lever, put: Sequence[Value] = ()) -> bool:
+        """Whether the lever's latest good reading is its baseline, or one of `put`, what a
         dead-man may have put back instead."""
         claim = self.claims.get(ref)
         back = self._readback(ref, lever)
@@ -1323,25 +1325,28 @@ class Executor:
             return False
         param = lever.params.get("value")
         now = reading(back, param)
-        return same(now, claim.baseline, param) or (put is not None and same(now, put, param))
+        return any(same(now, v, param) for v in (claim.baseline, *put))
 
     @staticmethod
     def _put_elsewhere(
         claim: Claim, lever: Lever | None, put: Value | list[Value] | None
-    ) -> Value | None:
+    ) -> list[Value]:
         """What a dead-man's put-back may have written in place of a setting's baseline,
-        where that is something else: of the values it may have written, the latest that
-        isn't the baseline. None where all are. A lever not described is compared as the
-        values are, rather than let go of what may need putting back: a reading settles it.
-        A hold has no baseline."""
+        where that is something else: every value it may have written that isn't the
+        baseline, the latest last, since a reading may find any of them. Empty where all
+        are. A lever not described is compared as the values are, rather than let go of what
+        may need putting back: a reading settles it. A hold has no baseline."""
         if put is None or claim.baseline is None or claim.mode != "control":
-            return None
+            return []
         if lever is not None and lever.kind == "hold":
-            return None
+            return []
         param = lever.params.get("value") if lever is not None else None
         values = put if isinstance(put, list) else [put]
-        others = [v for v in values if not same(v, claim.baseline, param)]
-        return others[-1] if others else None
+        others: list[Value] = []
+        for v in values:
+            if not same(v, claim.baseline, param):
+                others = [o for o in others if not same(o, v, param)] + [v]
+        return others
 
     async def _after_put_back(self, ref: str, claim: Claim, token: object) -> None:
         """A dead-man's put-back that may have left a value of Thermaestro's own other than
@@ -1480,7 +1485,7 @@ class Executor:
             now = reading(back, param)
             pending, claim.pending = claim.pending, None
             self._unsettled.pop(ref, None)
-            if pending is not None and same(now, pending["params"].get("value"), param):
+            if pending is not None and _candidates(pending, param, now) is not None:
                 claim.last = None if same(now, claim.baseline, param) else now
             if same(now, claim.baseline, param):
                 claim.last, claim.last_t = None, None
@@ -1711,6 +1716,16 @@ def _not_before(t: float) -> datetime:
     """`t` as a datetime no earlier than it: one rounded to the microsecond may fall short."""
     at = datetime.fromtimestamp(t, UTC)
     return at if at.timestamp() >= t else at + timedelta(microseconds=1)
+
+
+def _candidates(pending: dict[str, Any], param: Param | None, now: Value | None) -> Value | None:
+    """Which value a change in flight may have left the device with is the one read: its
+    own, or any a dead-man's put-back may have written (`or`). None where it is none."""
+    params = pending["params"]
+    for value in params.get("or") or [params.get("value")]:
+        if same(now, value, param):
+            return value  # type: ignore[no-any-return]
+    return None
 
 
 def _readable(lever: Lever, op: Op) -> bool:

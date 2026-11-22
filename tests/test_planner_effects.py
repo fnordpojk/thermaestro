@@ -3,6 +3,7 @@ starts, a block by the charge it holds off, until its time or its release. A rel
 for nothing of its own."""
 
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -11,7 +12,7 @@ import pytest
 
 from thermaestro.cap.model import Envelope, Lever, Value, Verify
 from thermaestro.core import AuditLog, Values
-from thermaestro.core.executor import Result
+from thermaestro.core.executor import GONE, LOST, Result
 from thermaestro.planner import Planner
 from thermaestro.planner.model import Decision, Effect, Memory
 from thermaestro.store import Database
@@ -34,14 +35,14 @@ def planner(db: Database, tmp_path: Path) -> Planner:
     return p
 
 
-def reads(p: Planner, point: str, value: Value) -> None:
+def reads(p: Planner, point: str, value: Value, at: datetime = NOW) -> None:
     p._values.add(
         "pump",
         Envelope(
             point=point,
             value=value,
-            t_observed=NOW,
-            t_received=NOW,
+            t_observed=at,
+            t_received=at,
             quality="good",
             source="measured",
         ),
@@ -112,14 +113,22 @@ class Acting:
         path = ref.split(":", 1)[1]
         return Lever(path=path, kind=kind, verify=Verify(kind="none"), touches=("x.nibe.47044",))
 
-    refuse: frozenset[str] = frozenset()
-    """Ops the pump refuses."""
+    def __init__(self) -> None:
+        self.answers: dict[str, Result] = {}
+        """What the executor answers an op (or a restore), where not `awaiting_effect`."""
+        self.meanwhile: list[Callable[[], None]] = []
+        """What happens while a change is under way, before the executor answers."""
+
+    def _answer(self, op: str) -> Result:
+        for happen in self.meanwhile:
+            happen()
+        return self.answers.get(op, Result("awaiting_effect", None))
 
     async def act(self, ref: str, op: str, params: dict[str, Any], **_: Any) -> Result:
-        return Result("device_refused" if op in self.refuse else "awaiting_effect", None)
+        return self._answer(op)
 
     async def restore(self, why: str, refs: list[str]) -> dict[str, Result]:
-        return {ref: Result("awaiting_effect", None) for ref in refs}
+        return {ref: self._answer("restore") for ref in refs}
 
 
 async def test_a_release_waits_for_nothing_and_an_engage_for_no_charge(tmp_path: Path) -> None:
@@ -152,21 +161,71 @@ async def test_a_release_ends_what_the_engage_waited_for(tmp_path: Path, op: str
         assert len(judged(tmp_path)) == 1
 
 
-async def test_a_refused_release_leaves_the_engage_waiting(tmp_path: Path) -> None:
-    """The pump refused the release: the block still holds, and a charge now is one it let
-    through."""
+@pytest.mark.parametrize("op", ["release", "restore"])
+@pytest.mark.parametrize(
+    "answer",
+    [
+        Result("device_refused", None),
+        Result("timeout", "no acceptance received"),
+        Result("lost", LOST),
+        Result("unverifiable", GONE),
+    ],
+    ids=["refused", "timeout", "lost", "gone"],
+)
+async def test_a_release_not_taken_leaves_the_engage_waiting(
+    tmp_path: Path, op: str, answer: Result
+) -> None:
+    """The pump refused the release, or what became of it isn't known: the block may still
+    hold, and a charge now is one it let through."""
     async with await Database.open(tmp_path / "t.db") as db:
         p = planner(db, tmp_path)
         acting = Acting()
-        acting.refuse = frozenset({"release"})
+        acting.answers[op] = answer
         p._executor = cast(Any, acting)
         await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
-        await p._ask(Decision(BLOCK, "release", {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        await p._ask(Decision(BLOCK, op, {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
         assert [e.expects for e in p.memory.effects] == ["none"]
         assert judged(tmp_path) == []
         reads(p, "hp1/demand", "dhw")
         await p._follow_up(NOW + timedelta(minutes=2))
         assert [e["outcome"] for e in judged(tmp_path)] == ["charged"]
+
+
+@pytest.mark.parametrize(("started", "outcome"), [(1, "ok"), (2, "ok"), (0.5, "charged")])
+async def test_a_charge_is_put_down_to_the_block_only_if_it_started_before_the_release(
+    tmp_path: Path, started: float, outcome: str
+) -> None:
+    """The release is asked at minute 1. A charge seen starting as it is under way, before
+    the executor answers, is the release's; one already running when it was asked is the
+    block's."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        acting = Acting()
+        p._executor = cast(Any, acting)
+        reads(p, "hp1/demand", "idle")
+        await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
+        at = NOW + timedelta(minutes=started)
+        acting.meanwhile.append(lambda: reads(p, "hp1/demand", "dhw", at))
+        await p._ask(Decision(BLOCK, "release", {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        assert p.memory.effects == []
+        assert [e["outcome"] for e in judged(tmp_path)] == [outcome]
+
+
+async def test_a_charge_that_ran_once_the_release_was_asked_is_the_releases(
+    tmp_path: Path,
+) -> None:
+    """A whole charge, started after the release was asked and over before the executor
+    answered, isn't put down to the block either."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        acting = Acting()
+        p._executor = cast(Any, acting)
+        reads(p, "hp1/demand", "idle")
+        await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
+        ran = NOW + timedelta(minutes=2)
+        acting.meanwhile.append(lambda: p.memory.charging_since.__setitem__(TANK, ran))
+        await p._ask(Decision(BLOCK, "release", {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        assert [e["outcome"] for e in judged(tmp_path)] == ["ok"]
 
 
 def test_what_is_expected_is_kept_through_a_restart() -> None:

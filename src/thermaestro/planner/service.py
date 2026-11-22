@@ -34,7 +34,7 @@ from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
 from ..core.events import Events, Raise
-from ..core.executor import HOLD_SLACK_S, TAKEN, Executor, Result, reading, split
+from ..core.executor import GONE, HOLD_SLACK_S, Executor, Result, reading, split
 from ..core.failures import failures
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost, State
@@ -101,9 +101,10 @@ NOT_KEPT_S = 6 * 3600.0
 """How long a value the device accepted but didn't keep isn't asked for again."""
 EFFECT_S = 900.0
 """How long a charge's effect is waited for, where the lever names no delay."""
-LET_GO = TAKEN | {"unchanged"}
-"""A hold's release or restore that may have let it go, or found it so: what it held off
-is judged up to then."""
+RELEASED = frozenset({"verified", "unverifiable", "awaiting_effect", "unchanged"})
+"""A hold's release or restore the device took, or found already so: what it held off is
+judged up to then. Not one whose fate isn't known (`timeout`, `lost`, or a connection gone
+before a reading): the hold may still hold, and what it waits for goes on."""
 PRICES_S = 300.0
 """How often the prices are worked out again."""
 DEADLINES_AHEAD = timedelta(hours=36)
@@ -1072,7 +1073,7 @@ class Planner:
         if decision.op == "restore":
             results = await self._executor.restore(decision.reason, [decision.lever])
             result = results.get(decision.lever, Result("unchanged"))
-            if result.outcome in LET_GO:
+            if _released(result):
                 await self._let_go(decision.lever, now)
             return Asked(decision, result.outcome, result.detail)
         state = self._situation_levers.get(decision.lever)
@@ -1096,7 +1097,7 @@ class Planner:
             who="planner",
             why=decision.reason,
         )
-        if decision.op == "release" and result.outcome in LET_GO:
+        if decision.op == "release" and _released(result):
             await self._let_go(decision.lever, now)  # a release ends the engage's effect
         if result.outcome == "not_kept":
             self.memory.not_kept[key] = now.timestamp() + NOT_KEPT_S
@@ -1116,13 +1117,21 @@ class Planner:
                     self.memory.fired.setdefault(intent.id, now)
         return Asked(decision, result.outcome, result.detail)
 
-    async def _let_go(self, lever: str, now: datetime) -> None:
-        """A hold let go: what it held off is judged now, up to the release, so a charge
-        after it, as a cheap hour's, isn't put down to the hold."""
-        demand = self._value(self._pump_point("demand"))
+    async def _let_go(self, lever: str, at: datetime) -> None:
+        """A hold released: what it held off is judged now, up to `at`, when the release was
+        asked. A charge seen starting from then on is the release's, as a cheap hour's, and
+        isn't put down to the hold, even when it is seen before the release has returned."""
+        envelope = self._pump_point("demand")
+        demand = self._value(envelope)
+        if (
+            demand == "dhw"
+            and envelope is not None
+            and (envelope.t_observed or envelope.t_received) >= at
+        ):
+            demand = None  # started as the release took effect
         for effect in list(self.memory.effects):
             if effect.lever == lever and effect.expects == "none":
-                await self._judge(effect, now, demand, released=True)
+                await self._judge(effect, at, demand, released=True)
 
     async def _judge(
         self, effect: Effect, now: datetime, demand: object, *, released: bool = False
@@ -1134,7 +1143,7 @@ class Planner:
         if effect.expects == "none":
             tank = effect.lever.rpartition("/")[0]
             started = self.memory.charging_since.get(tank)
-            seen = demand == "dhw" or (started is not None and started >= effect.since)
+            seen = demand == "dhw" or (started is not None and effect.since <= started < now)
             if not seen and not released and waited <= effect.wait_s:
                 return
             outcome = "charged" if seen else "ok"
@@ -1304,6 +1313,13 @@ class Planner:
                 self.memory.periodic[f"{scope}{suffix}"] = datetime.fromtimestamp(periodic[k], UTC)
             else:
                 self.memory.periodic.pop(f"{scope}{suffix}", None)
+
+
+def _released(result: Result) -> bool:
+    """Whether a hold's release or restore was taken, or found already so (`RELEASED`)."""
+    return result.outcome in RELEASED and not (
+        result.outcome == "unverifiable" and result.detail == GONE
+    )
 
 
 def _asked_top(intent: Intent) -> float | None:

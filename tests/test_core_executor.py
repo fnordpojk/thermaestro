@@ -598,18 +598,24 @@ async def test_a_change_sent_after_a_restart_isnt_put_back_by_the_reconciliation
         assert r.executor.claims[OFFSET].last == 3
 
 
-async def test_a_put_back_that_may_not_be_the_baseline_outlives_a_restart(tmp_path: Path) -> None:
+@pytest.mark.parametrize("put", [1, [1, 3]])
+async def test_a_put_back_that_may_not_be_the_baseline_outlives_a_restart(
+    tmp_path: Path, put: Value | list[Value]
+) -> None:
     """Stopped before a reading says which the gateway put back, the core reads it when it
-    starts again, and puts its baseline back."""
+    starts again, and puts its baseline back, whichever of the values it may have written
+    the device holds."""
     device = LeverDevice()
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         device.registers["x.fake.offset"] = 1
         device.stale["x.fake.offset"] = 1  # only a reading from before: nothing settles it
-        r.executor._on_event("dev", fired("put_back", put=1))
+        r.executor._on_event("dev", fired("put_back", put=put))
         await until(lambda: any(e["what"] == "lever.deadman" for e in audited(r)))
         await asyncio.sleep(0.2)
-        assert r.executor.claims[OFFSET].pending == {"op": "set", "params": {"value": 1}}
+        values = put if isinstance(put, list) else [put]
+        pending = {"op": "set", "params": {"value": values[-1], "or": values}}
+        assert r.executor.claims[OFFSET].pending == pending
         await r.executor.stop()  # no restore: as if the process died
     device.stale.clear()
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
@@ -644,22 +650,23 @@ class SlowToDescribe(LeverDevice):
         await super().handle(request, send)
 
 
+@pytest.mark.parametrize(("put", "found"), [([1, -4], 1), ([1, -4, 3], 1), ([1, -4, 3], 3)])
 @pytest.mark.parametrize("waits", [True, False])
 async def test_a_put_back_told_before_the_lever_is_described_is_still_read_for(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, waits: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, waits: bool, put: list[Value], found: int
 ) -> None:
     """The plugin tells of the put-back as it comes up, before it describes its levers, and
-    the gateway may have put back a baseline the core refused: once the lever is described,
-    the core reads which, and sets its own baseline back. Not described in time, the
-    values are taken as they are, rather than let go."""
+    the gateway may have put back any of the baselines the core refused: once the lever is
+    described, the core reads which, and sets its own baseline back. Not described in
+    time, the values are taken as they are, rather than let go."""
     if not waits:
         monkeypatch.setattr(executor_module, "DESCRIBED_S", 0.0)
     device = SlowToDescribe()
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
         await r.executor.stop()  # no restore: as if the process died
-    device.registers["x.fake.offset"] = 1  # the refused baseline, put back by the gateway
-    device.told = [fired("put_back", put=[1, -4])]
+    device.registers["x.fake.offset"] = found  # a refused baseline, put back by the gateway
+    device.told = [fired("put_back", put=put)]
     async with rig(tmp_path, {OFFSET: "control"}, device) as r:
         await until(lambda: device.registers["x.fake.offset"] == -4)
         await until(lambda: not r.executor.claims[OFFSET].changed)
