@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv sync --locked --all-packages
-      - run: uv run pytest --cov --cov-report=term
+      - run: uv run pytest -n auto --cov --cov-report=term
       - name: The write path's coverage
         run: >-
           uv run coverage report --fail-under=94

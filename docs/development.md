@@ -91,12 +91,12 @@ uv run ruff format --check
 uv run ruff check
 uv run mypy
 uv run python scripts/make-testvectors.py --check
-uv run pytest
+uv run pytest -n auto
 ```
 
 - **ruff** formats and lints, with a line length of 100. The rule sets are in `pyproject.toml`, with the few per-file exceptions and why each is there.
 - **mypy** runs in strict mode over `src`, `gateway/src`, both test folders and `scripts`.
-- **pytest** runs `tests/` and `gateway/tests/`. Warnings are errors, and an `xfail` that passes fails. Async tests need no marker.
+- **pytest** runs `tests/` and `gateway/tests/`, with `-n auto` a worker per core (pytest-xdist), so a test mustn't depend on another's files, ports or order. Warnings are errors, and an `xfail` that passes fails. Async tests need no marker.
 
 `uv run pytest tests/test_core_values.py` runs one file, as usual.
 
@@ -108,7 +108,7 @@ Tests marked `@pytest.mark.nightly` are long simulated runs over many scenarios,
 
 ```sh
 uv run pytest -m nightly --durations=20
-uv run pytest --cov
+uv run pytest -n auto --cov
 uv run coverage report --fail-under=94 --include=src/thermaestro/nibe/transport/tgw.py,src/thermaestro/core/executor.py,src/thermaestro/nibe/plugin.py,src/thermaestro/nibe/rig/checks.py
 ```
 
