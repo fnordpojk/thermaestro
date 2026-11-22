@@ -23,7 +23,33 @@ permissions:
   contents: read
 
 jobs:
+  # A branch goes into main by fast-forward, so a push to main is usually a commit CI has
+  # already passed on its branch: that isn't run again. Anything else runs in full.
+  tested:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.passed.outputs.run }}
+    steps:
+      - id: passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=true
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF_NAME" = main ]; then
+            passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" \
+              --jq '[.workflow_runs[] | select(.head_branch != "main")] | length')
+            if [ "$passed" -gt 0 ]; then
+              echo "CI already passed on this commit on its branch"
+              run=false
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   check:
+    needs: tested
+    if: needs.tested.outputs.run == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,6 +70,8 @@ jobs:
       - run: uv run pytest
 
   image:
+    needs: tested
+    if: needs.tested.outputs.run == 'true'
     runs-on: ubuntu-24.04
     env:
       THERMAESTRO_SOURCE: .
@@ -80,6 +108,8 @@ jobs:
         run: docker compose logs
 
   licenses:
+    needs: tested
+    if: needs.tested.outputs.run == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
