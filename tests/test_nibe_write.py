@@ -1165,6 +1165,67 @@ async def test_an_engage_puts_a_stray_block_back_first(stocked: SimPump, gateway
     assert p.holds == {"hp1/dhw/block": {"register": 47045, "value": 42.0, "mode": 0}}
 
 
+async def test_a_block_the_pump_refuses_keeps_nothing(stocked: SimPump, gateway: Gateway) -> None:
+    """Refused, the block holds nothing, so no release later writes what wasn't changed."""
+    p = plugin(gateway)
+    stocked.refuse.add(47044)
+    async with served(p) as link:
+        assert (await act(link, "dhw/block", "engage")).stage == "device_refused"
+        assert p.holds == {}
+        stocked.refuse.clear()
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+    assert p.holds == {"hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}}
+
+
+async def test_a_block_engaged_again_and_refused_keeps_what_to_put_back(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """Still engaged when engaged again (after a restart, say): a refusal then leaves it
+    engaged, and what its release puts back is still the start found before it."""
+    p = plugin(gateway)
+    async with served(p) as link:
+        await act(link, "dhw/block", "engage")
+        stocked.refuse.add(47044)
+        assert (await act(link, "dhw/block", "engage")).stage == "device_refused"
+    assert p.holds == {"hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}}
+    assert stocked.registers[47044] == 350
+
+
+async def test_a_stray_block_that_cant_be_put_back_stops_the_next(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """Engaged on Normal, the mode now Economy: if Normal's start can't be put back, Economy's
+    isn't lowered, and the hold stays on Normal's, to be put back later."""
+    p = plugin(gateway)
+    async with served(p) as link:
+        await act(link, "dhw/block", "engage")
+        stocked.registers[47041] = 0
+        stocked.refuse.add(47044)
+        assert (await act(link, "dhw/block", "engage")).stage == "device_refused"
+    assert (stocked.registers[47044], stocked.registers[47045]) == (350, 420)
+    assert p.holds == {"hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}}
+
+
+async def test_a_block_the_dead_man_isnt_armed_for_keeps_nothing(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        client = p._transport
+        assert isinstance(client, TgwClient)
+
+        async def arm(entry: int, *args: object) -> Armed | None:
+            return Armed(entry=entry, result=ArmResult.REFUSED, detail=ArmRefusal.NOT_GRANTED)
+
+        monkeypatch.setattr(client, "arm", arm)
+        fate = await act(link, "dhw/block", "engage")
+        assert fate.stage == "dropped"
+        assert "dead-man" in str(fate.detail)
+        assert p.holds == {}
+    assert 47044 not in [r for r, _ in stocked.taken_writes]
+    assert stocked.registers[47044] == 450
+
+
 async def test_another_clients_write_is_reported(stocked: SimPump, gateway: Gateway) -> None:
     events: list[object] = []
     other = OtherClient("127.0.0.1", gateway.ports["read"], gateway.ports["write"])
