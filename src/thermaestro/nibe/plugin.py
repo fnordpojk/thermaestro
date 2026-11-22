@@ -516,6 +516,32 @@ class NibePlugin:
                 t=_now(), unit=profile.UNIT, datapoint=f"x.nibe.{register}", value=value
             )
             self._spawn(self._send_event(event))
+        for path, kept in list(self.holds.items()):
+            if int(kept["register"]) == register:
+                self._spawn(self._held_written(path, register, raw))
+
+    async def _held_written(self, path: str, register: int, raw: int) -> None:
+        """Another client wrote a register a hold of this plugin's lowers. A value of its own
+        is someone else's: the hold is over, as the core lets the lever go on the same write,
+        and its dead-man entries are disarmed, so a silence of this plugin's never writes
+        over that value. The hold's own value, or the one its release puts back (a dead-man's
+        put-back, which its report tells), changes nothing here."""
+        spec = self._specs().get(path)
+        kept = self.holds.get(path)
+        if spec is None or kept is None or int(kept["register"]) != register:
+            return
+        engaged = profile.BLOCK_START if spec.starts is not None else spec.held
+        own = [self._encoded(register, v) for v in (engaged, kept["value"]) if v is not None]
+        if any(w is not None and self._same_word(register, w, raw) for w in own):
+            return
+        self.holds.pop(path, None)
+        await self._save()
+        await self._disarm(path)
+        log.info(
+            "%s: another client wrote %d, so the hold is over and its entries disarmed",
+            path,
+            register,
+        )
 
     async def _read(self, register: int, after: float | None = None) -> tuple[int, int] | None:
         if self._transport is None:

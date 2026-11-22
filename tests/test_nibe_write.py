@@ -1181,6 +1181,66 @@ async def test_another_clients_write_is_reported(stocked: SimPump, gateway: Gate
     assert [(e.unit, e.datapoint, e.value) for e in foreign] == [("hp1", "x.nibe.47011", -2)]
 
 
+@pytest.fixture
+async def keyed_and_plain(stocked: SimPump, tmp_path: Path) -> AsyncIterator[Gateway]:
+    """A gateway with a key whose plain write port still takes writes, as a household's
+    may while another program writes through it."""
+    gateway = Gateway(
+        Config(
+            serial_port=stocked.end.path,
+            listen="127.0.0.1",
+            read_port=0,
+            write_port=0,
+            control_port=0,
+            psk=TEST_PSK,
+            plain_writes=True,
+            state_file=tmp_path / "deadman.json",
+        )
+    )
+    await gateway.start()
+    stocked.start()
+    try:
+        yield gateway
+    finally:
+        await stocked.stop()
+        await gateway.close()
+
+
+@pytest.mark.parametrize(
+    ("word", "ends"),
+    [(400, True), (350, False), (450, False)],
+    ids=["someone-elses-value", "the-holds-own", "what-its-release-puts-back"],
+)
+async def test_another_clients_value_ends_a_hold_and_disarms_its_entries(
+    stocked: SimPump, keyed_and_plain: Gateway, tmp_path: Path, word: int, ends: bool
+) -> None:
+    """Someone else's start temperature written while the block holds: the hold is over and
+    the gateway no longer holds its entry, so a silence never writes over that value, and a
+    person may write the register again. The hold's own value, or the one its release puts
+    back (a dead-man's put-back, told by its report), leaves both as they were."""
+    gateway = keyed_and_plain
+    p = await over_the_protocol(gateway, tmp_path)
+    events: list[object] = []
+    other = OtherClient("127.0.0.1", gateway.ports["read"], gateway.ports["write"])
+    await other.start()
+    try:
+        async with served(p, events) as link:
+            assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+            assert armed(gateway) == [(47044, 350, 450)]
+            other.write(47044, word)
+            await until(lambda: any(isinstance(e, ForeignWrite) for e in events))
+            if ends:
+                await until(lambda: not p.holds and not armed(gateway))
+                fates = [f async for f in link.write("hp1/x.nibe.47044", 44, timeout=20)]
+                assert fates[-1].stage == "device_accepted"
+            else:
+                await asyncio.sleep(0.5)
+                assert "hp1/dhw/block" in p.holds
+                assert armed(gateway) == [(47044, 350, 450)]
+    finally:
+        other.close()
+
+
 async def test_a_persons_write_of_the_pumps_own_settings(
     stocked: SimPump, gateway: Gateway
 ) -> None:
