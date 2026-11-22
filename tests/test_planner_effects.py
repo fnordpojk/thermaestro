@@ -1,10 +1,13 @@
 """What the planner waits for after a change, and how it judges it: a boost by the charge it
-starts, a block by the charge it holds off. A release waits for nothing of its own."""
+starts, a block by the charge it holds off, until its time or its release. A release waits
+for nothing of its own."""
 
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
+
+import pytest
 
 from thermaestro.cap.model import Envelope, Lever, Value, Verify
 from thermaestro.core import AuditLog, Values
@@ -109,8 +112,14 @@ class Acting:
         path = ref.split(":", 1)[1]
         return Lever(path=path, kind=kind, verify=Verify(kind="none"), touches=("x.nibe.47044",))
 
+    refuse: frozenset[str] = frozenset()
+    """Ops the pump refuses."""
+
     async def act(self, ref: str, op: str, params: dict[str, Any], **_: Any) -> Result:
-        return Result("awaiting_effect", None)
+        return Result("device_refused" if op in self.refuse else "awaiting_effect", None)
+
+    async def restore(self, why: str, refs: list[str]) -> dict[str, Result]:
+        return {ref: Result("awaiting_effect", None) for ref in refs}
 
 
 async def test_a_release_waits_for_nothing_and_an_engage_for_no_charge(tmp_path: Path) -> None:
@@ -123,6 +132,41 @@ async def test_a_release_waits_for_nothing_and_an_engage_for_no_charge(tmp_path:
         engaged = Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour")
         await p._ask(engaged, NOW)
         assert [e.expects for e in p.memory.effects] == ["none"]
+
+
+@pytest.mark.parametrize("op", ["release", "restore"])
+async def test_a_release_ends_what_the_engage_waited_for(tmp_path: Path, op: str) -> None:
+    """Released for a cheap hour's charge, or put back: the engage is judged up to then,
+    and the charge after isn't put down to it."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        p._executor = cast(Any, Acting())
+        await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
+        await p._ask(Decision(BLOCK, op, {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        assert p.memory.effects == []
+        [entry] = judged(tmp_path)
+        assert (entry["outcome"], entry["why"]) == ("ok", "held off until a cheap hour")
+        assert (entry["details"]["released"], entry["details"]["after_s"]) == (True, 60)
+        reads(p, "hp1/demand", "dhw")
+        await p._follow_up(NOW + timedelta(minutes=2))
+        assert len(judged(tmp_path)) == 1
+
+
+async def test_a_refused_release_leaves_the_engage_waiting(tmp_path: Path) -> None:
+    """The pump refused the release: the block still holds, and a charge now is one it let
+    through."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        acting = Acting()
+        acting.refuse = frozenset({"release"})
+        p._executor = cast(Any, acting)
+        await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
+        await p._ask(Decision(BLOCK, "release", {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        assert [e.expects for e in p.memory.effects] == ["none"]
+        assert judged(tmp_path) == []
+        reads(p, "hp1/demand", "dhw")
+        await p._follow_up(NOW + timedelta(minutes=2))
+        assert [e["outcome"] for e in judged(tmp_path)] == ["charged"]
 
 
 def test_what_is_expected_is_kept_through_a_restart() -> None:

@@ -34,7 +34,7 @@ from ..cap.defaults import assume
 from ..cap.model import Envelope, Lever, Value
 from ..core.audit import AuditLog
 from ..core.events import Events, Raise
-from ..core.executor import HOLD_SLACK_S, Executor, Result, reading, split
+from ..core.executor import HOLD_SLACK_S, TAKEN, Executor, Result, reading, split
 from ..core.failures import failures
 from ..core.gridrules import GridLimits, household
 from ..core.host import PluginHost, State
@@ -101,6 +101,9 @@ NOT_KEPT_S = 6 * 3600.0
 """How long a value the device accepted but didn't keep isn't asked for again."""
 EFFECT_S = 900.0
 """How long a charge's effect is waited for, where the lever names no delay."""
+LET_GO = TAKEN | {"unchanged"}
+"""A hold's release or restore that may have let it go, or found it so: what it held off
+is judged up to then."""
 PRICES_S = 300.0
 """How often the prices are worked out again."""
 DEADLINES_AHEAD = timedelta(hours=36)
@@ -300,6 +303,9 @@ class Planner:
             self._last_demand = demand if isinstance(demand, str) else None
         else:
             await self._follow_up(now)
+        if self.situation is not None:
+            # Each tank's block, which both planners keep or release, nothing else.
+            self._executor.manages({f"{scope}/block" for scope in self.situation.tanks})
         self._executor.heartbeat()
         if self.situation is not None:
             try:
@@ -1078,6 +1084,8 @@ class Planner:
         if decision.op == "restore":
             results = await self._executor.restore(decision.reason, [decision.lever])
             result = results.get(decision.lever, Result("unchanged"))
+            if result.outcome in LET_GO:
+                await self._let_go(decision.lever, now)
             return Asked(decision, result.outcome, result.detail)
         state = self._situation_levers.get(decision.lever)
         if (
@@ -1100,12 +1108,14 @@ class Planner:
             who="planner",
             why=decision.reason,
         )
+        if decision.op == "release" and result.outcome in LET_GO:
+            await self._let_go(decision.lever, now)  # a release ends the engage's effect
         if result.outcome == "not_kept":
             self.memory.not_kept[key] = now.timestamp() + NOT_KEPT_S
         elif result.outcome == "awaiting_effect":
             lever = self._executor.lever(decision.lever)
             hold = lever is not None and lever.kind == "hold"
-            if not (hold and decision.op == "release"):  # a release ends the engage's effect
+            if not (hold and decision.op == "release"):  # it waits for nothing of its own
                 wait = assume(lever).effect_delay_s if lever is not None else None
                 expects: Literal["charge", "none"] = "none" if hold else "charge"
                 effect = Effect(decision.lever, decision.reason, now, wait or EFFECT_S, expects)
@@ -1117,6 +1127,49 @@ class Planner:
                 if intent.kind == "boost_now" and decision.lever.startswith(f"{intent.scope}/"):
                     self.memory.fired.setdefault(intent.id, now)
         return Asked(decision, result.outcome, result.detail)
+
+    async def _let_go(self, lever: str, now: datetime) -> None:
+        """A hold let go: what it held off is judged now, up to the release, so a charge
+        after it, as a cheap hour's, isn't put down to the hold."""
+        demand = self._value(self._pump_point("demand"))
+        for effect in list(self.memory.effects):
+            if effect.lever == lever and effect.expects == "none":
+                await self._judge(effect, now, demand, released=True)
+
+    async def _judge(
+        self, effect: Effect, now: datetime, demand: object, *, released: bool = False
+    ) -> None:
+        """Judge an effect, once its time has come, or something was seen; a hold's at once
+        where it was `released`."""
+        waited = (now - effect.since).total_seconds()
+        details: dict[str, Any] = {"lever": effect.lever, "expects": effect.expects}
+        if effect.expects == "none":
+            tank = effect.lever.rpartition("/")[0]
+            started = self.memory.charging_since.get(tank)
+            seen = demand == "dhw" or (started is not None and started >= effect.since)
+            if not seen and not released and waited <= effect.wait_s:
+                return
+            outcome = "charged" if seen else "ok"
+            if seen:
+                instance, path = split(effect.lever)
+                node = path.rpartition("/")[0]
+                charge = self._values.latest.get(Key(instance, f"{node}/temp.charge"))
+                details["charge_sensor"] = self._number(charge)
+            if released:
+                details["released"] = True
+        else:
+            seen = demand == "dhw"
+            if not seen and waited <= effect.wait_s:
+                return
+            outcome = "ok" if seen else "failed"
+        self.memory.effects.remove(effect)
+        await self._audit.record(
+            "planner",
+            "lever.effect",
+            outcome=outcome,
+            why=effect.reason,
+            details={**details, "seen": seen, "after_s": round(waited)},
+        )
 
     def _notice(self, decision: Decision, now: datetime) -> None:
         value = decision.params.get("value")
@@ -1135,33 +1188,7 @@ class Planner:
         the charge sensor's reading, as the block lets one through at its floor."""
         demand = self._value(self._pump_point("demand"))
         for effect in list(self.memory.effects):
-            waited = (now - effect.since).total_seconds()
-            details: dict[str, Any] = {"lever": effect.lever, "expects": effect.expects}
-            if effect.expects == "none":
-                tank = effect.lever.rpartition("/")[0]
-                started = self.memory.charging_since.get(tank)
-                seen = demand == "dhw" or (started is not None and started >= effect.since)
-                if not seen and waited <= effect.wait_s:
-                    continue
-                outcome = "charged" if seen else "ok"
-                if seen:
-                    instance, path = split(effect.lever)
-                    node = path.rpartition("/")[0]
-                    charge = self._values.latest.get(Key(instance, f"{node}/temp.charge"))
-                    details["charge_sensor"] = self._number(charge)
-            else:
-                seen = demand == "dhw"
-                if not seen and waited <= effect.wait_s:
-                    continue
-                outcome = "ok" if seen else "failed"
-            self.memory.effects.remove(effect)
-            await self._audit.record(
-                "planner",
-                "lever.effect",
-                outcome=outcome,
-                why=effect.reason,
-                details={**details, "seen": seen, "after_s": round(waited)},
-            )
+            await self._judge(effect, now, demand)
         for intent in await self._intents.all():
             if intent.kind == "boost_now" and intent.id in self.memory.fired:
                 since = self.memory.fired[intent.id]

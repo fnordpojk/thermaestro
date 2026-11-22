@@ -87,6 +87,9 @@ RETRY_S = 10.0
 doubles it, up to the watchdog's period. Its plugin coming back tries it at once."""
 RETRY_DOUBLINGS = 16
 """Doubled no more often than this: far past the watchdog's period, and finite."""
+DESCRIBED_S = 120.0
+"""How long a dead-man's report waits for its lever's description: a plugin that tells it as
+it starts describes its levers once it has identified its device, which may take this long."""
 
 NOT_BACK = mark("%(lever)s couldn't be put back as found (%(why)s): it is tried again")
 FIRED = {
@@ -243,6 +246,8 @@ class Executor:
         self._beat: float | None = None
         self.checked_in: float | None = None
         """When the planner last checked in."""
+        self._managed: frozenset[str] = frozenset()
+        """The holds the planner said it manages, as it last checked in (`manages`)."""
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
         self._loops: dict[str, asyncio.Task[None]] = {}
@@ -304,6 +309,13 @@ class Executor:
         """The planner checks in after each round. From the first, a planner silent for
         `watchdog_s` has everything put back."""
         self._beat = self.checked_in = self._clock()
+
+    def manages(self, refs: Collection[str]) -> None:
+        """The holds the planner manages, said as it checks in: a hold left engaged under a
+        dead-man, at a stop or after a restart, is left only for one of these, as the planner
+        releases it should it not want it. Another (one offered only to be released, say)
+        is put back as any lever is."""
+        self._managed = frozenset(refs)
 
     def readiness(self) -> dict[str, Any]:
         """How the write path stands: whether the planner checks in (`not yet`, `checking
@@ -555,13 +567,14 @@ class Executor:
 
     async def stopping(self, why: str) -> dict[str, Result]:
         """Put levers back as Thermaestro stops, but leave a hold engaged where a dead-man
-        in its route covers it: the gateway puts it back should Thermaestro stay away, and
-        a restart finds it still held, so it doesn't let happen what the hold keeps off."""
+        in its route covers it and the planner manages it: the gateway puts it back should
+        Thermaestro stay away, and a restart finds it still held, so it doesn't let happen
+        what the hold keeps off."""
         left: list[str] = []
 
         def still(ref: str) -> bool:
             claim = self.claims.get(ref)
-            if claim is not None and claim.held and self.guarded(ref):
+            if claim is not None and claim.held and ref in self._managed and self.guarded(ref):
                 left.append(ref)
                 return False
             return True
@@ -1241,7 +1254,11 @@ class Executor:
         A put-back that may have written a value of Thermaestro's own other than the
         baseline (in `put`: a baseline chosen anew and not taken, the gateway's answers lost
         or Thermaestro stopped meanwhile) is a change whose fate isn't known, until a
-        reading says which (`_after_put_back`)."""
+        reading says which (`_after_put_back`). Which those values are is told from the
+        baseline in the lever's own terms, so a report that names them waits for the lever's
+        description, which its plugin may not have given yet as it starts."""
+        if message.outcome == "put_back" and message.put is not None:
+            await self._described(ref)
         async with self._lock(ref):
             claim = self.claims.get(ref)
             fired = (message.fired or message.t).timestamp()
@@ -1284,6 +1301,14 @@ class Executor:
             what = Raise("lever.deadman", ref, FIRED[message.outcome], args)
             await self.events.moment(f"lever.deadman:{ref}", what)
 
+    async def _described(self, ref: str) -> None:
+        """Until the lever is described, for at most `DESCRIBED_S`."""
+        until = self._clock() + DESCRIBED_S
+        while True:
+            if self.lever(ref) is not None or self._clock() >= until:
+                return
+            await asyncio.sleep(self._poll_s)
+
     def _changed_since(self, ref: str, claim: Claim) -> float:
         """When Thermaestro last changed the lever, as far as is known: a change sent in
         this run, or the latest one taken."""
@@ -1306,12 +1331,14 @@ class Executor:
     ) -> Value | None:
         """What a dead-man's put-back may have written in place of a setting's baseline,
         where that is something else: of the values it may have written, the latest that
-        isn't the baseline. None where all are."""
+        isn't the baseline. None where all are. A lever not described is compared as the
+        values are, rather than let go of what may need putting back: a reading settles it.
+        A hold has no baseline."""
         if put is None or claim.baseline is None or claim.mode != "control":
             return None
-        if lever is None or lever.kind == "hold":
+        if lever is not None and lever.kind == "hold":
             return None
-        param = lever.params.get("value")
+        param = lever.params.get("value") if lever is not None else None
         values = put if isinstance(put, list) else [put]
         others = [v for v in values if not same(v, claim.baseline, param)]
         return others[-1] if others else None
@@ -1389,9 +1416,9 @@ class Executor:
         wants again. A change sent in this run meanwhile is newer than what the earlier run
         left: it stands, and is put back as any other.
 
-        A hold a dead-man in its route covers is left to the planner once it checks in, and
-        put back if it doesn't within the watchdog's period, since the plugin, heard again,
-        keeps the dead-man from firing."""
+        A hold a dead-man in its route covers is left to the planner once it checks in saying
+        it manages it, and put back if it doesn't within the watchdog's period, or checks in
+        without it, since the plugin, heard again, keeps the dead-man from firing."""
 
         def unsent(ref: str) -> bool:
             return ref not in self._sent
@@ -1425,12 +1452,15 @@ class Executor:
             why = "Thermaestro restarted without putting this back"
             if lever.kind == "hold" and claim.held and self.guarded(ref):
                 # Left engaged under the dead-man: the planner takes it over once it checks
-                # in, and releases it if it doesn't want it.
-                if self.checked_in is not None:
+                # in managing it, and releases it if it doesn't want it.
+                if ref in self._managed:
                     return
-                if self._clock() - self._born < self._watchdog_s:
+                if self.checked_in is not None:
+                    why = "the planner doesn't manage a hold left engaged"
+                elif self._clock() - self._born < self._watchdog_s:
                     continue
-                why = "the planner didn't take over a hold left engaged"
+                else:
+                    why = "the planner didn't take over a hold left engaged"
             await self.restore(why, [ref], still=unsent)
             return
 

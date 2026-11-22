@@ -194,6 +194,19 @@ def offsets(writes: Intended) -> list[tuple[float, float]]:
 # --- the contracts ------------------------------------------------------------------------
 
 
+def test_the_planner_says_which_holds_it_manages(tmp_path: Path) -> None:
+    """As it checks in: each tank's block, which it keeps or releases, and no other hold,
+    so one left engaged that it doesn't manage is put back."""
+    managed: list[frozenset[str]] = []
+
+    async def during(sim: Sim) -> None:
+        await sim.run(0.05)
+        managed.append(sim.executor._managed)
+
+    simulated(tmp_path, draw(3, emitter="radiators"), 0.1, during=during)
+    assert managed == [frozenset({"pump:hp1/dhw/block"})]
+
+
 def test_comfort_the_floor_and_the_budget_hold(tmp_path: Path) -> None:
     s = draw(3, emitter="radiators")
     sim, writes = simulated(tmp_path, s, 2.0)
