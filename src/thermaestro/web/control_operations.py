@@ -462,7 +462,8 @@ class ControlOperations:
 
     def _optimizer_state(self) -> dict[str, Any]:
         """What the optimizer made of the last slot: whether it planned, what it covers,
-        what it left to the rules and why."""
+        what it left to the rules and why. Running, it has every key, also before its first
+        slot (just after a start): `ok` is then None and the rest empty."""
         planner = self.planner
         found = planner.optimized if planner is not None else None
         if planner is None or planner.optimizer is None:
@@ -470,7 +471,18 @@ class ControlOperations:
         sit = planner.situation
         left_out = list(sit.price_left_out) if sit is not None else []
         if found is None:
-            return {"running": True, "ok": None, "price_left_out": left_out}
+            return {
+                "running": True,
+                "price_left_out": left_out,
+                "ok": None,
+                "why": None,
+                "covered": [],
+                "notes": [],
+                "stages": {},
+                "widened": [],
+                "cost": None,
+                "seconds": None,
+            }
         plan = found.plan
         return {
             "running": True,

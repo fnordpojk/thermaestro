@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -336,6 +336,39 @@ async def test_choosing_which_planner_drives(tmp_path: Path) -> None:
         )
         assert refused.status_code == 403
         assert 'action="/settings/planner"' not in (await client.get("/setup/control")).text
+
+
+class _NotPlannedYet:
+    """A planner whose optimizer runs but hasn't planned a slot yet, as just after a start:
+    no round, no situation, no notices."""
+
+    optimizer = object()
+    optimized = None
+    situation = None
+    plan = None
+    chosen = "rules"
+    notices = ()
+
+
+async def test_the_control_page_before_the_optimizer_has_planned_a_slot(tmp_path: Path) -> None:
+    async with site(tmp_path) as (_, services, client):
+        services.planner = cast(Any, _NotPlannedYet())
+        await login(client, "admin")
+        page = await client.get("/setup/control")
+        assert page.status_code == 200, page.text
+        assert "planned a slot yet" in page.text
+        assert (await client.get("/api/v1/control/planner")).json()["optimizer"] == {
+            "running": True,
+            "price_left_out": [],
+            "ok": None,
+            "why": None,
+            "covered": [],
+            "notes": [],
+            "stages": {},
+            "widened": [],
+            "cost": None,
+            "seconds": None,
+        }
 
 
 async def test_the_plan_ahead_and_the_planners_side_by_side(tmp_path: Path) -> None:
