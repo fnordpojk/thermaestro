@@ -91,12 +91,14 @@ uv run ruff format --check
 uv run ruff check
 uv run mypy
 uv run python scripts/make-testvectors.py --check
-uv run pytest
+uv run pytest --cov
+uv run coverage report --fail-under=92 --include=src/thermaestro/nibe/transport/tgw.py,src/thermaestro/core/executor.py,src/thermaestro/nibe/plugin.py,src/thermaestro/nibe/rig/checks.py
 ```
 
 - **ruff** formats and lints, with a line length of 100. The rule sets are in `pyproject.toml`, with the few per-file exceptions and why each is there.
 - **mypy** runs in strict mode over `src`, `gateway/src`, both test folders and `scripts`.
 - **pytest** runs `tests/` and `gateway/tests/`. Warnings are errors, and an `xfail` that passes fails. Async tests need no marker.
+- **Coverage** counts lines and branches in `thermaestro` and `thermaestro_gateway`. It fails below 90 % in all. The write path has a floor of its own, 92 %: the gateway client, the executor, the Nibe plugin and the rig's checks, which decide what reaches a pump. That floor is raised as their tests grow.
 
 `uv run pytest tests/test_core_values.py` runs one file, as usual.
 

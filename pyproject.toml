@@ -138,6 +138,8 @@ branch = true
 patch = ["subprocess"]
 
 [tool.coverage.report]
+fail_under = 90
+precision = 1
 show_missing = true
 skip_covered = true
 sort = "cover"
