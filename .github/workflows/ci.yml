@@ -40,7 +40,7 @@ jobs:
       - run: uv run mypy
       - name: Test vectors match their generator
         run: uv run python scripts/make-testvectors.py --check
-      - run: uv run pytest
+      - run: uv run pytest --cov --cov-report=term
 
   image:
     runs-on: ubuntu-24.04

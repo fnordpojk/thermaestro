@@ -72,6 +72,7 @@ dev = [
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.4",
     "types-jsonschema>=4.26.0.20261006",
     "types-pyserial>=3.5.0.20261030",
@@ -130,3 +131,13 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
 filterwarnings = ["error"]
+
+[tool.coverage.run]
+source_pkgs = ["thermaestro", "thermaestro_gateway"]
+branch = true
+patch = ["subprocess"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+sort = "cover"
