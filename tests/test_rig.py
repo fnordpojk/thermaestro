@@ -190,6 +190,10 @@ def test_block(tmp_path: Path) -> None:
     assert r.report.evidence is not None
     assert r.report.timeline
     assert "charge sensor" in r.report.timeline[0]
+    # The start shown as the pump holds it while blocked, not what the release puts back.
+    starts = [row["start"] for row in r.report.timeline]
+    assert 35.0 in starts
+    assert starts[0] == starts[-1] == 45.0
 
 
 def test_a_block_is_a_floor_too(tmp_path: Path) -> None:

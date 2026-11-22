@@ -407,6 +407,18 @@ class Bench:
     def envelope(self, point: str) -> Envelope | None:
         return self.values.latest.get(Key(PUMP, f"{profile.UNIT}/{point}"))
 
+    def shown(self, point: str) -> Envelope | None:
+        """What the status line shows for a point: the hot-water start as the pump holds it,
+        also while a block of this run lowers it. The start point itself then gives what the
+        release puts back, as the planner wants it, which isn't what the pump does now."""
+        if point == "dhw/temp.start" and self.plugin is not None:
+            hold = self.plugin.holds.get(f"{profile.UNIT}/dhw/block")
+            if hold is not None:
+                held = self.envelope(f"dhw/x.nibe.{hold['register']}")
+                if held is not None:
+                    return held
+        return self.envelope(point)
+
     def value(self, point: str) -> Any:
         """A point's latest value, where it is good."""
         found = self.envelope(point)
@@ -503,7 +515,7 @@ class Bench:
         row: dict[str, Any] = {"t": round(clock.monotonic() - self._started)}
         parts = []
         for label, point in show.items():
-            found = self.envelope(point)
+            found = self.shown(point)
             if found is None or found.value is None:
                 row[label] = None
                 parts.append(f"{label} -")
