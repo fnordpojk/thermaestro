@@ -31,7 +31,7 @@ dependencies = [
     "pymodbus>=3.16.2,<3.17",
     "holidays>=0.107",
     "numpy>=2.3",
-    "highspy>=1.11",
+    "highspy>=1.16.0",
 ]
 
 [project.scripts]
