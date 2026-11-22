@@ -91,7 +91,7 @@ uv run ruff format --check
 uv run ruff check
 uv run mypy
 uv run python scripts/make-testvectors.py --check
-uv run pytest -n auto
+uv run pytest -n auto --durations=25
 ```
 
 - **ruff** formats and lints, with a line length of 100. The rule sets are in `pyproject.toml`, with the few per-file exceptions and why each is there.
