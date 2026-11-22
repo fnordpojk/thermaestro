@@ -512,6 +512,76 @@ def test_periodic_needs_to_know_when_it_is_due(tmp_path: Path) -> None:
         rig(tmp_path, scenario().set({47050: 0}), "periodic", options=Options(due="03:30"))
 
 
+def due_in_an_hour_told(s: Scenario) -> Options:
+    due = datetime.fromtimestamp(s.start_time.timestamp() + 3600, UTC).astimezone()
+    return Options(due=f"{due:%Y-%m-%d %H:%M}")
+
+
+@pytest.mark.parametrize("check", ["mode", "block", "boost", "addition", "pool", "periodic"])
+def test_each_check_read_only_writes_nothing(tmp_path: Path, check: str) -> None:
+    """Read-only, each check goes as far as the executor's shadow goes: it says what it
+    would write, and writes nothing, nor waits on the pump for what it would see."""
+    s = scenario(pool=Pool(start_c=20.0))
+    periodic = check == "periodic"
+    options = due_in_an_hour_told(s) if periodic else Options(minutes=30)
+    prepare = due_in_an_hour if periodic else None
+    r = rig(tmp_path, s, check, write=False, options=options, prepare=prepare)
+    assert r.bus.writes == []
+    assert "shadowed" in [o for _, o in r.outcomes()]
+    assert not [w for w, o in r.outcomes() if o in ("seen", "not seen", "not finished")]
+    assert not r.report.wrote
+
+
+@pytest.mark.parametrize("check", ["block", "boost"])
+def test_a_check_doesnt_start_while_a_charge_runs(tmp_path: Path, check: str) -> None:
+    """A charge running as the check would begin: it waits for it to end, and, the charge
+    still running when its time is up, writes nothing."""
+
+    def charging(plant: Plant) -> None:
+        plant.top, plant.bottom = 30.0, 28.0
+
+    s = scenario().set({47050: 0})
+    r = rig(tmp_path, s, check, options=Options(minutes=5), prepare=charging)
+    assert r.step("a charge was still running after").outcome == "not seen"
+    assert r.bus.writes == []
+
+
+def test_a_boost_still_charging_when_its_time_is_up_is_canceled(tmp_path: Path) -> None:
+    r = rig(tmp_path, scenario().set({47050: 0}), "boost", options=Options(minutes=10))
+    assert r.step("a charge started").passed is True
+    assert r.step("the charge was still running after").outcome == "seen"
+    assert written(r.bus) == [(48132, 4), (48132, 0)]
+
+
+def test_checks_that_cant_be_tried_as_things_are_write_nothing(tmp_path: Path) -> None:
+    with pytest.raises(RigError, match="is normal already: name another with --mode"):
+        rig(tmp_path, scenario(), "mode", options=Options(mode="normal"))
+    with pytest.raises(RigError, match="Smart Control"):
+        rig(tmp_path, scenario().set({47041: 4}), "block")
+    with pytest.raises(RigError, match="was due at 2020-01-01 00:00"):
+        rig(tmp_path, scenario(), "periodic", options=Options(due="2020-01-01 00:00"))
+
+
+def test_a_block_refused_writes_nothing(tmp_path: Path) -> None:
+    """The household doesn't confirm the pump's schedule off: the block is refused, and the
+    run fails without a write."""
+    s = scenario().set({47050: 0})
+    r = rig(tmp_path, s, "block", person=Person({"hot-water schedule": False}))
+    assert r.step("engage dhw/block").outcome == "refused"
+    assert r.bus.writes == []
+    assert r.report.failed
+    assert not [w for w, o in r.outcomes() if o in ("seen", "not seen")]  # nothing to watch
+
+
+def test_mode_from_smart_control_is_put_back_to_it(tmp_path: Path) -> None:
+    """Smart Control isn't a mode the lever offers, but it is what the pump was found in:
+    the check tries Economy, and puts Smart Control back."""
+    r = rig(tmp_path, scenario().set({47041: 4}), "mode")
+    assert r.step("set dhw/mode to eco").outcome == "verified"
+    assert written(r.bus) == [(47041, 0), (47041, 4)]
+    assert r.plant.registers[47041] == 4
+
+
 def test_when_the_periodic_increase_is_due() -> None:
     now = datetime(2026, 10, 20, 17, 0, tzinfo=UTC)
     assert checks_module.due_at("03:30", now) == datetime(2026, 10, 21, 3, 30, tzinfo=UTC)
