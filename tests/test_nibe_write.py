@@ -724,6 +724,40 @@ async def test_a_dead_man_kept_by_an_earlier_version_is_read(tmp_path: Path) -> 
     assert p.armed == {"hp1/cs1/heating.offset": [kept]}
 
 
+async def test_what_was_kept_and_cant_be_read_is_left_out(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A damaged record doesn't stop the plugin starting: each part that can't be read is
+    left out, and said so, and what can is still taken. A client id that can't be read is
+    made anew and kept."""
+    hold = {"register": 47044, "value": 45.0, "mode": 1}
+    entry = {"entry": 1, "register": 47011, "expected": 3, "back": 0xFFFF_FFFC}
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        await state.save(
+            {
+                "deadman_client": "not hex",
+                "meters": {"40000": {"words": [1], "idle": 0.0}},
+                "holds": {"hp1/dhw/block": hold, "hp1/pool1/block": {"register": "47044"}},
+                "deadman": {"hp1/cs1/heating.offset": [entry], "hp1/addition/stop_temp": []},
+                "deadman_reported": {"0": {"path": "hp1/cs1/heating.offset"}},
+                "deadman_disarming": "3",
+                "deadman_may_hold": {"1": []},
+            }
+        )
+        p = NibePlugin(NibeGateway(host="127.0.0.1"), state=state)
+        await p._restore()
+        assert (await state.load())["deadman_client"] == p._client_id.hex()
+    assert len(p._client_id) == 16
+    assert p._restored == {}
+    assert p.holds == {"hp1/dhw/block": hold}
+    assert p.armed == {"hp1/cs1/heating.offset": [entry]}
+    assert (p.reported, p.disarming, p.may_hold) == ({}, set(), {})
+    said = [r.getMessage() for r in caplog.records if r.name == plugin_module.__name__]
+    assert len([s for s in said if "can't be read" in s]) == 6
+    assert any("the counts start over" in s for s in said)
+
+
 async def uncertain(register: int, raw: int) -> WriteOutcome:
     """A write whose outcome isn't known, and that didn't reach the pump."""
     return WriteOutcome(register, raw, WriteResult.UNKNOWN, "no answer", clock.monotonic(), ())
@@ -1035,6 +1069,137 @@ async def test_a_disarm_the_gateway_didnt_confirm_is_sent_again(
         )
 
 
+async def test_a_setting_put_back_that_the_pump_refuses_stays_armed(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Written back as found, a setting is disarmed only when the pump takes it: refused,
+    the entry for the value it still holds stays."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+            "device_accepted"
+        )
+        stocked.refuse.add(47011)
+        back = await act_from(link, "cs1/heating.offset", "set", {"value": -4}, -4)
+        assert back.stage == "device_refused"
+        assert armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)]
+    assert [k["expected"] for k in p.armed["hp1/cs1/heating.offset"]] == [3]
+    assert signed(stocked.registers[47011]) == 3
+
+
+async def test_a_change_armed_but_not_sent_is_disarmed(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Armed, and then not sent (the route lost before it went out): its entry goes, so it
+    can't put back over a value someone sets later."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+
+    async def not_connected(register: int, raw: int) -> WriteOutcome:
+        raise plugin_module.Refused("not connected")
+
+    async with served(p) as link:
+        p._send_write = not_connected  # type: ignore[method-assign]
+        fate = await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)
+        assert fate.stage == "dropped"
+        assert "not connected" in str(fate.detail)
+        await until(lambda: not armed(gateway_with_psk) and not p.disarming)
+    assert p.armed == {}
+    assert 47011 not in [r for r, _ in stocked.taken_writes]
+
+
+@pytest.mark.parametrize(("baseline", "after"), [(1, [(47011, 3, 1)]), (3, [])])
+async def test_a_baseline_chosen_between_sessions_reaches_the_gateway_in_the_next(
+    stocked: SimPump,
+    gateway_with_psk: Gateway,
+    tmp_path: Path,
+    baseline: int,
+    after: list[tuple[int, int, int]],
+) -> None:
+    """Chosen while no session grants the dead-man, nothing is sent: once one does, the
+    entry is armed to put back the new baseline, or disarmed where the setting is at it."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+            "device_accepted"
+        )
+        client = p._transport
+        assert isinstance(client, TgwClient)
+        client.deadman = None  # between sessions
+        chosen = await act(link, "cs1/heating.offset", "baseline", {"value": baseline})
+        assert chosen.stage == "device_accepted"
+        assert armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)]
+        client._lose_session("the gateway restarted", gone=True)
+        await until(lambda: armed(gateway_with_psk) == after and not p.disarming, 10)
+    assert signed(stocked.registers[47011]) == 3
+
+
+async def test_a_put_back_the_pump_refused_is_armed_again_once_told(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """The pump refused the gateway's put-back: the setting is still Thermaestro's, so the
+    core is told, and the entry is armed again."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+        stocked.refuse.add(47011)
+        set_silence(gateway_with_psk, 200_000)
+        await until(lambda: bool(fired(gateway_with_psk)), 10)
+        set_silence(gateway_with_psk, 900_000_000)
+        assert signed(stocked.registers[47011]) == 3
+        events: list[object] = []
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again, events):
+            await until(lambda: not fired(gateway_with_psk), 10)
+            await until(lambda: armed(gateway_with_psk) == [(47011, 3, 0xFFFF_FFFC)], 10)
+        told = [(e.lever, e.outcome) for e in events if isinstance(e, DeadmanFired)]
+        assert told == [("hp1/cs1/heating.offset", "refused")]
+
+
+async def test_entries_the_gateway_holds_and_the_plugin_doesnt_know_are_disarmed(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """What was kept lost an entry (restored from an older copy, say): the gateway's entry
+    for it is disarmed in the next session, so it can't put back over a later value."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p) as link:
+            assert (await act_from(link, "cs1/heating.offset", "set", {"value": 3}, -4)).stage == (
+                "device_accepted"
+            )
+        await state.save({**(await state.load()), "deadman": {}})
+        again = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(again):
+            await until(lambda: not armed(gateway_with_psk), 10)
+        assert again.armed == {}
+
+
+async def test_a_report_the_gateway_was_told_of_isnt_told_again(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path
+) -> None:
+    """Stopped after telling the gateway a report was taken in, before that was kept: the
+    gateway holds nothing fired, so the report kept is let go, not told the core twice."""
+    async with await Database.open(tmp_path / "db.sqlite") as db:
+        state = PluginStore(db, "pump")
+        report = {
+            "path": "hp1/cs1/heating.offset",
+            "register": 47011,
+            "outcome": "put_back",
+            "t": "2026-11-22T12:00:00+00:00",
+        }
+        await state.save({"deadman_reported": {"0": report}})
+        events: list[object] = []
+        p = await over_the_protocol(gateway_with_psk, tmp_path, state)
+        async with served(p, events):
+            await until(lambda: not p.reported, 10)
+        assert (await state.load())["deadman_reported"] == {}
+    assert not [e for e in events if isinstance(e, DeadmanFired)]
+
+
 async def test_what_isnt_sent(stocked: SimPump, gateway: Gateway) -> None:
     async with served(plugin(gateway)) as link:
         cases: list[tuple[str, Op, dict[str, Value], str]] = [
@@ -1224,6 +1389,91 @@ async def test_a_block_the_dead_man_isnt_armed_for_keeps_nothing(
         assert p.holds == {}
     assert 47044 not in [r for r, _ in stocked.taken_writes]
     assert stocked.registers[47044] == 450
+
+
+async def test_a_block_engaged_again_the_dead_man_wont_arm_stays_as_it_was(
+    stocked: SimPump, gateway_with_psk: Gateway, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Still engaged, its entry not confirmed in this session (the gateway restarted, say),
+    and the gateway won't arm it: nothing is written, and the hold keeps what its release
+    puts back."""
+    p = await over_the_protocol(gateway_with_psk, tmp_path)
+    async with served(p) as link:
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+        client = p._transport
+        assert isinstance(client, TgwClient)
+
+        async def arm(entry: int, *args: object) -> Armed | None:
+            return Armed(entry=entry, result=ArmResult.REFUSED, detail=ArmRefusal.NOT_GRANTED)
+
+        monkeypatch.setattr(client, "arm", arm)
+        p._confirmed.clear()
+        fate = await act(link, "dhw/block", "engage")
+        assert fate.stage == "dropped"
+        assert "dead-man" in str(fate.detail)
+        assert p.holds == {"hp1/dhw/block": {"register": 47044, "value": 45.0, "mode": 1}}
+    assert [r for r, _ in stocked.taken_writes] == [47044]
+    assert stocked.registers[47044] == 350
+
+
+async def test_a_stray_block_put_back_meanwhile_isnt_written_again(
+    stocked: SimPump, gateway: Gateway
+) -> None:
+    """Engaged on Normal, someone set Normal's start, and the mode went to Economy: only
+    Economy's start is written, and Normal's is left as they set it."""
+    p = plugin(gateway)
+    async with served(p) as link:
+        await act(link, "dhw/block", "engage")
+        stocked.registers[47044] = 460
+        stocked.registers[47041] = 0
+        assert (await act(link, "dhw/block", "engage")).stage == "device_accepted"
+    assert [r for r, _ in stocked.taken_writes] == [47044, 47045]
+    assert (stocked.registers[47044], stocked.registers[47045]) == (460, 350)
+    assert p.holds == {"hp1/dhw/block": {"register": 47045, "value": 42.0, "mode": 0}}
+
+
+async def test_a_block_isnt_engaged_on_a_mode_or_start_it_cant_read(
+    stocked: SimPump, gateway: Gateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mode says which start the block lowers, and the start what its release puts
+    back: unread, or no good value, nothing is written."""
+    p = plugin(gateway)
+    read = p._read
+
+    async def mode_unread(register: int, after: float | None = None) -> tuple[int, int] | None:
+        if register == 47041 and after is not None:
+            return None
+        return await read(register, after)
+
+    async with served(p) as link:
+        monkeypatch.setattr(p, "_read", mode_unread)
+        fate = await act(link, "dhw/block", "engage")
+        assert (fate.stage, fate.detail) == ("dropped", "47041 can't be read now")
+        monkeypatch.setattr(p, "_read", read)
+        stocked.registers[47044] = 0x8000
+        fate = await act(link, "dhw/block", "engage")
+        assert (fate.stage, fate.detail) == ("dropped", "47044 gives no good value now")
+    assert stocked.taken_writes == []
+    assert p.holds == {}
+
+
+async def test_a_lever_writes_only_its_own_registers(stocked: SimPump, gateway: Gateway) -> None:
+    """The last check before a write: a register outside the lever, one never written, or a
+    value the register can't take is refused, and nothing is sent; nor without a route."""
+    p = plugin(gateway)
+    async with served(p):
+        spec = p._specs()["hp1/cs1/heating.offset"]
+        with pytest.raises(plugin_module.Refused, match="isn't one hp1/cs1/heating"):
+            await p._write(spec, 47041, 0)
+        touches = [*spec.lever.touches, "x.nibe.47137"]
+        wider = dataclasses.replace(spec, lever=spec.lever.model_copy(update={"touches": touches}))
+        with pytest.raises(plugin_module.Refused, match="47137 is never written"):
+            await p._write(wider, 47137, 1)
+        with pytest.raises(plugin_module.Refused):
+            await p._write(spec, 47011, 99)
+    assert stocked.taken_writes == []
+    with pytest.raises(plugin_module.Refused, match="not connected"):
+        await plugin(gateway)._send_write(47011, 0)
 
 
 async def test_another_clients_write_is_reported(stocked: SimPump, gateway: Gateway) -> None:

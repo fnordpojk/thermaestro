@@ -679,7 +679,7 @@ class NibePlugin:
                 for register, m in data.get("meters", {}).items()
             }
             self._extracted_kwh = float(data.get("brine_kwh", 0.0))
-        except (KeyError, TypeError, ValueError, AttributeError) as e:
+        except (LookupError, TypeError, ValueError, AttributeError) as e:
             log.warning("what was kept couldn't be read, so the counts start over: %s", e)
         holds = data.get("holds", {})
         for path, hold in holds.items() if isinstance(holds, dict) else ():
