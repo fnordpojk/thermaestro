@@ -553,6 +553,26 @@ class Executor:
             )
         return results
 
+    async def stopping(self, why: str) -> dict[str, Result]:
+        """Put levers back as Thermaestro stops, but leave a hold engaged where a dead-man
+        in its route covers it: the gateway puts it back should Thermaestro stay away, and
+        a restart finds it still held, so it doesn't let happen what the hold keeps off."""
+        left: list[str] = []
+
+        def still(ref: str) -> bool:
+            claim = self.claims.get(ref)
+            if claim is not None and claim.held and self.guarded(ref):
+                left.append(ref)
+                return False
+            return True
+
+        results = await self.restore(why, still=still)
+        if left:
+            await self._audit.record(
+                "core", "lever.left", why=why, details={"levers": left, "to": "dead-man"}
+            )
+        return results
+
     def put_back(self, refs: Collection[str]) -> bool:
         """Whether every one of these levers is as found: none still changed by
         Thermaestro, none let go instead."""
@@ -1361,13 +1381,17 @@ class Executor:
                 log.warning("%s: moving it, engaging it again was %s", ref, engaged.outcome)
 
     async def _reconcile(self, ref: str) -> None:
-        """A lever left changed by an earlier run that didn't end cleanly: once its plugin
-        is up, put it back, unless someone changed it since. Only a reading taken in this
-        run says so: a plugin may send one taken before, which says nothing of what the
-        earlier run changed. A change that was in flight was taken if the device reads it;
-        where it can't be read, it is taken as taken, so it is put back either way. The
-        planner then sets what it wants again. A change sent in this run meanwhile is newer
-        than what the earlier run left: it stands, and is put back as any other."""
+        """A lever left changed by an earlier run: once its plugin is up, put it back,
+        unless someone changed it since. Only a reading taken in this run says so: a plugin
+        may send one taken before, which says nothing of what the earlier run changed. A
+        change that was in flight was taken if the device reads it; where it can't be read,
+        it is taken as taken, so it is put back either way. The planner then sets what it
+        wants again. A change sent in this run meanwhile is newer than what the earlier run
+        left: it stands, and is put back as any other.
+
+        A hold a dead-man in its route covers is left to the planner once it checks in, and
+        put back if it doesn't within the watchdog's period, since the plugin, heard again,
+        keeps the dead-man from firing."""
 
         def unsent(ref: str) -> bool:
             return ref not in self._sent
@@ -1399,6 +1423,14 @@ class Executor:
                 claim.pending = None
                 self._assume(claim, pending["op"], pending["params"])
             why = "Thermaestro restarted without putting this back"
+            if lever.kind == "hold" and claim.held and self.guarded(ref):
+                # Left engaged under the dead-man: the planner takes it over once it checks
+                # in, and releases it if it doesn't want it.
+                if self.checked_in is not None:
+                    return
+                if self._clock() - self._born < self._watchdog_s:
+                    continue
+                why = "the planner didn't take over a hold left engaged"
             await self.restore(why, [ref], still=unsent)
             return
 

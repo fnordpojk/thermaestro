@@ -297,6 +297,73 @@ async def test_restore_puts_everything_back(tmp_path: Path) -> None:
         assert restore[-1]["outcome"] == "ok"
 
 
+def covered() -> LeverDevice:
+    device = LeverDevice()
+    device.transport = Promises(fate="exact", ack=Ack(means="accepted"), deadman="supported")
+    return device
+
+
+async def test_a_stop_leaves_a_hold_the_dead_man_covers_engaged(tmp_path: Path) -> None:
+    device = covered()
+    async with rig(tmp_path, {OFFSET: "control", BLOCK: "control"}, device) as r:
+        await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")
+        await r.executor.act(BLOCK, "engage", who="planner")
+        results = await r.executor.stopping("Thermaestro is stopping")
+        assert set(results) == {OFFSET}
+        assert device.registers["x.fake.offset"] == -4  # a setting is put back as before
+        assert device.held == {"hp1/block"}
+        assert r.executor.claims[BLOCK].held
+        [left] = [e for e in audited(r) if e["what"] == "lever.left"]
+        assert left["why"] == "Thermaestro is stopping"
+        assert left["details"] == {"levers": [BLOCK], "to": "dead-man"}
+
+
+async def test_a_stop_releases_a_hold_no_dead_man_covers(tmp_path: Path) -> None:
+    async with rig(tmp_path, {BLOCK: "control"}) as r:
+        await r.executor.act(BLOCK, "engage", who="planner")
+        results = await r.executor.stopping("Thermaestro is stopping")
+        assert [(ref, res.outcome) for ref, res in results.items()] == [(BLOCK, "awaiting_effect")]
+        assert r.device.held == set()
+        assert not any(e["what"] == "lever.left" for e in audited(r))
+
+
+async def beating(r: Rig, seconds: float) -> None:
+    """The planner checking in, for longer than the watchdog's period."""
+    async with asyncio.timeout(seconds + 1):
+        for _ in range(round(seconds / 0.05)):
+            r.executor.heartbeat()
+            await asyncio.sleep(0.05)
+
+
+async def test_a_hold_left_under_the_dead_man_is_the_planners_after_a_restart(
+    tmp_path: Path,
+) -> None:
+    device = covered()
+    async with rig(tmp_path, {BLOCK: "control"}, device) as r:
+        await r.executor.act(BLOCK, "engage", who="planner")
+        await r.executor.stopping("Thermaestro is stopping")
+    async with rig(tmp_path, {BLOCK: "control"}, device) as r:
+        await beating(r, 0.8)
+        assert device.held == {"hp1/block"}
+        assert r.executor.claims[BLOCK].held
+        assert not any(e["what"] == "lever.restore" for e in audited(r))
+        assert [a.op for a in device.acts] == ["engage"]  # nothing sent since
+
+
+async def test_a_hold_left_under_the_dead_man_no_planner_takes_over_is_put_back(
+    tmp_path: Path,
+) -> None:
+    device = covered()
+    async with rig(tmp_path, {BLOCK: "control"}, device) as r:
+        await r.executor.act(BLOCK, "engage", who="planner")
+        await r.executor.stopping("Thermaestro is stopping")
+    async with rig(tmp_path, {BLOCK: "control"}, device) as r:
+        await until(lambda: device.held == set())
+        [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
+        assert restore["why"] == "the planner didn't take over a hold left engaged"
+        assert not r.executor.claims[BLOCK].held
+
+
 async def test_leaving_control_restores_the_lever(tmp_path: Path) -> None:
     async with rig(tmp_path, {OFFSET: "control"}) as r:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")

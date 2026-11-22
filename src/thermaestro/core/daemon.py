@@ -361,7 +361,7 @@ def _control_state(db: Database, intents: "Intents") -> Callable[[], Awaitable[d
 
 def _restore(executor: Executor) -> ShutdownHook:
     async def hook() -> None:
-        await executor.restore("Thermaestro is stopping")
+        await executor.stopping("Thermaestro is stopping")
 
     return hook
 
