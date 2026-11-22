@@ -91,14 +91,12 @@ uv run ruff format --check
 uv run ruff check
 uv run mypy
 uv run python scripts/make-testvectors.py --check
-uv run pytest --cov
-uv run coverage report --fail-under=94 --include=src/thermaestro/nibe/transport/tgw.py,src/thermaestro/core/executor.py,src/thermaestro/nibe/plugin.py,src/thermaestro/nibe/rig/checks.py
+uv run pytest
 ```
 
 - **ruff** formats and lints, with a line length of 100. The rule sets are in `pyproject.toml`, with the few per-file exceptions and why each is there.
 - **mypy** runs in strict mode over `src`, `gateway/src`, both test folders and `scripts`.
 - **pytest** runs `tests/` and `gateway/tests/`. Warnings are errors, and an `xfail` that passes fails. Async tests need no marker.
-- **Coverage** counts lines and branches in `thermaestro` and `thermaestro_gateway`. It fails below 90 % in all. The write path has a floor of its own, 94 %: the gateway client, the executor, the Nibe plugin and the rig's checks, which decide what reaches a pump. That floor is raised as their tests grow.
 
 `uv run pytest tests/test_core_values.py` runs one file, as usual.
 
@@ -106,11 +104,15 @@ CI also builds the container and starts it as `compose.yaml` does, and runs the 
 
 ### The nightly run
 
-Tests marked `@pytest.mark.nightly` are long simulated runs over many scenarios, and are left out by default. `.github/workflows/nightly.yml` runs them each night:
+Tests marked `@pytest.mark.nightly` are long simulated runs over many scenarios, and are left out by default. `.github/workflows/nightly.yml` runs them each night, and measures the coverage of all the other tests, which would double the time of every CI run:
 
 ```sh
 uv run pytest -m nightly --durations=20
+uv run pytest --cov
+uv run coverage report --fail-under=94 --include=src/thermaestro/nibe/transport/tgw.py,src/thermaestro/core/executor.py,src/thermaestro/nibe/plugin.py,src/thermaestro/nibe/rig/checks.py
 ```
+
+**Coverage** counts lines and branches in `thermaestro` and `thermaestro_gateway`, and prints what each file misses. The nightly run fails below 90 % in all. The write path has a floor of its own, 94 %: the gateway client, the executor, the Nibe plugin and the rig's checks, which decide what reaches a pump. That floor is raised as their tests grow.
 
 Among them, the optimizer against the rules on six seeded houses, and beside them the optimizer told the truth: the weather as it comes, every price, each day's draws. Each night's warnings give all three for each house. A gap to the rules is reported, and only a loss far beyond what the optimizer has shown fails. Told the truth, the optimizer isn't a floor for a single house: acting on a model that is a little off, better information can cost more there. Only the sum over many houses says what perfect information would be worth.
 
