@@ -4,7 +4,7 @@ Thermaestro plans a home's heating and hot water around electricity prices, the 
 
 It is brand-neutral: heat pumps, sensors, meters, price sources and weather forecasts come in through plugins. Nibe is the first. It is meant to replace NibePi, and is open source under the AGPL.
 
-**Status:** Thermaestro runs beside NibePi on a Nibe F1245, in shadow since October: it decides and shows what it would change, and changes nothing on the pump yet. Two planners, rules and an optimizer, and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, the Plan page shows what was decided and why, and Home Assistant gets buttons and states for it over MQTT. The rig that tries each setting on a real pump has run on the test pump. Next: hot water in control on the test pump for a week, then the heating offset. There is no release yet; the Docker Compose file builds it from this repository.
+**Status:** Thermaestro runs beside NibePi on a Nibe F1245. It ran there in shadow from October, deciding and showing what it would change. Since 22 November 2026 it controls the hot water: it holds the pump's own charges off and lets them go in cheap hours. The other settings are still in shadow. Two planners, rules and an optimizer, and the safe way of changing settings are built and tested against a simulated house. Setup → Control switches each of a pump's settings to shadow or control, the Intents page takes what the household wants, the Plan page shows what was decided and why, and Home Assistant gets buttons and states for it over MQTT. The rig that tries each setting on a real pump has run on the test pump. Next: a week of hot water in control, then the heating offset, decided by cost within the comfort ranges. There is no release yet; the Docker Compose file builds it from this repository.
 
 ## Features
 
@@ -38,7 +38,7 @@ Built today:
 
 Coming:
 
-- **Control on the test pump**, setting by setting: hot water first, for a week, its cost per kWh compared with each day's average price; then the heating offset, decided by cost within the comfort ranges.
+- **Control on the test pump**, setting by setting: hot water in control since 22 November, for a week, its cost per kWh compared with each day's average price; then the heating offset, decided by cost within the comfort ranges.
 - **The optimizer on the test pump:** beside the rules for at least two weeks before the household decides whether it drives; recorded weeks replayed with both planners.
 - NibePi's control settings as draft intents.
 - Release images for amd64 and arm64, and packages for Raspberry Pi OS.
