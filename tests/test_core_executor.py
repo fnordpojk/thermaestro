@@ -426,6 +426,25 @@ async def test_a_check_in_from_before_the_plugin_came_up_doesnt_put_a_hold_back(
             assert restore["why"] == "the planner doesn't manage a hold left engaged"
 
 
+async def test_a_look_taken_once_the_plugin_is_up_counts_before_the_hold_is_looked_at(
+    tmp_path: Path,
+) -> None:
+    """The plugin comes up, the planner looks without the hold, and only then is the hold
+    left engaged looked at: the look came after the plugin was up, so the hold is put back
+    at once, not after the watchdog's period."""
+    device = covered()
+    await left_under_the_dead_man(tmp_path, device)
+    async with rig(tmp_path, {BLOCK: "control"}, device, watchdog_s=60.0) as r:
+        up = r.host.instances["dev"].up_since
+        assert up is not None
+        assert up <= time.time()
+        r.executor.manages(set())  # before the hold's first look
+        r.executor.heartbeat()
+        await until(lambda: device.held == set())
+        [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
+        assert restore["why"] == "the planner doesn't manage a hold left engaged"
+
+
 async def test_a_release_whose_fate_isnt_known_leaves_the_hold_to_put_back(
     tmp_path: Path,
 ) -> None:

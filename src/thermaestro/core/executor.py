@@ -1444,7 +1444,7 @@ class Executor:
         def unsent(ref: str) -> bool:
             return ref not in self._sent
 
-        up: float | None = None
+        first: float | None = None
         while True:
             await asyncio.sleep(self._poll_s)
             claim = self.claims.get(ref)
@@ -1457,8 +1457,9 @@ class Executor:
             found = self._host.instances.get(instance)
             if lever is None or found is None or found.link is None:
                 continue
-            if up is None:
-                up = self._clock()
+            # When its plugin came up, as the host saw it, not when this first looked.
+            first = self._clock() if first is None else first
+            up = found.up_since if found.up_since is not None else first
             other = self._other_device(claim)
             if other is not None:
                 await self._let_go(ref, other)

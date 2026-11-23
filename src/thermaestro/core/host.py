@@ -66,6 +66,8 @@ class Instance:
     plugin started again tells what is still on)."""
     link: Link | None = None
     """The connection while the instance is up: what the write path sends through."""
+    up_since: float | None = None
+    """When the connection came up, described, while it is up."""
     reshaped: asyncio.Event = field(default_factory=asyncio.Event)
     """Set when a partial description adds points: they are subscribed to then."""
     following: set[asyncio.Future[None]] = field(default_factory=set)
@@ -261,6 +263,7 @@ class PluginHost:
         await self._keep(instance.id, instance.described)
         instance.state = State.UP
         instance.link = link
+        instance.up_since = clock.time()
         failures.worked(f"plugin:{instance.id}")
         for listener in self.on_up:
             listener(instance.id)
@@ -280,7 +283,7 @@ class PluginHost:
         try:
             await self._points(instance, link)
         finally:
-            instance.link = None
+            instance.link = instance.up_since = None
             for task in [followed, *instance.following]:
                 if task is not None:
                     task.cancel()
