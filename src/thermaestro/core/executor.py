@@ -14,10 +14,10 @@ known still knows the device may have taken it: the next start reads the device,
 it back. A change whose fate stays unknown (the connection ended after it was sent, no
 answer came in time, the plugin says it doesn't know, or it couldn't be read back) stays
 in flight until a fresh reading says: the new value, taken; the value from before, it
-didn't arrive; anything else, someone else changed it, which lets go of the lever. Where the lever can't be read, it is
-taken as the state from which putting back is still needed. Nothing is decided on such a
-lever from a value read before: acting on it, putting it back included, first reads the
-device anew, and waits while it can't be.
+didn't arrive; anything else, someone else changed it, which lets go of the lever. Where
+the lever can't be read, it is taken as the state from which putting back is still
+needed. Nothing is decided on such a lever from a value read before: acting on it,
+putting it back included, first reads the device anew, and waits while it can't be.
 
 A lever is put back only once it is as found: a setting read back so, a hold released as
 the device accepted. One that isn't (its plugin down, the device refusing, an answer that
