@@ -12,9 +12,9 @@ didn't make lets go of the lever: it is reported, and never written over.
 A change is kept as in flight before it is sent, so a process that stops before its fate is
 known still knows the device may have taken it: the next start reads the device, and puts
 it back. A change whose fate stays unknown (the connection ended after it was sent, no
-answer came in time, or it couldn't be read back) stays in flight until a fresh reading
-says: the new value, taken; the value from before, it didn't arrive; anything else,
-someone else changed it, which lets go of the lever. Where the lever can't be read, it is
+answer came in time, the plugin says it doesn't know, or it couldn't be read back) stays
+in flight until a fresh reading says: the new value, taken; the value from before, it
+didn't arrive; anything else, someone else changed it, which lets go of the lever. Where the lever can't be read, it is
 taken as the state from which putting back is still needed. Nothing is decided on such a
 lever from a value read before: acting on it, putting it back included, first reads the
 device anew, and waits while it can't be.
@@ -49,7 +49,7 @@ import json
 import logging
 import re
 from collections.abc import Callable, Collection, Coroutine, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -144,6 +144,7 @@ TAKEN: frozenset[str] = frozenset(
 """Outcomes after which the device may hold the new value, so a restore must undo it."""
 GONE = "the plugin's connection ended before it could be read back"
 LOST = "the plugin's connection ended before it said what became of it"
+UNKNOWN = "the plugin doesn't know what became of it"
 UNSETTLED = "what became of its last change isn't known yet"
 ELSEWHERE = "the gateway's dead-man put back a value that isn't its baseline"
 
@@ -164,6 +165,8 @@ _CONDITION = re.compile(r"^\s*(\S+)\s*(==|!=)\s*(.+?)\s*$")
 class Result:
     outcome: Outcome
     detail: str | None = None
+    accepted: datetime | None = None
+    """When the device accepted it, where its plugin said so."""
 
 
 @dataclass
@@ -247,6 +250,8 @@ class Executor:
         self.checked_in: float | None = None
         """When the planner last checked in."""
         self._managed: frozenset[str] = frozenset()
+        self._managed_seen: float | None = None
+        """When the planner last looked at what there is, as it said which holds it manages."""
         """The holds the planner said it manages, as it last checked in (`manages`)."""
         self._renewed: dict[str, float] = {}
         self._owed: dict[str, _Owed] = {}
@@ -310,12 +315,14 @@ class Executor:
         `watchdog_s` has everything put back."""
         self._beat = self.checked_in = self._clock()
 
-    def manages(self, refs: Collection[str]) -> None:
+    def manages(self, refs: Collection[str], seen: float | None = None) -> None:
         """The holds the planner manages, said as it checks in: a hold left engaged under a
         dead-man, at a stop or after a restart, is left only for one of these, as the planner
         releases it should it not want it. Another (one offered only to be released, say)
-        is put back as any lever is."""
+        is put back as any lever is. `seen` is when the planner last looked at what there is
+        (now, if not given): what it said before a plugin came up says nothing of its holds."""
         self._managed = frozenset(refs)
+        self._managed_seen = self._clock() if seen is None else seen
 
     def readiness(self) -> dict[str, Any]:
         """How the write path stands: whether the planner checks in (`not yet`, `checking
@@ -989,7 +996,14 @@ class Executor:
                 return Result("dropped", final.detail if final else None)
             if final.stage == "device_refused":
                 return Result("device_refused", final.detail)
-            return await self._verify(link, instance, lever, op, params, final.t)
+            if final.stage == "unknown" and not _readable(lever, op):
+                # Neither taken nor refused, and nothing to read it by: not known, so a
+                # release leaves the hold engaged, to be put back.
+                return Result("timeout", final.detail or UNKNOWN)
+            result = await self._verify(link, instance, lever, op, params, final.t)
+            if final.stage == "device_accepted":
+                return replace(result, accepted=final.t)
+            return result
         finally:
             self._writing.discard(ref)
 
@@ -1422,12 +1436,15 @@ class Executor:
         left: it stands, and is put back as any other.
 
         A hold a dead-man in its route covers is left to the planner once it checks in saying
-        it manages it, and put back if it doesn't within the watchdog's period, or checks in
-        without it, since the plugin, heard again, keeps the dead-man from firing."""
+        it manages it, and put back if it doesn't within the watchdog's period of its plugin
+        coming up, or checks in without it, since the plugin, heard again, keeps the dead-man
+        from firing. Only a check-in from a look taken since its plugin came up says so: one
+        before can't have seen the hold's tank."""
 
         def unsent(ref: str) -> bool:
             return ref not in self._sent
 
+        up: float | None = None
         while True:
             await asyncio.sleep(self._poll_s)
             claim = self.claims.get(ref)
@@ -1440,6 +1457,8 @@ class Executor:
             found = self._host.instances.get(instance)
             if lever is None or found is None or found.link is None:
                 continue
+            if up is None:
+                up = self._clock()
             other = self._other_device(claim)
             if other is not None:
                 await self._let_go(ref, other)
@@ -1460,9 +1479,9 @@ class Executor:
                 # in managing it, and releases it if it doesn't want it.
                 if ref in self._managed:
                     return
-                if self.checked_in is not None:
+                if self._managed_seen is not None and self._managed_seen >= up:
                     why = "the planner doesn't manage a hold left engaged"
-                elif self._clock() - self._born < self._watchdog_s:
+                elif self._clock() - up < self._watchdog_s:
                     continue
                 else:
                     why = "the planner didn't take over a hold left engaged"

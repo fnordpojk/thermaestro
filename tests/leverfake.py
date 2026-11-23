@@ -2,7 +2,8 @@
 
 Its registers are plain numbers. Switches make it misbehave one way at a time: a write
 accepted but not kept, a refused one, a slow one, a change made by someone else, one taken
-whose connection then ends, one queued and never done, one done and never answered.
+whose connection then ends, one queued and never done, one done and never answered, one
+whose fate the plugin says it doesn't know.
 """
 
 import asyncio
@@ -163,6 +164,8 @@ class LeverDevice:
         """Lever paths whose writes are queued and never done."""
         self.unanswered: set[str] = set()
         """Lever paths whose writes are done, and never answered."""
+        self.unknowing: set[str] = set()
+        """Lever paths whose writes end `unknown`, the device unchanged."""
         self.identity = Identity(vendor="Fake", model="LF-1", firmware="1.0", serial="A1")
         self.transport: Promises | None = None
         """What its connection promises, as described."""
@@ -281,6 +284,9 @@ class LeverDevice:
                 self.cut_off.discard(request.lever)
                 self._cut.set()
             await asyncio.Event().wait()
+        if request.lever in self.unknowing:
+            await send(Fate(id=request.id, stage="unknown", t=now(), detail="no answer came"))
+            return
         if request.lever in self.refused:
             await send(Fate(id=request.id, stage="device_refused", t=now()))
             return

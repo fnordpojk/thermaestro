@@ -399,6 +399,55 @@ async def test_a_hold_left_under_the_dead_man_the_planner_doesnt_manage_is_put_b
         assert not r.executor.claims[BLOCK].held
 
 
+@pytest.mark.parametrize("names", [False, True], ids=["without", "naming"])
+async def test_a_check_in_from_before_the_plugin_came_up_doesnt_put_a_hold_back(
+    tmp_path: Path, names: bool
+) -> None:
+    """The planner checks in from a look taken before the pump's plugin came up, so it
+    couldn't see the hold's tank: the hold waits for a look taken since. One naming it
+    keeps it; one without it puts it back."""
+    device = covered()
+    await left_under_the_dead_man(tmp_path, device)
+    async with rig(tmp_path, {BLOCK: "control"}, device, watchdog_s=60.0) as r:
+        r.executor.manages(set(), seen=0.0)  # looked before anything was up
+        r.executor.heartbeat()
+        await asyncio.sleep(0.3)
+        assert device.held == {"hp1/block"}
+        assert not any(e["what"] == "lever.restore" for e in audited(r))
+        r.executor.manages({BLOCK} if names else set())  # a look now
+        r.executor.heartbeat()
+        if names:
+            await asyncio.sleep(0.3)
+            assert device.held == {"hp1/block"}
+            assert [a.op for a in device.acts] == ["engage"]
+        else:
+            await until(lambda: device.held == set())
+            [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
+            assert restore["why"] == "the planner doesn't manage a hold left engaged"
+
+
+async def test_a_release_whose_fate_isnt_known_leaves_the_hold_to_put_back(
+    tmp_path: Path,
+) -> None:
+    """The plugin says it doesn't know what became of a release, and the device is still
+    held: the hold may be engaged, so it is still Thermaestro's to put back."""
+    async with rig(tmp_path, {BLOCK: "control"}) as r:
+        engaged = await r.executor.act(BLOCK, "engage", who="planner")
+        assert engaged.accepted is not None  # when the device took it
+        r.device.unknowing.add("hp1/block")
+        released = await r.executor.act(BLOCK, "release", who="planner")
+        assert (released.outcome, released.detail) == ("timeout", "no answer came")
+        assert released.accepted is None
+        assert r.device.held == {"hp1/block"}
+        assert r.executor.claims[BLOCK].held
+        assert not r.executor.put_back([BLOCK])
+        r.device.unknowing.clear()
+        results = await r.executor.restore("Thermaestro is stopping")
+        assert results[BLOCK].outcome == "awaiting_effect"
+        assert r.device.held == set()
+        assert [a.op for a in r.device.acts] == ["engage", "release", "release"]
+
+
 async def test_leaving_control_restores_the_lever(tmp_path: Path) -> None:
     async with rig(tmp_path, {OFFSET: "control"}) as r:
         await r.executor.act(OFFSET, "set", {"value": 2}, who="planner")

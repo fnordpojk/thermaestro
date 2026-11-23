@@ -290,15 +290,20 @@ class Planner:
         slot = now.timestamp() // SLOT.total_seconds()
         open_ids = frozenset(i.id for i in await self._intents.all())
         demand = self._value(self._pump_point("demand"))
+        # A tank come or gone (its plugin up, or down): the holds it manages change.
+        retanked = self.situation is not None and set(self.situation.tanks) != set(
+            self._house.capabilities.tanks
+        )
         due = (
             slot != self._last_slot
             or open_ids != self._last_intents
             or demand != self._last_demand
+            or retanked
             or self._near_floor()
         )
         planned = None
         if due:
-            full = slot != self._last_slot or open_ids != self._last_intents
+            full = slot != self._last_slot or open_ids != self._last_intents or retanked
             planned = await self.round(slot=full)
             self._last_slot, self._last_intents = slot, open_ids
             self._last_demand = demand if isinstance(demand, str) else None
@@ -306,7 +311,10 @@ class Planner:
             await self._follow_up(now)
         if self.situation is not None:
             # Each tank's block, which both planners keep or release, nothing else.
-            self._executor.manages({f"{scope}/block" for scope in self.situation.tanks})
+            self._executor.manages(
+                {f"{scope}/block" for scope in self.situation.tanks},
+                seen=self.situation.now.timestamp(),
+            )
         self._executor.heartbeat()
         if self.situation is not None:
             try:
@@ -1074,7 +1082,7 @@ class Planner:
             results = await self._executor.restore(decision.reason, [decision.lever])
             result = results.get(decision.lever, Result("unchanged"))
             if _released(result):
-                await self._let_go(decision.lever, now)
+                await self._let_go(decision.lever, _took_effect(result, now))
             return Asked(decision, result.outcome, result.detail)
         state = self._situation_levers.get(decision.lever)
         if (
@@ -1098,7 +1106,8 @@ class Planner:
             why=decision.reason,
         )
         if decision.op == "release" and _released(result):
-            await self._let_go(decision.lever, now)  # a release ends the engage's effect
+            # A release ends the engage's effect, from when the device took it.
+            await self._let_go(decision.lever, _took_effect(result, now))
         if result.outcome == "not_kept":
             self.memory.not_kept[key] = now.timestamp() + NOT_KEPT_S
         elif result.outcome == "awaiting_effect":
@@ -1118,9 +1127,10 @@ class Planner:
         return Asked(decision, result.outcome, result.detail)
 
     async def _let_go(self, lever: str, at: datetime) -> None:
-        """A hold released: what it held off is judged now, up to `at`, when the release was
-        asked. A charge seen starting from then on is the release's, as a cheap hour's, and
-        isn't put down to the hold, even when it is seen before the release has returned."""
+        """A hold released: what it held off is judged now, up to `at`, when the release took
+        effect (`_took_effect`). A charge seen starting from then on is the release's, as a
+        cheap hour's, and isn't put down to the hold, even when it is seen before the release
+        has returned; one that started while the release waited to be taken is the hold's."""
         envelope = self._pump_point("demand")
         demand = self._value(envelope)
         if (
@@ -1320,6 +1330,12 @@ def _released(result: Result) -> bool:
     return result.outcome in RELEASED and not (
         result.outcome == "unverifiable" and result.detail == GONE
     )
+
+
+def _took_effect(result: Result, asked: datetime) -> datetime:
+    """When a release took effect: when the device accepted it, where its plugin said, and
+    never before it was asked; else when it was asked."""
+    return max(asked, result.accepted) if result.accepted is not None else asked
 
 
 def _asked_top(intent: Intent) -> float | None:

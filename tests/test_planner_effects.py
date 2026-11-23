@@ -228,6 +228,40 @@ async def test_a_charge_that_ran_once_the_release_was_asked_is_the_releases(
         assert [e["outcome"] for e in judged(tmp_path)] == ["ok"]
 
 
+@pytest.mark.parametrize("op", ["release", "restore"])
+@pytest.mark.parametrize(
+    ("taken", "started", "finished", "outcome"),
+    [
+        (3, 2, False, "charged"),
+        (3, 2, True, "charged"),
+        (3, 3, False, "ok"),
+        (3, 4, True, "ok"),
+        (0.5, 0.75, False, "charged"),  # the device's clock behind: never before the ask
+    ],
+)
+async def test_a_charge_while_the_release_waits_to_be_taken_is_the_blocks(
+    tmp_path: Path, op: str, taken: float, started: float, finished: bool, outcome: str
+) -> None:
+    """The release is asked at minute 1 and taken by the device at minute 3. A charge that
+    started before then, seen running or over by the answer, started under the block; one
+    from minute 3 on is the release's."""
+    async with await Database.open(tmp_path / "t.db") as db:
+        p = planner(db, tmp_path)
+        acting = Acting()
+        acting.answers[op] = Result("awaiting_effect", None, NOW + timedelta(minutes=taken))
+        p._executor = cast(Any, acting)
+        reads(p, "hp1/demand", "idle")
+        await p._ask(Decision(BLOCK, "engage", {}, 1, "held off until a cheap hour"), NOW)
+        at = NOW + timedelta(minutes=started)
+        if finished:
+            acting.meanwhile.append(lambda: p.memory.charging_since.__setitem__(TANK, at))
+        else:
+            acting.meanwhile.append(lambda: reads(p, "hp1/demand", "dhw", at))
+        await p._ask(Decision(BLOCK, op, {}, 1, "a cheap hour"), NOW + timedelta(minutes=1))
+        assert p.memory.effects == []
+        assert [e["outcome"] for e in judged(tmp_path)] == [outcome]
+
+
 def test_what_is_expected_is_kept_through_a_restart() -> None:
     kept = Memory(effects=[Effect(BLOCK, "held", NOW, 900.0, "none"), Effect(BOOST, "b", NOW, 1.0)])
     again = Memory.from_body(kept.body(), fresh=True)
