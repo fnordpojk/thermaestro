@@ -346,6 +346,12 @@ async def beating(r: Rig, seconds: float, managed: frozenset[str] = frozenset({B
             await asyncio.sleep(0.05)
 
 
+def restored(r: Rig) -> bool:
+    """Whether a restore is recorded: the device lets go of a hold before the audit log
+    says so."""
+    return any(e["what"] == "lever.restore" for e in audited(r))
+
+
 async def left_under_the_dead_man(tmp_path: Path, device: LeverDevice) -> None:
     """The block engaged, the planner managing it, and Thermaestro stopped: left engaged."""
     async with rig(tmp_path, {BLOCK: "control"}, device) as r:
@@ -374,7 +380,7 @@ async def test_a_hold_left_under_the_dead_man_no_planner_takes_over_is_put_back(
     device = covered()
     await left_under_the_dead_man(tmp_path, device)
     async with rig(tmp_path, {BLOCK: "control"}, device) as r:
-        await until(lambda: device.held == set())
+        await until(lambda: device.held == set() and restored(r))
         [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
         assert restore["why"] == "the planner didn't take over a hold left engaged"
         assert not r.executor.claims[BLOCK].held
@@ -393,7 +399,7 @@ async def test_a_hold_left_under_the_dead_man_the_planner_doesnt_manage_is_put_b
         assert device.held == {"hp1/block"}  # waiting for the planner
         r.executor.manages({"dev:hp1/other_block"})
         r.executor.heartbeat()
-        await until(lambda: device.held == set())
+        await until(lambda: device.held == set() and restored(r))
         [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
         assert restore["why"] == "the planner doesn't manage a hold left engaged"
         assert not r.executor.claims[BLOCK].held
@@ -421,7 +427,7 @@ async def test_a_check_in_from_before_the_plugin_came_up_doesnt_put_a_hold_back(
             assert device.held == {"hp1/block"}
             assert [a.op for a in device.acts] == ["engage"]
         else:
-            await until(lambda: device.held == set())
+            await until(lambda: device.held == set() and restored(r))
             [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
             assert restore["why"] == "the planner doesn't manage a hold left engaged"
 
@@ -440,7 +446,7 @@ async def test_a_look_taken_once_the_plugin_is_up_counts_before_the_hold_is_look
         assert up <= time.time()
         r.executor.manages(set())  # before the hold's first look
         r.executor.heartbeat()
-        await until(lambda: device.held == set())
+        await until(lambda: device.held == set() and restored(r))
         [restore] = [e for e in audited(r) if e["what"] == "lever.restore"]
         assert restore["why"] == "the planner doesn't manage a hold left engaged"
 
