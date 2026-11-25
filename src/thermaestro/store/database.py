@@ -156,9 +156,11 @@ MIGRATIONS: tuple[str, ...] = (
     """,
     # 8: price layers lose the "remainder" a short-lived release stored; the price stack
     # now splits a supplier's total itself. A remainder layer was a supplier's total that
-    # includes VAT, so it is that again, and VAT is no longer charged on it.
+    # includes VAT, so it is that again, and VAT is no longer charged on it. The list is
+    # passed through json(): a subquery's result reaches json_set as text, which newer
+    # SQLite stores as a string, not an array.
     """
-    UPDATE settings SET body = json_set(body, '$.applies_to', (
+    UPDATE settings SET body = json_set(body, '$.applies_to', json((
         SELECT json_group_array(item.value)
         FROM json_each(settings.body, '$.applies_to') AS item
         WHERE item.value NOT IN (
@@ -166,7 +168,7 @@ MIGRATIONS: tuple[str, ...] = (
             WHERE layer.kind = 'price.layer'
             AND json_extract(layer.body, '$.source') = 'remainder'
         )
-    ))
+    )))
     WHERE kind = 'price.vat';
     UPDATE settings
     SET body = json_set(body, '$.source', 'series', '$.vat', 'incl')
